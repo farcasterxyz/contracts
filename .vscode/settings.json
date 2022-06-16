@@ -1,0 +1,14 @@
+{
+    "search.exclude": {
+      ".git": true,
+      "out": true,
+      "cache": true,
+    },
+    "editor.formatOnSave": true,
+    "[json]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[solidity]": {
+        "editor.defaultFormatter": "JuanBlanco.solidity"
+    }
+}
