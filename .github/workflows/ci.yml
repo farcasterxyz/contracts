@@ -1,6 +1,11 @@
-name: test
-
-on: workflow_dispatch
+name: CI
+on:
+  # CI is run on main because new branches can only access caches from master, not previous branches.
+  # So building on master allows new PR's to get the cache from before.
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 env:
   FOUNDRY_PROFILE: ci
@@ -11,6 +16,7 @@ jobs:
       fail-fast: true
 
     name: Foundry project
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
