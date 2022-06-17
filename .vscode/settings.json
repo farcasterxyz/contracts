@@ -5,6 +5,7 @@
       "cache": true,
     },
     "editor.formatOnSave": true,
+    "editor.rulers": [99],
     "[json]": {
       "editor.defaultFormatter": "dbaeumer.vscode-eslint"
     },
