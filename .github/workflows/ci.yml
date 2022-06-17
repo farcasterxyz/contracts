@@ -1,5 +1,4 @@
-name: test
-
+name: CI
 on:
   # CI is run on main because new branches can only access caches from master, not previous branches.
   # So building on master allows new PR's to get the cache from before.
