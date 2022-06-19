@@ -38,11 +38,7 @@ contract AccountRegistry {
 
     event SetRecoveryAddress(address indexed recovery, uint256 indexed id);
 
-    event RequestRecovery(
-        uint256 indexed id,
-        address indexed from,
-        address indexed to
-    );
+    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
 
     event CancelRecovery(uint256 indexed id);
 
@@ -204,8 +200,7 @@ contract AccountRegistry {
 
         if (msg.sender != recoveryOf[id]) revert Unauthorized();
         if (recoveryClockOf[id] == 0) revert RecoveryNotFound();
-        if (block.number < recoveryClockOf[id] + escrowPeriod)
-            revert RecoveryInEscrow();
+        if (block.number < recoveryClockOf[id] + escrowPeriod) revert RecoveryInEscrow();
         if (idOf[destination] != 0) revert CustodyAddressInvalid();
 
         _unsafeTransfer(id, from, destination);
@@ -223,8 +218,7 @@ contract AccountRegistry {
     function cancelRecovery(address from) external payable {
         uint256 id = idOf[from];
 
-        if (msg.sender != from && msg.sender != recoveryOf[id])
-            revert Unauthorized();
+        if (msg.sender != from && msg.sender != recoveryOf[id]) revert Unauthorized();
         if (recoveryClockOf[id] == 0) revert RecoveryNotFound();
 
         emit CancelRecovery(id);
