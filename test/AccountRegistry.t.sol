@@ -32,6 +32,7 @@ contract AccountRegistryTest is Test {
     address alice = address(0x123);
     address bob = address(0x456);
     address charlie = address(0x789);
+    uint256 escrowPeriod = 20_000;
 
     /*//////////////////////////////////////////////////////////////
                        REGISTRATION TESTS
@@ -249,7 +250,7 @@ contract AccountRegistryTest is Test {
         accountRegistry.requestRecovery(alice, charlie);
 
         // 3. after escrow period, bob completes the recovery to charlie
-        vm.roll(block.number + accountRegistry.escrowPeriod());
+        vm.roll(block.number + escrowPeriod);
         vm.expectEmit(true, true, false, false);
         emit Transfer(1, charlie);
         accountRegistry.completeRecovery(alice);
@@ -276,7 +277,7 @@ contract AccountRegistryTest is Test {
 
         // 3. charlie calls completeRecovery on alice's id, which fails
         vm.prank(charlie);
-        vm.roll(requestBlock + accountRegistry.escrowPeriod());
+        vm.roll(requestBlock + escrowPeriod);
         vm.expectRevert(Unauthorized.selector);
         accountRegistry.completeRecovery(alice);
 
@@ -296,7 +297,7 @@ contract AccountRegistryTest is Test {
 
         // 2. bob calls recovery complete on alice's id, which fails
         vm.startPrank(bob);
-        vm.roll(block.number + accountRegistry.escrowPeriod());
+        vm.roll(block.number + escrowPeriod);
         vm.expectRevert(RecoveryNotFound.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
@@ -351,7 +352,7 @@ contract AccountRegistryTest is Test {
 
         // 4. after escrow period, bob completes the recovery to charlie which fails
         vm.startPrank(bob);
-        vm.roll(requestBlock + accountRegistry.escrowPeriod());
+        vm.roll(requestBlock + escrowPeriod);
         vm.expectRevert(CustodyAddressInvalid.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
@@ -390,7 +391,7 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryOf(1), bob);
 
         // 4. after escrow period, bob tries to recover to charlie and fails
-        vm.roll(block.number + accountRegistry.escrowPeriod());
+        vm.roll(block.number + escrowPeriod);
         vm.expectRevert(RecoveryNotFound.selector);
         vm.prank(bob);
         accountRegistry.completeRecovery(alice);
@@ -425,7 +426,7 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryOf(1), bob);
 
         // 4. after escrow period, bob tries to recover to charlie and fails
-        vm.roll(block.number + accountRegistry.escrowPeriod());
+        vm.roll(block.number + escrowPeriod);
         vm.expectRevert(RecoveryNotFound.selector);
         vm.prank(bob);
         accountRegistry.completeRecovery(alice);
