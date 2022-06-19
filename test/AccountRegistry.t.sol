@@ -17,11 +17,7 @@ contract AccountRegistryTest is Test {
 
     event SetRecoveryAddress(address indexed recovery, uint256 indexed id);
 
-    event RequestRecovery(
-        uint256 indexed id,
-        address indexed from,
-        address indexed to
-    );
+    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
 
     event CancelRecovery(uint256 indexed id);
 
