@@ -1,0 +1,20 @@
+{
+  "name": "@farcasterxyz/contracts",
+  "version": "0.1.0",
+  "main": "index.js",
+  "files": [
+    "src/**/*.sol"
+  ],
+  "repository": "git@github.com:farcasterxyz/contracts.git",
+  "author": "Varun Srinivasan <varunsrin@gmail.com>",
+  "license": "None",
+  "devDependencies": {},
+  "scripts": {
+    "lint": "prettier --write **.sol",
+    "lint:check": "prettier --check **.sol"
+  },
+  "dependencies": {
+    "prettier": "^2.7.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.19"
+  }
+}
