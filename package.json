@@ -8,13 +8,18 @@
   "repository": "git@github.com:farcasterxyz/contracts.git",
   "author": "Varun Srinivasan <varunsrin@gmail.com>",
   "license": "None",
-  "devDependencies": {},
-  "scripts": {
-    "lint": "prettier --write **.sol",
-    "lint:check": "prettier --check **.sol"
-  },
-  "dependencies": {
+  "devDependencies": {
+    "husky": "^8.0.1",
+    "lint-staged": "^13.0.2",
     "prettier": "^2.7.1",
     "prettier-plugin-solidity": "^1.0.0-beta.19"
+  },
+  "scripts": {
+    "lint": "prettier --write **.sol",
+    "lint:check": "prettier --check **.sol",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "*.sol": "prettier --check"
   }
 }
