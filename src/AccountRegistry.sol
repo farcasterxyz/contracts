@@ -26,6 +26,7 @@ error RecoveryInEscrow();
  * @notice AccountRegistry issues new farcaster account id's and maintains a mapping between the id
  *         and the custody address that owns it. It implements a recovery system which allows an id
  *         to be recovered if the address custodying it is lost.
+ * @dev Function calls use payable to marginally reduce gas usage.
  */
 contract AccountRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -117,8 +118,11 @@ contract AccountRegistry {
     ) private {
         idOf[to] = id;
         idOf[from] = 0;
-        recoveryOf[id] = address(0);
+
+        // since this is rarely true, checking before assigning is more gas efficient
         if (recoveryClockOf[id] != 0) recoveryClockOf[id] = 0;
+        recoveryOf[id] = address(0);
+
         emit Transfer(id, to);
     }
 
