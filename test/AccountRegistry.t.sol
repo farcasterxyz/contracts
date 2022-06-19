@@ -284,10 +284,12 @@ contract AccountRegistryTest is Test {
     function testRecoveryCompletion(
         address alice,
         address bob,
-        address charlie
+        address charlie,
+        uint256 blocksFf
     ) public {
         vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
         vm.assume(alice != bob && alice != charlie && bob != charlie);
+        vm.assume(blocksFf > block.number + escrowPeriod);
 
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
@@ -300,7 +302,7 @@ contract AccountRegistryTest is Test {
         accountRegistry.requestRecovery(alice, charlie);
 
         // 3. after escrow period, bob completes the recovery to charlie
-        vm.roll(block.number + escrowPeriod);
+        vm.roll(blocksFf);
         vm.expectEmit(true, true, false, false);
         emit Transfer(1, charlie);
         accountRegistry.completeRecovery(alice);
@@ -377,10 +379,12 @@ contract AccountRegistryTest is Test {
     function testCannotCompleteRecoveryWhenInEscrow(
         address alice,
         address bob,
-        address charlie
+        address charlie,
+        uint256 blocksFf
     ) public {
         vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
         vm.assume(alice != bob && alice != charlie && bob != charlie);
+        vm.assume(blocksFf <= block.number + escrowPeriod);
 
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
@@ -393,7 +397,8 @@ contract AccountRegistryTest is Test {
         uint256 requestBlock = block.number;
         accountRegistry.requestRecovery(alice, charlie);
 
-        // 3. after escrow period, bob completes the recovery to charlie
+        // 3. before the escrow period ends, bob completes the recovery
+        vm.roll(blocksFf);
         vm.expectRevert(RecoveryInEscrow.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
