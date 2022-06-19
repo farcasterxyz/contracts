@@ -29,16 +29,16 @@ contract AccountRegistryTest is Test {
         accountRegistry = new AccountRegistry();
     }
 
-    address alice = address(0x123);
-    address bob = address(0x456);
-    address charlie = address(0x789);
     uint256 escrowPeriod = 20_000;
 
     /*//////////////////////////////////////////////////////////////
                        REGISTRATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRegister() public {
+    function testRegister(address alice, address bob) public {
+        vm.assume(alice != address(0) && bob != address(0));
+        vm.assume(alice != bob);
+
         // 1. alice registers and claims id 1
         vm.prank(alice);
         vm.expectEmit(true, true, false, false);
@@ -54,7 +54,9 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.idOf(bob), 2);
     }
 
-    function testCannotRegisterTwice() public {
+    function testCannotRegisterTwice(address alice) public {
+        vm.assume(alice != address(0));
+
         // 1. alice reigsters and claims id 1
         vm.startPrank(alice);
         accountRegistry.register();
@@ -72,7 +74,10 @@ contract AccountRegistryTest is Test {
                              TRANSFER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTransfer() public {
+    function testTransfer(address alice, address bob) public {
+        vm.assume(alice != address(0) && bob != address(0));
+        vm.assume(alice != bob);
+
         // 1. alice registers the first account and claims id 1
         vm.startPrank(alice);
         accountRegistry.register();
@@ -89,7 +94,10 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.idOf(bob), 1);
     }
 
-    function testCannotTransferToAddressWithId() public {
+    function testCannotTransferToAddressWithId(address alice, address bob) public {
+        vm.assume(alice != address(0) && bob != address(0));
+        vm.assume(alice != bob);
+
         // 1. alice and bob claim id's 1 and 2
         vm.prank(alice);
         accountRegistry.register();
@@ -110,7 +118,10 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.idOf(bob), 2);
     }
 
-    function testCannotTransferIfNoId() public {
+    function testCannotTransferIfNoId(address alice, address bob) public {
+        vm.assume(alice != address(0) && bob != address(0));
+        vm.assume(alice != bob);
+
         // 1. alice tries to transfer an id to bob
         vm.prank(alice);
         vm.expectRevert(IdInvalid.selector);
@@ -125,7 +136,14 @@ contract AccountRegistryTest is Test {
                         SET RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testSetRecoveryAddress() public {
+    function testSetRecoveryAddress(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1
         vm.startPrank(alice);
         accountRegistry.register();
@@ -148,7 +166,9 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryOf(1), charlie);
     }
 
-    function testCannotSetSelfAsRecovery() public {
+    function testCannotSetSelfAsRecovery(address alice) public {
+        vm.assume(alice != address(0));
+
         // 1. alice registers id 1
         vm.startPrank(alice);
         accountRegistry.register();
@@ -162,7 +182,9 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryOf(1), address(0));
     }
 
-    function testCannotSetRecoveryAddressWithoutId() public {
+    function testCannotSetRecoveryAddressWithoutId(address alice, address bob) public {
+        vm.assume(alice != address(0));
+
         // 1. alice registers id 1
         vm.startPrank(alice);
         vm.expectRevert(IdInvalid.selector);
@@ -177,7 +199,14 @@ contract AccountRegistryTest is Test {
                         REQUEST RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRequestRecovery() public {
+    function testRequestRecovery(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -198,7 +227,14 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryDestinationOf(1), charlie);
     }
 
-    function testCannotRequestRecoveryUnlessAuthorized() public {
+    function testCannotRequestRecoveryUnlessAuthorized(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers t id 1
         vm.prank(alice);
         accountRegistry.register();
@@ -213,7 +249,14 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.idOf(charlie), 0);
     }
 
-    function testCannotRequestRecoveryToAddressThatOwnsAnId() public {
+    function testCannotRequestRecoveryToAddressThatOwnsAnId(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -238,7 +281,14 @@ contract AccountRegistryTest is Test {
                         COMPLETE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRecoveryCompletion() public {
+    function testRecoveryCompletion(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -263,7 +313,14 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryClockOf(1), 0);
     }
 
-    function testCannotCompleteRecoveryIfUnauthorized() public {
+    function testCannotCompleteRecoveryIfUnauthorized(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -288,7 +345,14 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryClockOf(1), requestBlock);
     }
 
-    function testCannotCompleteRecoveryIfNotStarted() public {
+    function testCannotCompleteRecoveryIfNotStarted(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -310,7 +374,14 @@ contract AccountRegistryTest is Test {
     }
 
     // cannot complete a recovery if enough time hasn't passed
-    function testCannotCompleteRecoveryWhenInEscrow() public {
+    function testCannotCompleteRecoveryWhenInEscrow(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -334,7 +405,14 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryClockOf(1), requestBlock);
     }
 
-    function testCannotCompleteRecoveryToAddressThatOwnsAnId() public {
+    function testCannotCompleteRecoveryToAddressThatOwnsAnId(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -368,7 +446,14 @@ contract AccountRegistryTest is Test {
                         CANCEL RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCancelRecoveryFromCustodyAddress() public {
+    function testCancelRecoveryFromCustodyAddress(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery
         vm.startPrank(alice);
         accountRegistry.register();
@@ -403,7 +488,14 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryClockOf(1), 0);
     }
 
-    function testCancelRecoveryFromRecoveryAddress() public {
+    function testCancelRecoveryFromRecoveryAddress(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -438,7 +530,14 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryClockOf(1), 0);
     }
 
-    function testCannotCancelRecoveryIfNotStarted() public {
+    function testCannotCancelRecoveryIfNotStarted(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
@@ -455,7 +554,14 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryOf(1), bob);
     }
 
-    function testCannotCancelRecoveryIfUnauthorized() public {
+    function testCannotCancelRecoveryIfUnauthorized(
+        address alice,
+        address bob,
+        address charlie
+    ) public {
+        vm.assume(alice != address(0) && bob != address(0) && charlie != address(0));
+        vm.assume(alice != bob && alice != charlie && bob != charlie);
+
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
         accountRegistry.register();
