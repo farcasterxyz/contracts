@@ -61,9 +61,6 @@ contract AccountRegistry {
     // Mapping from id to recovery destination address
     mapping(uint256 => address) public recoveryDestinationOf;
 
-    // Recovery escrow duration in blocks (~2.7 - 3.2 days)
-    uint256 public constant escrowPeriod = 20_000;
-
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
@@ -200,7 +197,8 @@ contract AccountRegistry {
 
         if (msg.sender != recoveryOf[id]) revert Unauthorized();
         if (recoveryClockOf[id] == 0) revert RecoveryNotFound();
-        if (block.number < recoveryClockOf[id] + escrowPeriod) revert RecoveryInEscrow();
+        // Recovery escrow duration in blocks (20,000 blocks = ~2.7 - 3.2 days)
+        if (block.number < recoveryClockOf[id] + 20_000) revert RecoveryInEscrow();
         if (idOf[destination] != 0) revert CustodyAddressInvalid();
 
         _unsafeTransfer(id, from, destination);
