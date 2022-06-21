@@ -11,14 +11,14 @@ contract NameSpaceTest is Test {
                              EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    // event Register(uint256 indexed id, address indexed to);
+    event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
     /*//////////////////////////////////////////////////////////////
                         CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        namespace = new Namespace();
+        namespace = new Namespace("Farcaster Namespace", "FCN");
     }
 
     address alice = address(0x123);
@@ -78,14 +78,24 @@ contract NameSpaceTest is Test {
                             REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRegister(address owner, bytes32 secret) public {
-        bytes32 commitHash = namespace.generateCommit("alice", owner, secret);
+    function testRegister() public {
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
         namespace.makeCommit(commitHash);
-        // TODO: Expect Mint Event after ERC-721
-        namespace.register("alice", owner, secret);
+
+        vm.expectEmit(true, true, true, false);
+        emit Transfer(address(0), address(this), uint256(bytes32("alice")));
+        namespace.register{value: 0.01 ether}("alice", alice, "secret");
     }
 
-    function testCannotRegisterWithInvalidInputs(address owner, bytes32 secret) public {
+    function testCannotRegisterWithoutPayment() public {
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        namespace.makeCommit(commitHash);
+
+        vm.expectRevert(InsufficientFunds.selector);
+        namespace.register{value: 0.009 ether}("alice", alice, "secret");
+    }
+
+    function testCannotRegisterWithInvalidCommit(address owner, bytes32 secret) public {
         // Set up the commit
         bytes16 username = "bob";
         bytes32 commitHash = namespace.generateCommit(username, owner, secret);
@@ -95,17 +105,27 @@ contract NameSpaceTest is Test {
         address incorrectOwner = address(0x1234A);
         vm.assume(owner != incorrectOwner);
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register(username, incorrectOwner, secret);
+        namespace.register{value: 0.01 ether}(username, incorrectOwner, secret);
 
         // Register using an incorrect secret
         bytes32 incorrectSecret = "foobar";
         vm.assume(secret != incorrectSecret);
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register(username, owner, incorrectSecret);
+        namespace.register{value: 0.01 ether}(username, owner, incorrectSecret);
 
         // Register using an incorrect name
         bytes16 incorrectUsername = "alice";
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register(incorrectUsername, owner, secret);
+        namespace.register{value: 0.01 ether}(incorrectUsername, owner, secret);
+    }
+
+    function testCannotRegisterWithInvalidNames(address owner, bytes32 secret) public {
+        bytes16 incorrectUsername = "al{ce";
+        bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, owner, secret));
+        namespace.makeCommit(invalidCommit);
+
+        // Register using an incorrect name
+        // vm.expectRevert(InvalidCommit.selector);
+        namespace.register{value: 0.01 ether}(incorrectUsername, owner, secret);
     }
 }
