@@ -14,9 +14,19 @@ error AlreadyRegistered();
 // Invalid Token Id
 error TokenDoesNotExist();
 
+// The transaction does not have enough money to pay for this.
 error InsufficientFunds();
 
 error Unauthorized();
+
+// The NFT tokenID has not been minted yet
+error NotMinted();
+
+// The NFT is still within the registration + grace period
+error NotReclaimable();
+
+// The NFT hasn't passed expiry yet
+error NotRenewable();
 
 contract Namespace is ERC721 {
     /*//////////////////////////////////////////////////////////////
@@ -25,8 +35,10 @@ contract Namespace is ERC721 {
 
     event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
 
+    event Reclaim(uint256 indexed tokenId);
+
     /*//////////////////////////////////////////////////////////////
-                         STORAGE
+                                 STORAGE
     //////////////////////////////////////////////////////////////*/
 
     // Mapping from commitment hash to block number of commitment
@@ -35,14 +47,20 @@ contract Namespace is ERC721 {
     // Mapping from tokenID to expiration date
     mapping(uint256 => uint256) public expiryOf;
 
+    /*//////////////////////////////////////////////////////////////
+                                CONSTANTS
+    //////////////////////////////////////////////////////////////*/
     string public baseURI = "http://www.farcaster.xyz/";
 
-    // TODO: Formalize and reduce gas usage
-    uint256 public gracePeriod = 60 * 60 * 24 * 30;
-    uint256 public registrationPeriod = 60 * 60 * 24 * 365;
-
-    // TODO: is the the right way to represent amounts?
+    uint256 public gracePeriod = 30 days;
+    uint256 public registrationPeriod = 365 days;
     uint256 fee = 0.01 ether;
+
+    address public vault = address(0x1234567890);
+
+    /*//////////////////////////////////////////////////////////////
+                                CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
     constructor(string memory _name, string memory _symbol) ERC721(_name, _symbol) {}
 
@@ -98,7 +116,7 @@ contract Namespace is ERC721 {
         if (ownerOf(tokenId) != owner) revert Unauthorized();
 
         // We aren't able to renew yet, it's too soon.
-        if (block.timestamp < expiryOf[tokenId]) revert Unauthorized();
+        if (block.timestamp < expiryOf[tokenId]) revert NotRenewable();
 
         expiryOf[tokenId] += registrationPeriod;
 
@@ -107,6 +125,18 @@ contract Namespace is ERC721 {
         }
 
         emit Renew(tokenId, owner, expiryOf[tokenId]);
+    }
+
+    function reclaim(uint256 tokenId) external payable {
+        // The username has never been minted
+        if (expiryOf[tokenId] == 0) revert NotMinted();
+
+        // The username has been minted, but is not out of the grace period.
+        if (expiryOf[tokenId] + gracePeriod > block.timestamp) revert NotReclaimable();
+
+        _forceTransfer(vault, tokenId);
+
+        emit Reclaim(tokenId);
     }
 
     function _isValidUsername(bytes16 name) internal pure returns (bool) {
@@ -143,5 +173,25 @@ contract Namespace is ERC721 {
         }
 
         return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId, ".json")) : "";
+    }
+
+    function _forceTransfer(address to, uint256 tokenId) internal {
+        address from = _ownerOf[tokenId];
+
+        if (from == address(0)) revert Unauthorized();
+
+        // Underflow is prevented by ownership check and guaranteed by the ERC-721 impl
+        // Overflow is unrealistic given the limited scope of possible names
+        unchecked {
+            _balanceOf[from]--;
+
+            _balanceOf[to]++;
+        }
+
+        _ownerOf[tokenId] = to;
+
+        delete getApproved[tokenId];
+
+        emit Transfer(from, to, tokenId);
     }
 }

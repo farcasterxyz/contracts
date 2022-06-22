@@ -15,6 +15,8 @@ contract NameSpaceTest is Test {
 
     event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
 
+    event Reclaim(uint256 indexed tokenId);
+
     /*//////////////////////////////////////////////////////////////
                         CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
@@ -136,67 +138,117 @@ contract NameSpaceTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testRenew() public {
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
-        namespace.makeCommit(commitHash);
-        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+        registerAlice();
+        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
+        uint256 aliceExpirationAfterRenewal = aliceExpiration + namespace.registrationPeriod();
 
-        // let it expire
-        vm.warp(block.timestamp + namespace.registrationPeriod());
-        uint256 tokenId = uint256(bytes32("alice"));
-        uint256 expectedExpiry = block.timestamp + namespace.registrationPeriod();
-
-        // assert that it occured.
+        // let the registration expire and renew it
+        vm.warp(aliceExpiration);
         vm.expectEmit(true, true, false, true);
-        emit Renew(tokenId, address(this), expectedExpiry);
-        namespace.renew{value: 0.01 ether}(tokenId, address(this));
-        assertEq(namespace.expiryOf(tokenId), expectedExpiry);
+        emit Renew(tokenIdAlice(), address(this), aliceExpirationAfterRenewal);
+        namespace.renew{value: 0.01 ether}(tokenIdAlice(), address(this));
+
+        // sanity check ownership and expiration
+        assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
+        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpirationAfterRenewal);
     }
 
     function testCannotRenewEarly() public {
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
-        namespace.makeCommit(commitHash);
-        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+        registerAlice();
+        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
 
-        // zoom into a little before exporation
-        uint256 expectedExpiry = block.timestamp + namespace.registrationPeriod();
-        vm.warp(expectedExpiry - 1);
-        uint256 tokenId = uint256(bytes32("alice"));
+        // fast forward until just before the expiration
+        vm.warp(aliceExpiration - 1);
 
         // assert the failure
-        vm.expectRevert(Unauthorized.selector);
-        namespace.renew{value: 0.01 ether}(tokenId, address(this));
-        assertEq(namespace.expiryOf(tokenId), expectedExpiry);
+        vm.expectRevert(NotRenewable.selector);
+        namespace.renew{value: 0.01 ether}(tokenIdAlice(), address(this));
+
+        // sanity check ownership and expiration
+        assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
+        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
     }
 
     function testCannotRenewUnlessOwner() public {
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
-        namespace.makeCommit(commitHash);
-        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+        registerAlice();
+        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
 
-        // zoom into a little before exporation
-        uint256 expectedExpiry = block.timestamp + namespace.registrationPeriod();
-        vm.warp(expectedExpiry - 1);
-        uint256 tokenId = uint256(bytes32("alice"));
-
-        // assert the failure
+        // let the registration expire and renew it
+        vm.warp(aliceExpiration);
         vm.expectRevert(Unauthorized.selector);
-        namespace.renew{value: 0.01 ether}(tokenId, alice);
-        assertEq(namespace.expiryOf(tokenId), expectedExpiry);
+        namespace.renew{value: 0.01 ether}(tokenIdAlice(), alice);
+
+        // sanity check ownership and expiration
+        assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
+        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
     }
 
     function testCannotRenewWithoutPayment() public {
+        registerAlice();
+        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
+
+        // let the registration expire and renew it
+        vm.warp(aliceExpiration);
+        vm.expectRevert(InsufficientFunds.selector);
+        namespace.renew(tokenIdAlice(), address(this));
+
+        // sanity check ownership and expiration
+        assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
+        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            RECLAIM TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testReclaim() public {
+        registerAlice();
+        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
+        uint256 aliceReclaimable = aliceExpiration + namespace.gracePeriod();
+
+        // let it expire and reach the renewal period
+        vm.warp(aliceReclaimable);
+
+        vm.expectEmit(true, true, true, false);
+        emit Transfer(address(this), namespace.vault(), tokenIdAlice());
+        namespace.reclaim(tokenIdAlice());
+
+        // sanity check ownership and expiration
+        assertEq(namespace.ownerOf(tokenIdAlice()), namespace.vault());
+        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
+    }
+
+    function testCannotReclaimBeforeGracePeriodExpires() public {
+        registerAlice();
+        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
+        uint256 aliceReclaimable = aliceExpiration + namespace.gracePeriod();
+
+        // warp to just before the reclaim period
+        vm.warp(aliceReclaimable - 1);
+        vm.expectRevert(NotReclaimable.selector);
+        namespace.reclaim(tokenIdAlice());
+
+        // sanity check ownership and expiration
+        assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
+        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
+    }
+
+    function testCannotReclaimUnlessMinted() public {
+        vm.expectRevert(NotMinted.selector);
+        namespace.reclaim(tokenIdAlice());
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function registerAlice() internal {
         bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
         namespace.makeCommit(commitHash);
         namespace.register{value: 0.01 ether}("alice", alice, "secret");
+    }
 
-        // zoom into a little before exporation
-        uint256 expectedExpiry = block.timestamp + namespace.registrationPeriod();
-        vm.warp(expectedExpiry - 1);
-        uint256 tokenId = uint256(bytes32("alice"));
-
-        // assert the failure
-        vm.expectRevert(InsufficientFunds.selector);
-        namespace.renew(tokenId, address(this));
-        assertEq(namespace.expiryOf(tokenId), expectedExpiry);
+    function tokenIdAlice() internal pure returns (uint256) {
+        return uint256(bytes32("alice"));
     }
 }
