@@ -13,6 +13,8 @@ contract NameSpaceTest is Test {
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
+    event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
+
     /*//////////////////////////////////////////////////////////////
                         CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
@@ -125,7 +127,76 @@ contract NameSpaceTest is Test {
         namespace.makeCommit(invalidCommit);
 
         // Register using an incorrect name
-        // vm.expectRevert(InvalidCommit.selector);
+        vm.expectRevert(InvalidName.selector);
         namespace.register{value: 0.01 ether}(incorrectUsername, owner, secret);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            RENEW TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testRenew() public {
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        namespace.makeCommit(commitHash);
+        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+
+        // let it expire
+        vm.warp(block.timestamp + namespace.registrationPeriod());
+        uint256 tokenId = uint256(bytes32("alice"));
+        uint256 expectedExpiry = block.timestamp + namespace.registrationPeriod();
+
+        // assert that it occured.
+        vm.expectEmit(true, true, false, true);
+        emit Renew(tokenId, address(this), expectedExpiry);
+        namespace.renew{value: 0.01 ether}(tokenId, address(this));
+        assertEq(namespace.expiryOf(tokenId), expectedExpiry);
+    }
+
+    function testCannotRenewEarly() public {
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        namespace.makeCommit(commitHash);
+        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+
+        // zoom into a little before exporation
+        uint256 expectedExpiry = block.timestamp + namespace.registrationPeriod();
+        vm.warp(expectedExpiry - 1);
+        uint256 tokenId = uint256(bytes32("alice"));
+
+        // assert the failure
+        vm.expectRevert(Unauthorized.selector);
+        namespace.renew{value: 0.01 ether}(tokenId, address(this));
+        assertEq(namespace.expiryOf(tokenId), expectedExpiry);
+    }
+
+    function testCannotRenewUnlessOwner() public {
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        namespace.makeCommit(commitHash);
+        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+
+        // zoom into a little before exporation
+        uint256 expectedExpiry = block.timestamp + namespace.registrationPeriod();
+        vm.warp(expectedExpiry - 1);
+        uint256 tokenId = uint256(bytes32("alice"));
+
+        // assert the failure
+        vm.expectRevert(Unauthorized.selector);
+        namespace.renew{value: 0.01 ether}(tokenId, alice);
+        assertEq(namespace.expiryOf(tokenId), expectedExpiry);
+    }
+
+    function testCannotRenewWithoutPayment() public {
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        namespace.makeCommit(commitHash);
+        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+
+        // zoom into a little before exporation
+        uint256 expectedExpiry = block.timestamp + namespace.registrationPeriod();
+        vm.warp(expectedExpiry - 1);
+        uint256 tokenId = uint256(bytes32("alice"));
+
+        // assert the failure
+        vm.expectRevert(InsufficientFunds.selector);
+        namespace.renew(tokenId, address(this));
+        assertEq(namespace.expiryOf(tokenId), expectedExpiry);
     }
 }

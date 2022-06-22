@@ -9,17 +9,21 @@ error InvalidCommit();
 // The name contained invalid characters
 error InvalidName();
 
+error AlreadyRegistered();
+
 // Invalid Token Id
 error TokenDoesNotExist();
 
 error InsufficientFunds();
+
+error Unauthorized();
 
 contract Namespace is ERC721 {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    // event Register(uint256 indexed id, address indexed to);
+    event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
 
     /*//////////////////////////////////////////////////////////////
                          STORAGE
@@ -28,7 +32,17 @@ contract Namespace is ERC721 {
     // Mapping from commitment hash to block number of commitment
     mapping(bytes32 => uint256) public ageOf;
 
+    // Mapping from tokenID to expiration date
+    mapping(uint256 => uint256) public expiryOf;
+
     string public baseURI = "http://www.farcaster.xyz/";
+
+    // TODO: Formalize and reduce gas usage
+    uint256 public gracePeriod = 60 * 60 * 24 * 30;
+    uint256 public registrationPeriod = 60 * 60 * 24 * 365;
+
+    // TODO: is the the right way to represent amounts?
+    uint256 fee = 0.01 ether;
 
     constructor(string memory _name, string memory _symbol) ERC721(_name, _symbol) {}
 
@@ -57,14 +71,42 @@ contract Namespace is ERC721 {
         bytes32 commit = generateCommit(username, owner, secret);
 
         if (msg.value < 0.01 ether) revert InsufficientFunds();
-
         if (ageOf[commit] == 0) revert InvalidCommit();
-        commit = 0;
 
         // TODO: Evaluate this byte conversion.
         uint256 tokenId = uint256(bytes32(username));
 
+        // The username is minted, and can no longer be registered, only renewed or reclaimed.
+        if (expiryOf[tokenId] != 0) revert Unauthorized();
+
         _mint(msg.sender, tokenId);
+        expiryOf[tokenId] = block.timestamp + registrationPeriod;
+
+        // Release the commit value and refund
+        commit = 0;
+
+        if (msg.value > 0.01 ether) {
+            // TODO: should we be using safe transfer here?
+            payable(msg.sender).transfer(msg.value - 0.01 ether);
+        }
+    }
+
+    function renew(uint256 tokenId, address owner) external payable {
+        if (msg.value < fee) revert InsufficientFunds();
+
+        // make sure they are the owner, otherwise might have got sniped.
+        if (ownerOf(tokenId) != owner) revert Unauthorized();
+
+        // We aren't able to renew yet, it's too soon.
+        if (block.timestamp < expiryOf[tokenId]) revert Unauthorized();
+
+        expiryOf[tokenId] += registrationPeriod;
+
+        if (msg.value > 0.01 ether) {
+            payable(msg.sender).transfer(msg.value - 0.01 ether);
+        }
+
+        emit Renew(tokenId, owner, expiryOf[tokenId]);
     }
 
     function _isValidUsername(bytes16 name) internal pure returns (bool) {
