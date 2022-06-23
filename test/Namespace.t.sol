@@ -26,6 +26,42 @@ contract NameSpaceTest is Test {
     }
 
     address alice = address(0x123);
+    // GMT Wednesday, June 22, 2022 21:39:33
+    uint256 aliceRegistrationTimestamp = 1655933973;
+    uint256 aliceExpiryYear = 2023;
+
+    /*//////////////////////////////////////////////////////////////
+                            Timing Tests
+    //////////////////////////////////////////////////////////////*/
+
+    function testCurrentYear() public {
+        // Date between Oct 1 2022 and Oct 1 2023, should return Oct 1 2023.
+        vm.warp(1640095200);
+        assertEq(namespace.currentYear(), 2021);
+
+        // Date before between Oct 1 2021 and Oct 1 2022
+        vm.warp(aliceRegistrationTimestamp);
+        assertEq(namespace.currentYear(), 2022);
+    }
+
+    function testFailCurrentYearBefore2021() public {
+        // Thursday, December 10, 2020 0:00:00
+        vm.warp(1607558400);
+        assertEq(namespace.currentYear(), 2021);
+    }
+
+    function testFailCurrentYearAfter2122() public {
+        // Thursday, December 10, 2122 0:00:00
+        vm.warp(4826304000);
+        assertEq(namespace.currentYear(), 2022);
+    }
+
+    // Add test for the last year and the firts years.
+
+    function testCurrentYearPayment() public {
+        vm.warp(aliceRegistrationTimestamp);
+        assertEq(namespace.currentYearPayment(), 0.005262946156773211 ether);
+    }
 
     /*//////////////////////////////////////////////////////////////
                                COMMIT TESTS
@@ -83,6 +119,7 @@ contract NameSpaceTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testRegister() public {
+        vm.warp(aliceRegistrationTimestamp);
         bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
         namespace.makeCommit(commitHash);
 
@@ -92,15 +129,18 @@ contract NameSpaceTest is Test {
     }
 
     function testCannotRegisterWithoutPayment() public {
+        vm.warp(aliceRegistrationTimestamp);
         bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
         namespace.makeCommit(commitHash);
 
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.register{value: 0.009 ether}("alice", alice, "secret");
+        namespace.register{value: 0.001 ether}("alice", alice, "secret");
     }
 
     function testCannotRegisterWithInvalidCommit(address owner, bytes32 secret) public {
         // Set up the commit
+        vm.warp(aliceRegistrationTimestamp);
+
         bytes16 username = "bob";
         bytes32 commitHash = namespace.generateCommit(username, owner, secret);
         namespace.makeCommit(commitHash);
@@ -139,26 +179,26 @@ contract NameSpaceTest is Test {
 
     function testRenew() public {
         registerAlice();
-        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
-        uint256 aliceExpirationAfterRenewal = aliceExpiration + namespace.registrationPeriod();
+        uint256 aliceExpiryTimestamp = namespace.timestampOfYear(aliceExpiryYear);
+        assertEq(namespace.expiryYearOf(tokenIdAlice()), 2023);
 
         // let the registration expire and renew it
-        vm.warp(aliceExpiration);
-        vm.expectEmit(true, true, false, true);
-        emit Renew(tokenIdAlice(), address(this), aliceExpirationAfterRenewal);
+        vm.warp(aliceExpiryTimestamp);
+        vm.expectEmit(true, true, true, true);
+        emit Renew(tokenIdAlice(), address(this), aliceExpiryYear + 1);
         namespace.renew{value: 0.01 ether}(tokenIdAlice(), address(this));
 
         // sanity check ownership and expiration
         assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
-        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpirationAfterRenewal);
+        assertEq(namespace.expiryYearOf(tokenIdAlice()), 2024);
     }
 
     function testCannotRenewEarly() public {
         registerAlice();
-        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
+        uint256 aliceExpiryTimestamp = namespace.timestampOfYear(aliceExpiryYear);
 
         // fast forward until just before the expiration
-        vm.warp(aliceExpiration - 1);
+        vm.warp(aliceExpiryTimestamp - 1);
 
         // assert the failure
         vm.expectRevert(NotRenewable.selector);
@@ -166,35 +206,34 @@ contract NameSpaceTest is Test {
 
         // sanity check ownership and expiration
         assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
-        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
+        assertEq(namespace.expiryYearOf(tokenIdAlice()), aliceExpiryYear);
     }
 
     function testCannotRenewUnlessOwner() public {
         registerAlice();
-        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
 
         // let the registration expire and renew it
-        vm.warp(aliceExpiration);
+        vm.warp(namespace.timestampOfYear(aliceExpiryYear));
         vm.expectRevert(Unauthorized.selector);
         namespace.renew{value: 0.01 ether}(tokenIdAlice(), alice);
 
         // sanity check ownership and expiration
         assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
-        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
+        assertEq(namespace.expiryYearOf(tokenIdAlice()), aliceExpiryYear);
     }
 
     function testCannotRenewWithoutPayment() public {
         registerAlice();
-        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
+        uint256 nextYear = namespace.currentYear() + 1;
 
         // let the registration expire and renew it
-        vm.warp(aliceExpiration);
+        vm.warp(namespace.timestampOfYear(nextYear));
         vm.expectRevert(InsufficientFunds.selector);
         namespace.renew(tokenIdAlice(), address(this));
 
         // sanity check ownership and expiration
         assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
-        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
+        assertEq(namespace.expiryYearOf(tokenIdAlice()), nextYear);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -203,8 +242,8 @@ contract NameSpaceTest is Test {
 
     function testReclaim() public {
         registerAlice();
-        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
-        uint256 aliceReclaimable = aliceExpiration + namespace.gracePeriod();
+        uint256 aliceExpiry = namespace.timestampOfYear(aliceExpiryYear);
+        uint256 aliceReclaimable = aliceExpiry + namespace.gracePeriod();
 
         // let it expire and reach the renewal period
         vm.warp(aliceReclaimable);
@@ -215,13 +254,13 @@ contract NameSpaceTest is Test {
 
         // sanity check ownership and expiration
         assertEq(namespace.ownerOf(tokenIdAlice()), namespace.vault());
-        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
+        assertEq(namespace.expiryYearOf(tokenIdAlice()), aliceExpiryYear);
     }
 
     function testCannotReclaimBeforeGracePeriodExpires() public {
         registerAlice();
-        uint256 aliceExpiration = block.timestamp + namespace.registrationPeriod();
-        uint256 aliceReclaimable = aliceExpiration + namespace.gracePeriod();
+        uint256 aliceExpiry = namespace.timestampOfYear(aliceExpiryYear);
+        uint256 aliceReclaimable = aliceExpiry + namespace.gracePeriod();
 
         // warp to just before the reclaim period
         vm.warp(aliceReclaimable - 1);
@@ -230,7 +269,7 @@ contract NameSpaceTest is Test {
 
         // sanity check ownership and expiration
         assertEq(namespace.ownerOf(tokenIdAlice()), address(this));
-        assertEq(namespace.expiryOf(tokenIdAlice()), aliceExpiration);
+        assertEq(namespace.expiryYearOf(tokenIdAlice()), aliceExpiryYear);
     }
 
     function testCannotReclaimUnlessMinted() public {
@@ -242,7 +281,9 @@ contract NameSpaceTest is Test {
                             HELPERS
     //////////////////////////////////////////////////////////////*/
 
+    // Warp to a time in 2022 and register alice
     function registerAlice() internal {
+        vm.warp(aliceRegistrationTimestamp);
         bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
         namespace.makeCommit(commitHash);
         namespace.register{value: 0.01 ether}("alice", alice, "secret");
