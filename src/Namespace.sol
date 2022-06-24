@@ -3,34 +3,20 @@ pragma solidity ^0.8.14;
 
 import {ERC721} from "../lib/solmate/src/tokens/ERC721.sol";
 
-// The commit was not found
-error InvalidCommit();
+import {Owned} from "../lib/solmate/src/auth/Owned.sol";
 
-// The name contained invalid characters
-error InvalidName();
+error InsufficientFunds(); // // The transaction does not have enough money to pay for this.
+error Unauthorized(); // The caller is not authorized to perform this action/
+error NotMinted(); // The NFT tokenID has not been minted yet
 
-error AlreadyRegistered();
+error InvalidCommit(); // The commit hash was not found
+error InvalidName(); // The username had invalid characters
 
-// Invalid Token Id
-error TokenDoesNotExist();
+error NotRenewable(); // The username is not yet up for renewal
+error NotForAuction(); // The username is not yet up for auction.
+error InvalidTimestamp(); // This timestamp is not supported (too far back)
 
-// The transaction does not have enough money to pay for this.
-error InsufficientFunds();
-
-error Unauthorized();
-
-// The NFT tokenID has not been minted yet
-error NotMinted();
-
-// The NFT is still within the registration + grace period
-error NotReclaimable();
-
-// The NFT hasn't passed expiry yet
-error NotRenewable();
-
-error InvalidTimestamp();
-
-contract Namespace is ERC721 {
+contract Namespace is ERC721, Owned {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -49,6 +35,9 @@ contract Namespace is ERC721 {
     // Mapping from tokenID to expiration year
     mapping(uint256 => uint256) public expiryYearOf;
 
+    // The index of the next year in the array
+    uint256 internal _nextYearIdx;
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -56,7 +45,7 @@ contract Namespace is ERC721 {
 
     uint256 public gracePeriod = 30 days;
 
-    uint256 fee = 0.01 ether;
+    uint256 public fee = 0.01 ether;
 
     // The epoch timestamp of Jan 1 for each year starting from 2022
     uint256[] internal _yearTimestamps = [
@@ -79,16 +68,18 @@ contract Namespace is ERC721 {
         2145916800
     ];
 
-    // The index of the next year in the array
-    uint256 internal _nextYearIdx;
-
-    address public vault = address(0x1234567890);
+    // TODO: Replace it with an external smart contract.
+    address public vault = address(this);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(string memory _name, string memory _symbol) ERC721(_name, _symbol) {}
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        address _owner
+    ) ERC721(_name, _symbol) Owned(_owner) {}
 
     /*//////////////////////////////////////////////////////////////
                             TIME & MONEY LOGIC
@@ -170,10 +161,9 @@ contract Namespace is ERC721 {
         if (msg.value < currentYearPayment()) revert InsufficientFunds();
         if (ageOf[commit] == 0) revert InvalidCommit();
 
+        // The username is minted, and can no longer be registered, only renewed or reclaimed.
         // TODO: Evaluate this byte conversion.
         uint256 tokenId = uint256(bytes32(username));
-
-        // The username is minted, and can no longer be registered, only renewed or reclaimed.
         if (expiryYearOf[tokenId] != 0) revert Unauthorized();
 
         _mint(msg.sender, tokenId);
@@ -182,9 +172,9 @@ contract Namespace is ERC721 {
         // Release the commit value and refund
         commit = 0;
 
-        if (msg.value > 0.01 ether) {
-            // TODO: should we be using safe transfer here?
-            payable(msg.sender).transfer(msg.value - 0.01 ether);
+        // TODO: this may fail if called by a smart contract
+        if (msg.value > currentYearPayment()) {
+            payable(msg.sender).transfer(msg.value - currentYearPayment());
         }
     }
 
@@ -198,28 +188,13 @@ contract Namespace is ERC721 {
         // revert if the name is not yet up for renewal
         if (block.timestamp < timestampOfYear(expiryYearOf[tokenId])) revert NotRenewable();
 
-        // bump the expiration date to the next year.
-        expiryYearOf[tokenId] = currentYear() + 1;
-
-        // return any extra ethereum
-        if (msg.value > 0.01 ether) {
-            payable(msg.sender).transfer(msg.value - 0.01 ether);
-        }
+        _renewUnchecked(tokenId);
 
         emit Renew(tokenId, owner, expiryYearOf[tokenId]);
-    }
 
-    function reclaim(uint256 tokenId) external payable {
-        // The username has never been minted
-        if (expiryYearOf[tokenId] == 0) revert NotMinted();
-
-        // The username has been minted, but is not out of the grace period.
-        if (timestampOfYear(expiryYearOf[tokenId]) + gracePeriod > block.timestamp)
-            revert NotReclaimable();
-
-        _forceTransfer(vault, tokenId);
-
-        emit Reclaim(tokenId);
+        if (msg.value > fee) {
+            payable(msg.sender).transfer(msg.value - fee);
+        }
     }
 
     function _isValidUsername(bytes16 name) internal pure returns (bool) {
@@ -247,15 +222,79 @@ contract Namespace is ERC721 {
     }
 
     /*//////////////////////////////////////////////////////////////
+                             AUCTION LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    function bid(uint256 tokenId) public payable {
+        // The username has never been minted
+        if (expiryYearOf[tokenId] == 0) revert NotMinted();
+
+        // The username has been minted, but is not out of the grace period.
+        uint256 auctionStartTimestamp = timestampOfYear(expiryYearOf[tokenId]) + gracePeriod;
+        if (auctionStartTimestamp > block.timestamp) revert NotForAuction();
+
+        uint256 hoursPassed = (block.timestamp - auctionStartTimestamp) / 3600;
+
+        // The price goes down by 50% every 25 hours for 25 days until it reaches 0.01 ether
+        uint256 price;
+        if (hoursPassed >= 600) {
+            price = fee;
+        } else {
+            uint256 steps = hoursPassed / 25;
+            // overflow not possible since numerator < 1e22 and denominator <= 1e24
+            price = ((100_000 ether * 5**steps) / 10**steps);
+        }
+
+        if (msg.value < price) revert InsufficientFunds();
+
+        _forceTransfer(msg.sender, tokenId);
+
+        expiryYearOf[tokenId] = currentYear() + 1;
+
+        // TODO: this may revert if called by a smart contract - is that OK? do we need to use
+        // safe transfer eth here?
+        if (msg.value > price) {
+            payable(msg.sender).transfer(msg.value - price);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                              ERC-721 LOGIC
     //////////////////////////////////////////////////////////////*/
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         if (ownerOf(tokenId) == address(0)) {
-            revert TokenDoesNotExist();
+            revert NotMinted();
         }
 
         return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId, ".json")) : "";
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             ADMIN LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    function reclaim(uint256 tokenId) external payable onlyOwner {
+        // The username has never been minted
+        if (expiryYearOf[tokenId] == 0) revert NotMinted();
+
+        // Must ensure that the expiry is set to next year, otherwise reclaiming a name in auction
+        // may allow someone to purchase it back immediately.
+        _renewUnchecked(tokenId);
+
+        _forceTransfer(vault, tokenId);
+
+        emit Reclaim(tokenId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             INTERNAL LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    // Does not verify that the token was minted, that the renewal is happening to the intended
+    // owner or that the fee was paid.
+    function _renewUnchecked(uint256 tokenId) internal {
+        expiryYearOf[tokenId] = currentYear() + 1;
     }
 
     function _forceTransfer(address to, uint256 tokenId) internal {
