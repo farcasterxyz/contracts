@@ -39,32 +39,30 @@ contract NameSpaceTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testCurrentYear() public {
-        // Date between Oct 1 2022 and Oct 1 2023, should return Oct 1 2023.
-        vm.warp(1640095200);
+        vm.warp(1640095200); // GMT Tuesday, December 21, 2021 14:00:00
         assertEq(namespace.currentYear(), 2021);
-
-        // Date before between Oct 1 2021 and Oct 1 2022
-        vm.warp(aliceRegisterTs);
-        assertEq(namespace.currentYear(), 2022);
     }
 
-    function testFailCurrentYearBefore2021() public {
-        // Thursday, December 10, 2020 0:00:00
-        vm.warp(1607558400);
-        namespace.currentYear();
+    function testCurrentYearInaccurateBefore2021() public {
+        vm.warp(1607558400); // GMT Thursday, December 10, 2020 0:00:00
+        assertEq(namespace.currentYear(), 2021);
     }
 
-    function testCurrentYearAfter2122ReturnsZero() public {
-        // Thursday, December 10, 2122 0:00:00
-        vm.warp(4826304000);
+    function testCurrentYearDoesNotWorkAfter2037() public {
+        vm.warp(2161114288); // GMT Friday, January 1, 2038 0:00:00
+        vm.expectRevert(InvalidTime.selector);
         assertEq(namespace.currentYear(), 0);
     }
 
-    // Add test for the last year and the firts years.
-
     function testCurrentYearPayment() public {
-        vm.warp(aliceRegisterTs);
-        assertEq(namespace.currentYearPayment(), 0.005262946156773211 ether);
+        vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
+        assertEq(namespace.currentYearPayment(), 0.01 ether);
+
+        vm.warp(1688256000); // GMT Sunday, July 2, 2023 0:00:00
+        assertEq(namespace.currentYearPayment(), 0.005013698630136986 ether);
+
+        vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
+        assertEq(namespace.currentYearPayment(), 0.000013698947234906 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -197,19 +195,67 @@ contract NameSpaceTest is Test {
         vm.startPrank(alice);
         registerAlice(alice);
 
-        // Fast-forward to the next year (2023) when the registration expires
         vm.warp(aliceRenewTs);
 
-        // Renew alice's subscription
+        // Renew alice's registration
         vm.expectEmit(true, true, true, true);
         emit Renew(aliceTokenId, alice, aliceRenewYear + 1);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
-
-        // TODO: assert that funds are charged correctly
+        vm.stopPrank();
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
         assertEq(namespace.expiryYearOf(aliceTokenId), 2024);
+    }
+
+    function testRenewSkippingAYear() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+
+        // We're going to warp two years ahead, so the name has been just lying around.
+        vm.warp(1704196799); // GMT Tuesday, January 2, 2024 11:59:59
+        namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
         vm.stopPrank();
+
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.expiryYearOf(aliceTokenId), 2025);
+    }
+
+    function testRenewWithOverpayment() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+
+        vm.warp(aliceRenewTs);
+
+        // Renew alice's registration, but overpay the amount
+        uint256 balance = alice.balance;
+        namespace.renew{value: 0.02 ether}(aliceTokenId, alice);
+        vm.stopPrank();
+
+        assertEq(alice.balance, balance - 0.01 ether);
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.expiryYearOf(aliceTokenId), 2024);
+    }
+
+    function testRenewDuringAuction() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+
+        vm.warp(aliceAuctionTs);
+
+        // Renew alice's subscription during the auction
+        vm.expectEmit(true, true, true, true);
+        emit Renew(aliceTokenId, alice, aliceRenewYear + 1);
+        namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
+        vm.stopPrank();
+
+        // Have bob try to bid on alice, which should fail
+        vm.deal(bob, 200_000 ether);
+        vm.prank(bob);
+        vm.expectRevert(NotForAuction.selector);
+        namespace.bid{value: 100_000 ether}(aliceTokenId);
+
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.expiryYearOf(aliceTokenId), 2024);
     }
 
     function testCannotRenewEarly() public {
@@ -228,7 +274,7 @@ contract NameSpaceTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotRenewUnlessOwner() public {
+    function testCannotRenewIfOwnerIncorrect() public {
         vm.startPrank(alice);
         registerAlice(alice);
 
@@ -236,8 +282,8 @@ contract NameSpaceTest is Test {
         vm.warp(aliceRenewTs);
 
         // Try to renew it from another address
-        vm.expectRevert(Unauthorized.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId, address(this));
+        vm.expectRevert(InvalidOwner.selector);
+        namespace.renew{value: 0.01 ether}(aliceTokenId, bob);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
         assertEq(namespace.expiryYearOf(aliceTokenId), aliceRenewYear);

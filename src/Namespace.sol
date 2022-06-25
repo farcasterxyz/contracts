@@ -11,6 +11,8 @@ error NotMinted(); // The NFT tokenID has not been minted yet
 
 error InvalidCommit(); // The commit hash was not found
 error InvalidName(); // The username had invalid characters
+error InvalidTime(); // Time is too far in the future
+error InvalidOwner(); // The username is owned by someone else
 
 error NotRenewable(); // The username is not yet up for renewal
 error NotForAuction(); // The username is not yet up for auction.
@@ -99,8 +101,8 @@ contract Namespace is ERC721, Owned {
      * @notice Returns the current year, for any year until 2122.
      */
     function currentYear() public returns (uint256 year) {
-        assert(block.timestamp >= 1609459200);
-
+        // If the year is too early, this will always return 2021, but that is impossible since
+        // the contract is launched in 2022
         if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
             return _nextYearIdx + 2021;
         }
@@ -117,6 +119,8 @@ contract Namespace is ERC721, Owned {
                 i++;
             }
         }
+
+        revert InvalidTime();
     }
 
     /**
@@ -178,12 +182,10 @@ contract Namespace is ERC721, Owned {
         }
     }
 
-    // TODO: Walk through the case where you register in 2022, do not renew for several years,
-    // and then renew in 2025 again.
     function renew(uint256 tokenId, address owner) external payable {
         if (msg.value < fee) revert InsufficientFunds();
 
-        if (ownerOf(tokenId) != owner) revert Unauthorized();
+        if (ownerOf(tokenId) != owner) revert InvalidOwner();
 
         // revert if the name is not yet up for renewal
         if (block.timestamp < timestampOfYear(expiryYearOf[tokenId])) revert NotRenewable();
