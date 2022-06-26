@@ -18,6 +18,17 @@ error NotRenewable(); // The username is not yet up for renewal
 error NotForAuction(); // The username is not yet up for auction.
 error InvalidTimestamp(); // This timestamp is not supported (too far back)
 
+// The address is the custody address for the id and cannot also become its recovery address
+error RecoveryAddressInvalid();
+
+// The recovery request for this id could not be found
+error RecoveryNotFound();
+
+// The recovery request is still in escrow
+error RecoveryInEscrow();
+
+error NotRecoverable(); // The username is now up for auction
+
 contract Namespace is ERC721, Owned {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -26,6 +37,12 @@ contract Namespace is ERC721, Owned {
     event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
 
     event Reclaim(uint256 indexed tokenId);
+
+    event SetRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
+
+    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
+
+    event CancelRecovery(uint256 indexed id);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -40,6 +57,15 @@ contract Namespace is ERC721, Owned {
     // The index of the next year in the array
     uint256 internal _nextYearIdx;
 
+    // Mapping from tokenId to recovery address
+    mapping(uint256 => address) public recoveryOf;
+
+    // Mapping from tokenId to recovery start (in blocks)
+    mapping(uint256 => uint256) public recoveryClockOf;
+
+    // Mapping from tokenId to recovery destination address
+    mapping(uint256 => address) public recoveryDestinationOf;
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -48,6 +74,8 @@ contract Namespace is ERC721, Owned {
     uint256 public gracePeriod = 30 days;
 
     uint256 public fee = 0.01 ether;
+
+    uint256 escrowPeriod = 3 days;
 
     // The epoch timestamp of Jan 1 for each year starting from 2022
     uint256[] internal _yearTimestamps = [
@@ -316,6 +344,107 @@ contract Namespace is ERC721, Owned {
 
         delete getApproved[tokenId];
 
+        // TODO: is delete more gas efficient than setting to zero?
+        // since this is rarely true, checking before assigning is more gas efficient
+        if (recoveryClockOf[tokenId] != 0) recoveryClockOf[tokenId] = 0;
+        recoveryOf[tokenId] = address(0);
+
         emit Transfer(from, to, tokenId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             RECOVERY LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Choose a recovery address which has the ability to transfer the caller's username to
+     *         a new address. The transfer happens in two steps - a request, and a complete which
+     *         occurs after the escrow period has passed. During escrow, the custody address can
+     *         cancel the transaction. The recovery address can be changed by the custody address
+     *         at any time, or removed by setting it to 0x0. Changing a recovery address will not
+     *         unset a currently active recovery request, that must be explicitly cancelled.
+     *
+     * @param recoveryAddress the address to set as the recovery.
+     */
+    function setRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable {
+        if (ownerOf(tokenId) != msg.sender) revert InvalidOwner();
+
+        if (recoveryAddress == msg.sender) revert RecoveryAddressInvalid();
+
+        // Statement: you are allowed to set a recovery address even after your ownership has expired.
+        // We must ensure that any kind of request or completion cannot be performed in such a case.
+
+        recoveryOf[tokenId] = recoveryAddress;
+        emit SetRecoveryAddress(recoveryAddress, tokenId);
+    }
+
+    /**
+     * @notice Request a transfer of an existing username to a new address by calling this from
+     *         the recovery address. The request can be completed after escrow period has passed.
+     *
+     * @param tokenId the uint256 representation of the username.
+     *
+     * @param from the address that currently owns the id.
+     *
+     * @param to the address to transfer the id to.
+     */
+    function requestRecovery(
+        uint256 tokenId,
+        address from,
+        address to
+    ) external payable {
+        // Do not allow recovery 3 days (the escrow period) before the end of the gracePeriod for
+        // renewals, since it cannot be completed before the auction starts.
+        if (block.timestamp >= timestampOfYear(expiryYearOf[tokenId]) + gracePeriod - escrowPeriod)
+            revert NotRecoverable();
+
+        // Statement: if the token is unminted, then recoveryOf will also be set to null, so we can
+        // rely on this as an invariant here.
+        if (msg.sender != recoveryOf[tokenId]) revert Unauthorized();
+
+        recoveryClockOf[tokenId] = block.timestamp;
+        recoveryDestinationOf[tokenId] = to;
+        emit RequestRecovery(tokenId, from, to);
+    }
+
+    /**
+     * @notice Complete a transfer of an existing username to a new address by calling this  from
+     *         the recovery address. The request can be completed if the escrow period has passed.
+     *
+     * @param tokenId the uint256 representation of the username.
+     */
+    function completeRecovery(uint256 tokenId) external payable {
+        // TODO: two error naming styles (NotRecoveralke) vs. (RecoveryInEscrow) - standardize them
+        if (block.timestamp >= timestampOfYear(expiryYearOf[tokenId]) + gracePeriod)
+            revert NotRecoverable();
+
+        if (msg.sender != recoveryOf[tokenId]) revert Unauthorized();
+
+        // Invariant: if a transfer is performed, this would have been reset to zero, so we don't need
+        // to worry abou tthis
+        if (recoveryClockOf[tokenId] == 0) revert RecoveryNotFound();
+
+        if (block.timestamp < recoveryClockOf[tokenId] + escrowPeriod) revert RecoveryInEscrow();
+
+        // Investigate: seems like potential for mischief if a single token is recovery of two different
+        // addresses and a recovery is completed after one is reset.
+
+        _forceTransfer(recoveryDestinationOf[tokenId], tokenId);
+        recoveryClockOf[tokenId] = 0;
+    }
+
+    /**
+     * @notice Cancel the recovery of an existing username by calling this function from a recovery
+     *         or custody address. The request can be completed if the escrow period has passed.
+     *
+     * @param tokenId the uint256 representation of the username.
+     */
+    function cancelRecovery(uint256 tokenId) external payable {
+        if (msg.sender != ownerOf(tokenId) && msg.sender != recoveryOf[tokenId])
+            revert Unauthorized();
+        if (recoveryClockOf[tokenId] == 0) revert RecoveryNotFound();
+
+        emit CancelRecovery(tokenId);
+        recoveryClockOf[tokenId] = 0;
     }
 }

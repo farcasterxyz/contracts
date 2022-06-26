@@ -17,12 +17,20 @@ contract NameSpaceTest is Test {
 
     event Reclaim(uint256 indexed tokenId);
 
+    event SetRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
+
+    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
+
+    event CancelRecovery(uint256 indexed id);
+
     /*//////////////////////////////////////////////////////////////
                         CONSTANTS
     //////////////////////////////////////////////////////////////*/
+    address admin = address(0x001);
     address alice = address(0x123);
     address bob = address(0x456);
-    address admin = address(0x001);
+    address charlie = address(0x789);
+    uint256 escrowPeriod = 3 days;
 
     uint256 aliceTokenId = uint256(bytes32("alice"));
     uint256 aliceRegisterTs = 1655933973; // Wed, Jun 22, 2022 21:39:33 GMT
@@ -454,6 +462,353 @@ contract NameSpaceTest is Test {
         vm.expectRevert(NotMinted.selector);
         vm.prank(admin);
         namespace.reclaim(aliceTokenId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        SET RECOVERY TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testSetRecoveryAddress() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+
+        // 2. alice sets bob as her recovery address
+        vm.expectEmit(true, true, false, false);
+        emit SetRecoveryAddress(bob, aliceTokenId);
+
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+
+        // 3. alice sets charlie as her recovery address
+        vm.expectEmit(true, true, false, false);
+        emit SetRecoveryAddress(charlie, aliceTokenId);
+
+        namespace.setRecoveryAddress(aliceTokenId, charlie);
+        assertEq(namespace.recoveryOf(aliceTokenId), charlie);
+
+        vm.stopPrank();
+    }
+
+    function testCannotSetRecoveryUnlessOwner() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+        vm.stopPrank();
+
+        vm.prank(bob);
+        vm.expectRevert((InvalidOwner).selector);
+        namespace.setRecoveryAddress(aliceTokenId, charlie);
+        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+    }
+
+    function testCannotSetRecoveryForUnmintedToken() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+
+        // 2. alice sets bob as her recovery address
+        uint256 bobTokenId = uint256(bytes32("bob"));
+
+        vm.expectRevert("NOT_MINTED");
+        namespace.setRecoveryAddress(bobTokenId, bob);
+        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+
+        vm.stopPrank();
+    }
+
+    function testCannotSetSelfAsRecovery() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+
+        // 2. alice sets herself as the recovery address, which fails
+        vm.expectRevert(RecoveryAddressInvalid.selector);
+        namespace.setRecoveryAddress(aliceTokenId, alice);
+        vm.stopPrank();
+
+        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        REQUEST RECOVERY TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testRequestRecovery() public {
+        // 1. alice registers id 1 and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of alice's id to charlie
+        vm.prank(bob);
+        vm.expectEmit(true, true, true, false);
+        emit RequestRecovery(aliceTokenId, alice, charlie);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // sanity check ownership and recovery state
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(namespace.recoveryDestinationOf(aliceTokenId), charlie);
+    }
+
+    function testCannotRequestRecoveryUnlessAuthorized() public {
+        // 1. alice registers id 1 and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery from alice to charlie, which fails
+        vm.prank(bob);
+        vm.expectRevert(Unauthorized.selector);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // sanity check the ownership post transfer.
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+    }
+
+    function testCannotRequestRecoveryNearAuction() public {
+        // 1. alice registers id 1 and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery from alice to charlie, which fails
+        vm.prank(bob);
+        vm.warp(aliceAuctionTs - escrowPeriod);
+        vm.expectRevert(NotRecoverable.selector);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // sanity check the ownership post transfer.
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        COMPLETE RECOVERY TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testRecoveryCompletion() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of alice's id to charlie
+        vm.startPrank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // 3. after escrow period, bob completes the recovery to charlie
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.expectEmit(true, true, true, false);
+        emit Transfer(alice, charlie, aliceTokenId);
+        namespace.completeRecovery(aliceTokenId);
+        vm.stopPrank();
+
+        // sanity check the ownership and recovery state post completion
+        assertEq(namespace.ownerOf(aliceTokenId), charlie);
+        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+    }
+
+    function testCannotCompleteRecoveryIfUnauthorized() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of @alice to charlie
+        uint256 requestTs = block.timestamp;
+        vm.prank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // 3. charlie calls completeRecovery on @alice, which fails
+        vm.prank(charlie);
+        vm.warp(requestTs + escrowPeriod);
+        vm.expectRevert(Unauthorized.selector);
+        namespace.completeRecovery(aliceTokenId);
+
+        // sanity check the ownership post transfer.
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), requestTs);
+    }
+
+    function testCannotCompleteRecoveryIfNotStarted() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob calls recovery complete on alice's id, which fails
+        vm.prank(bob);
+        vm.warp(block.number + escrowPeriod);
+        vm.expectRevert(RecoveryNotFound.selector);
+        namespace.completeRecovery(aliceTokenId);
+
+        // sanity check the ownership and recovery state post completion.
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+    }
+
+    function testCannotCompleteRecoveryWhenInEscrow() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of @alice to charlie
+        uint256 requestTs = block.timestamp;
+        vm.startPrank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // 3. before escrow period, bob completes the recovery to charlie
+        vm.expectRevert(RecoveryInEscrow.selector);
+        namespace.completeRecovery(aliceTokenId);
+        vm.stopPrank();
+
+        // sanity check the ownership and recovery state post completion.
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), requestTs);
+    }
+
+    function testCannotCompleteRecoveryWhenInAuction() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of @alice to charlie
+        uint256 requestTs = block.timestamp;
+        vm.startPrank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // 3. before escrow period, bob completes the recovery to charlie
+        vm.warp(aliceAuctionTs);
+        vm.expectRevert(NotRecoverable.selector);
+        namespace.completeRecovery(aliceTokenId);
+        vm.stopPrank();
+
+        // sanity check the ownership and recovery state post completion.
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), requestTs);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        CANCEL RECOVERY TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testCancelRecoveryFromCustodyAddress() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of @alice to charlie
+        vm.prank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // 3. alice cancels the recovery
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, false);
+        emit CancelRecovery(aliceTokenId);
+        namespace.cancelRecovery(aliceTokenId);
+
+        // sanity check the ownership post cancellation
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+
+        // 4. after escrow period, bob tries to recover to charlie and fails
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.expectRevert(RecoveryNotFound.selector);
+        vm.prank(bob);
+        namespace.completeRecovery(aliceTokenId);
+
+        // sanity check the ownership and recovery state post cancellation
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+    }
+
+    function testCancelRecoveryFromRecoveryAddress() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of @alice to charlie
+        vm.prank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // 3. bob cancels the recovery
+        vm.prank(bob);
+        vm.expectEmit(true, false, false, false);
+        emit CancelRecovery(aliceTokenId);
+        namespace.cancelRecovery(aliceTokenId);
+
+        // sanity check the ownership post cancellation
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+
+        // 4. after escrow period, bob tries to recover to charlie and fails
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.expectRevert(RecoveryNotFound.selector);
+        vm.prank(bob);
+        namespace.completeRecovery(aliceTokenId);
+
+        // sanity check the ownership and recovery state post cancellation
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+    }
+
+    function testCannotCancelRecoveryIfNotStarted() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+
+        // 2. alice cancels the recovery which fails
+        vm.expectRevert(RecoveryNotFound.selector);
+        namespace.cancelRecovery(aliceTokenId);
+        vm.stopPrank();
+
+        // sanity check the ownership and recovery state after cancellation
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+    }
+
+    function testCannotCancelRecoveryIfUnauthorized() public {
+        // 1. alice registers @alice and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of @alice to charlie
+        vm.prank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+
+        // 3. charlie cancels the recovery which fails
+        vm.prank(charlie);
+        vm.expectRevert(Unauthorized.selector);
+        namespace.cancelRecovery(aliceTokenId);
+
+        // sanity check the ownership and recovery state after cancellation
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
     }
 
     /*//////////////////////////////////////////////////////////////
