@@ -322,7 +322,7 @@ contract AccountRegistryTest is Test {
         uint256 requestBlock = block.number;
         accountRegistry.requestRecovery(alice, charlie);
 
-        // 3. after escrow period, bob completes the recovery to charlie
+        // 3. before the escrow period, bob completes the recovery to charlie
         vm.expectRevert(RecoveryInEscrow.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
