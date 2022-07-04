@@ -20,14 +20,13 @@ error NotRenewable(); // The username is not yet up for renewal
 error NotForAuction(); // The username is not yet up for auction.
 error Expired(); // The username is expired.
 
-error RecoveryAddressInvalid(); // The address is the custody address for the id and cannot also become its recovery address
-
-error RecoveryNotFound(); // The recovery request for this id could not be found
-
-error RecoveryInEscrow(); // The recovery request is still in escrow
+error NoRecovery(); // The recovery request for this id could not be found
+error InvalidRecovery(); // The address is the custody address for the id and cannot also become its recovery address
+error InEscrow(); // The recovery request is still in escrow
 
 contract Namespace is ERC721, Owned {
     using FixedPointMathLib for uint256;
+
     /*//////////////////////////////////////////////////////////////
                         REGISTRATION EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -63,13 +62,15 @@ contract Namespace is ERC721, Owned {
                         RECOVERY STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    // Mapping from tokenId to recovery address
+    // Mapping from tokenId to recoveryAddress
     mapping(uint256 => address) public recoveryOf;
 
-    // Mapping from tokenId to recovery start (in blocks)
+    // Mapping from tokenId to recovery timestamp in seconds, which is set to zero on cancellation
+    // or completion
     mapping(uint256 => uint256) public recoveryClockOf;
 
-    // Mapping from tokenId to recovery destination address
+    // Mapping from tokenId to recovery destination address, which is not unset and left dirty on
+    // cancellation or completion to save gas.
     mapping(uint256 => address) public recoveryDestinationOf;
 
     /*//////////////////////////////////////////////////////////////
@@ -102,8 +103,7 @@ contract Namespace is ERC721, Owned {
         2145916800
     ];
 
-    // TODO: Replace it with an external smart contract.
-    address public vault = address(this);
+    address public vault;
 
     uint256 escrowPeriod = 3 days;
 
@@ -114,17 +114,18 @@ contract Namespace is ERC721, Owned {
     constructor(
         string memory _name,
         string memory _symbol,
-        address _owner
-    ) ERC721(_name, _symbol) Owned(_owner) {}
+        address _owner,
+        address _vault
+    ) ERC721(_name, _symbol) Owned(_owner) {
+        vault = _vault;
+    }
 
     /*//////////////////////////////////////////////////////////////
-                            TIME & MONEY LOGIC
+                          YEARLY PAYMENTS LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
-     *
-     * @param year the gregorian calendar year to fetch the timestamp for.
      */
     function timestampOfYear(uint256 year) public view returns (uint256) {
         if (year <= 2021) revert InvalidTime();
@@ -132,63 +133,88 @@ contract Namespace is ERC721, Owned {
     }
 
     /**
-     * @notice Returns the current year, for any year until 2122.
+     * @notice Returns the current year for any year between 2021 and 2037.
      */
-    function currentYear() public returns (uint256 year) {
-        // If the year is too early, this will always return 2021, but that is impossible since
-        // the contract is launched in 2022
-        if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
-            return _nextYearIdx + 2021;
-        }
-
-        uint256 startIdx = _nextYearIdx + 1;
-        uint256 length = _yearTimestamps.length;
-
-        for (uint256 i = startIdx; i < length; ) {
-            if (_yearTimestamps[i] > block.timestamp) {
-                _nextYearIdx = i;
+    function currYear() public returns (uint256 year) {
+        // _nextYearIdx is a known index and can never overflow for anyknown value.
+        unchecked {
+            if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
                 return _nextYearIdx + 2021;
             }
-            unchecked {
+
+            uint256 length = _yearTimestamps.length;
+
+            for (uint256 i = _nextYearIdx + 1; i < length; ) {
+                if (_yearTimestamps[i] > block.timestamp) {
+                    _nextYearIdx = i;
+                    return _nextYearIdx + 2021;
+                }
                 i++;
             }
-        }
 
-        revert InvalidTime();
+            revert InvalidTime();
+        }
     }
 
     /**
-     * @notice Returns the  eth required to register a username for the remainder of the year,
-     *         which is prorated by the amount of time left in the year.
+     * @notice Returns the ETH requires to register a name for the rest of the year.
      */
-    function currentYearPayment() public returns (uint256) {
-        // TODO: Test for overflows
-        uint256 currentYearValue = currentYear();
-        uint256 nextYearTimestamp = timestampOfYear(currentYearValue + 1);
+    function currYearFee() public returns (uint256) {
+        uint256 _currYear = currYear();
 
-        uint256 timeLeftInYear = nextYearTimestamp - block.timestamp;
-        uint256 timeInYear = nextYearTimestamp - timestampOfYear(currentYearValue);
+        unchecked {
+            // this value is deterministic and cannot overflow for any known time
+            uint256 nextYearTimestamp = timestampOfYear(_currYear + 1);
 
-        return (timeLeftInYear * fee) / timeInYear;
+            return
+                ((nextYearTimestamp - block.timestamp) * fee) /
+                (nextYearTimestamp - timestampOfYear(_currYear));
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * INVARIANTS: implicit assumptions that must be maintained by all contract functions
+     *
+     * 1. If an id has never been minted, then the expiryYearOf[id] = 0 and also the _ownerOf[id]
+     *  and recoveryOf[id] are always address(0).
+     */
+
+    /**
+     * @notice Generate a commitment hash to register a new username secretly
+     *
+     * @param username the username to register
+     * @param owner the address that will claim the username
+     * @param secret the secret that protects the commitment
+     */
     function generateCommit(
         bytes16 username,
         address owner,
         bytes32 secret
     ) public pure returns (bytes32) {
         if (!_isValidUsername(username)) revert InvalidName();
+
         return keccak256(abi.encode(username, owner, secret));
     }
 
+    /**
+     * @notice Make a commitment before registration to prevent frontrunning.
+     */
     function makeCommit(bytes32 commit) public {
         ageOf[commit] = block.number;
     }
 
+    /**
+     * @notice Mint a new username from a previously submitted commitment and register it for the
+     * remainder of the year.
+     *
+     * @param username the username to register
+     * @param owner the address that will claim the username
+     * @param secret the secret that protects the commitment
+     */
     function register(
         bytes16 username,
         address owner,
@@ -196,48 +222,55 @@ contract Namespace is ERC721, Owned {
     ) external payable {
         bytes32 commit = generateCommit(username, owner, secret);
 
-        if (msg.value < currentYearPayment()) revert InsufficientFunds();
-        if (ageOf[commit] == 0) revert InvalidCommit();
+        uint256 _currYearFee = currYearFee();
+        if (msg.value < _currYearFee) revert InsufficientFunds();
 
-        // The username is minted, and can no longer be registered, only renewed or reclaimed.
-        // TODO: Evaluate this byte conversion.
+        if (ageOf[commit] == 0) revert InvalidCommit();
+        delete ageOf[commit];
+
         uint256 tokenId = uint256(bytes32(username));
         if (expiryYearOf[tokenId] != 0) revert Unauthorized();
 
         _mint(msg.sender, tokenId);
 
-        expiryYearOf[tokenId] = currentYear() + 1;
-
-        // Release the commit value and refund
-        commit = 0;
+        unchecked {
+            // this value is deterministic and cannot overflow for any known year
+            expiryYearOf[tokenId] = currYear() + 1;
+        }
 
         // TODO: this may fail if called by a smart contract
-        if (msg.value > currentYearPayment()) {
-            payable(msg.sender).transfer(msg.value - currentYearPayment());
+        if (msg.value > _currYearFee) {
+            payable(msg.sender).transfer(msg.value - _currYearFee);
         }
     }
 
+    /**
+     * @notice Renew an expired name until the end of the year while in the renewal period
+     *
+     * @param tokenId the token id to register
+     * @param owner the current owner of the name
+     */
     function renew(uint256 tokenId, address owner) external payable {
         if (msg.value < fee) revert InsufficientFunds();
 
-        // TODO: is this check necessary? can you just renew it to its current owner?
         if (_ownerOf[tokenId] != owner) revert InvalidOwner();
 
         uint256 expiryYear = expiryYearOf[tokenId];
         if (expiryYear == 0) revert NotMinted();
 
-        // The name is not in the renewal period
-        uint256 expiryTs = timestampOfYear(expiryYear);
-        if (block.timestamp >= expiryTs + gracePeriod || block.timestamp < expiryTs)
-            revert NotRenewable();
+        unchecked {
+            // this value is deterministic and cannot overflow for any known year
+            uint256 expiryTs = timestampOfYear(expiryYear);
+            if (block.timestamp >= expiryTs + gracePeriod || block.timestamp < expiryTs)
+                revert NotRenewable();
 
-        // TODO: check that this 3 way assignment works as expected and saves gas
-        expiryYear = expiryYearOf[tokenId] = currentYear() + 1;
+            // this value is deterministic and cannot overflow for any known year
+            expiryYearOf[tokenId] = currYear() + 1;
+        }
 
-        emit Renew(tokenId, owner, expiryYear);
+        emit Renew(tokenId, owner, expiryYearOf[tokenId]);
 
-        // TODO: test that renewal can happen from any address.
-
+        // TODO: this may fail if called by a smart contract
         if (msg.value > fee) {
             payable(msg.sender).transfer(msg.value - fee);
         }
@@ -247,7 +280,7 @@ contract Namespace is ERC721, Owned {
         uint256 expiryYear = expiryYearOf[tokenId];
         if (expiryYear == 0) revert NotMinted();
 
-        // The username has been minted, but is not out of the grace period.
+        // Optimization: these operations might be safe to perform unchecked
         uint256 auctionStartTimestamp = timestampOfYear(expiryYear) + gracePeriod;
         if (auctionStartTimestamp > block.timestamp) revert NotForAuction();
 
@@ -261,13 +294,16 @@ contract Namespace is ERC721, Owned {
         // Optimization: precompute return values for the first few periods and the last one.
         uint256 price = uint256(1000 ether).mulWadDown(
             uint256(FixedPointMathLib.powWad(int256(0.9 ether), periodsSD59x18))
-        ) + currentYearPayment();
+        ) + currYearFee();
 
         if (msg.value < price) revert InsufficientFunds();
 
         _unsafeTransfer(msg.sender, tokenId);
 
-        expiryYearOf[tokenId] = currentYear() + 1;
+        unchecked {
+            // this value is deterministic and cannot overflow for any known year
+            expiryYearOf[tokenId] = currYear() + 1;
+        }
 
         // TODO: this may revert if called by a smart contract
         if (msg.value > price) {
@@ -311,6 +347,15 @@ contract Namespace is ERC721, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * INVARIANTS: implicit assumptions that must be maintained by all contract functions
+     *
+     * 2. Any change in ownership will set recoveryOf to address(0) and recoveryClockOf[id] to 0.
+     *
+     * 3. If the recoveryClockOf is set to a non-zero value, then recoveryDestinationOf is also
+     * non-zero, though the inverse is not guaranteed.
+     */
+
+    /**
      * @notice Choose a recovery address which has the ability to transfer the caller's username to
      *         a new address. The transfer happens in two steps - a request, and a complete which
      *         occurs after the escrow period has passed. During escrow, the custody address can
@@ -323,10 +368,7 @@ contract Namespace is ERC721, Owned {
     function setRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable {
         if (ownerOf(tokenId) != msg.sender) revert InvalidOwner();
 
-        if (recoveryAddress == msg.sender) revert RecoveryAddressInvalid();
-
-        // Statement: you are allowed to set a recovery address even after your ownership has expired.
-        // We must ensure that any kind of request or completion cannot be performed in such a case.
+        if (recoveryAddress == msg.sender) revert InvalidRecovery();
 
         recoveryOf[tokenId] = recoveryAddress;
         emit SetRecoveryAddress(recoveryAddress, tokenId);
@@ -337,9 +379,7 @@ contract Namespace is ERC721, Owned {
      *         the recovery address. The request can be completed after escrow period has passed.
      *
      * @param tokenId the uint256 representation of the username.
-     *
      * @param from the address that currently owns the id.
-     *
      * @param to the address to transfer the id to.
      */
     function requestRecovery(
@@ -347,15 +387,10 @@ contract Namespace is ERC721, Owned {
         address from,
         address to
     ) external payable {
-        // Do not allow recovery 3 days before the expiration of the name since complete will not
-        // work anyway
-        if (block.timestamp >= timestampOfYear(expiryYearOf[tokenId]) - escrowPeriod)
-            revert Unauthorized();
+        if (to == address(0)) revert InvalidRecovery();
 
-        // Invariant: if the token is unminted, then recoveryOf will also be set to null
+        // Invariant 2 prevents unauthorized access if the name has been re-posessed by another.
         if (msg.sender != recoveryOf[tokenId]) revert Unauthorized();
-
-        if (to == address(0)) revert RecoveryAddressInvalid();
 
         recoveryClockOf[tokenId] = block.timestamp;
         recoveryDestinationOf[tokenId] = to;
@@ -370,23 +405,21 @@ contract Namespace is ERC721, Owned {
      * @param tokenId the uint256 representation of the username.
      */
     function completeRecovery(uint256 tokenId) external payable {
-        // TODO: two error naming styles (NotRecoveralke) vs. (RecoveryInEscrow) - standardize them
         // Name cannot be recovered after it has expired
         if (block.timestamp >= timestampOfYear(expiryYearOf[tokenId])) revert Unauthorized();
 
+        // Invariant 2 prevents unauthorized access if the name has been re-posessed by another.
         if (msg.sender != recoveryOf[tokenId]) revert Unauthorized();
 
-        // Invariant: if a transfer is performed, this would have been reset to zero, so we don't need
-        // to worry about this
-        if (recoveryClockOf[tokenId] == 0) revert RecoveryNotFound();
+        if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
-        if (block.timestamp < recoveryClockOf[tokenId] + escrowPeriod) revert RecoveryInEscrow();
+        unchecked {
+            // this value is set to a block.timestamp and cannot realistically overflow
+            if (block.timestamp < recoveryClockOf[tokenId] + escrowPeriod) revert InEscrow();
+        }
 
-        // Investigate: seems like potential for mischief if a single token is recovery of two different
-        // addresses and a recovery is completed after one is reset.
+        // Invariant 3 prevent his from going to a null address.
         _unsafeTransfer(recoveryDestinationOf[tokenId], tokenId);
-
-        recoveryClockOf[tokenId] = 0;
     }
 
     /**
@@ -398,23 +431,29 @@ contract Namespace is ERC721, Owned {
     function cancelRecovery(uint256 tokenId) external payable {
         if (msg.sender != ownerOf(tokenId) && msg.sender != recoveryOf[tokenId])
             revert Unauthorized();
-        if (recoveryClockOf[tokenId] == 0) revert RecoveryNotFound();
+
+        if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
         emit CancelRecovery(tokenId);
-        recoveryClockOf[tokenId] = 0;
+        delete recoveryClockOf[tokenId];
     }
 
     /*//////////////////////////////////////////////////////////////
                              ADMIN LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Move the username from the current owner to the vault and renew it for another year
+     *
+     * @param tokenId the uint256 representation of the username.
+     */
     function reclaim(uint256 tokenId) external payable onlyOwner {
-        // The username has never been minted
         if (expiryYearOf[tokenId] == 0) revert NotMinted();
 
-        // Must ensure that the expiry is set to next year, otherwise reclaiming a name in auction
-        // may allow someone to purchase it back immediately.
-        expiryYearOf[tokenId] = currentYear() + 1;
+        unchecked {
+            // this value is deterministic and cannot overflow for any known year
+            expiryYearOf[tokenId] = currYear() + 1;
+        }
 
         _unsafeTransfer(vault, tokenId);
 
@@ -425,17 +464,18 @@ contract Namespace is ERC721, Owned {
                              INTERNAL LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    // Does not check that the transaction comes from the sender of the message (caller must ensure authority, required)
-    // Does not check for 0x0 address (caller must ensure this, saves gas)
-    // Does not allow approved senders to perform operations -- they should caller transfer from.
-
+    /**
+     * @notice Moves the username  to the destination and resets any recovery state. It is similar
+     *  to transferFrom, but doesn't check ownership of the token or validity of the destination to
+     * save gas, which must be ensured by the caller.
+     */
     function _unsafeTransfer(address to, uint256 tokenId) internal {
         address from = _ownerOf[tokenId];
 
         if (from == address(0)) revert Unauthorized();
 
-        // Underflow is prevented by ownership check and guaranteed by the ERC-721 impl
-        // Overflow is unrealistic given the limited scope of possible names
+        // Underflow is prevented as long as the ownership is verified and overflow is unrealistic
+        // given the limited set of usernames available.
         unchecked {
             _balanceOf[from]--;
 
@@ -452,8 +492,8 @@ contract Namespace is ERC721, Owned {
     }
 
     function _clearRecovery(uint256 tokenId) internal {
-        // since this is rarely true, checking before assigning is more gas efficient
         if (recoveryClockOf[tokenId] != 0) delete recoveryClockOf[tokenId];
+
         delete recoveryOf[tokenId];
     }
 
@@ -473,7 +513,7 @@ contract Namespace is ERC721, Owned {
                 return false;
             }
 
-            // This is safe because name.length will never exceed 16 since it is a bytes16
+            // i can never overflow because length is guaranteed to be < 16
             unchecked {
                 i++;
             }

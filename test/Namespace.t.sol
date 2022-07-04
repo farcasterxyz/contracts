@@ -39,38 +39,37 @@ contract NameSpaceTest is Test {
     uint256 aliceAuctionTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
-        namespace = new Namespace("Farcaster Namespace", "FCN", admin);
+        namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
-                            Timing Tests
+                        YEARLY PAYMENTS TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testCurrentYear() public {
+        // Works correctly for current year
         vm.warp(1640095200); // GMT Tuesday, December 21, 2021 14:00:00
-        assertEq(namespace.currentYear(), 2021);
-    }
+        assertEq(namespace.currYear(), 2021);
 
-    function testCurrentYearInaccurateBefore2021() public {
+        // Does not work before 2021
         vm.warp(1607558400); // GMT Thursday, December 10, 2020 0:00:00
-        assertEq(namespace.currentYear(), 2021);
-    }
+        assertEq(namespace.currYear(), 2021);
 
-    function testCurrentYearDoesNotWorkAfter2037() public {
+        // Does not work after 2037
         vm.warp(2161114288); // GMT Friday, January 1, 2038 0:00:00
         vm.expectRevert(InvalidTime.selector);
-        assertEq(namespace.currentYear(), 0);
+        assertEq(namespace.currYear(), 0);
     }
 
     function testCurrentYearPayment() public {
         vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
-        assertEq(namespace.currentYearPayment(), 0.01 ether);
+        assertEq(namespace.currYearFee(), 0.01 ether);
 
         vm.warp(1688256000); // GMT Sunday, July 2, 2023 0:00:00
-        assertEq(namespace.currentYearPayment(), 0.005013698630136986 ether);
+        assertEq(namespace.currYearFee(), 0.005013698630136986 ether);
 
         vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
-        assertEq(namespace.currentYearPayment(), 0.000013698947234906 ether);
+        assertEq(namespace.currYearFee(), 0.000013698947234906 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,7 +146,7 @@ contract NameSpaceTest is Test {
         vm.stopPrank();
 
         // 4. Check that excess funds were returned
-        assertEq(alice.balance, balance - namespace.currentYearPayment());
+        assertEq(alice.balance, balance - namespace.currYearFee());
     }
 
     function testCannotRegisterWithoutPayment() public {
@@ -199,17 +198,35 @@ contract NameSpaceTest is Test {
                             RENEW TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRenew() public {
+    function testRenewSelf() public {
         vm.startPrank(alice);
         registerAlice(alice);
 
         vm.warp(aliceRenewTs);
 
-        // Renew alice's registration
+        // Alice renews her own registration
         vm.expectEmit(true, true, true, true);
         emit Renew(aliceTokenId, alice, aliceRenewYear + 1);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
         vm.stopPrank();
+
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.expiryYearOf(aliceTokenId), 2024);
+    }
+
+    function testRenewOther() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+        vm.stopPrank();
+
+        vm.warp(aliceRenewTs);
+
+        // Bob renews alice's registration for her
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        vm.expectEmit(true, true, true, true);
+        emit Renew(aliceTokenId, alice, aliceRenewYear + 1);
+        namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
         assertEq(namespace.expiryYearOf(aliceTokenId), 2024);
@@ -528,7 +545,7 @@ contract NameSpaceTest is Test {
 
         // Sanity check ownership and expiration dates
         assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryYearOf(aliceTokenId), namespace.currentYear() + 1);
+        assertEq(namespace.expiryYearOf(aliceTokenId), namespace.currYear() + 1);
     }
 
     function testCannotReclaimUnlessMinted() public {
@@ -574,6 +591,18 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
     }
 
+    function testCannotSetRecoveryIfRenewable() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+        vm.warp(aliceRenewTs);
+
+        vm.expectRevert((Expired).selector);
+        namespace.setRecoveryAddress(aliceTokenId, charlie);
+        vm.stopPrank();
+
+        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+    }
+
     function testCannotSetRecoveryForUnmintedToken() public {
         uint256 bobTokenId = uint256(bytes32("bob"));
 
@@ -589,7 +618,7 @@ contract NameSpaceTest is Test {
         registerAlice(alice);
 
         // 2. alice sets herself as the recovery address, which fails
-        vm.expectRevert(RecoveryAddressInvalid.selector);
+        vm.expectRevert(InvalidRecovery.selector);
         namespace.setRecoveryAddress(aliceTokenId, alice);
         vm.stopPrank();
 
@@ -609,7 +638,7 @@ contract NameSpaceTest is Test {
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
-        vm.expectEmit(true, true, true, false);
+        vm.expectEmit(true, true, true, true);
         emit RequestRecovery(aliceTokenId, alice, charlie);
         namespace.requestRecovery(aliceTokenId, alice, charlie);
 
@@ -618,6 +647,29 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), bob);
         assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
         assertEq(namespace.recoveryDestinationOf(aliceTokenId), charlie);
+    }
+
+    function testRequestRecoverySequential() public {
+        // 1. alice registers id 1 and sets bob as her recovery address
+        vm.startPrank(alice);
+        registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
+        vm.stopPrank();
+
+        // 2. bob requests a recovery of alice's id to charlie, and then requests one to dave
+        address david = address(0x531);
+
+        vm.startPrank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        vm.expectEmit(true, true, true, true);
+        emit RequestRecovery(aliceTokenId, alice, david);
+        namespace.requestRecovery(aliceTokenId, alice, david);
+
+        // sanity check ownership and recovery state
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(namespace.recoveryDestinationOf(aliceTokenId), david);
     }
 
     function testCannotRequestRecoveryUnlessAuthorized() public {
@@ -638,25 +690,6 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryDestinationOf(aliceTokenId), address(0));
     }
 
-    function testCannotRequestRecoveryNearExpiry() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        registerAlice(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
-        vm.stopPrank();
-
-        // 2. bob requests a recovery from alice to charlie, which fails
-        vm.prank(bob);
-        vm.warp(aliceRenewTs - escrowPeriod);
-        vm.expectRevert(Unauthorized.selector);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
-
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.recoveryOf(aliceTokenId), bob);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
-        assertEq(namespace.recoveryDestinationOf(aliceTokenId), address(0));
-    }
-
     function testCannotRequestRecoveryToZeroAddr() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
@@ -666,7 +699,7 @@ contract NameSpaceTest is Test {
 
         // 2. bob requests a recovery of alice's id to 0x0
         vm.prank(bob);
-        vm.expectRevert(RecoveryAddressInvalid.selector);
+        vm.expectRevert(InvalidRecovery.selector);
         namespace.requestRecovery(aliceTokenId, alice, address(0));
 
         // sanity check ownership and recovery state
@@ -738,7 +771,7 @@ contract NameSpaceTest is Test {
         // 2. bob calls recovery complete on alice's id, which fails
         vm.prank(bob);
         vm.warp(block.number + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         namespace.completeRecovery(aliceTokenId);
 
         // sanity check the ownership and recovery state post completion.
@@ -760,7 +793,7 @@ contract NameSpaceTest is Test {
         namespace.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. before escrow period, bob completes the recovery to charlie
-        vm.expectRevert(RecoveryInEscrow.selector);
+        vm.expectRevert(InEscrow.selector);
         namespace.completeRecovery(aliceTokenId);
         vm.stopPrank();
 
@@ -823,7 +856,7 @@ contract NameSpaceTest is Test {
 
         // 4. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
         namespace.completeRecovery(aliceTokenId);
 
@@ -857,7 +890,7 @@ contract NameSpaceTest is Test {
 
         // 4. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
         namespace.completeRecovery(aliceTokenId);
 
@@ -874,7 +907,7 @@ contract NameSpaceTest is Test {
         namespace.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. alice cancels the recovery which fails
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         namespace.cancelRecovery(aliceTokenId);
         vm.stopPrank();
 
