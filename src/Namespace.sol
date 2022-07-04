@@ -17,7 +17,7 @@ error InvalidTime(); // Time is too far in the future or past
 error InvalidOwner(); // The username is owned by someone else
 
 error NotRenewable(); // The username is not yet up for renewal
-error NotForAuction(); // The username is not yet up for auction.
+error NotAuctionable(); // The username is not yet up for auction.
 error Expired(); // The username is expired.
 
 error NoRecovery(); // The recovery request for this id could not be found
@@ -121,66 +121,14 @@ contract Namespace is ERC721, Owned {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          YEARLY PAYMENTS LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
-     */
-    function timestampOfYear(uint256 year) public view returns (uint256) {
-        if (year <= 2021) revert InvalidTime();
-        return _yearTimestamps[year - 2022];
-    }
-
-    /**
-     * @notice Returns the current year for any year between 2021 and 2037.
-     */
-    function currYear() public returns (uint256 year) {
-        // _nextYearIdx is a known index and can never overflow for anyknown value.
-        unchecked {
-            if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
-                return _nextYearIdx + 2021;
-            }
-
-            uint256 length = _yearTimestamps.length;
-
-            for (uint256 i = _nextYearIdx + 1; i < length; ) {
-                if (_yearTimestamps[i] > block.timestamp) {
-                    _nextYearIdx = i;
-                    return _nextYearIdx + 2021;
-                }
-                i++;
-            }
-
-            revert InvalidTime();
-        }
-    }
-
-    /**
-     * @notice Returns the ETH requires to register a name for the rest of the year.
-     */
-    function currYearFee() public returns (uint256) {
-        uint256 _currYear = currYear();
-
-        unchecked {
-            // this value is deterministic and cannot overflow for any known time
-            uint256 nextYearTimestamp = timestampOfYear(_currYear + 1);
-
-            return
-                ((nextYearTimestamp - block.timestamp) * fee) /
-                (nextYearTimestamp - timestampOfYear(_currYear));
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANTS: implicit assumptions that must be maintained by all contract functions
+     *                      REGISTRATION INVARIANTS
      *
-     * 1. If an id has never been minted, then the expiryYearOf[id] = 0 and also the _ownerOf[id]
-     *  and recoveryOf[id] are always address(0).
+     * 1. If an id is not minted, expiryYearOf[id] must be 0 and _ownerOf[id] and recoveryOf[id]
+     *    must also be address(0).
      */
 
     /**
@@ -282,7 +230,7 @@ contract Namespace is ERC721, Owned {
 
         // Optimization: these operations might be safe to perform unchecked
         uint256 auctionStartTimestamp = timestampOfYear(expiryYear) + gracePeriod;
-        if (auctionStartTimestamp > block.timestamp) revert NotForAuction();
+        if (auctionStartTimestamp > block.timestamp) revert NotAuctionable();
 
         // Calculate the number of 8 hour windows that have passed since the start of the auction
         // as a fixed point signed decimal number. The magic constant 3.57142857e13 approximates
@@ -315,9 +263,8 @@ contract Namespace is ERC721, Owned {
                              ERC-721 OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        return string(abi.encodePacked(baseURI, tokenId, ".json"));
-    }
+    // balanceOf does not adhere strictly to the ERC-721 specification. If a tokenId is renewable
+    // or expired, balanceOf will still return the count, but ownerOf will revert.
 
     function ownerOf(uint256 id) public view override returns (address) {
         uint256 expiryYear = expiryYearOf[id];
@@ -334,7 +281,6 @@ contract Namespace is ERC721, Owned {
         address to,
         uint256 id
     ) public override {
-        // If the registration is expired, no one currently owns it
         if (block.timestamp >= timestampOfYear(expiryYearOf[id])) revert Expired();
 
         super.transferFrom(from, to, id);
@@ -342,17 +288,21 @@ contract Namespace is ERC721, Owned {
         _clearRecovery(id);
     }
 
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        return string(abi.encodePacked(baseURI, tokenId, ".json"));
+    }
+
     /*//////////////////////////////////////////////////////////////
                              RECOVERY LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANTS: implicit assumptions that must be maintained by all contract functions
+     *                         INVARIANTS
      *
-     * 2. Any change in ownership will set recoveryOf to address(0) and recoveryClockOf[id] to 0.
+     * 2. Any change to ownerOf must set recoveryOf to address(0) and recoveryClockOf[id] to 0.
      *
-     * 3. If the recoveryClockOf is set to a non-zero value, then recoveryDestinationOf is also
-     * non-zero, though the inverse is not guaranteed.
+     * 3. If the recoveryClockOf is non-zero, then recoveryDestinationOf must be non-zero, though
+     *    the inverse is not guaranteed.
      */
 
     /**
@@ -418,7 +368,7 @@ contract Namespace is ERC721, Owned {
             if (block.timestamp < recoveryClockOf[tokenId] + escrowPeriod) revert InEscrow();
         }
 
-        // Invariant 3 prevent his from going to a null address.
+        // Invariant 3 prevents this from going to a null address.
         _unsafeTransfer(recoveryDestinationOf[tokenId], tokenId);
     }
 
@@ -461,11 +411,63 @@ contract Namespace is ERC721, Owned {
     }
 
     /*//////////////////////////////////////////////////////////////
+                          YEARLY PAYMENTS LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
+     */
+    function timestampOfYear(uint256 year) public view returns (uint256) {
+        if (year <= 2021) revert InvalidTime();
+        return _yearTimestamps[year - 2022];
+    }
+
+    /**
+     * @notice Returns the current year for any year between 2021 and 2037.
+     */
+    function currYear() public returns (uint256 year) {
+        // _nextYearIdx is a known index and can never overflow for anyknown value.
+        unchecked {
+            if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
+                return _nextYearIdx + 2021;
+            }
+
+            uint256 length = _yearTimestamps.length;
+
+            for (uint256 i = _nextYearIdx + 1; i < length; ) {
+                if (_yearTimestamps[i] > block.timestamp) {
+                    _nextYearIdx = i;
+                    return _nextYearIdx + 2021;
+                }
+                i++;
+            }
+
+            revert InvalidTime();
+        }
+    }
+
+    /**
+     * @notice Returns the ETH requires to register a name for the rest of the year.
+     */
+    function currYearFee() public returns (uint256) {
+        uint256 _currYear = currYear();
+
+        unchecked {
+            // this value is deterministic and cannot overflow for any known time
+            uint256 nextYearTimestamp = timestampOfYear(_currYear + 1);
+
+            return
+                ((nextYearTimestamp - block.timestamp) * fee) /
+                (nextYearTimestamp - timestampOfYear(_currYear));
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                              INTERNAL LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Moves the username  to the destination and resets any recovery state. It is similar
+     * @notice Moves the username to the destination and resets any recovery state. It is similar
      *  to transferFrom, but doesn't check ownership of the token or validity of the destination to
      * save gas, which must be ensured by the caller.
      */

@@ -30,13 +30,15 @@ contract NameSpaceTest is Test {
     address alice = address(0x123);
     address bob = address(0x456);
     address charlie = address(0x789);
+    address david = address(0x531);
+
     uint256 escrowPeriod = 3 days;
 
     uint256 aliceTokenId = uint256(bytes32("alice"));
     uint256 aliceRegisterTs = 1655933973; // Wed, Jun 22, 2022 21:39:33 GMT
     uint256 aliceRenewTs = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
     uint256 aliceRenewYear = 2023;
-    uint256 aliceAuctionTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
+    uint256 aliceExpiredTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
         namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this));
@@ -253,7 +255,7 @@ contract NameSpaceTest is Test {
         registerAlice(alice);
 
         // Renew alice's subscription during the auction and expect it to fail
-        vm.warp(aliceAuctionTs);
+        vm.warp(aliceExpiredTs);
         vm.expectRevert(NotRenewable.selector);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
         vm.stopPrank();
@@ -320,7 +322,7 @@ contract NameSpaceTest is Test {
         vm.startPrank(alice);
         registerAlice(alice);
         vm.stopPrank();
-        vm.warp(aliceAuctionTs);
+        vm.warp(aliceExpiredTs);
 
         // 2. Bob bids and fails because bid < premium + fee
         vm.deal(bob, 1001 ether);
@@ -330,26 +332,25 @@ contract NameSpaceTest is Test {
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.balanceOf(alice), 1);
         assertEq(namespace.balanceOf(bob), 0);
-        // TODO: this needs to be fixed after the ERC1155 migration
-        // assertEq(namespace.balanceOf(alice), 0);
 
         // 3. Bob bids and succeeds because bid >= premium + fee
         namespace.bid{value: 1_000.01 ether}(aliceTokenId);
         vm.stopPrank();
 
+        assertEq(namespace.ownerOf(aliceTokenId), bob);
         assertEq(namespace.balanceOf(alice), 0);
         assertEq(namespace.balanceOf(bob), 1);
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
 
         // 4. Alice bids again and fails because the name is no longer for auction
         vm.prank(alice);
-        vm.expectRevert(NotForAuction.selector);
+        vm.expectRevert(NotAuctionable.selector);
         namespace.bid(aliceTokenId);
 
+        assertEq(namespace.ownerOf(aliceTokenId), bob);
         assertEq(namespace.balanceOf(alice), 0);
         assertEq(namespace.balanceOf(bob), 1);
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
     }
 
     function testAuctionBidAfterOneStep() public {
@@ -357,7 +358,7 @@ contract NameSpaceTest is Test {
         vm.startPrank(alice);
         registerAlice(alice);
         vm.stopPrank();
-        vm.warp(aliceAuctionTs + 8 hours);
+        vm.warp(aliceExpiredTs + 8 hours);
 
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^1 * 1_000) + 0.00916894977 = 900.009
@@ -368,9 +369,8 @@ contract NameSpaceTest is Test {
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.balanceOf(alice), 1);
         assertEq(namespace.balanceOf(bob), 0);
-        // TODO: this needs to be fixed after the ERC1155 migration
-        // assertEq(namespace.balanceOf(alice), 0);
 
         // 3. Bob bids and succeeds because bid > price
         namespace.bid{value: 898 ether}(aliceTokenId);
@@ -387,7 +387,7 @@ contract NameSpaceTest is Test {
         vm.startPrank(alice);
         registerAlice(alice);
         vm.stopPrank();
-        vm.warp(aliceAuctionTs + (8 hours * 100));
+        vm.warp(aliceExpiredTs + (8 hours * 100));
 
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^100 * 1_000) + 0.00826484018 = 0.0348262391
@@ -398,9 +398,8 @@ contract NameSpaceTest is Test {
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.balanceOf(alice), 1);
         assertEq(namespace.balanceOf(bob), 0);
-        // TODO: this needs to be fixed after the ERC1155 migration
-        // assertEq(namespace.balanceOf(alice), 0);
 
         // 3. Bob bids and succeeds because bid > price
         namespace.bid{value: 0.0279218 ether}(aliceTokenId);
@@ -416,7 +415,7 @@ contract NameSpaceTest is Test {
         vm.startPrank(alice);
         registerAlice(alice);
         vm.stopPrank();
-        vm.warp(aliceAuctionTs + (8 hours * 382));
+        vm.warp(aliceExpiredTs + (8 hours * 382));
 
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^382 * 1_000) + 0.00568949772 = 0.00568949772 (+ ~ - 3.31e-15)
@@ -427,9 +426,8 @@ contract NameSpaceTest is Test {
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.balanceOf(alice), 1);
         assertEq(namespace.balanceOf(bob), 0);
-        // TODO: this needs to be fixed after the ERC1155 migration
-        // assertEq(namespace.balanceOf(alice), 0);
 
         // 3. Bob bids and succeeds because bid > price
         namespace.bid{value: 0.005689498772 ether}(aliceTokenId);
@@ -445,7 +443,7 @@ contract NameSpaceTest is Test {
         registerAlice(alice);
         vm.stopPrank();
 
-        vm.warp(aliceAuctionTs + (8 hours * 383));
+        vm.warp(aliceExpiredTs + (8 hours * 383));
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
 
@@ -456,8 +454,7 @@ contract NameSpaceTest is Test {
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
         assertEq(namespace.balanceOf(bob), 0);
-        // TODO: this needs to be fixed after the ERC1155 migration
-        // assertEq(namespace.balanceOf(alice), 0);
+        assertEq(namespace.balanceOf(alice), 1);
 
         // 3. Bob bids and succeeds because bid > price (0 + fee)
         namespace.bid{value: 0.0056803653 ether}(aliceTokenId);
@@ -473,17 +470,16 @@ contract NameSpaceTest is Test {
         vm.startPrank(alice);
         registerAlice(alice);
         vm.stopPrank();
-        vm.warp(aliceAuctionTs - 1);
+        vm.warp(aliceExpiredTs - 1);
 
-        // 2. Any bid should fail with the NotForAuction error
-        vm.expectRevert(NotForAuction.selector);
+        // 2. Any bid should fail with the NotAuctionable error
+        vm.expectRevert(NotAuctionable.selector);
         namespace.bid(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.balanceOf(alice), 1);
         assertEq(namespace.balanceOf(bob), 0);
-        // TODO: this needs to be fixed after the ERC1155 migration
-        // assertEq(namespace.balanceOf(alice), 0);
     }
 
     function testAuctionBidShouldClearRecovery() public {
@@ -501,7 +497,7 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), bob);
 
         // 3. Bob completes a bid on alice
-        vm.warp(aliceAuctionTs);
+        vm.warp(aliceExpiredTs);
         vm.deal(bob, 1001 ether);
         namespace.bid{value: 1001 ether}(aliceTokenId);
         vm.stopPrank();
@@ -512,46 +508,57 @@ contract NameSpaceTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            RECLAIM TESTS
+                            TRANSFER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testReclaim() public {
+    function testTransferFromResetsRecovery() public {
+        // 1. Register alice and set up a recovery address.
         vm.startPrank(alice);
         registerAlice(alice);
+        namespace.setRecoveryAddress(aliceTokenId, bob);
         vm.stopPrank();
 
-        // Reclaim the name from the admin account
-        vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, namespace.vault(), aliceTokenId);
-        vm.prank(admin);
-        namespace.reclaim(aliceTokenId);
+        // 2. Bob requests a recovery of @alice to Charlie
+        vm.prank(bob);
+        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(namespace.recoveryOf(aliceTokenId), bob);
 
-        // Sanity check ownership and expiration
-        assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryYearOf(aliceTokenId), aliceRenewYear);
+        // 3. Alice transfers then name to david
+        vm.prank(alice);
+        namespace.transferFrom(alice, david, aliceTokenId);
+
+        assertEq(namespace.ownerOf(aliceTokenId), david);
+        assertEq(namespace.balanceOf(alice), 0);
+        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testReclaimShouldRenewExpiredNames() public {
+    function testTransferFromCannotTransferRenweableOrExpiredName() public {
+        // 1. Register alice and set up a recovery address.
         vm.startPrank(alice);
         registerAlice(alice);
+
+        // 2. Fast forward to name in renewable state
+        vm.warp(aliceRenewTs);
+        vm.expectRevert(Expired.selector);
+        namespace.transferFrom(alice, bob, aliceTokenId);
+
+        vm.expectRevert(Expired.selector);
+        assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.balanceOf(alice), 1);
+        assertEq(namespace.balanceOf(bob), 0);
+
+        // 3. Fast forward to name in expired state
+        vm.warp(aliceExpiredTs);
+        vm.expectRevert(Expired.selector);
+        namespace.transferFrom(alice, bob, aliceTokenId);
         vm.stopPrank();
 
-        // Let the name expire and then reclaim the name from the admin account
-        vm.warp(aliceAuctionTs);
-        vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, namespace.vault(), aliceTokenId);
-        vm.prank(admin);
-        namespace.reclaim(aliceTokenId);
-
-        // Sanity check ownership and expiration dates
-        assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryYearOf(aliceTokenId), namespace.currYear() + 1);
-    }
-
-    function testCannotReclaimUnlessMinted() public {
-        vm.expectRevert(NotMinted.selector);
-        vm.prank(admin);
-        namespace.reclaim(aliceTokenId);
+        vm.expectRevert(Expired.selector);
+        assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.balanceOf(alice), 1);
+        assertEq(namespace.balanceOf(bob), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -656,8 +663,7 @@ contract NameSpaceTest is Test {
         namespace.setRecoveryAddress(aliceTokenId, bob);
         vm.stopPrank();
 
-        // 2. bob requests a recovery of alice's id to charlie, and then requests one to dave
-        address david = address(0x531);
+        // 2. bob requests a recovery of alice's id to charlie, and then requests one to david
 
         vm.startPrank(bob);
         namespace.requestRecovery(aliceTokenId, alice, charlie);
@@ -940,7 +946,50 @@ contract NameSpaceTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            HELPERS
+                            RECLAIM TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testReclaim() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+        vm.stopPrank();
+
+        // Reclaim the name from the admin account
+        vm.expectEmit(true, true, true, false);
+        emit Transfer(alice, namespace.vault(), aliceTokenId);
+        vm.prank(admin);
+        namespace.reclaim(aliceTokenId);
+
+        // Sanity check ownership and expiration
+        assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
+        assertEq(namespace.expiryYearOf(aliceTokenId), aliceRenewYear);
+    }
+
+    function testReclaimShouldRenewExpiredNames() public {
+        vm.startPrank(alice);
+        registerAlice(alice);
+        vm.stopPrank();
+
+        // Let the name expire and then reclaim the name from the admin account
+        vm.warp(aliceExpiredTs);
+        vm.expectEmit(true, true, true, false);
+        emit Transfer(alice, namespace.vault(), aliceTokenId);
+        vm.prank(admin);
+        namespace.reclaim(aliceTokenId);
+
+        // Sanity check ownership and expiration dates
+        assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
+        assertEq(namespace.expiryYearOf(aliceTokenId), namespace.currYear() + 1);
+    }
+
+    function testCannotReclaimUnlessMinted() public {
+        vm.expectRevert(NotMinted.selector);
+        vm.prank(admin);
+        namespace.reclaim(aliceTokenId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
     function registerAlice(address who) internal {
