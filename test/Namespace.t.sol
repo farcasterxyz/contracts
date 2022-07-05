@@ -131,24 +131,24 @@ contract NameSpaceTest is Test {
 
     function testRegister() public {
         // 1. Give alice money and fast forward to 2022 to begin registration.
-        fundAlice();
         vm.startPrank(alice);
+        fundAlice();
 
-        // 2. Generate and make the commit
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        // 2. Make the commitment to register the name alice, but deliver it to bob
+        bytes32 commitHash = namespace.generateCommit("alice", bob, "secret");
         namespace.makeCommit(commitHash);
 
-        // 3. Register the name andy.
-        uint256 balance = alice.balance;
-
+        // 3. Register the name alice, and deliver it to bob
         vm.expectEmit(true, true, true, false);
-        emit Transfer(address(0), alice, uint256(bytes32("alice")));
+        emit Transfer(address(0), bob, uint256(bytes32("alice")));
 
-        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+        uint256 balance = alice.balance;
+        namespace.register{value: 0.01 ether}("alice", bob, "secret");
         vm.stopPrank();
 
-        // 4. Check that excess funds were returned
+        // 4. Assert that the name was registered and the balance was returned.
         assertEq(alice.balance, balance - namespace.currYearFee());
+        assertEq(namespace.ownerOf(aliceTokenId), bob);
     }
 
     function testCannotRegisterWithoutPayment() public {
@@ -256,7 +256,7 @@ contract NameSpaceTest is Test {
 
         // Renew alice's subscription during the auction and expect it to fail
         vm.warp(aliceExpiredTs);
-        vm.expectRevert(NotRenewable.selector);
+        vm.expectRevert(Expired.selector);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
         vm.stopPrank();
 
@@ -273,7 +273,7 @@ contract NameSpaceTest is Test {
         vm.warp(aliceRenewTs - 1);
 
         // Try to renew the subscription
-        vm.expectRevert(NotRenewable.selector);
+        vm.expectRevert(Registered.selector);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
@@ -288,7 +288,7 @@ contract NameSpaceTest is Test {
         vm.warp(aliceRenewTs);
 
         // 2. Renewing fails if the owner is specified incorrectly
-        vm.expectRevert(InvalidOwner.selector);
+        vm.expectRevert(IncorrectOwner.selector);
         namespace.renew{value: 0.01 ether}(aliceTokenId, bob);
 
         vm.expectRevert(Expired.selector);
@@ -345,7 +345,7 @@ contract NameSpaceTest is Test {
 
         // 4. Alice bids again and fails because the name is no longer for auction
         vm.prank(alice);
-        vm.expectRevert(NotAuctionable.selector);
+        vm.expectRevert(NotExpired.selector);
         namespace.bid(aliceTokenId);
 
         assertEq(namespace.ownerOf(aliceTokenId), bob);
@@ -472,8 +472,8 @@ contract NameSpaceTest is Test {
         vm.stopPrank();
         vm.warp(aliceExpiredTs - 1);
 
-        // 2. Any bid should fail with the NotAuctionable error
-        vm.expectRevert(NotAuctionable.selector);
+        // 2. Any bid should fail with the NotExpired error
+        vm.expectRevert(NotExpired.selector);
         namespace.bid(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
@@ -592,7 +592,7 @@ contract NameSpaceTest is Test {
         vm.stopPrank();
 
         vm.prank(bob);
-        vm.expectRevert((InvalidOwner).selector);
+        vm.expectRevert(Unauthorized.selector);
         namespace.setRecoveryAddress(aliceTokenId, charlie);
 
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
@@ -613,7 +613,7 @@ contract NameSpaceTest is Test {
     function testCannotSetRecoveryForUnmintedToken() public {
         uint256 bobTokenId = uint256(bytes32("bob"));
 
-        vm.expectRevert(NotMinted.selector);
+        vm.expectRevert(NotRegistered.selector);
         vm.prank(alice);
         namespace.setRecoveryAddress(bobTokenId, bob);
 
@@ -983,7 +983,7 @@ contract NameSpaceTest is Test {
     }
 
     function testCannotReclaimUnlessMinted() public {
-        vm.expectRevert(NotMinted.selector);
+        vm.expectRevert(NotRegistered.selector);
         vm.prank(admin);
         namespace.reclaim(aliceTokenId);
     }
