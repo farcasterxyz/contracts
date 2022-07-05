@@ -37,8 +37,6 @@ contract Namespace is ERC721, Owned {
 
     event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
 
-    event Reclaim(uint256 indexed tokenId);
-
     /*//////////////////////////////////////////////////////////////
                         RECOVERY EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -185,7 +183,7 @@ contract Namespace is ERC721, Owned {
         delete stateOf[commit];
 
         uint256 tokenId = uint256(bytes32(username));
-        if (expiryOf[tokenId] != 0) revert Unauthorized();
+        if (expiryOf[tokenId] != 0) revert Registered();
 
         _mint(owner, tokenId);
 
@@ -243,15 +241,14 @@ contract Namespace is ERC721, Owned {
      *
      * @param tokenId the tokenId of the username to bid on
      */
-    function bid(uint256 tokenId) public payable {
+    function bid(uint256 tokenId) external payable {
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert NotRegistered();
 
-        // Optimization: these operations might be safe to perform unchecked
         uint256 auctionStartTimestamp;
 
         unchecked {
-            // timestampOfYear is taken from a pre-determined list and cannot overflow.
+            // expiryTs is taken from a pre-determined list and cannot overflow.
             auctionStartTimestamp = expiryTs + gracePeriod;
         }
 
@@ -274,7 +271,7 @@ contract Namespace is ERC721, Owned {
         _unsafeTransfer(msg.sender, tokenId);
 
         unchecked {
-            // currentYear is taken from a pre-determined list and cannot overflow
+            // timestampOfYear(currentYear) is taken from a pre-determined list and cannot overflow
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
@@ -357,7 +354,10 @@ contract Namespace is ERC721, Owned {
     }
 
     /**
-     * @notice Request a transfer of a username if the caller is the recoveryAddress
+     * @notice Requests a recovery of a username and moves it into escrow.
+     *
+     * @dev Requests can be overwritten by making another request, and can be made even if the
+     *      username is in renewal or expired status.
      *
      * @param tokenId the uint256 representation of the username.
      * @param from the address that currently owns the username.
@@ -370,8 +370,7 @@ contract Namespace is ERC721, Owned {
     ) external payable {
         if (to == address(0)) revert InvalidRecovery();
 
-        // Invariant 3 ensures that a recovery request cannot be made directly after a change of
-        // ownership without explicit consent from the new owner
+        // Invariant 3 ensures that a request cannot be made after ownership change without consent
         if (msg.sender != recoveryOf[tokenId]) revert Unauthorized();
 
         recoveryClockOf[tokenId] = block.timestamp;
@@ -381,13 +380,12 @@ contract Namespace is ERC721, Owned {
     }
 
     /**
-     * @notice Completes a transfer request if the escrow period has passed and the caller is the
-     *         recoveryAddress.
+     * @notice Completes a recovery request and transfers the name if the escrow is complete and
+     *         the username is still registered.
      *
      * @param tokenId the uint256 representation of the username.
      */
     function completeRecovery(uint256 tokenId) external payable {
-        // Name cannot be recovered after it has expired
         if (block.timestamp >= expiryOf[tokenId]) revert Unauthorized();
 
         // Invariant 3 prevents unauthorized access if the name has been re-posessed by another.
@@ -443,16 +441,11 @@ contract Namespace is ERC721, Owned {
         }
 
         _unsafeTransfer(vault, tokenId);
-
-        emit Reclaim(tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
                           YEARLY PAYMENTS LOGIC
     //////////////////////////////////////////////////////////////*/
-
-    // Optimization: these could be made private functions which may slightly reduce their gas
-    // cost in solidity, though we would need to rewrite the tests accordingly.
 
     /**
      * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
@@ -520,7 +513,7 @@ contract Namespace is ERC721, Owned {
      *      transferFrom but more gas-efficient since it doesn't check ownership or destination
      *      validity which can be ensured by the caller explicitly or implicitly.
      */
-    function _unsafeTransfer(address to, uint256 tokenId) internal {
+    function _unsafeTransfer(address to, uint256 tokenId) private {
         address from = _ownerOf[tokenId];
 
         if (from == address(0)) revert Unauthorized();
@@ -545,7 +538,7 @@ contract Namespace is ERC721, Owned {
     /**
      * @dev Resets the recoveryAddress and any ongoing recoveries
      */
-    function _clearRecovery(uint256 tokenId) internal {
+    function _clearRecovery(uint256 tokenId) private {
         // Checking state before clearing is more gas-efficient than always clearing
         if (recoveryClockOf[tokenId] != 0) delete recoveryClockOf[tokenId];
 
@@ -555,7 +548,7 @@ contract Namespace is ERC721, Owned {
     /**
      * @dev Returns true if the name is only composed of [a-z0-9] and the hyphen characters.
      */
-    function _isValidUsername(bytes16 name) internal pure returns (bool) {
+    function _isValidUsername(bytes16 name) private pure returns (bool) {
         uint256 length = name.length;
 
         for (uint256 i = 0; i < length; ) {
