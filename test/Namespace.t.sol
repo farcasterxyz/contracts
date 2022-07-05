@@ -15,8 +15,6 @@ contract NameSpaceTest is Test {
 
     event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
 
-    event Reclaim(uint256 indexed tokenId);
-
     event SetRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
 
     event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
@@ -125,6 +123,14 @@ contract NameSpaceTest is Test {
         namespace.makeCommit(commitHash);
         vm.expectRevert(Registered.selector);
         namespace.register{value: 0.01 ether}("alice", bob, "secret");
+
+        // 6. Check that alice can still mint another name to bob
+        bytes32 commitHashMorty = namespace.generateCommit("morty", bob, "secret");
+        namespace.makeCommit(commitHashMorty);
+        namespace.register{value: 0.01 ether}("morty", bob, "secret");
+        assertEq(namespace.ownerOf(uint256(bytes32("morty"))), bob);
+        assertEq(namespace.balanceOf(bob), 2);
+
         vm.stopPrank();
     }
 
