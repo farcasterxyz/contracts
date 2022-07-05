@@ -57,7 +57,7 @@ contract Namespace is ERC721, Owned {
     mapping(bytes32 => bool) public stateOf;
 
     // Mapping from tokenID to expiration year
-    mapping(uint256 => uint256) public expiryYearOf;
+    mapping(uint256 => uint256) public expiryOf;
 
     // The index of the next year in the array
     uint256 internal _nextYearIdx;
@@ -125,10 +125,10 @@ contract Namespace is ERC721, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1A: If an id is not minted, expiryYearOf[id] must be 0 and  _ownerOf[id] and
+     * INVARIANT 1A: If an id is not minted, expiryOf[id] must be 0 and  _ownerOf[id] and
      *               recoveryOf[id] must also be address(0).
      *
-     * INVARIANT 1B: If an id is minted, expiryYearOf[id] and _ownerOf[id] must be non-zero.
+     * INVARIANT 1B: If an id is minted, expiryOf[id] and _ownerOf[id] must be non-zero.
      *
      * INVARIANT 2: A username cannot be transferred to address(0) after it is minted.
      */
@@ -185,13 +185,13 @@ contract Namespace is ERC721, Owned {
         delete stateOf[commit];
 
         uint256 tokenId = uint256(bytes32(username));
-        if (expiryYearOf[tokenId] != 0) revert Unauthorized();
+        if (expiryOf[tokenId] != 0) revert Unauthorized();
 
         _mint(owner, tokenId);
 
         unchecked {
             // currYear is selected from a pre-determined list and cannot overflow
-            expiryYearOf[tokenId] = currYear() + 1;
+            expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
         // TODO: this may fail if called by a smart contract
@@ -209,25 +209,23 @@ contract Namespace is ERC721, Owned {
     function renew(uint256 tokenId, address owner) external payable {
         if (msg.value < fee) revert InsufficientFunds();
 
-        uint256 expiryYear = expiryYearOf[tokenId];
-        if (expiryYear == 0) revert NotRegistered();
+        uint256 expiryTs = expiryOf[tokenId];
+        if (expiryTs == 0) revert NotRegistered();
 
         // Invariant 1B + 2 guarantee that the name is not owned by address(0) at this point.
         if (_ownerOf[tokenId] != owner) revert IncorrectOwner();
 
         unchecked {
-            uint256 renewTs = timestampOfYear(expiryYear);
-
             // renewTs and gracePeriod are pre-determined values and cannot overflow
-            if (block.timestamp >= renewTs + gracePeriod) revert Expired();
+            if (block.timestamp >= expiryTs + gracePeriod) revert Expired();
 
-            if (block.timestamp < renewTs) revert Registered();
+            if (block.timestamp < expiryTs) revert Registered();
 
             // currYear is selected from a pre-determined list and cannot overflow
-            expiryYearOf[tokenId] = currYear() + 1;
+            expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        emit Renew(tokenId, owner, expiryYearOf[tokenId]);
+        emit Renew(tokenId, owner, expiryOf[tokenId]);
 
         // TODO: this may fail if called by a smart contract
         if (msg.value > fee) {
@@ -246,15 +244,15 @@ contract Namespace is ERC721, Owned {
      * @param tokenId the tokenId of the username to bid on
      */
     function bid(uint256 tokenId) public payable {
-        uint256 expiryYear = expiryYearOf[tokenId];
-        if (expiryYear == 0) revert NotRegistered();
+        uint256 expiryTs = expiryOf[tokenId];
+        if (expiryTs == 0) revert NotRegistered();
 
         // Optimization: these operations might be safe to perform unchecked
         uint256 auctionStartTimestamp;
 
         unchecked {
             // timestampOfYear is taken from a pre-determined list and cannot overflow.
-            auctionStartTimestamp = timestampOfYear(expiryYear) + gracePeriod;
+            auctionStartTimestamp = expiryTs + gracePeriod;
         }
 
         if (auctionStartTimestamp > block.timestamp) revert NotExpired();
@@ -277,7 +275,7 @@ contract Namespace is ERC721, Owned {
 
         unchecked {
             // currentYear is taken from a pre-determined list and cannot overflow
-            expiryYearOf[tokenId] = currYear() + 1;
+            expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
         // TODO: this may revert if called by a smart contract
@@ -294,12 +292,12 @@ contract Namespace is ERC721, Owned {
      * @notice Override the ownerOf implementation to throw if a username is expired or renewable.
      */
     function ownerOf(uint256 tokenId) public view override returns (address) {
-        uint256 expiryYear = expiryYearOf[tokenId];
+        uint256 expiryTs = expiryOf[tokenId];
 
         // Invariant 1A will ensure a throw if a name was not minted, as per the ERC-721 spec.
-        if (expiryYear == 0) revert NotRegistered();
+        if (expiryTs == 0) revert NotRegistered();
 
-        if (block.timestamp >= timestampOfYear(expiryYear)) revert Expired();
+        if (block.timestamp >= expiryTs) revert Expired();
 
         return _ownerOf[tokenId];
     }
@@ -316,7 +314,7 @@ contract Namespace is ERC721, Owned {
         address to,
         uint256 id
     ) public override {
-        if (block.timestamp >= timestampOfYear(expiryYearOf[id])) revert Expired();
+        if (block.timestamp >= expiryOf[id]) revert Expired();
 
         super.transferFrom(from, to, id);
 
@@ -390,7 +388,7 @@ contract Namespace is ERC721, Owned {
      */
     function completeRecovery(uint256 tokenId) external payable {
         // Name cannot be recovered after it has expired
-        if (block.timestamp >= timestampOfYear(expiryYearOf[tokenId])) revert Unauthorized();
+        if (block.timestamp >= expiryOf[tokenId]) revert Unauthorized();
 
         // Invariant 3 prevents unauthorized access if the name has been re-posessed by another.
         if (msg.sender != recoveryOf[tokenId]) revert Unauthorized();
@@ -412,10 +410,13 @@ contract Namespace is ERC721, Owned {
      * @notice Cancels a transfer request if the caller is the recoveryAddress or the
      *         custodyAddress
      *
+     * @dev Cancellation is permitted even if the username is in the renewable or expired state,
+     *      it is a more gas-efficient check and has no adverse effects.
+     *
      * @param tokenId the uint256 representation of the username.
      */
     function cancelRecovery(uint256 tokenId) external payable {
-        if (msg.sender != ownerOf(tokenId) && msg.sender != recoveryOf[tokenId])
+        if (msg.sender != _ownerOf[tokenId] && msg.sender != recoveryOf[tokenId])
             revert Unauthorized();
 
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
@@ -434,11 +435,11 @@ contract Namespace is ERC721, Owned {
      * @param tokenId the uint256 representation of the username.
      */
     function reclaim(uint256 tokenId) external payable onlyOwner {
-        if (expiryYearOf[tokenId] == 0) revert NotRegistered();
+        if (expiryOf[tokenId] == 0) revert NotRegistered();
 
         unchecked {
             // this value is deterministic and cannot overflow for any known year
-            expiryYearOf[tokenId] = currYear() + 1;
+            expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
         _unsafeTransfer(vault, tokenId);
@@ -457,8 +458,12 @@ contract Namespace is ERC721, Owned {
      * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
      */
     function timestampOfYear(uint256 year) public view returns (uint256) {
-        if (year <= 2021) revert InvalidTime();
-        return _yearTimestamps[year - 2022];
+        unchecked {
+            if (year <= 2021) revert InvalidTime();
+
+            // year can never underflow because we check its value, or overflow because of subtract
+            return _yearTimestamps[year - 2022];
+        }
     }
 
     /**
@@ -555,7 +560,8 @@ contract Namespace is ERC721, Owned {
 
         for (uint256 i = 0; i < length; ) {
             uint8 charInt = uint8(name[i]);
-            // TODO: can probably be optimized with a bitmask, but write tests first
+            // Optimize: consider using a bitmask to check for valid characters which may be more
+            // efficient.
             // Allow inclusive ranges 45(-), 48 - 57 (0-9), 97-122 (a-z)
             if (
                 (charInt >= 1 && charInt <= 44) ||

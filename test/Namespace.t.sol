@@ -34,10 +34,12 @@ contract NameSpaceTest is Test {
 
     uint256 escrowPeriod = 3 days;
 
+    uint256 timestamp2023 = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
+    uint256 timestamp2024 = 1704067200; // Sun, Jan 1, 2024 0:00:00 GMT
+
     uint256 aliceTokenId = uint256(bytes32("alice"));
     uint256 aliceRegisterTs = 1655933973; // Wed, Jun 22, 2022 21:39:33 GMT
-    uint256 aliceRenewTs = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
-    uint256 aliceRenewYear = 2023;
+    uint256 aliceRenewTs = timestamp2023; // Sun, Jan 1, 2023 0:00:00 GMT
     uint256 aliceExpiredTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
@@ -208,12 +210,12 @@ contract NameSpaceTest is Test {
 
         // Alice renews her own registration
         vm.expectEmit(true, true, true, true);
-        emit Renew(aliceTokenId, alice, aliceRenewYear + 1);
+        emit Renew(aliceTokenId, alice, timestamp2024);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
         vm.stopPrank();
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryYearOf(aliceTokenId), 2024);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testRenewOther() public {
@@ -227,11 +229,11 @@ contract NameSpaceTest is Test {
         vm.deal(bob, 1 ether);
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
-        emit Renew(aliceTokenId, alice, aliceRenewYear + 1);
+        emit Renew(aliceTokenId, alice, timestamp2024);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryYearOf(aliceTokenId), 2024);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testRenewWithOverpayment() public {
@@ -247,7 +249,7 @@ contract NameSpaceTest is Test {
 
         assertEq(alice.balance, balance - 0.01 ether);
         assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryYearOf(aliceTokenId), 2024);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testCannotRenewDuringAuction() public {
@@ -262,7 +264,7 @@ contract NameSpaceTest is Test {
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryYearOf(aliceTokenId), 2023);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
     }
 
     function testCannotRenewEarly() public {
@@ -277,7 +279,7 @@ contract NameSpaceTest is Test {
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryYearOf(aliceTokenId), aliceRenewYear);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
         vm.stopPrank();
     }
 
@@ -293,7 +295,7 @@ contract NameSpaceTest is Test {
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryYearOf(aliceTokenId), aliceRenewYear);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
         vm.stopPrank();
     }
 
@@ -309,7 +311,7 @@ contract NameSpaceTest is Test {
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryYearOf(aliceTokenId), aliceRenewYear);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
         vm.stopPrank();
     }
 
@@ -962,7 +964,7 @@ contract NameSpaceTest is Test {
 
         // Sanity check ownership and expiration
         assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryYearOf(aliceTokenId), aliceRenewYear);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
     }
 
     function testReclaimShouldRenewExpiredNames() public {
@@ -979,7 +981,7 @@ contract NameSpaceTest is Test {
 
         // Sanity check ownership and expiration dates
         assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryYearOf(aliceTokenId), namespace.currYear() + 1);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testCannotReclaimUnlessMinted() public {
@@ -999,7 +1001,7 @@ contract NameSpaceTest is Test {
         namespace.makeCommit(commitHash);
 
         namespace.register{value: namespace.fee()}("alice", who, "secret");
-        assertEq(namespace.expiryYearOf(aliceTokenId), 2023);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
     }
 
     // Set up alice's account with funds and fast forward to 2022
