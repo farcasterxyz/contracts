@@ -15,12 +15,15 @@ error InvalidName(); // The username had invalid characters
 error InvalidTime(); // Time is too far in the future or past
 error IncorrectOwner(); // The username is not owned by the expected address
 
-error Registered(); // The username is registered.
-error NotRegistered(); // The username has never been registered.
-error Expired(); // The username is expired.
-error NotExpired(); // The username is still registered or in renewal.
+error Registered(); // The username is currently registered.
+error NotRegisterable(); // The username has been registered and cannot be registered again.
+error Registerable(); // The username has never been registered.
 
-error InEscrow(); // The recovery request is still in escrow
+error Expired(); // The username is expired (renewable or biddable)
+error Biddable(); // The username is biddable
+error NotBiddable(); // The username is still registered or in renewal.
+
+error Escrow(); // The recovery request is still in escrow
 error NoRecovery(); // The recovery request could not be found
 error InvalidRecovery(); // The recovery address is being set to the custody address
 
@@ -183,7 +186,7 @@ contract Namespace is ERC721, Owned {
         delete stateOf[commit];
 
         uint256 tokenId = uint256(bytes32(username));
-        if (expiryOf[tokenId] != 0) revert Registered();
+        if (expiryOf[tokenId] != 0) revert NotRegisterable();
 
         _mint(owner, tokenId);
 
@@ -208,14 +211,14 @@ contract Namespace is ERC721, Owned {
         if (msg.value < fee) revert InsufficientFunds();
 
         uint256 expiryTs = expiryOf[tokenId];
-        if (expiryTs == 0) revert NotRegistered();
+        if (expiryTs == 0) revert Registerable();
 
         // Invariant 1B + 2 guarantee that the name is not owned by address(0) at this point.
         if (_ownerOf[tokenId] != owner) revert IncorrectOwner();
 
         unchecked {
             // renewTs and gracePeriod are pre-determined values and cannot overflow
-            if (block.timestamp >= expiryTs + gracePeriod) revert Expired();
+            if (block.timestamp >= expiryTs + gracePeriod) revert Biddable();
 
             if (block.timestamp < expiryTs) revert Registered();
 
@@ -243,7 +246,7 @@ contract Namespace is ERC721, Owned {
      */
     function bid(uint256 tokenId) external payable {
         uint256 expiryTs = expiryOf[tokenId];
-        if (expiryTs == 0) revert NotRegistered();
+        if (expiryTs == 0) revert Registerable();
 
         uint256 auctionStartTimestamp;
 
@@ -252,7 +255,7 @@ contract Namespace is ERC721, Owned {
             auctionStartTimestamp = expiryTs + gracePeriod;
         }
 
-        if (auctionStartTimestamp > block.timestamp) revert NotExpired();
+        if (auctionStartTimestamp > block.timestamp) revert NotBiddable();
 
         // Calculate the num of 8 hr periods since expiry as a fixed point signed decimal. The
         // constant approximates fixed point division by 28,000 (num of seconds in 8 hours)
@@ -292,7 +295,7 @@ contract Namespace is ERC721, Owned {
         uint256 expiryTs = expiryOf[tokenId];
 
         // Invariant 1A will ensure a throw if a name was not minted, as per the ERC-721 spec.
-        if (expiryTs == 0) revert NotRegistered();
+        if (expiryTs == 0) revert Registerable();
 
         if (block.timestamp >= expiryTs) revert Expired();
 
@@ -397,7 +400,7 @@ contract Namespace is ERC721, Owned {
 
         unchecked {
             // recoveryClockOf is always set to block.timestamp and cannot realistically overflow
-            if (block.timestamp < recoveryClockOf[tokenId] + escrowPeriod) revert InEscrow();
+            if (block.timestamp < recoveryClockOf[tokenId] + escrowPeriod) revert Escrow();
         }
 
         // Invariant 4 prevents this from going to a null address.
@@ -433,7 +436,7 @@ contract Namespace is ERC721, Owned {
      * @param tokenId the uint256 representation of the username.
      */
     function reclaim(uint256 tokenId) external payable onlyOwner {
-        if (expiryOf[tokenId] == 0) revert NotRegistered();
+        if (expiryOf[tokenId] == 0) revert Registerable();
 
         unchecked {
             // this value is deterministic and cannot overflow for any known year

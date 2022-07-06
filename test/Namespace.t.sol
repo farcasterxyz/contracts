@@ -37,8 +37,8 @@ contract NameSpaceTest is Test {
 
     uint256 aliceTokenId = uint256(bytes32("alice"));
     uint256 aliceRegisterTs = 1655933973; // Wed, Jun 22, 2022 21:39:33 GMT
-    uint256 aliceRenewTs = timestamp2023; // Sun, Jan 1, 2023 0:00:00 GMT
-    uint256 aliceExpiredTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
+    uint256 aliceRenewableTs = timestamp2023; // Sun, Jan 1, 2023 0:00:00 GMT
+    uint256 aliceBiddableTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
         namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this));
@@ -121,7 +121,7 @@ contract NameSpaceTest is Test {
 
         // 5. Check that comitting and minting again fails
         namespace.makeCommit(commitHash);
-        vm.expectRevert(Registered.selector);
+        vm.expectRevert(NotRegisterable.selector);
         namespace.register{value: 0.01 ether}("alice", bob, "secret");
 
         // 6. Check that alice can still mint another name to bob
@@ -198,7 +198,7 @@ contract NameSpaceTest is Test {
     function testRenewSelf() public {
         // 1. Register alice and fast forward to renewal
         registerAlice();
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
 
         // 2. Alice renews her own username
         vm.expectEmit(true, true, true, true);
@@ -213,7 +213,7 @@ contract NameSpaceTest is Test {
     function testRenewOther() public {
         // 1. Register alice and fast forward to renewal
         registerAlice();
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
 
         // 2. Bob renews alice's username for her
         vm.deal(bob, 1 ether);
@@ -228,7 +228,7 @@ contract NameSpaceTest is Test {
 
     function testRenewWithOverpayment() public {
         registerAlice();
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
 
         // Renew alice's registration, but overpay the amount
         vm.startPrank(alice);
@@ -244,7 +244,7 @@ contract NameSpaceTest is Test {
     function testCannotRenewWithoutPayment() public {
         // 1. Register alice and fast-forward to renewal
         registerAlice();
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
 
         // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
@@ -256,17 +256,17 @@ contract NameSpaceTest is Test {
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
     }
 
-    function testCannotRenewIfNeverRegistered() public {
+    function testCannotRenewIfRegisterable() public {
         // 1. Fund alice and fast-forward to 2022, when registrations can occur
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
 
         // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
-        vm.expectRevert(NotRegistered.selector);
+        vm.expectRevert(Registerable.selector);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
 
-        vm.expectRevert(NotRegistered.selector);
+        vm.expectRevert(Registerable.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
         assertEq(namespace.expiryOf(aliceTokenId), 0);
     }
@@ -274,7 +274,7 @@ contract NameSpaceTest is Test {
     function testCannotRenewIfOwnerIncorrect() public {
         // 1. Register alice and fast-forward to 2023, when the registration is in renewal.
         registerAlice();
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
 
         // 2. Renewing fails if the owner is specified incorrectly
         vm.prank(alice);
@@ -286,13 +286,13 @@ contract NameSpaceTest is Test {
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
     }
 
-    function testCannotRenewIfExpired() public {
+    function testCannotRenewIfBiddable() public {
         // 1. Register alice and fast-forward to 2023 when the registration expires
         registerAlice();
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
 
         vm.prank(alice);
-        vm.expectRevert(Expired.selector);
+        vm.expectRevert(Biddable.selector);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
 
         vm.expectRevert(Expired.selector);
@@ -303,7 +303,7 @@ contract NameSpaceTest is Test {
     function testCannotRenewIfRegistered() public {
         // Fast forward to the last second of this year (2022) when the registration is still valid
         registerAlice();
-        vm.warp(aliceRenewTs - 1);
+        vm.warp(aliceRenewableTs - 1);
 
         vm.prank(alice);
         vm.expectRevert(Registered.selector);
@@ -322,7 +322,7 @@ contract NameSpaceTest is Test {
         registerAlice();
         vm.prank(alice);
         namespace.approve(bob, aliceTokenId);
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
 
         // 2. Bob bids and fails because bid < premium + fee
         vm.deal(bob, 1001 ether);
@@ -348,7 +348,7 @@ contract NameSpaceTest is Test {
 
         // 4. Alice bids again and fails because the name is no longer for auction
         vm.prank(alice);
-        vm.expectRevert(NotExpired.selector);
+        vm.expectRevert(NotBiddable.selector);
         namespace.bid(aliceTokenId);
 
         assertEq(namespace.ownerOf(aliceTokenId), bob);
@@ -360,7 +360,7 @@ contract NameSpaceTest is Test {
     function testBidAndOverpay() public {
         // 1. Register alice and fast-forward to the start of the auction
         registerAlice();
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
 
         // 2. Bob bids and overpays
         vm.deal(bob, 1001 ether);
@@ -374,7 +374,7 @@ contract NameSpaceTest is Test {
     function testBidAfterOneStep() public {
         // 1. Register alice and fast-forward to 8 hours into the auction
         registerAlice();
-        vm.warp(aliceExpiredTs + 8 hours);
+        vm.warp(aliceBiddableTs + 8 hours);
 
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^1 * 1_000) + 0.00916894977 = 900.009
@@ -403,7 +403,7 @@ contract NameSpaceTest is Test {
     function testBidOnHundredthStep() public {
         // 1. Register alice and fast-forward to 800 hours into the auction
         registerAlice();
-        vm.warp(aliceExpiredTs + (8 hours * 100));
+        vm.warp(aliceBiddableTs + (8 hours * 100));
 
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^100 * 1_000) + 0.00826484018 = 0.0348262391
@@ -431,7 +431,7 @@ contract NameSpaceTest is Test {
     function testBidOnPenultimateStep() public {
         // 1. Register alice and fast-forward to 3056 hours into the auction
         registerAlice();
-        vm.warp(aliceExpiredTs + (8 hours * 382));
+        vm.warp(aliceBiddableTs + (8 hours * 382));
 
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^382 * 1_000) + 0.00568949772 = 0.00568949772 (+ ~ - 3.31e-15)
@@ -458,7 +458,7 @@ contract NameSpaceTest is Test {
 
     function testBidFlatRate() public {
         registerAlice();
-        vm.warp(aliceExpiredTs + (8 hours * 383));
+        vm.warp(aliceBiddableTs + (8 hours * 383));
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
 
@@ -482,14 +482,14 @@ contract NameSpaceTest is Test {
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
     }
 
-    function testCannotBidIfNotExpired() public {
+    function testCannotBidUnlessBiddable() public {
         // 1. Register alice and fast-forward to one second before the auction starts
         registerAlice();
 
-        // 2. Any bid during registration period should fail
+        // 2. Bid during registered state should fail
         vm.startPrank(bob);
-        vm.warp(aliceRenewTs - 1);
-        vm.expectRevert(NotExpired.selector);
+        vm.warp(aliceRenewableTs - 1);
+        vm.expectRevert(NotBiddable.selector);
         namespace.bid(aliceTokenId);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
@@ -497,9 +497,9 @@ contract NameSpaceTest is Test {
         assertEq(namespace.balanceOf(bob), 0);
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
 
-        // 2. Any bid during renewal period should fail
-        vm.warp(aliceExpiredTs - 1);
-        vm.expectRevert(NotExpired.selector);
+        // 2. Bid during renewable state should fail
+        vm.warp(aliceBiddableTs - 1);
+        vm.expectRevert(NotBiddable.selector);
         namespace.bid(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
@@ -523,7 +523,7 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), bob);
 
         // 3. Bob completes a bid on alice
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
         vm.deal(bob, 1001 ether);
         namespace.bid{value: 1001 ether}(aliceTokenId);
         vm.stopPrank();
@@ -533,13 +533,13 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testCannotBidIfNotMinted() public {
+    function testCannotBidIfRegisterable() public {
         // 1. Bid on @alice when it is not minted
         vm.prank(bob);
-        vm.expectRevert(NotRegistered.selector);
+        vm.expectRevert(Registerable.selector);
         namespace.bid(aliceTokenId);
 
-        vm.expectRevert(NotRegistered.selector);
+        vm.expectRevert(Registerable.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
         assertEq(namespace.balanceOf(alice), 0);
         assertEq(namespace.balanceOf(bob), 0);
@@ -550,16 +550,16 @@ contract NameSpaceTest is Test {
                             ERC-721 TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testOwnerOfRevertsIfNameExpired() public {
+    function testOwnerOfRevertsIfExpired() public {
         registerAlice();
 
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
         vm.expectRevert(Expired.selector);
         namespace.ownerOf(aliceTokenId);
     }
 
-    function testOwnerOfRevertsIfNameNotMinted() public {
-        vm.expectRevert(NotRegistered.selector);
+    function testOwnerOfRevertsIfRegisterable() public {
+        vm.expectRevert(Registerable.selector);
         namespace.ownerOf(aliceTokenId);
     }
 
@@ -585,13 +585,13 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testTransferFromCannotTransferRenweableOrExpiredName() public {
+    function testTransferFromCannotTransferExpiredName() public {
         // 1. Register alice and set up a recovery address.
         registerAlice();
 
         // 2. Fast forward to name in renewable state
         vm.startPrank(alice);
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
         vm.expectRevert(Expired.selector);
         namespace.transferFrom(alice, bob, aliceTokenId);
 
@@ -601,7 +601,7 @@ contract NameSpaceTest is Test {
         assertEq(namespace.balanceOf(bob), 0);
 
         // 3. Fast forward to name in expired state
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
         vm.expectRevert(Expired.selector);
         namespace.transferFrom(alice, bob, aliceTokenId);
         vm.stopPrank();
@@ -646,16 +646,16 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testCannotSetRecoveryIfRenewableOrExpired() public {
+    function testCannotSetRecoveryIfExpired() public {
         registerAlice();
 
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
         vm.startPrank(alice);
         vm.expectRevert(Expired.selector);
         namespace.setRecoveryAddress(aliceTokenId, charlie);
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
 
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
         vm.expectRevert(Expired.selector);
         namespace.setRecoveryAddress(aliceTokenId, charlie);
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
@@ -663,10 +663,10 @@ contract NameSpaceTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotSetRecoveryIfNotMinted() public {
+    function testCannotSetRecoveryIfRegisterable() public {
         uint256 bobTokenId = uint256(bytes32("bob"));
 
-        vm.expectRevert(NotRegistered.selector);
+        vm.expectRevert(Registerable.selector);
         vm.prank(alice);
         namespace.setRecoveryAddress(bobTokenId, bob);
 
@@ -736,7 +736,7 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryDestinationOf(aliceTokenId), address(0));
     }
 
-    function testCannotRequestRecoveryIfNotMinted() public {
+    function testCannotRequestRecoveryIfRegisterable() public {
         // 1. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
         vm.expectRevert(Unauthorized.selector);
@@ -824,7 +824,7 @@ contract NameSpaceTest is Test {
         namespace.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. before escrow period, bob completes the recovery to charlie
-        vm.expectRevert(InEscrow.selector);
+        vm.expectRevert(Escrow.selector);
         namespace.completeRecovery(aliceTokenId);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
@@ -833,7 +833,7 @@ contract NameSpaceTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotCompleteRecoveryWhenInRenewalOrExpired() public {
+    function testCannotCompleteRecoveryIfExpired() public {
         // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
         vm.prank(alice);
@@ -845,7 +845,7 @@ contract NameSpaceTest is Test {
         namespace.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. during the renewal period, bob attempts to recover to charlie
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
         vm.expectRevert(Unauthorized.selector);
         namespace.completeRecovery(aliceTokenId);
 
@@ -855,7 +855,7 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryClockOf(aliceTokenId), requestTs);
 
         // 3. during expiry, bob attempts to recover to charlie
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
         vm.expectRevert(Unauthorized.selector);
         namespace.completeRecovery(aliceTokenId);
 
@@ -982,7 +982,7 @@ contract NameSpaceTest is Test {
     function testReclaimRenewableNames() public {
         registerAlice();
 
-        vm.warp(aliceRenewTs);
+        vm.warp(aliceRenewableTs);
         vm.expectEmit(true, true, true, false);
         emit Transfer(alice, namespace.vault(), aliceTokenId);
         vm.prank(admin);
@@ -992,10 +992,10 @@ contract NameSpaceTest is Test {
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
     }
 
-    function testReclaimExpiredNames() public {
+    function testReclaimBiddableNames() public {
         registerAlice();
 
-        vm.warp(aliceExpiredTs);
+        vm.warp(aliceBiddableTs);
         vm.expectEmit(true, true, true, false);
         emit Transfer(alice, namespace.vault(), aliceTokenId);
         vm.prank(admin);
@@ -1006,7 +1006,7 @@ contract NameSpaceTest is Test {
     }
 
     function testCannotReclaimUnlessMinted() public {
-        vm.expectRevert(NotRegistered.selector);
+        vm.expectRevert(Registerable.selector);
         vm.prank(admin);
         namespace.reclaim(aliceTokenId);
     }
