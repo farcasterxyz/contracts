@@ -1,6 +1,6 @@
 # Contracts
 
-Implementation of the AccountRegistry and Namespace contracts specified in the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are built with [Foundry](https://github.com/foundry-rs/foundry), a modular toolkit for developing Ethereum contracts. Please see the [documentation](docs/namespace.md) for more details about the contracts.
+Implementation of the AccountRegistry and Namespace contracts specified in the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are built with [Foundry](https://github.com/foundry-rs/foundry), a modular toolkit for developing Ethereum contracts. Please see the [documentation](docs/docs.md) for more details about the contracts.
 
 ## :package: Installing Dependencies
 
