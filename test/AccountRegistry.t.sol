@@ -41,14 +41,14 @@ contract AccountRegistryTest is Test {
     function testRegister() public {
         // 1. alice registers and claims id 1
         vm.prank(alice);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, false, true);
         emit Register(1, alice);
         accountRegistry.register();
         assertEq(accountRegistry.idOf(alice), 1);
 
         // 2. bob registers after alice and claims id 2
         vm.prank(bob);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, false, true);
         emit Register(2, bob);
         accountRegistry.register();
         assertEq(accountRegistry.idOf(bob), 2);
@@ -80,7 +80,7 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.idOf(bob), 0);
 
         // 2. alice transfers the id to bob
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, false, true);
         emit Transfer(1, bob);
         accountRegistry.transfer(bob);
 
@@ -131,7 +131,7 @@ contract AccountRegistryTest is Test {
         accountRegistry.register();
 
         // 2. alice sets bob as her recovery address
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, false, true);
         emit SetRecoveryAddress(bob, 1);
         accountRegistry.setRecoveryAddress(bob);
 
@@ -139,7 +139,7 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryOf(1), bob);
 
         // 3. alice sets charlie as her recovery address
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, false, true);
         emit SetRecoveryAddress(charlie, 1);
         accountRegistry.setRecoveryAddress(charlie);
         vm.stopPrank();
@@ -186,7 +186,7 @@ contract AccountRegistryTest is Test {
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, true, true);
         emit RequestRecovery(1, alice, charlie);
         accountRegistry.requestRecovery(alice, charlie);
 
@@ -251,7 +251,7 @@ contract AccountRegistryTest is Test {
 
         // 3. after escrow period, bob completes the recovery to charlie
         vm.roll(block.number + escrowPeriod);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, false, true);
         emit Transfer(1, charlie);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
@@ -381,7 +381,7 @@ contract AccountRegistryTest is Test {
 
         // 3. alice cancels the recovery
         vm.prank(alice);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, false, false, true);
         emit CancelRecovery(1);
         accountRegistry.cancelRecovery(alice);
 
@@ -416,7 +416,7 @@ contract AccountRegistryTest is Test {
 
         // 3. after 1 block, bob cancels the recovery
         vm.prank(bob);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, false, false, true);
         emit CancelRecovery(1);
         accountRegistry.cancelRecovery(alice);
 
