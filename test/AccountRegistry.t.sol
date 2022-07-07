@@ -11,9 +11,9 @@ contract AccountRegistryTest is Test {
                              EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Register(uint256 indexed id, address indexed to);
+    event Register(address indexed to, uint256 indexed id);
 
-    event Transfer(uint256 indexed id, address indexed to);
+    event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
     event SetRecoveryAddress(address indexed recovery, uint256 indexed id);
 
@@ -42,14 +42,14 @@ contract AccountRegistryTest is Test {
         // 1. alice registers and claims id 1
         vm.prank(alice);
         vm.expectEmit(true, true, false, true);
-        emit Register(1, alice);
+        emit Register(alice, 1);
         accountRegistry.register();
         assertEq(accountRegistry.idOf(alice), 1);
 
         // 2. bob registers after alice and claims id 2
         vm.prank(bob);
         vm.expectEmit(true, true, false, true);
-        emit Register(2, bob);
+        emit Register(bob, 2);
         accountRegistry.register();
         assertEq(accountRegistry.idOf(bob), 2);
     }
@@ -60,7 +60,7 @@ contract AccountRegistryTest is Test {
         accountRegistry.register();
 
         // 2. alice attempts to register again and fails
-        vm.expectRevert(CustodyAddressInvalid.selector);
+        vm.expectRevert(HasId.selector);
         accountRegistry.register();
         vm.stopPrank();
 
@@ -80,7 +80,7 @@ contract AccountRegistryTest is Test {
 
         // 2. alice transfers the id to bob
         vm.expectEmit(true, true, false, true);
-        emit Transfer(1, bob);
+        emit Transfer(alice, bob, 1);
         accountRegistry.transfer(bob);
 
         assertEq(accountRegistry.idOf(alice), 0);
@@ -99,7 +99,7 @@ contract AccountRegistryTest is Test {
 
         // 2. alice tries to transfer id to bob's address
         vm.prank(alice);
-        vm.expectRevert(CustodyAddressInvalid.selector);
+        vm.expectRevert(HasId.selector);
         accountRegistry.transfer(bob);
 
         assertEq(accountRegistry.idOf(alice), 1);
@@ -109,7 +109,7 @@ contract AccountRegistryTest is Test {
     function testCannotTransferIfNoId() public {
         // 1. alice tries to transfer an id to bob
         vm.prank(alice);
-        vm.expectRevert(IdInvalid.selector);
+        vm.expectRevert(ZeroId.selector);
         accountRegistry.transfer(bob);
 
         assertEq(accountRegistry.idOf(alice), 0);
@@ -147,7 +147,7 @@ contract AccountRegistryTest is Test {
         accountRegistry.register();
 
         // 2. alice sets herself as the recovery address, which fails
-        vm.expectRevert(RecoveryAddressInvalid.selector);
+        vm.expectRevert(InvalidRecoveryAddr.selector);
         accountRegistry.setRecoveryAddress(alice);
         vm.stopPrank();
 
@@ -156,7 +156,7 @@ contract AccountRegistryTest is Test {
 
     function testCannotSetRecoveryAddressWithoutId() public {
         vm.startPrank(alice);
-        vm.expectRevert(IdInvalid.selector);
+        vm.expectRevert(ZeroId.selector);
         accountRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
@@ -214,7 +214,7 @@ contract AccountRegistryTest is Test {
 
         // 3. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
-        vm.expectRevert(CustodyAddressInvalid.selector);
+        vm.expectRevert(HasId.selector);
         accountRegistry.requestRecovery(alice, charlie);
 
         assertEq(accountRegistry.idOf(alice), 1);
@@ -246,7 +246,7 @@ contract AccountRegistryTest is Test {
         // 3. after escrow period, bob completes the recovery to charlie
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectEmit(true, true, false, true);
-        emit Transfer(1, charlie);
+        emit Transfer(alice, charlie, 1);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
 
@@ -290,7 +290,7 @@ contract AccountRegistryTest is Test {
         // 2. bob calls recovery complete on alice's id, which fails
         vm.startPrank(bob);
         vm.warp(block.timestamp + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
 
@@ -314,7 +314,7 @@ contract AccountRegistryTest is Test {
         accountRegistry.requestRecovery(alice, charlie);
 
         // 3. before the escrow period, bob completes the recovery to charlie
-        vm.expectRevert(RecoveryInEscrow.selector);
+        vm.expectRevert(Escrow.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
 
@@ -343,7 +343,7 @@ contract AccountRegistryTest is Test {
         // 4. after escrow period, bob completes the recovery to charlie which fails
         vm.startPrank(bob);
         vm.warp(requestBlock + escrowPeriod);
-        vm.expectRevert(CustodyAddressInvalid.selector);
+        vm.expectRevert(HasId.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
 
@@ -380,7 +380,7 @@ contract AccountRegistryTest is Test {
 
         // 4. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
         accountRegistry.completeRecovery(alice);
 
@@ -413,7 +413,7 @@ contract AccountRegistryTest is Test {
 
         // 4. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
         accountRegistry.completeRecovery(alice);
 
@@ -430,7 +430,7 @@ contract AccountRegistryTest is Test {
         accountRegistry.setRecoveryAddress(bob);
 
         // 2. alice cancels the recovery which fails
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         accountRegistry.cancelRecovery(alice);
         vm.stopPrank();
 
