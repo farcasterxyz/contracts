@@ -182,7 +182,7 @@ contract AccountRegistry {
         if (msg.sender != recoveryOf[id]) revert Unauthorized();
         if (idOf[to] != 0) revert CustodyAddressInvalid();
 
-        recoveryClockOf[id] = block.number;
+        recoveryClockOf[id] = block.timestamp;
         recoveryDestinationOf[id] = to;
         emit RequestRecovery(id, from, to);
     }
@@ -201,8 +201,8 @@ contract AccountRegistry {
 
         if (msg.sender != recoveryOf[id]) revert Unauthorized();
         if (recoveryClockOf[id] == 0) revert RecoveryNotFound();
-        // Recovery escrow duration in blocks (20,000 blocks = ~2.7 - 3.2 days)
-        if (block.number < recoveryClockOf[id] + 20_000) revert RecoveryInEscrow();
+        // Recovery escrow duration (3 days)
+        if (block.timestamp < recoveryClockOf[id] + 259_200) revert RecoveryInEscrow();
         if (idOf[destination] != 0) revert CustodyAddressInvalid();
 
         _unsafeTransfer(id, from, destination);
