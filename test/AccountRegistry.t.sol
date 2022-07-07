@@ -11,9 +11,9 @@ contract AccountRegistryTest is Test {
                              EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Register(uint256 indexed id, address indexed to);
+    event Register(address indexed to, uint256 indexed id);
 
-    event Transfer(uint256 indexed id, address indexed to);
+    event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
     event SetRecoveryAddress(address indexed recovery, uint256 indexed id);
 
@@ -32,7 +32,7 @@ contract AccountRegistryTest is Test {
     address alice = address(0x123);
     address bob = address(0x456);
     address charlie = address(0x789);
-    uint256 escrowPeriod = 20_000;
+    uint256 escrowPeriod = 259_200;
 
     /*//////////////////////////////////////////////////////////////
                        REGISTRATION TESTS
@@ -41,15 +41,15 @@ contract AccountRegistryTest is Test {
     function testRegister() public {
         // 1. alice registers and claims id 1
         vm.prank(alice);
-        vm.expectEmit(true, true, false, false);
-        emit Register(1, alice);
+        vm.expectEmit(true, true, false, true);
+        emit Register(alice, 1);
         accountRegistry.register();
         assertEq(accountRegistry.idOf(alice), 1);
 
         // 2. bob registers after alice and claims id 2
         vm.prank(bob);
-        vm.expectEmit(true, true, false, false);
-        emit Register(2, bob);
+        vm.expectEmit(true, true, false, true);
+        emit Register(bob, 2);
         accountRegistry.register();
         assertEq(accountRegistry.idOf(bob), 2);
     }
@@ -60,11 +60,10 @@ contract AccountRegistryTest is Test {
         accountRegistry.register();
 
         // 2. alice attempts to register again and fails
-        vm.expectRevert(CustodyAddressInvalid.selector);
+        vm.expectRevert(HasId.selector);
         accountRegistry.register();
         vm.stopPrank();
 
-        // sanity check ownership
         assertEq(accountRegistry.idOf(alice), 1);
     }
 
@@ -80,11 +79,10 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.idOf(bob), 0);
 
         // 2. alice transfers the id to bob
-        vm.expectEmit(true, true, false, false);
-        emit Transfer(1, bob);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(alice, bob, 1);
         accountRegistry.transfer(bob);
 
-        // sanity check the ownership post transfer.
         assertEq(accountRegistry.idOf(alice), 0);
         assertEq(accountRegistry.idOf(bob), 1);
     }
@@ -96,16 +94,14 @@ contract AccountRegistryTest is Test {
         vm.prank(bob);
         accountRegistry.register();
 
-        // sanity check ownership
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(bob), 2);
 
         // 2. alice tries to transfer id to bob's address
         vm.prank(alice);
-        vm.expectRevert(CustodyAddressInvalid.selector);
+        vm.expectRevert(HasId.selector);
         accountRegistry.transfer(bob);
 
-        // sanity check ownership
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(bob), 2);
     }
@@ -113,10 +109,9 @@ contract AccountRegistryTest is Test {
     function testCannotTransferIfNoId() public {
         // 1. alice tries to transfer an id to bob
         vm.prank(alice);
-        vm.expectRevert(IdInvalid.selector);
+        vm.expectRevert(ZeroId.selector);
         accountRegistry.transfer(bob);
 
-        // sanity check ownership
         assertEq(accountRegistry.idOf(alice), 0);
         assertEq(accountRegistry.idOf(bob), 0);
     }
@@ -131,20 +126,18 @@ contract AccountRegistryTest is Test {
         accountRegistry.register();
 
         // 2. alice sets bob as her recovery address
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, false, true);
         emit SetRecoveryAddress(bob, 1);
         accountRegistry.setRecoveryAddress(bob);
 
-        // sanity check recovery state
         assertEq(accountRegistry.recoveryOf(1), bob);
 
         // 3. alice sets charlie as her recovery address
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, false, true);
         emit SetRecoveryAddress(charlie, 1);
         accountRegistry.setRecoveryAddress(charlie);
         vm.stopPrank();
 
-        // sanity check recovery state
         assertEq(accountRegistry.recoveryOf(1), charlie);
     }
 
@@ -154,22 +147,19 @@ contract AccountRegistryTest is Test {
         accountRegistry.register();
 
         // 2. alice sets herself as the recovery address, which fails
-        vm.expectRevert(RecoveryAddressInvalid.selector);
+        vm.expectRevert(InvalidRecoveryAddr.selector);
         accountRegistry.setRecoveryAddress(alice);
         vm.stopPrank();
 
-        // sanity check recovery address state
         assertEq(accountRegistry.recoveryOf(1), address(0));
     }
 
     function testCannotSetRecoveryAddressWithoutId() public {
-        // 1. alice registers id 1
         vm.startPrank(alice);
-        vm.expectRevert(IdInvalid.selector);
+        vm.expectRevert(ZeroId.selector);
         accountRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
-        // sanity check state
         assertEq(accountRegistry.recoveryOf(1), address(0));
     }
 
@@ -186,15 +176,14 @@ contract AccountRegistryTest is Test {
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, true, true);
         emit RequestRecovery(1, alice, charlie);
         accountRegistry.requestRecovery(alice, charlie);
 
-        // sanity check ownership and recovery state
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.recoveryOf(1), bob);
         assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryClockOf(1), block.number);
+        assertEq(accountRegistry.recoveryClockOf(1), block.timestamp);
         assertEq(accountRegistry.recoveryDestinationOf(1), charlie);
     }
 
@@ -208,7 +197,6 @@ contract AccountRegistryTest is Test {
         vm.expectRevert(Unauthorized.selector);
         accountRegistry.requestRecovery(alice, charlie);
 
-        // sanity check the ownership post transfer.
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
     }
@@ -226,12 +214,18 @@ contract AccountRegistryTest is Test {
 
         // 3. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
-        vm.expectRevert(CustodyAddressInvalid.selector);
+        vm.expectRevert(HasId.selector);
         accountRegistry.requestRecovery(alice, charlie);
 
-        // sanity check the ownership post transfer.
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 2);
+    }
+
+    function testCannotRequestRecoveryUnlessIssued() public {
+        // 1. bob requests a recovery from alice to charlie, which fails
+        vm.prank(bob);
+        vm.expectRevert(Unauthorized.selector);
+        accountRegistry.requestRecovery(alice, bob);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -250,13 +244,12 @@ contract AccountRegistryTest is Test {
         accountRegistry.requestRecovery(alice, charlie);
 
         // 3. after escrow period, bob completes the recovery to charlie
-        vm.roll(block.number + escrowPeriod);
-        vm.expectEmit(true, true, false, false);
-        emit Transfer(1, charlie);
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(alice, charlie, 1);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        // sanity check the ownership and recovery state post completion
         assertEq(accountRegistry.idOf(alice), 0);
         assertEq(accountRegistry.idOf(charlie), 1);
         assertEq(accountRegistry.recoveryOf(1), address(0));
@@ -271,17 +264,16 @@ contract AccountRegistryTest is Test {
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
-        uint256 requestBlock = block.number;
+        uint256 requestBlock = block.timestamp;
         vm.prank(bob);
         accountRegistry.requestRecovery(alice, charlie);
 
         // 3. charlie calls completeRecovery on alice's id, which fails
         vm.prank(charlie);
-        vm.roll(requestBlock + escrowPeriod);
+        vm.warp(requestBlock + escrowPeriod);
         vm.expectRevert(Unauthorized.selector);
         accountRegistry.completeRecovery(alice);
 
-        // sanity check the ownership post transfer.
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
         assertEq(accountRegistry.recoveryOf(1), bob);
@@ -297,12 +289,11 @@ contract AccountRegistryTest is Test {
 
         // 2. bob calls recovery complete on alice's id, which fails
         vm.startPrank(bob);
-        vm.roll(block.number + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.expectRevert(NoRecovery.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        // sanity check the ownership and recovery state post completion.
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
         assertEq(accountRegistry.recoveryOf(1), bob);
@@ -319,15 +310,14 @@ contract AccountRegistryTest is Test {
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
-        uint256 requestBlock = block.number;
+        uint256 requestBlock = block.timestamp;
         accountRegistry.requestRecovery(alice, charlie);
 
         // 3. before the escrow period, bob completes the recovery to charlie
-        vm.expectRevert(RecoveryInEscrow.selector);
+        vm.expectRevert(Escrow.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        // sanity check the ownership and recovery state post completion.
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
         assertEq(accountRegistry.recoveryOf(1), bob);
@@ -343,7 +333,7 @@ contract AccountRegistryTest is Test {
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
-        uint256 requestBlock = block.number;
+        uint256 requestBlock = block.timestamp;
         accountRegistry.requestRecovery(alice, charlie);
 
         // 3. charlie registers id 2
@@ -352,12 +342,11 @@ contract AccountRegistryTest is Test {
 
         // 4. after escrow period, bob completes the recovery to charlie which fails
         vm.startPrank(bob);
-        vm.roll(requestBlock + escrowPeriod);
-        vm.expectRevert(CustodyAddressInvalid.selector);
+        vm.warp(requestBlock + escrowPeriod);
+        vm.expectRevert(HasId.selector);
         accountRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        // sanity check the ownership post transfer.
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 2);
         assertEq(accountRegistry.recoveryOf(1), bob);
@@ -381,22 +370,20 @@ contract AccountRegistryTest is Test {
 
         // 3. alice cancels the recovery
         vm.prank(alice);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, false, false, true);
         emit CancelRecovery(1);
         accountRegistry.cancelRecovery(alice);
 
-        // sanity check the ownership post cancellation
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
         assertEq(accountRegistry.recoveryOf(1), bob);
 
         // 4. after escrow period, bob tries to recover to charlie and fails
-        vm.roll(block.number + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
         accountRegistry.completeRecovery(alice);
 
-        // sanity check the ownership and recovery state post cancellation
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
         assertEq(accountRegistry.recoveryOf(1), bob);
@@ -416,22 +403,20 @@ contract AccountRegistryTest is Test {
 
         // 3. after 1 block, bob cancels the recovery
         vm.prank(bob);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, false, false, true);
         emit CancelRecovery(1);
         accountRegistry.cancelRecovery(alice);
 
-        // sanity check the ownership post cancellation
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
         assertEq(accountRegistry.recoveryOf(1), bob);
 
         // 4. after escrow period, bob tries to recover to charlie and fails
-        vm.roll(block.number + escrowPeriod);
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
         accountRegistry.completeRecovery(alice);
 
-        // sanity check the ownership and recovery state post cancellation
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
         assertEq(accountRegistry.recoveryOf(1), bob);
@@ -445,11 +430,10 @@ contract AccountRegistryTest is Test {
         accountRegistry.setRecoveryAddress(bob);
 
         // 2. alice cancels the recovery which fails
-        vm.expectRevert(RecoveryNotFound.selector);
+        vm.expectRevert(NoRecovery.selector);
         accountRegistry.cancelRecovery(alice);
         vm.stopPrank();
 
-        // sanity check the ownership and recovery state after cancellation
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.recoveryClockOf(1), 0);
         assertEq(accountRegistry.recoveryOf(1), bob);
@@ -471,10 +455,9 @@ contract AccountRegistryTest is Test {
         vm.expectRevert(Unauthorized.selector);
         accountRegistry.cancelRecovery(alice);
 
-        // sanity check the ownership and recovery state after cancellation
         assertEq(accountRegistry.idOf(alice), 1);
         assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryClockOf(1), block.number);
+        assertEq(accountRegistry.recoveryClockOf(1), block.timestamp);
         assertEq(accountRegistry.recoveryOf(1), bob);
     }
 }
