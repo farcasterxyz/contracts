@@ -339,8 +339,6 @@ contract Namespace is ERC721, Owned {
     function setRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable {
         if (ownerOf(tokenId) != msg.sender) revert Unauthorized();
 
-        if (recoveryAddress == msg.sender) revert InvalidRecovery();
-
         recoveryOf[tokenId] = recoveryAddress;
         emit SetRecoveryAddress(recoveryAddress, tokenId);
     }

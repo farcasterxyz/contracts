@@ -673,16 +673,6 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testCannotSetSelfAsRecovery() public {
-        registerAlice();
-
-        vm.prank(alice);
-        vm.expectRevert(InvalidRecovery.selector);
-        namespace.setRecoveryAddress(aliceTokenId, alice);
-
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
-    }
-
     /*//////////////////////////////////////////////////////////////
                         REQUEST RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
