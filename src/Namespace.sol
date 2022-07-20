@@ -195,9 +195,7 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        if (msg.value > _currYearFee) {
-            payable(msg.sender).transfer(msg.value - _currYearFee);
-        }
+        payable(msg.sender).transfer(msg.value - _currYearFee);
     }
 
     /**
@@ -225,9 +223,7 @@ contract Namespace is ERC721, Owned {
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
-        if (msg.value > fee) {
-            payable(msg.sender).transfer(msg.value - fee);
-        }
+        payable(msg.sender).transfer(msg.value - fee);
     }
 
     /**
@@ -274,9 +270,7 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        if (msg.value > price) {
-            payable(msg.sender).transfer(msg.value - price);
-        }
+        payable(msg.sender).transfer(msg.value - price);
     }
 
     /*//////////////////////////////////////////////////////////////
