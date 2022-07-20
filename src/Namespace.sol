@@ -195,7 +195,6 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        // TODO: this may fail if called by a smart contract
         if (msg.value > _currYearFee) {
             payable(msg.sender).transfer(msg.value - _currYearFee);
         }
@@ -228,7 +227,6 @@ contract Namespace is ERC721, Owned {
 
         emit Renew(tokenId, owner, expiryOf[tokenId]);
 
-        // TODO: this may fail if called by a smart contract
         if (msg.value > fee) {
             payable(msg.sender).transfer(msg.value - fee);
         }
@@ -278,7 +276,6 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        // TODO: this may revert if called by a smart contract
         if (msg.value > price) {
             payable(msg.sender).transfer(msg.value - price);
         }
