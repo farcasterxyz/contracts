@@ -38,7 +38,7 @@ contract Namespace is ERC721, Owned {
                         REGISTRATION EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
+    event Renew(uint256 indexed tokenId, uint256 expiry);
 
     /*//////////////////////////////////////////////////////////////
                         RECOVERY EVENTS
@@ -204,16 +204,14 @@ contract Namespace is ERC721, Owned {
      * @notice Renew a name for another year while it is in the renewable period
      *
      * @param tokenId the tokenId of the name to renew
-     * @param owner the current owner of the name
      */
-    function renew(uint256 tokenId, address owner) external payable {
+    function renew(uint256 tokenId) external payable {
         if (msg.value < fee) revert InsufficientFunds();
 
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
 
         // Invariant 1B + 2 guarantee that the name is not owned by address(0) at this point.
-        if (_ownerOf[tokenId] != owner) revert IncorrectOwner();
 
         unchecked {
             // renewTs and gracePeriod are pre-determined values and cannot overflow
@@ -225,7 +223,7 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        emit Renew(tokenId, owner, expiryOf[tokenId]);
+        emit Renew(tokenId, expiryOf[tokenId]);
 
         if (msg.value > fee) {
             payable(msg.sender).transfer(msg.value - fee);

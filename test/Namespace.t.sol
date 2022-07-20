@@ -13,7 +13,7 @@ contract NameSpaceTest is Test {
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
-    event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
+    event Renew(uint256 indexed tokenId, uint256 expiry);
 
     event SetRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
 
@@ -202,9 +202,9 @@ contract NameSpaceTest is Test {
 
         // 2. Alice renews her own username
         vm.expectEmit(true, true, true, true);
-        emit Renew(aliceTokenId, alice, timestamp2024);
+        emit Renew(aliceTokenId, timestamp2024);
         vm.prank(alice);
-        namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
+        namespace.renew{value: 0.01 ether}(aliceTokenId);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
@@ -219,8 +219,8 @@ contract NameSpaceTest is Test {
         vm.deal(bob, 1 ether);
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
-        emit Renew(aliceTokenId, alice, timestamp2024);
-        namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
+        emit Renew(aliceTokenId, timestamp2024);
+        namespace.renew{value: 0.01 ether}(aliceTokenId);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
@@ -233,7 +233,7 @@ contract NameSpaceTest is Test {
         // Renew alice's registration, but overpay the amount
         vm.startPrank(alice);
         uint256 balance = alice.balance;
-        namespace.renew{value: 0.02 ether}(aliceTokenId, alice);
+        namespace.renew{value: 0.02 ether}(aliceTokenId);
         vm.stopPrank();
 
         assertEq(alice.balance, balance - 0.01 ether);
@@ -249,7 +249,7 @@ contract NameSpaceTest is Test {
         // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.renew(aliceTokenId, alice);
+        namespace.renew(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
@@ -264,26 +264,26 @@ contract NameSpaceTest is Test {
         // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
         vm.expectRevert(Registrable.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
+        namespace.renew{value: 0.01 ether}(aliceTokenId);
 
         vm.expectRevert(Registrable.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
         assertEq(namespace.expiryOf(aliceTokenId), 0);
     }
 
-    function testCannotRenewIfOwnerIncorrect() public {
-        // 1. Register alice and fast-forward to 2023, when the registration is in renewal.
-        registerAlice();
-        vm.warp(aliceRenewableTs);
+    function testCannotRenewIfRegistrable2() public {
+        // 1. Fund alice and fast-forward to 2022, when registrations can occur
+        vm.deal(alice, 10_000 ether);
+        vm.warp(aliceRegisterTs);
 
-        // 2. Renewing fails if the owner is specified incorrectly
+        // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
-        vm.expectRevert(IncorrectOwner.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId, bob);
+        vm.expectRevert(Registrable.selector);
+        namespace.renew{value: 0.01 ether}(aliceTokenId);
 
-        vm.expectRevert(Expired.selector);
+        vm.expectRevert(Registrable.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(namespace.expiryOf(aliceTokenId), 0);
     }
 
     function testCannotRenewIfBiddable() public {
@@ -293,7 +293,7 @@ contract NameSpaceTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(Biddable.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
+        namespace.renew{value: 0.01 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
@@ -307,7 +307,7 @@ contract NameSpaceTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(Registered.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
+        namespace.renew{value: 0.01 ether}(aliceTokenId);
 
         assertEq(namespace.ownerOf(aliceTokenId), alice);
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
