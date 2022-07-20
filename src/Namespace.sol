@@ -250,8 +250,8 @@ contract Namespace is ERC721, Owned {
         if (auctionStartTimestamp > block.timestamp) revert NotBiddable();
 
         // Calculate the num of 8 hr periods since expiry as a fixed point signed decimal. The
-        // constant approximates fixed point division by 28,000 (num of seconds in 8 hours)
-        int256 periodsSD59x18 = int256(3.57142857e13 * (block.timestamp - auctionStartTimestamp));
+        // constant approximates fixed point division by 28,800 (num of seconds in 8 hours)
+        int256 periodsSD59x18 = int256(3.47222222e13 * (block.timestamp - auctionStartTimestamp));
 
         // Optimization: precompute return values for the first few periods and the last one.
 

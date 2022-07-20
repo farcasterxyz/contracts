@@ -377,11 +377,11 @@ contract NameSpaceTest is Test {
         vm.warp(aliceBiddableTs + 8 hours);
 
         // 2. Bob bids and fails because bid < price (premium + fee)
-        // price = (0.9^1 * 1_000) + 0.00916894977 = 900.009
+        // price = (0.9^1 * 1_000) + 0.00916894977 = 900.009169
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.bid{value: 897.303 ether}(aliceTokenId);
+        namespace.bid{value: 900.0091 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
@@ -390,7 +390,7 @@ contract NameSpaceTest is Test {
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
 
         // 3. Bob bids and succeeds because bid > price
-        namespace.bid{value: 898 ether}(aliceTokenId);
+        namespace.bid{value: 900.0092 ether}(aliceTokenId);
         assertEq(namespace.ownerOf(aliceTokenId), bob);
         vm.stopPrank();
 
@@ -410,7 +410,7 @@ contract NameSpaceTest is Test {
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.bid{value: 0.0279217 ether}(aliceTokenId);
+        namespace.bid{value: 0.0348 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
@@ -419,7 +419,7 @@ contract NameSpaceTest is Test {
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
 
         // 3. Bob bids and succeeds because bid > price
-        namespace.bid{value: 0.0279218 ether}(aliceTokenId);
+        namespace.bid{value: 0.0349 ether}(aliceTokenId);
         vm.stopPrank();
 
         assertEq(namespace.ownerOf(aliceTokenId), bob);
