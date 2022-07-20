@@ -16,8 +16,8 @@ error InvalidTime(); // Time is too far in the future or past
 error IncorrectOwner(); // The username is not owned by the expected address
 
 error Registered(); // The username is currently registered.
-error NotRegisterable(); // The username has been registered and cannot be registered again.
-error Registerable(); // The username has never been registered.
+error NotRegistrable(); // The username has been registered and cannot be registered again.
+error Registrable(); // The username has never been registered.
 
 error Expired(); // The username is expired (renewable or biddable)
 error Biddable(); // The username is biddable
@@ -38,7 +38,7 @@ contract Namespace is ERC721, Owned {
                         REGISTRATION EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Renew(uint256 indexed tokenId, address indexed to, uint256 expiry);
+    event Renew(uint256 indexed tokenId, uint256 expiry);
 
     /*//////////////////////////////////////////////////////////////
                         RECOVERY EVENTS
@@ -81,11 +81,11 @@ contract Namespace is ERC721, Owned {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    string public baseURI = "http://www.farcaster.xyz/";
+    string public constant baseURI = "http://www.farcaster.xyz/";
 
-    uint256 public immutable gracePeriod = 30 days;
+    uint256 public constant gracePeriod = 30 days;
 
-    uint256 public immutable fee = 0.01 ether;
+    uint256 public constant fee = 0.01 ether;
 
     // The epoch timestamp of Jan 1 for each year starting from 2022
     uint256[] internal _yearTimestamps = [
@@ -110,7 +110,7 @@ contract Namespace is ERC721, Owned {
 
     address public immutable vault;
 
-    uint256 immutable escrowPeriod = 3 days;
+    uint256 constant escrowPeriod = 3 days;
 
     constructor(
         string memory _name,
@@ -186,7 +186,7 @@ contract Namespace is ERC721, Owned {
         delete stateOf[commit];
 
         uint256 tokenId = uint256(bytes32(username));
-        if (expiryOf[tokenId] != 0) revert NotRegisterable();
+        if (expiryOf[tokenId] != 0) revert NotRegistrable();
 
         _mint(owner, tokenId);
 
@@ -195,26 +195,21 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        // TODO: this may fail if called by a smart contract
-        if (msg.value > _currYearFee) {
-            payable(msg.sender).transfer(msg.value - _currYearFee);
-        }
+        payable(msg.sender).transfer(msg.value - _currYearFee);
     }
 
     /**
      * @notice Renew a name for another year while it is in the renewable period
      *
      * @param tokenId the tokenId of the name to renew
-     * @param owner the current owner of the name
      */
-    function renew(uint256 tokenId, address owner) external payable {
+    function renew(uint256 tokenId) external payable {
         if (msg.value < fee) revert InsufficientFunds();
 
         uint256 expiryTs = expiryOf[tokenId];
-        if (expiryTs == 0) revert Registerable();
+        if (expiryTs == 0) revert Registrable();
 
         // Invariant 1B + 2 guarantee that the name is not owned by address(0) at this point.
-        if (_ownerOf[tokenId] != owner) revert IncorrectOwner();
 
         unchecked {
             // renewTs and gracePeriod are pre-determined values and cannot overflow
@@ -226,12 +221,9 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        emit Renew(tokenId, owner, expiryOf[tokenId]);
+        emit Renew(tokenId, expiryOf[tokenId]);
 
-        // TODO: this may fail if called by a smart contract
-        if (msg.value > fee) {
-            payable(msg.sender).transfer(msg.value - fee);
-        }
+        payable(msg.sender).transfer(msg.value - fee);
     }
 
     /**
@@ -246,7 +238,7 @@ contract Namespace is ERC721, Owned {
      */
     function bid(uint256 tokenId) external payable {
         uint256 expiryTs = expiryOf[tokenId];
-        if (expiryTs == 0) revert Registerable();
+        if (expiryTs == 0) revert Registrable();
 
         uint256 auctionStartTimestamp;
 
@@ -278,10 +270,7 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        // TODO: this may revert if called by a smart contract
-        if (msg.value > price) {
-            payable(msg.sender).transfer(msg.value - price);
-        }
+        payable(msg.sender).transfer(msg.value - price);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -295,7 +284,7 @@ contract Namespace is ERC721, Owned {
         uint256 expiryTs = expiryOf[tokenId];
 
         // Invariant 1A will ensure a throw if a name was not minted, as per the ERC-721 spec.
-        if (expiryTs == 0) revert Registerable();
+        if (expiryTs == 0) revert Registrable();
 
         if (block.timestamp >= expiryTs) revert Expired();
 
@@ -321,7 +310,7 @@ contract Namespace is ERC721, Owned {
         _clearRecovery(id);
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(uint256 tokenId) public pure override returns (string memory) {
         return string(abi.encodePacked(baseURI, tokenId, ".json"));
     }
 
@@ -349,8 +338,6 @@ contract Namespace is ERC721, Owned {
      */
     function setRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable {
         if (ownerOf(tokenId) != msg.sender) revert Unauthorized();
-
-        if (recoveryAddress == msg.sender) revert InvalidRecovery();
 
         recoveryOf[tokenId] = recoveryAddress;
         emit SetRecoveryAddress(recoveryAddress, tokenId);
@@ -436,7 +423,7 @@ contract Namespace is ERC721, Owned {
      * @param tokenId the uint256 representation of the username.
      */
     function reclaim(uint256 tokenId) external payable onlyOwner {
-        if (expiryOf[tokenId] == 0) revert Registerable();
+        if (expiryOf[tokenId] == 0) revert Registrable();
 
         unchecked {
             // this value is deterministic and cannot overflow for any known year
