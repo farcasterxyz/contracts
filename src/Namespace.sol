@@ -81,11 +81,11 @@ contract Namespace is ERC721, Owned {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    string public baseURI = "http://www.farcaster.xyz/";
+    string public constant baseURI = "http://www.farcaster.xyz/";
 
-    uint256 public immutable gracePeriod = 30 days;
+    uint256 public constant gracePeriod = 30 days;
 
-    uint256 public immutable fee = 0.01 ether;
+    uint256 public constant fee = 0.01 ether;
 
     // The epoch timestamp of Jan 1 for each year starting from 2022
     uint256[] internal _yearTimestamps = [
@@ -110,7 +110,7 @@ contract Namespace is ERC721, Owned {
 
     address public immutable vault;
 
-    uint256 immutable escrowPeriod = 3 days;
+    uint256 constant escrowPeriod = 3 days;
 
     constructor(
         string memory _name,
@@ -321,7 +321,7 @@ contract Namespace is ERC721, Owned {
         _clearRecovery(id);
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(uint256 tokenId) public pure override returns (string memory) {
         return string(abi.encodePacked(baseURI, tokenId, ".json"));
     }
 
