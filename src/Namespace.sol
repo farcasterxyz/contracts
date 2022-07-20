@@ -16,8 +16,8 @@ error InvalidTime(); // Time is too far in the future or past
 error IncorrectOwner(); // The username is not owned by the expected address
 
 error Registered(); // The username is currently registered.
-error NotRegisterable(); // The username has been registered and cannot be registered again.
-error Registerable(); // The username has never been registered.
+error NotRegistrable(); // The username has been registered and cannot be registered again.
+error Registrable(); // The username has never been registered.
 
 error Expired(); // The username is expired (renewable or biddable)
 error Biddable(); // The username is biddable
@@ -186,7 +186,7 @@ contract Namespace is ERC721, Owned {
         delete stateOf[commit];
 
         uint256 tokenId = uint256(bytes32(username));
-        if (expiryOf[tokenId] != 0) revert NotRegisterable();
+        if (expiryOf[tokenId] != 0) revert NotRegistrable();
 
         _mint(owner, tokenId);
 
@@ -211,7 +211,7 @@ contract Namespace is ERC721, Owned {
         if (msg.value < fee) revert InsufficientFunds();
 
         uint256 expiryTs = expiryOf[tokenId];
-        if (expiryTs == 0) revert Registerable();
+        if (expiryTs == 0) revert Registrable();
 
         // Invariant 1B + 2 guarantee that the name is not owned by address(0) at this point.
         if (_ownerOf[tokenId] != owner) revert IncorrectOwner();
@@ -246,7 +246,7 @@ contract Namespace is ERC721, Owned {
      */
     function bid(uint256 tokenId) external payable {
         uint256 expiryTs = expiryOf[tokenId];
-        if (expiryTs == 0) revert Registerable();
+        if (expiryTs == 0) revert Registrable();
 
         uint256 auctionStartTimestamp;
 
@@ -295,7 +295,7 @@ contract Namespace is ERC721, Owned {
         uint256 expiryTs = expiryOf[tokenId];
 
         // Invariant 1A will ensure a throw if a name was not minted, as per the ERC-721 spec.
-        if (expiryTs == 0) revert Registerable();
+        if (expiryTs == 0) revert Registrable();
 
         if (block.timestamp >= expiryTs) revert Expired();
 
@@ -436,7 +436,7 @@ contract Namespace is ERC721, Owned {
      * @param tokenId the uint256 representation of the username.
      */
     function reclaim(uint256 tokenId) external payable onlyOwner {
-        if (expiryOf[tokenId] == 0) revert Registerable();
+        if (expiryOf[tokenId] == 0) revert Registrable();
 
         unchecked {
             // this value is deterministic and cannot overflow for any known year

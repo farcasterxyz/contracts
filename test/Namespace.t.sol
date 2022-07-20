@@ -121,7 +121,7 @@ contract NameSpaceTest is Test {
 
         // 5. Check that comitting and minting again fails
         namespace.makeCommit(commitHash);
-        vm.expectRevert(NotRegisterable.selector);
+        vm.expectRevert(NotRegistrable.selector);
         namespace.register{value: 0.01 ether}("alice", bob, "secret");
 
         // 6. Check that alice can still mint another name to bob
@@ -256,17 +256,17 @@ contract NameSpaceTest is Test {
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
     }
 
-    function testCannotRenewIfRegisterable() public {
+    function testCannotRenewIfRegistrable() public {
         // 1. Fund alice and fast-forward to 2022, when registrations can occur
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
 
         // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
-        vm.expectRevert(Registerable.selector);
+        vm.expectRevert(Registrable.selector);
         namespace.renew{value: 0.01 ether}(aliceTokenId, alice);
 
-        vm.expectRevert(Registerable.selector);
+        vm.expectRevert(Registrable.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
         assertEq(namespace.expiryOf(aliceTokenId), 0);
     }
@@ -533,13 +533,13 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testCannotBidIfRegisterable() public {
+    function testCannotBidIfRegistrable() public {
         // 1. Bid on @alice when it is not minted
         vm.prank(bob);
-        vm.expectRevert(Registerable.selector);
+        vm.expectRevert(Registrable.selector);
         namespace.bid(aliceTokenId);
 
-        vm.expectRevert(Registerable.selector);
+        vm.expectRevert(Registrable.selector);
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
         assertEq(namespace.balanceOf(alice), 0);
         assertEq(namespace.balanceOf(bob), 0);
@@ -558,8 +558,8 @@ contract NameSpaceTest is Test {
         namespace.ownerOf(aliceTokenId);
     }
 
-    function testOwnerOfRevertsIfRegisterable() public {
-        vm.expectRevert(Registerable.selector);
+    function testOwnerOfRevertsIfRegistrable() public {
+        vm.expectRevert(Registrable.selector);
         namespace.ownerOf(aliceTokenId);
     }
 
@@ -663,10 +663,10 @@ contract NameSpaceTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotSetRecoveryIfRegisterable() public {
+    function testCannotSetRecoveryIfRegistrable() public {
         uint256 bobTokenId = uint256(bytes32("bob"));
 
-        vm.expectRevert(Registerable.selector);
+        vm.expectRevert(Registrable.selector);
         vm.prank(alice);
         namespace.setRecoveryAddress(bobTokenId, bob);
 
@@ -736,7 +736,7 @@ contract NameSpaceTest is Test {
         assertEq(namespace.recoveryDestinationOf(aliceTokenId), address(0));
     }
 
-    function testCannotRequestRecoveryIfRegisterable() public {
+    function testCannotRequestRecoveryIfRegistrable() public {
         // 1. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
         vm.expectRevert(Unauthorized.selector);
@@ -1006,7 +1006,7 @@ contract NameSpaceTest is Test {
     }
 
     function testCannotReclaimUnlessMinted() public {
-        vm.expectRevert(Registerable.selector);
+        vm.expectRevert(Registrable.selector);
         vm.prank(admin);
         namespace.reclaim(aliceTokenId);
     }
