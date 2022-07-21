@@ -158,7 +158,6 @@ contract AccountRegistry {
         uint256 id = idOf[msg.sender];
 
         if (id == 0) revert ZeroId();
-        if (recoveryAddress == msg.sender) revert InvalidRecoveryAddr();
 
         recoveryOf[id] = recoveryAddress;
         emit SetRecoveryAddress(recoveryAddress, id);
