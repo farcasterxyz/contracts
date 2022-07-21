@@ -131,7 +131,8 @@ contract AccountRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1:  idOf[address] != 0 if msg.sender == recoveryOf[idOf[address]]
+     * INVARIANT 1:  idOf[address] != 0 if msg.sender == recoveryOf[idOf[address]] during
+     * invocation of requestRecovery, completeRecovery and cancelRecovery
      *
      * recoveryOf[idOf[address]] != address(0) only if idOf[address] != 0 [setRecoveryAddress]
      * when idOf[address] == 0, recoveryof[idOf[address]] also == address(0) [_unsafeTransfer]
@@ -157,7 +158,6 @@ contract AccountRegistry {
         uint256 id = idOf[msg.sender];
 
         if (id == 0) revert ZeroId();
-        if (recoveryAddress == msg.sender) revert InvalidRecoveryAddr();
 
         recoveryOf[id] = recoveryAddress;
         emit SetRecoveryAddress(recoveryAddress, id);

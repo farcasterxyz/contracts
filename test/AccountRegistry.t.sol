@@ -141,19 +141,6 @@ contract AccountRegistryTest is Test {
         assertEq(accountRegistry.recoveryOf(1), charlie);
     }
 
-    function testCannotSetSelfAsRecovery() public {
-        // 1. alice registers id 1
-        vm.startPrank(alice);
-        accountRegistry.register();
-
-        // 2. alice sets herself as the recovery address, which fails
-        vm.expectRevert(InvalidRecoveryAddr.selector);
-        accountRegistry.setRecoveryAddress(alice);
-        vm.stopPrank();
-
-        assertEq(accountRegistry.recoveryOf(1), address(0));
-    }
-
     function testCannotSetRecoveryAddressWithoutId() public {
         vm.startPrank(alice);
         vm.expectRevert(ZeroId.selector);
