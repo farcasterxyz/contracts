@@ -54,8 +54,8 @@ contract Namespace is ERC721, Owned {
                         REGISTRATION STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    // Mapping from commitment hash to state
-    mapping(bytes32 => bool) public stateOf;
+    // Mapping from commitment hash to block number
+    mapping(bytes32 => uint256) public blockOf;
 
     // Mapping from tokenID to expiration year
     mapping(uint256 => uint256) public expiryOf;
@@ -162,11 +162,14 @@ contract Namespace is ERC721, Owned {
      * @param commit the commitment hash to be persisted on-chain
      */
     function makeCommit(bytes32 commit) public {
-        stateOf[commit] = true;
+        blockOf[commit] = block.timestamp;
     }
 
     /**
      * @notice Mint a new username if a commitment was made previously and send it to the owner.
+     *
+     * @dev The registration must be made at least 5 blocks after commit to minimize front-running,
+     * or approximately 1 minute after commit.
      *
      * @param username the username to register
      * @param owner the address that will claim the username
@@ -182,8 +185,9 @@ contract Namespace is ERC721, Owned {
         uint256 _currYearFee = currYearFee();
         if (msg.value < _currYearFee) revert InsufficientFunds();
 
-        if (!stateOf[commit]) revert InvalidCommit();
-        delete stateOf[commit];
+        uint256 _commitBlock = blockOf[commit];
+        if (_commitBlock == 0 || _commitBlock + 60 > block.timestamp) revert InvalidCommit();
+        delete blockOf[commit];
 
         uint256 tokenId = uint256(bytes32(username));
         if (expiryOf[tokenId] != 0) revert NotRegistrable();

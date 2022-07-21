@@ -31,6 +31,7 @@ contract NameSpaceTest is Test {
     address david = address(0x531);
 
     uint256 escrowPeriod = 3 days;
+    uint256 commitRegisterDelay = 60;
 
     uint256 timestamp2023 = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
     uint256 timestamp2024 = 1704067200; // Sun, Jan 1, 2024 0:00:00 GMT
@@ -109,6 +110,7 @@ contract NameSpaceTest is Test {
         namespace.makeCommit(commitHash);
 
         // 3. Register the name alice, and deliver it to bob
+        vm.warp(block.timestamp + commitRegisterDelay);
         vm.expectEmit(true, true, true, false);
         emit Transfer(address(0), bob, uint256(bytes32("alice")));
         uint256 balance = alice.balance;
@@ -122,11 +124,14 @@ contract NameSpaceTest is Test {
         // 5. Check that comitting and minting again fails
         namespace.makeCommit(commitHash);
         vm.expectRevert(NotRegistrable.selector);
+        vm.warp(block.timestamp + commitRegisterDelay);
         namespace.register{value: 0.01 ether}("alice", bob, "secret");
 
         // 6. Check that alice can still mint another name to bob
         bytes32 commitHashMorty = namespace.generateCommit("morty", bob, "secret");
         namespace.makeCommit(commitHashMorty);
+        vm.warp(block.timestamp + commitRegisterDelay);
+
         namespace.register{value: 0.01 ether}("morty", bob, "secret");
         assertEq(namespace.ownerOf(uint256(bytes32("morty"))), bob);
         assertEq(namespace.balanceOf(bob), 2);
@@ -178,6 +183,24 @@ contract NameSpaceTest is Test {
         bytes16 incorrectUsername = "alice";
         vm.expectRevert(InvalidCommit.selector);
         namespace.register{value: 0.01 ether}(incorrectUsername, owner, secret);
+        vm.stopPrank();
+    }
+
+    function testCannotRegisterBeforeDelay() public {
+        // 1. Give alice money and fast forward to 2022 to begin registration.
+        vm.deal(alice, 10_000 ether);
+        vm.warp(aliceRegisterTs);
+
+        // 2. Make the commitment to register the name alice, but deliver it to bob
+        vm.startPrank(alice);
+        bytes32 commitHash = namespace.generateCommit("alice", bob, "secret");
+        namespace.makeCommit(commitHash);
+
+        // 3. Try to register the name and fail
+        vm.warp(block.timestamp + commitRegisterDelay - 1);
+        vm.expectRevert(InvalidCommit.selector);
+        namespace.register{value: 0.01 ether}("alice", bob, "secret");
+
         vm.stopPrank();
     }
 
@@ -1062,6 +1085,7 @@ contract NameSpaceTest is Test {
         vm.startPrank(alice);
         bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
         namespace.makeCommit(commitHash);
+        vm.warp(block.timestamp + commitRegisterDelay);
 
         namespace.register{value: namespace.fee()}("alice", alice, "secret");
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
