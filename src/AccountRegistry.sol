@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
+import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
+
 error Unauthorized(); // The caller does not have the authority to perform this action.
 error ZeroId(); // The id is zero, which is invalid
 error HasId(); // The custody address has another id
@@ -20,7 +22,9 @@ error Escrow(); // The recovery request is still in escrow
  *
  * @dev Function calls use payable to marginally reduce gas usage.
  */
-contract AccountRegistry {
+contract AccountRegistry is ERC2771Context {
+    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
+
     /*//////////////////////////////////////////////////////////////
                         REGISTRY EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -77,14 +81,16 @@ contract AccountRegistry {
      *      to overflow given that every increment requires a new on-chain transaction.
      */
     function register() external payable {
-        if (idOf[msg.sender] != 0) revert HasId();
+        address _msgSender = _msgSender();
+
+        if (idOf[_msgSender] != 0) revert HasId();
 
         unchecked {
             idCounter++;
         }
 
-        idOf[msg.sender] = idCounter;
-        emit Register(msg.sender, idCounter);
+        idOf[_msgSender] = idCounter;
+        emit Register(_msgSender, idCounter);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -98,13 +104,14 @@ contract AccountRegistry {
      * @param to The address to transfer the id to.
      */
     function transfer(address to) external payable {
-        uint256 id = idOf[msg.sender];
+        address _msgSender = _msgSender();
+        uint256 id = idOf[_msgSender];
 
         if (id == 0) revert ZeroId();
 
         if (idOf[to] != 0) revert HasId();
 
-        _unsafeTransfer(id, msg.sender, to);
+        _unsafeTransfer(id, _msgSender, to);
     }
 
     /**
@@ -131,12 +138,12 @@ contract AccountRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1:  idOf[address] != 0 if msg.sender == recoveryOf[idOf[address]] during
+     * INVARIANT 1:  idOf[address] != 0 if _msgSender() == recoveryOf[idOf[address]] during
      * invocation of requestRecovery, completeRecovery and cancelRecovery
      *
      * recoveryOf[idOf[address]] != address(0) only if idOf[address] != 0 [setRecoveryAddress]
      * when idOf[address] == 0, recoveryof[idOf[address]] also == address(0) [_unsafeTransfer]
-     * msg.sender != address(0) [by definition]
+     * _msgSender() != address(0) [by definition]
      *
      * INVARIANT 2:  idOf[address] != 0 if recoveryClockOf[idOf[address]] != 0
      *
@@ -155,7 +162,7 @@ contract AccountRegistry {
      * @param recoveryAddress the address to set as the recovery.
      */
     function setRecoveryAddress(address recoveryAddress) external payable {
-        uint256 id = idOf[msg.sender];
+        uint256 id = idOf[_msgSender()];
 
         if (id == 0) revert ZeroId();
 
@@ -177,7 +184,7 @@ contract AccountRegistry {
     function requestRecovery(address from, address to) external payable {
         uint256 id = idOf[from];
 
-        if (msg.sender != recoveryOf[id]) revert Unauthorized();
+        if (_msgSender() != recoveryOf[id]) revert Unauthorized();
         if (idOf[to] != 0) revert HasId();
 
         recoveryClockOf[id] = block.timestamp;
@@ -197,7 +204,7 @@ contract AccountRegistry {
         uint256 id = idOf[from];
         address destination = recoveryDestinationOf[id];
 
-        if (msg.sender != recoveryOf[id]) revert Unauthorized();
+        if (_msgSender() != recoveryOf[id]) revert Unauthorized();
         if (recoveryClockOf[id] == 0) revert NoRecovery();
 
         if (block.timestamp < recoveryClockOf[id] + 259_200) revert Escrow();
@@ -218,7 +225,9 @@ contract AccountRegistry {
     function cancelRecovery(address from) external payable {
         uint256 id = idOf[from];
 
-        if (msg.sender != from && msg.sender != recoveryOf[id]) revert Unauthorized();
+        address _msgSender = _msgSender();
+
+        if (_msgSender != from && _msgSender != recoveryOf[id]) revert Unauthorized();
         if (recoveryClockOf[id] == 0) revert NoRecovery();
 
         emit CancelRecovery(id);

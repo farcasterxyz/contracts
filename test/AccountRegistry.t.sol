@@ -25,14 +25,15 @@ contract AccountRegistryTest is Test {
                         CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
-    function setUp() public {
-        accountRegistry = new AccountRegistry();
-    }
-
     address alice = address(0x123);
     address bob = address(0x456);
     address charlie = address(0x789);
+    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     uint256 escrowPeriod = 259_200;
+
+    function setUp() public {
+        accountRegistry = new AccountRegistry(trustedForwarder);
+    }
 
     /*//////////////////////////////////////////////////////////////
                        REGISTRATION TESTS
