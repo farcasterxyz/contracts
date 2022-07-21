@@ -2,10 +2,9 @@
 pragma solidity ^0.8.15;
 
 import {ERC721} from "../lib/solmate/src/tokens/ERC721.sol";
-
 import {Owned} from "../lib/solmate/src/auth/Owned.sol";
-
 import {FixedPointMathLib} from "../lib/solmate/src/utils/FixedPointMathLib.sol";
+import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
 
 error InsufficientFunds(); // The transaction does not have enough money to pay for this.
 error Unauthorized(); // The caller is not authorized to perform this action.
@@ -31,7 +30,7 @@ error InvalidRecovery(); // The recovery address is being set to the custody add
  * @title Namespace
  * @author varunsrin
  */
-contract Namespace is ERC721, Owned {
+contract Namespace is ERC721, Owned, ERC2771Context {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -116,8 +115,9 @@ contract Namespace is ERC721, Owned {
         string memory _name,
         string memory _symbol,
         address _owner,
-        address _vault
-    ) ERC721(_name, _symbol) Owned(_owner) {
+        address _vault,
+        address _trustedForwarder
+    ) ERC721(_name, _symbol) Owned(_owner) ERC2771Context(_trustedForwarder) {
         vault = _vault;
     }
 
@@ -199,7 +199,7 @@ contract Namespace is ERC721, Owned {
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        payable(msg.sender).transfer(msg.value - _currYearFee);
+        payable(_msgSender()).transfer(msg.value - _currYearFee);
     }
 
     /**
@@ -227,7 +227,7 @@ contract Namespace is ERC721, Owned {
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
-        payable(msg.sender).transfer(msg.value - fee);
+        payable(_msgSender()).transfer(msg.value - fee);
     }
 
     /**
@@ -267,14 +267,16 @@ contract Namespace is ERC721, Owned {
 
         if (msg.value < price) revert InsufficientFunds();
 
-        _unsafeTransfer(msg.sender, tokenId);
+        address _msgSender = _msgSender();
+
+        _unsafeTransfer(_msgSender, tokenId);
 
         unchecked {
             // timestampOfYear(currentYear) is taken from a pre-determined list and cannot overflow
             expiryOf[tokenId] = timestampOfYear(currYear() + 1);
         }
 
-        payable(msg.sender).transfer(msg.value - price);
+        payable(_msgSender).transfer(msg.value - price);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -341,7 +343,7 @@ contract Namespace is ERC721, Owned {
      *                        set to zero to disable the recovery functionality.
      */
     function setRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable {
-        if (ownerOf(tokenId) != msg.sender) revert Unauthorized();
+        if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
         recoveryOf[tokenId] = recoveryAddress;
         emit SetRecoveryAddress(recoveryAddress, tokenId);
@@ -365,7 +367,7 @@ contract Namespace is ERC721, Owned {
         if (to == address(0)) revert InvalidRecovery();
 
         // Invariant 3 ensures that a request cannot be made after ownership change without consent
-        if (msg.sender != recoveryOf[tokenId]) revert Unauthorized();
+        if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
 
         recoveryClockOf[tokenId] = block.timestamp;
         recoveryDestinationOf[tokenId] = to;
@@ -383,7 +385,7 @@ contract Namespace is ERC721, Owned {
         if (block.timestamp >= expiryOf[tokenId]) revert Unauthorized();
 
         // Invariant 3 prevents unauthorized access if the name has been re-posessed by another.
-        if (msg.sender != recoveryOf[tokenId]) revert Unauthorized();
+        if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
 
         // Invariant 3 ensures that a recovery request cannot be compeleted after a change of
         // ownership without explicit consent from the new owner
@@ -408,7 +410,8 @@ contract Namespace is ERC721, Owned {
      * @param tokenId the uint256 representation of the username.
      */
     function cancelRecovery(uint256 tokenId) external payable {
-        if (msg.sender != _ownerOf[tokenId] && msg.sender != recoveryOf[tokenId])
+        address _msgSender = _msgSender();
+        if (_msgSender != _ownerOf[tokenId] && _msgSender != recoveryOf[tokenId])
             revert Unauthorized();
 
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();

@@ -29,6 +29,7 @@ contract NameSpaceTest is Test {
     address bob = address(0x456);
     address charlie = address(0x789);
     address david = address(0x531);
+    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
 
     uint256 escrowPeriod = 3 days;
     uint256 commitRegisterDelay = 60;
@@ -42,7 +43,13 @@ contract NameSpaceTest is Test {
     uint256 aliceBiddableTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
-        namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this));
+        namespace = new Namespace(
+            "Farcaster Namespace",
+            "FCN",
+            admin,
+            address(this),
+            trustedForwarder
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
