@@ -43,13 +43,7 @@ contract NameSpaceTest is Test {
     uint256 aliceBiddableTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
-        namespace = new Namespace(
-            "Farcaster Namespace",
-            "FCN",
-            admin,
-            address(this),
-            trustedForwarder
-        );
+        namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this), trustedForwarder);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1094,7 +1088,7 @@ contract NameSpaceTest is Test {
         namespace.makeCommit(commitHash);
         vm.warp(block.timestamp + commitRegisterDelay);
 
-        namespace.register{value: namespace.fee()}("alice", alice, "secret");
+        namespace.register{value: namespace.FEE()}("alice", alice, "secret");
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
         vm.stopPrank();
     }

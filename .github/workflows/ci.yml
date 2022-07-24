@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: true
 
-    name: Foundry project
+    name: Farcaster Contract Tests
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
@@ -23,8 +23,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
+          cache: "yarn"
           node-version: "18"
 
       - name: Restore cached dependencies for Node modules.
@@ -38,7 +39,7 @@ jobs:
         run: yarn install
 
       - name: Run linter
-        run: yarn lint:check
+        run: yarn lint
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -52,6 +53,11 @@ jobs:
 
       - name: Run Forge tests
         run: forge test -vvv
+
+      - name: Build the contracts
+        run: |
+          forge --version
+          forge build --sizes
 
       - name: Check Forge gas snapshot
         run: forge snapshot --check

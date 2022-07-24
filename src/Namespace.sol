@@ -80,11 +80,11 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    string public constant baseURI = "http://www.farcaster.xyz/";
+    string public constant BASE_URI = "http://www.farcaster.xyz/";
 
-    uint256 public constant gracePeriod = 30 days;
+    uint256 public constant GRACE_PERIOD = 30 days;
 
-    uint256 public constant fee = 0.01 ether;
+    uint256 public constant FEE = 0.01 ether;
 
     // The epoch timestamp of Jan 1 for each year starting from 2022
     uint256[] internal _yearTimestamps = [
@@ -109,7 +109,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
     address public immutable vault;
 
-    uint256 constant escrowPeriod = 3 days;
+    uint256 constant ESCROW_PERIOD = 3 days;
 
     constructor(
         string memory _name,
@@ -208,7 +208,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      * @param tokenId the tokenId of the name to renew
      */
     function renew(uint256 tokenId) external payable {
-        if (msg.value < fee) revert InsufficientFunds();
+        if (msg.value < FEE) revert InsufficientFunds();
 
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
@@ -217,7 +217,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
         unchecked {
             // renewTs and gracePeriod are pre-determined values and cannot overflow
-            if (block.timestamp >= expiryTs + gracePeriod) revert Biddable();
+            if (block.timestamp >= expiryTs + GRACE_PERIOD) revert Biddable();
 
             if (block.timestamp < expiryTs) revert Registered();
 
@@ -227,7 +227,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
-        payable(_msgSender()).transfer(msg.value - fee);
+        payable(_msgSender()).transfer(msg.value - FEE);
     }
 
     /**
@@ -248,7 +248,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
         unchecked {
             // expiryTs is taken from a pre-determined list and cannot overflow.
-            auctionStartTimestamp = expiryTs + gracePeriod;
+            auctionStartTimestamp = expiryTs + GRACE_PERIOD;
         }
 
         if (auctionStartTimestamp > block.timestamp) revert NotBiddable();
@@ -317,7 +317,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     }
 
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
-        return string(abi.encodePacked(baseURI, tokenId, ".json"));
+        return string(abi.encodePacked(BASE_URI, tokenId, ".json"));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -393,7 +393,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
         unchecked {
             // recoveryClockOf is always set to block.timestamp and cannot realistically overflow
-            if (block.timestamp < recoveryClockOf[tokenId] + escrowPeriod) revert Escrow();
+            if (block.timestamp < recoveryClockOf[tokenId] + ESCROW_PERIOD) revert Escrow();
         }
 
         // Invariant 4 prevents this from going to a null address.
@@ -411,8 +411,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      */
     function cancelRecovery(uint256 tokenId) external payable {
         address _msgSender = _msgSender();
-        if (_msgSender != _ownerOf[tokenId] && _msgSender != recoveryOf[tokenId])
-            revert Unauthorized();
+        if (_msgSender != _ownerOf[tokenId] && _msgSender != recoveryOf[tokenId]) revert Unauthorized();
 
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
@@ -495,9 +494,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
             // timestampOfYear and currYear are pretermined values and cannot overflow.
             uint256 nextYearTimestamp = timestampOfYear(_currYear + 1);
 
-            return
-                ((nextYearTimestamp - block.timestamp) * fee) /
-                (nextYearTimestamp - timestampOfYear(_currYear));
+            return ((nextYearTimestamp - block.timestamp) * FEE) / (nextYearTimestamp - timestampOfYear(_currYear));
         }
     }
 
