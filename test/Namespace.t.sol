@@ -1088,7 +1088,7 @@ contract NameSpaceTest is Test {
         namespace.makeCommit(commitHash);
         vm.warp(block.timestamp + commitRegisterDelay);
 
-        namespace.register{value: namespace.fee()}("alice", alice, "secret");
+        namespace.register{value: namespace.FEE()}("alice", alice, "secret");
         assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
         vm.stopPrank();
     }
