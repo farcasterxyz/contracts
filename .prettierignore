@@ -1,3 +1,13 @@
-cache
-node_modules
-lib
+# directories
+.yarn/
+**/broadcast
+**/cache
+**/lib
+**/out
+**/node_modules
+
+# files
+*.env
+*.log
+yarn-debug.log*
+yarn-error.log*

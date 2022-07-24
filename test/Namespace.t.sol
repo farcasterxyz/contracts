@@ -43,13 +43,7 @@ contract NameSpaceTest is Test {
     uint256 aliceBiddableTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
-        namespace = new Namespace(
-            "Farcaster Namespace",
-            "FCN",
-            admin,
-            address(this),
-            trustedForwarder
-        );
+        namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this), trustedForwarder);
     }
 
     /*//////////////////////////////////////////////////////////////

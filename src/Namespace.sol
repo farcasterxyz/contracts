@@ -411,8 +411,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      */
     function cancelRecovery(uint256 tokenId) external payable {
         address _msgSender = _msgSender();
-        if (_msgSender != _ownerOf[tokenId] && _msgSender != recoveryOf[tokenId])
-            revert Unauthorized();
+        if (_msgSender != _ownerOf[tokenId] && _msgSender != recoveryOf[tokenId]) revert Unauthorized();
 
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
@@ -495,9 +494,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
             // timestampOfYear and currYear are pretermined values and cannot overflow.
             uint256 nextYearTimestamp = timestampOfYear(_currYear + 1);
 
-            return
-                ((nextYearTimestamp - block.timestamp) * fee) /
-                (nextYearTimestamp - timestampOfYear(_currYear));
+            return ((nextYearTimestamp - block.timestamp) * fee) / (nextYearTimestamp - timestampOfYear(_currYear));
         }
     }
 
