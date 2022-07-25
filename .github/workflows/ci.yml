@@ -28,7 +28,7 @@ jobs:
           cache: "yarn"
           node-version: "18"
 
-      - name: Restore cached dependencies for Node modules.
+      - name: Restore cached dependencies for Node modules
         id: module-cache
         uses: actions/cache@v2
         with:
@@ -61,3 +61,10 @@ jobs:
 
       - name: Check Forge gas snapshot
         run: forge snapshot --check
+
+      - name: Check code coverage
+        run: |
+          forge coverage --report lcov
+        id: coverage
+
+      - uses: codecov/codecov-action@v2
