@@ -48,7 +48,7 @@ contract AccountRegistry is ERC2771Context {
     //////////////////////////////////////////////////////////////*/
 
     // Last issued id
-    uint256 idCounter;
+    uint256 private idCounter;
 
     // Mapping from custody address to id
     mapping(address => uint256) public idOf;

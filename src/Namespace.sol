@@ -86,6 +86,8 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
     uint256 public constant FEE = 0.01 ether;
 
+    uint256 public constant ESCROW_PERIOD = 3 days;
+
     // The epoch timestamp of Jan 1 for each year starting from 2022
     uint256[] internal _yearTimestamps = [
         1640995200,
@@ -108,8 +110,6 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     ];
 
     address public immutable vault;
-
-    uint256 constant ESCROW_PERIOD = 3 days;
 
     constructor(
         string memory _name,
@@ -161,7 +161,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      *
      * @param commit the commitment hash to be persisted on-chain
      */
-    function makeCommit(bytes32 commit) public {
+    function makeCommit(bytes32 commit) external {
         blockOf[commit] = block.timestamp;
     }
 
