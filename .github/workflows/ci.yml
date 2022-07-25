@@ -61,3 +61,15 @@ jobs:
 
       - name: Check Forge gas snapshot
         run: forge snapshot --check
+
+      - name: Run Slither
+        uses: crytic/slither-action@main
+        id: slither
+        continue-on-error: true
+        with:
+          sarif: results.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: ${{ steps.slither.outputs.sarif }}
