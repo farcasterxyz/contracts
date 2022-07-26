@@ -80,7 +80,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    string public constant BASE_URI = "http://www.farcaster.xyz/";
+    string public constant BASE_URI = "http://www.farcaster.xyz/u/";
 
     uint256 public constant GRACE_PERIOD = 30 days;
 
@@ -316,8 +316,40 @@ contract Namespace is ERC721, Owned, ERC2771Context {
         _clearRecovery(id);
     }
 
+    /**
+     * @notice A distinct Uniform Resource Identifier (URI) for a given asset.
+     *
+     * @dev Throws if tokenId is not a valid token ID.
+     */
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
-        return string(abi.encodePacked(BASE_URI, tokenId, ".json"));
+        uint256 lastCharIdx;
+
+        // Safety: usernames are specified as 16 bytes and then converted to uint256, so the reverse
+        // can be performed safely to obtain the username
+        bytes16 tokenIdBytes16 = bytes16(bytes32(tokenId));
+
+        if (!_isValidUsername(tokenIdBytes16)) revert InvalidName();
+
+        // Iterate backwards from the last byte until we find the first non-zero byte which marks
+        // the end of the username, which is guaranteed to be <= 16 bytes / chars.
+        for (uint256 i = 15; i >= 0; --i) {
+            if (uint8(tokenIdBytes16[i]) != 0) {
+                lastCharIdx = i;
+                break;
+            }
+        }
+
+        // Safety: we can assume that lastCharIndex is always > 0 since registering a username with
+        // all empty bytes is not permitted by _isValidUsername.
+
+        // Construct a new bytes[] with the valid username characters.
+        bytes memory usernameBytes = new bytes(lastCharIdx + 1);
+
+        for (uint256 j = 0; j <= lastCharIdx; ++j) {
+            usernameBytes[j] = tokenIdBytes16[j];
+        }
+
+        return string(abi.encodePacked(BASE_URI, string(usernameBytes), ".json"));
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -655,6 +655,24 @@ contract NameSpaceTest is Test {
         assertEq(namespace.balanceOf(bob), 0);
     }
 
+    function testTokenUri() public {
+        uint256 tokenId = uint256(bytes32("alice"));
+        assertEq(namespace.tokenURI(tokenId), "http://www.farcaster.xyz/u/alice.json");
+
+        // Test with min length name
+        uint256 tokenIdMin = uint256(bytes32("a"));
+        assertEq(namespace.tokenURI(tokenIdMin), "http://www.farcaster.xyz/u/a.json");
+
+        // Test with max length name
+        uint256 tokenIdMax = uint256(bytes32("alicenwonderland"));
+        assertEq(namespace.tokenURI(tokenIdMax), "http://www.farcaster.xyz/u/alicenwonderland.json");
+    }
+
+    function testCannotGetTokenUriForInvalidName() public {
+        vm.expectRevert(InvalidName.selector);
+        namespace.tokenURI(uint256(bytes32("alicenWonderland")));
+    }
+
     /*//////////////////////////////////////////////////////////////
                         SET RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
