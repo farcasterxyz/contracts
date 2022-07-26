@@ -565,6 +565,8 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     function _isValidUsername(bytes16 username) private pure returns (bool) {
         uint256 length = username.length;
 
+        if (username == bytes16(0)) revert InvalidName();
+
         for (uint256 i = 0; i < length; ) {
             uint8 charInt = uint8(username[i]);
             // Optimize: consider using a bitmask to check for valid characters which may be more

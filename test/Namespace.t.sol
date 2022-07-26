@@ -88,6 +88,9 @@ contract NameSpaceTest is Test {
         vm.expectRevert(InvalidName.selector);
         namespace.generateCommit("a{ice", alice, "secret");
 
+        vm.expectRevert(InvalidName.selector);
+        namespace.generateCommit("", alice, "secret");
+
         // We cannot specify valid UTF-8 chars like £ in a test using string literals, so we encode
         // a bytes16 string that has the second character set to a byte-value of 129, which is a
         // valid UTF-8 character that cannot be typed
