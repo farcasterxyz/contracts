@@ -116,8 +116,8 @@ contract Namespace is ERC721, Owned, ERC2771Context {
         string memory _symbol,
         address _owner,
         address _vault,
-        address _trustedForwarder
-    ) ERC721(_name, _symbol) Owned(_owner) ERC2771Context(_trustedForwarder) {
+        address trustedForwarder
+    ) ERC721(_name, _symbol) Owned(_owner) ERC2771Context(trustedForwarder) {
         vault = _vault;
     }
 
@@ -140,17 +140,17 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      * @dev The commitment process prevents front-running of the username registration.
      *
      * @param username the username to be registered
-     * @param owner the address that will own the username
+     * @param to the address that will own the username
      * @param secret a salt that randomizes and secures the commitment hash
      */
     function generateCommit(
         bytes16 username,
-        address owner,
+        address to,
         bytes32 secret
     ) public pure returns (bytes32) {
         if (!_isValidUsername(username)) revert InvalidName();
 
-        return keccak256(abi.encode(username, owner, secret));
+        return keccak256(abi.encode(username, to, secret));
     }
 
     /**
@@ -172,15 +172,15 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      * or approximately 1 minute after commit.
      *
      * @param username the username to register
-     * @param owner the address that will claim the username
+     * @param to the address that will claim the username
      * @param secret the secret that protects the commitment
      */
     function register(
         bytes16 username,
-        address owner,
+        address to,
         bytes32 secret
     ) external payable {
-        bytes32 commit = generateCommit(username, owner, secret);
+        bytes32 commit = generateCommit(username, to, secret);
 
         uint256 _currYearFee = currYearFee();
         if (msg.value < _currYearFee) revert InsufficientFunds();
@@ -192,7 +192,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
         uint256 tokenId = uint256(bytes32(username));
         if (expiryOf[tokenId] != 0) revert NotRegistrable();
 
-        _mint(owner, tokenId);
+        _mint(to, tokenId);
 
         unchecked {
             // currYear is selected from a pre-determined list and cannot overflow
@@ -267,16 +267,16 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
         if (msg.value < price) revert InsufficientFunds();
 
-        address _msgSender = _msgSender();
+        address msgSender = _msgSender();
 
-        _unsafeTransfer(_msgSender, tokenId);
+        _unsafeTransfer(msgSender, tokenId);
 
         unchecked {
             // _timestampOfYear(currentYear) is taken from a pre-determined list and cannot overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
-        payable(_msgSender).transfer(msg.value - price);
+        payable(msgSender).transfer(msg.value - price);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -322,7 +322,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      * @dev Throws if tokenId is not a valid token ID.
      */
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
-        uint256 lastCharIdx;
+        uint256 lastCharIdx = 0;
 
         // Safety: usernames are specified as 16 bytes and then converted to uint256, so the reverse
         // can be performed safely to obtain the username
@@ -332,7 +332,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
         // Iterate backwards from the last byte until we find the first non-zero byte which marks
         // the end of the username, which is guaranteed to be <= 16 bytes / chars.
-        for (uint256 i = 15; i >= 0; --i) {
+        for (uint256 i = 15; ; --i) {
             if (uint8(tokenIdBytes16[i]) != 0) {
                 lastCharIdx = i;
                 break;
@@ -442,8 +442,8 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      * @param tokenId the uint256 representation of the username.
      */
     function cancelRecovery(uint256 tokenId) external payable {
-        address _msgSender = _msgSender();
-        if (_msgSender != _ownerOf[tokenId] && _msgSender != recoveryOf[tokenId]) revert Unauthorized();
+        address msgSender = _msgSender();
+        if (msgSender != _ownerOf[tokenId] && msgSender != recoveryOf[tokenId]) revert Unauthorized();
 
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
@@ -562,11 +562,11 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     /**
      * @dev Returns true if the name is only composed of [a-z0-9] and the hyphen characters.
      */
-    function _isValidUsername(bytes16 name) private pure returns (bool) {
-        uint256 length = name.length;
+    function _isValidUsername(bytes16 username) private pure returns (bool) {
+        uint256 length = username.length;
 
         for (uint256 i = 0; i < length; ) {
-            uint8 charInt = uint8(name[i]);
+            uint8 charInt = uint8(username[i]);
             // Optimize: consider using a bitmask to check for valid characters which may be more
             // efficient.
             // Allow inclusive ranges 45(-), 48 - 57 (0-9), 97-122 (a-z)
