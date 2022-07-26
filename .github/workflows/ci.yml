@@ -54,11 +54,6 @@ jobs:
       - name: Run Forge tests
         run: forge test -vvv
 
-      - name: Build the contracts
-        run: |
-          forge --version
-          forge build --sizes
-
       - name: Check Forge gas snapshot
         run: forge snapshot --check
 
