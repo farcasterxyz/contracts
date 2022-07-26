@@ -80,7 +80,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    string public constant BASE_URI = "http://www.farcaster.xyz/";
+    string public constant BASE_URI = "http://www.farcaster.xyz/u/";
 
     uint256 public constant GRACE_PERIOD = 30 days;
 
@@ -196,7 +196,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
         unchecked {
             // currYear is selected from a pre-determined list and cannot overflow
-            expiryOf[tokenId] = timestampOfYear(currYear() + 1);
+            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
         payable(_msgSender()).transfer(msg.value - _currYearFee);
@@ -222,7 +222,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
             if (block.timestamp < expiryTs) revert Registered();
 
             // currYear is selected from a pre-determined list and cannot overflow
-            expiryOf[tokenId] = timestampOfYear(currYear() + 1);
+            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
         emit Renew(tokenId, expiryOf[tokenId]);
@@ -272,8 +272,8 @@ contract Namespace is ERC721, Owned, ERC2771Context {
         _unsafeTransfer(_msgSender, tokenId);
 
         unchecked {
-            // timestampOfYear(currentYear) is taken from a pre-determined list and cannot overflow
-            expiryOf[tokenId] = timestampOfYear(currYear() + 1);
+            // _timestampOfYear(currentYear) is taken from a pre-determined list and cannot overflow
+            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
         payable(_msgSender).transfer(msg.value - price);
@@ -316,8 +316,40 @@ contract Namespace is ERC721, Owned, ERC2771Context {
         _clearRecovery(id);
     }
 
+    /**
+     * @notice A distinct Uniform Resource Identifier (URI) for a given asset.
+     *
+     * @dev Throws if tokenId is not a valid token ID.
+     */
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
-        return string(abi.encodePacked(BASE_URI, tokenId, ".json"));
+        uint256 lastCharIdx;
+
+        // Safety: usernames are specified as 16 bytes and then converted to uint256, so the reverse
+        // can be performed safely to obtain the username
+        bytes16 tokenIdBytes16 = bytes16(bytes32(tokenId));
+
+        if (!_isValidUsername(tokenIdBytes16)) revert InvalidName();
+
+        // Iterate backwards from the last byte until we find the first non-zero byte which marks
+        // the end of the username, which is guaranteed to be <= 16 bytes / chars.
+        for (uint256 i = 15; i >= 0; --i) {
+            if (uint8(tokenIdBytes16[i]) != 0) {
+                lastCharIdx = i;
+                break;
+            }
+        }
+
+        // Safety: we can assume that lastCharIndex is always > 0 since registering a username with
+        // all empty bytes is not permitted by _isValidUsername.
+
+        // Construct a new bytes[] with the valid username characters.
+        bytes memory usernameBytes = new bytes(lastCharIdx + 1);
+
+        for (uint256 j = 0; j <= lastCharIdx; ++j) {
+            usernameBytes[j] = tokenIdBytes16[j];
+        }
+
+        return string(abi.encodePacked(BASE_URI, string(usernameBytes), ".json"));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -433,7 +465,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
         unchecked {
             // this value is deterministic and cannot overflow for any known year
-            expiryOf[tokenId] = timestampOfYear(currYear() + 1);
+            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
         _unsafeTransfer(vault, tokenId);
@@ -442,18 +474,6 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     /*//////////////////////////////////////////////////////////////
                           YEARLY PAYMENTS LOGIC
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
-     */
-    function timestampOfYear(uint256 year) public view returns (uint256) {
-        unchecked {
-            if (year <= 2021) revert InvalidTime();
-
-            // year can never underflow because we check its value, or overflow because of subtract
-            return _yearTimestamps[year - 2022];
-        }
-    }
 
     /**
      * @notice Returns the current year for any year between 2021 and 2037.
@@ -491,10 +511,10 @@ contract Namespace is ERC721, Owned, ERC2771Context {
         uint256 _currYear = currYear();
 
         unchecked {
-            // timestampOfYear and currYear are pretermined values and cannot overflow.
-            uint256 nextYearTimestamp = timestampOfYear(_currYear + 1);
+            // _timestampOfYear and currYear are pretermined values and cannot overflow.
+            uint256 nextYearTimestamp = _timestampOfYear(_currYear + 1);
 
-            return ((nextYearTimestamp - block.timestamp) * FEE) / (nextYearTimestamp - timestampOfYear(_currYear));
+            return ((nextYearTimestamp - block.timestamp) * FEE) / (nextYearTimestamp - _timestampOfYear(_currYear));
         }
     }
 
@@ -565,5 +585,17 @@ contract Namespace is ERC721, Owned, ERC2771Context {
             }
         }
         return true;
+    }
+
+    /**
+     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
+     */
+    function _timestampOfYear(uint256 year) private view returns (uint256) {
+        unchecked {
+            if (year <= 2021) revert InvalidTime();
+
+            // year can never underflow because we check its value, or overflow because of subtract
+            return _yearTimestamps[year - 2022];
+        }
     }
 }

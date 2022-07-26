@@ -215,6 +215,25 @@ contract NameSpaceTest is Test {
         namespace.register{value: 0.01 ether}(incorrectUsername, owner, secret);
     }
 
+    function testCannotRegisterBefore2021() public {
+        // 1. Give alice money and fast forward to Jan 1, 2020 to begin registration.
+        vm.deal(alice, 10_000 ether);
+        vm.warp(1577836800);
+
+        // 2. Make the commitment to register the name alice
+        vm.startPrank(alice);
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        namespace.makeCommit(commitHash);
+
+        // 3. Try to register alice after the delay has passed
+        vm.warp(block.timestamp + commitRegisterDelay);
+        vm.expectRevert(InvalidTime.selector);
+        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+
+        // 4. Assert that the name was registered and the balance was returned.
+        vm.stopPrank();
+    }
+
     /*//////////////////////////////////////////////////////////////
                             RENEW TESTS
     //////////////////////////////////////////////////////////////*/
@@ -634,6 +653,24 @@ contract NameSpaceTest is Test {
         assertEq(namespace.ownerOf(aliceTokenId), address(0));
         assertEq(namespace.balanceOf(alice), 1);
         assertEq(namespace.balanceOf(bob), 0);
+    }
+
+    function testTokenUri() public {
+        uint256 tokenId = uint256(bytes32("alice"));
+        assertEq(namespace.tokenURI(tokenId), "http://www.farcaster.xyz/u/alice.json");
+
+        // Test with min length name
+        uint256 tokenIdMin = uint256(bytes32("a"));
+        assertEq(namespace.tokenURI(tokenIdMin), "http://www.farcaster.xyz/u/a.json");
+
+        // Test with max length name
+        uint256 tokenIdMax = uint256(bytes32("alicenwonderland"));
+        assertEq(namespace.tokenURI(tokenIdMax), "http://www.farcaster.xyz/u/alicenwonderland.json");
+    }
+
+    function testCannotGetTokenUriForInvalidName() public {
+        vm.expectRevert(InvalidName.selector);
+        namespace.tokenURI(uint256(bytes32("alicenWonderland")));
     }
 
     /*//////////////////////////////////////////////////////////////

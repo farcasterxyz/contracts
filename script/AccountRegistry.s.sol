@@ -8,7 +8,9 @@ import {AccountRegistry} from "../src/AccountRegistry.sol";
 contract AccountRegistryScript is Script {
     address gorliTrustedForwarder = address(0x7A95fA73250dc53556d264522150A940d4C50238);
 
-    function setUp() public {}
+    // TODO: coverage does not like empty functions, and I can't remember if this was important to the deploy
+    // Retaining this until we can remove safely.
+    // function setUp() public {}
 
     function run() public {
         vm.broadcast();
