@@ -64,6 +64,8 @@ Usernames can be registered for up to a year by paying the registration fee, sim
 
 A username can exist in these states:
 
+- `reserved` - the name is reserved, and can be minted during pre-registration
+- `unreserved` - the name is not reserved, and cannot be minted during pre-registration
 - `registerable` - the name has never been minted and is available to mint
 - `registered` - the name is currently registered to an address
 - `renewable` - the name's registration has expired and it can only be renewed by the owner
@@ -74,6 +76,9 @@ A username can exist in these states:
 ```mermaid
     stateDiagram-v2
         direction LR
+        reserved --> registerable: reservation period
+        reserved --> registered: preregister
+        unreserved --> registerable: reservation period
         registerable --> registered: register
         registered --> renewable: year end
         renewable --> biddable: renewal period
@@ -92,7 +97,8 @@ Only the `registerable` and `biddable` states are terminal, all other states hav
 
 The username state transitions when users take certain actions:
 
-- `register` - "minting" a new username
+- `preregister` - minting a new username during the reservation period
+- `register` - minting a new username after the reservation period
 - `transfer` - moving a username to a new custody address
 - `renew` - paying the renewal fee on a renewable username
 - `bid` - placing a bid on a biddable username
@@ -105,6 +111,7 @@ The username state can automatically transition when certain periods of time pas
 - `year end` - the end of the calendar year in GMT
 - `renewal period` - 31 days from the expiration at the year's end (Feb 1st)
 - `escrow period` - 3 days from the `request recovery` action
+- `reservation period` - 15 days from the launch of the contract
 
 ## 3. Recovery System
 

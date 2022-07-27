@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "../src/Namespace.sol";
 
 contract NameSpaceTest is Test {
-    Namespace namespace;
+    Namespace private namespace;
 
     /*//////////////////////////////////////////////////////////////
                              EVENTS
@@ -24,30 +24,41 @@ contract NameSpaceTest is Test {
     /*//////////////////////////////////////////////////////////////
                         CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    address admin = address(0x001);
-    address alice = address(0x123);
-    address bob = address(0x456);
-    address charlie = address(0x789);
-    address david = address(0x531);
-    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    address private admin = address(0x001);
+    address private alice = address(0x123);
+    address private bob = address(0x456);
+    address private charlie = address(0x789);
+    address private david = address(0x531);
+    address private trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    bytes32 private merkleRoot = 0xced6af4a7a1ea89b039b112d4558394cd8d8b2bd0bd20dea4d8fd3a3a89a2f5a;
 
-    uint256 escrowPeriod = 3 days;
-    uint256 commitRegisterDelay = 60;
+    uint256 private escrowPeriod = 3 days;
+    uint256 private commitRegisterDelay = 60;
 
-    uint256 timestamp2023 = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
-    uint256 timestamp2024 = 1704067200; // Sun, Jan 1, 2024 0:00:00 GMT
+    uint256 private timestamp2023 = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
+    uint256 private timestamp2024 = 1704067200; // Sun, Jan 1, 2024 0:00:00 GMT
 
-    uint256 aliceTokenId = uint256(bytes32("alice"));
-    uint256 aliceRegisterTs = 1655933973; // Wed, Jun 22, 2022 21:39:33 GMT
-    uint256 aliceRenewableTs = timestamp2023; // Sun, Jan 1, 2023 0:00:00 GMT
-    uint256 aliceBiddableTs = 1675123200; // Tue, Jan 31, 2023 0:00:00 GMT
+    uint256 private aliceTokenId = uint256(bytes32("alice"));
+    uint256 private aliceRegisterTs = 1669881600; // Dec 1, 2022 00:00:00 GMT
+    uint256 private aliceRenewableTs = timestamp2023; // Jan 1, 2023 0:00:00 GMT
+    uint256 private aliceBiddableTs = 1675123200; // Jan 31, 2023 0:00:00 GMT
+
+    bytes32[] private aliceProof = [
+        bytes32(uint256(0xfa67f17f533e1c9056bf1325599b3f90319745f5d8f8ce67f0d9f9126e0b4478)),
+        bytes32(uint256(0xef352518564e5df729af486a5eceae534ae9ecd6cf2541f5b9974b9c9be9f48b))
+    ];
+
+    bytes32[] private bobProof = [
+        bytes32(uint256(0xa55bbb089c39c633b389fd992f7f8be7f21b3b26c3108b0a4ada9333e8ce1d1c)),
+        bytes32(uint256(0xef352518564e5df729af486a5eceae534ae9ecd6cf2541f5b9974b9c9be9f48b))
+    ];
 
     function setUp() public {
-        namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this), trustedForwarder);
+        namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this), trustedForwarder, merkleRoot);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        GENERATE COMMIT TESTS
+                              COMMIT TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testGenerateCommit() public {
@@ -72,7 +83,7 @@ contract NameSpaceTest is Test {
         assertEq(commit5, 0x48ba82e0c3aa3f6a18bff166ca475b8cb257b83768160ee7e2702e9834d7380d);
     }
 
-    function testCannotCommitWithInvalidName() public {
+    function testCannotGenerateCommitWithInvalidName() public {
         vm.expectRevert(InvalidName.selector);
         namespace.generateCommit("Alice", alice, "secret");
 
@@ -99,8 +110,30 @@ contract NameSpaceTest is Test {
         namespace.generateCommit(nameWithInvalidUtfChar, alice, "secret");
     }
 
+    function testMakeCommit() public {
+        vm.startPrank(alice);
+        vm.warp(namespace.REGISTRATION_START_TS());
+
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        namespace.makeCommit(commitHash);
+
+        assertEq(namespace.timestampOf(commitHash), block.timestamp);
+        vm.stopPrank();
+    }
+
+    function testCannotMakeCommitBeforeRegistrationBegins() public {
+        vm.startPrank(alice);
+        vm.warp(namespace.REGISTRATION_START_TS() - 1);
+
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        vm.expectRevert(NotRegistrable.selector);
+        namespace.makeCommit(commitHash);
+
+        vm.stopPrank();
+    }
+
     /*//////////////////////////////////////////////////////////////
-                            REGISTER TESTS
+                             REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testRegister() public {
@@ -211,6 +244,9 @@ contract NameSpaceTest is Test {
     function testCannotRegisterWithInvalidNames(address owner, bytes32 secret) public {
         bytes16 incorrectUsername = "al{ce";
         bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, owner, secret));
+
+        // 1. Fast forward to the registration period
+        vm.warp(namespace.REGISTRATION_START_TS());
         namespace.makeCommit(invalidCommit);
 
         // Register using an incorrect name
@@ -218,22 +254,82 @@ contract NameSpaceTest is Test {
         namespace.register{value: 0.01 ether}(incorrectUsername, owner, secret);
     }
 
-    function testCannotRegisterBefore2021() public {
-        // 1. Give alice money and fast forward to Jan 1, 2020 to begin registration.
-        vm.deal(alice, 10_000 ether);
-        vm.warp(1577836800);
+    /*//////////////////////////////////////////////////////////////
+                          PREREGISTRATION TESTS
+    //////////////////////////////////////////////////////////////*/
 
-        // 2. Make the commitment to register the name alice
-        vm.startPrank(alice);
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
-        namespace.makeCommit(commitHash);
+    function testPreregister() public {
+        vm.warp(namespace.REGISTRATION_START_TS() - 1);
 
-        // 3. Try to register alice after the delay has passed
-        vm.warp(block.timestamp + commitRegisterDelay);
-        vm.expectRevert(InvalidTime.selector);
-        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+        vm.expectEmit(true, true, true, false);
+        emit Transfer(address(0), alice, uint256(bytes32("alice")));
+        namespace.preregister(alice, "alice", aliceProof);
 
-        // 4. Assert that the name was registered and the balance was returned.
+        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+
+        vm.stopPrank();
+    }
+
+    function testCannotPreregisterWithInvalidProofs() public {
+        vm.warp(namespace.REGISTRATION_START_TS() - 1);
+
+        vm.expectRevert(InvalidProof.selector);
+        namespace.preregister(alice, "alice", bobProof);
+
+        vm.expectRevert(Registrable.selector);
+        assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.expiryOf(aliceTokenId), 0);
+
+        vm.stopPrank();
+    }
+
+    function testCannotPreregisterWithInvalidUsername() public {
+        vm.warp(namespace.REGISTRATION_START_TS() - 1);
+
+        vm.expectRevert(InvalidProof.selector);
+        namespace.preregister(alice, "alic", aliceProof);
+
+        vm.expectRevert(Registrable.selector);
+        assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.expiryOf(aliceTokenId), 0);
+
+        vm.stopPrank();
+    }
+
+    function testCannotPreregisterWithInvalidAddress() public {
+        vm.warp(namespace.REGISTRATION_START_TS() - 1);
+
+        vm.expectRevert(InvalidProof.selector);
+        namespace.preregister(bob, "alice", aliceProof);
+
+        vm.expectRevert(Registrable.selector);
+        assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.expiryOf(aliceTokenId), 0);
+
+        vm.stopPrank();
+    }
+
+    function testCannotPreregisterAfterRegistrationStarts() public {
+        vm.warp(namespace.REGISTRATION_START_TS());
+
+        vm.expectRevert(Registrable.selector);
+        namespace.preregister(alice, "alice", aliceProof);
+
+        vm.expectRevert(Registrable.selector);
+        assertEq(namespace.ownerOf(aliceTokenId), address(0));
+        assertEq(namespace.expiryOf(aliceTokenId), 0);
+
+        vm.stopPrank();
+    }
+
+    function testCannotPreregisterTwice() public {
+        vm.warp(namespace.REGISTRATION_START_TS() - 1);
+
+        namespace.preregister(alice, "alice", aliceProof);
+        vm.expectRevert("ALREADY_MINTED");
+        namespace.preregister(alice, "alice", aliceProof);
+
         vm.stopPrank();
     }
 
