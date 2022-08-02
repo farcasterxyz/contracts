@@ -27,8 +27,6 @@ error Escrow(); // The recovery request is still in escrow
 error NoRecovery(); // The recovery request could not be found
 error InvalidRecovery(); // The recovery address is being set to the custody address
 
-error InvalidProof(); // The merkle proof is invalid
-
 /**
  * @title Namespace
  * @author varunsrin
@@ -65,8 +63,8 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     // The index of the next year in the array
     uint256 internal _nextYearIdx;
 
-    // The merkle root of the reservations merkle tree
-    bytes32 private merkleRoot;
+    // The address that can register usernames during the pre-registration period
+    address private preregistrar;
 
     /*//////////////////////////////////////////////////////////////
                             RECOVERY STORAGE
@@ -95,7 +93,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
 
     uint256 public constant ESCROW_PERIOD = 3 days;
 
-    uint256 public constant REGISTRATION_START_TS = 1667286000; // 2022, November 1
+    uint256 public constant PREREGISTRATION_END_TS = 1667286000; // 2022, November 1 (TODO: Replace with final date)
 
     // The epoch timestamp of Jan 1 for each year starting from 2022
     uint256[] internal _yearTimestamps = [
@@ -126,10 +124,10 @@ contract Namespace is ERC721, Owned, ERC2771Context {
         address _owner,
         address _vault,
         address trustedForwarder,
-        bytes32 _merkleRoot
+        address _preregistrar
     ) ERC721(_name, _symbol) Owned(_owner) ERC2771Context(trustedForwarder) {
         vault = _vault;
-        merkleRoot = _merkleRoot;
+        preregistrar = _preregistrar;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -173,7 +171,7 @@ contract Namespace is ERC721, Owned, ERC2771Context {
      * @param commit the commitment hash to be persisted on-chain
      */
     function makeCommit(bytes32 commit) external {
-        if (block.timestamp < REGISTRATION_START_TS) revert NotRegistrable();
+        if (block.timestamp < PREREGISTRATION_END_TS) revert NotRegistrable();
 
         timestampOf[commit] = block.timestamp;
     }
@@ -198,8 +196,8 @@ contract Namespace is ERC721, Owned, ERC2771Context {
         uint256 _currYearFee = currYearFee();
         if (msg.value < _currYearFee) revert InsufficientFunds();
 
-        // Security: We assume that timestampOf[commit] will always be zero before
-        // REGISTRATION_START_TS, and we avoid the need to check for it.
+        // Assumption: We assume that timestampOf[commit] will always be zero before
+        // PREREGISTRATION_END_TS and therefore this will always fail during pre-registration.
         uint256 _commitBlock = timestampOf[commit];
         if (_commitBlock == 0 || _commitBlock + 60 > block.timestamp) revert InvalidCommit();
         delete timestampOf[commit];
@@ -218,39 +216,25 @@ contract Namespace is ERC721, Owned, ERC2771Context {
     }
 
     /**
-     * @notice Mint a reserved username during the pre-registration period.
+     * @notice Mint a reserved username during the pre-registration period from the preregistrar.
      *
      * @param to the address that will claim the username
      * @param username the username to register
-     * @param proof the merkle proof for inclusion in the reservation tree
      */
-    function preregister(
-        address to,
-        bytes16 username,
-        bytes32[] calldata proof
-    ) external payable {
+    function preregister(address to, bytes16 username) external payable {
         /**
          *
          * ASSUMPTIONS:
          *
-         * 1. We do not enforce that the pre-registration comes from the owner because it saves gas
-         *    and the username will always be delivered to the owner.
+         * 1. Commit-reveal scheme is unnecessary here since front-running is not possible.
          *
-         * 2. We do not require a commit-reveal scheme since there is no way to front-run the
-         *   pre-registration.
+         * 2. We do not charge for pre-registration of names.
          *
-         * 3. We do not charge for pre-registration, users are only required to pay from the next
-         *    year onwards.
-         *
-         * 4. Usernames are not validated and care must be taken to validate them when generating
-         *    the merkle tree, or invalid names can be registered.
+         * 3. Usernames are not validated and this must be handled by the preregistrar.
          */
-        if (block.timestamp >= REGISTRATION_START_TS) revert Registrable();
+        if (block.timestamp >= PREREGISTRATION_END_TS) revert Registrable();
 
-        // 1. Check that the proof provided was valid.
-        bytes32 leaf = keccak256(abi.encodePacked(to, username));
-        bool isValidLeaf = MerkleProof.verify(proof, merkleRoot, leaf);
-        if (!isValidLeaf) revert InvalidProof();
+        if (_msgSender() != preregistrar) revert Unauthorized();
 
         uint256 tokenId = uint256(bytes32(username));
         _mint(to, tokenId);
