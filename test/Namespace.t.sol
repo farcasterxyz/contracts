@@ -228,15 +228,15 @@ contract NameSpaceTest is Test {
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
 
-        // 2. Make the commitment to register the name alice, but deliver it to bob
+        // 2. Make the commitment to register the name alice
         vm.startPrank(alice);
-        bytes32 commitHash = namespace.generateCommit("alice", bob, "secret");
+        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
         namespace.makeCommit(commitHash);
 
         // 3. Try to register the name and fail
         vm.warp(block.timestamp + commitRegisterDelay - 1);
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register{value: 0.01 ether}("alice", bob, "secret");
+        namespace.register{value: 0.01 ether}("alice", alice, "secret");
 
         vm.stopPrank();
     }
