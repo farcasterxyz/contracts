@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import "forge-std/Test.sol";
 import "../src/NameRegistry.sol";
 
-contract NameSpaceTest is Test {
+contract NameRegistryTest is Test {
     NameRegistry private nameRegistry;
 
     /*//////////////////////////////////////////////////////////////
