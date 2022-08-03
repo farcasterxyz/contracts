@@ -12,17 +12,17 @@ error NoRecovery(); // The recovery request for this id could not be found
 error Escrow(); // The recovery request is still in escrow
 
 /**
- * @title AccountRegistry
+ * @title IDRegistry
  * @author varunsrin
  * @custom:version 0.1
  *
- * @notice AccountRegistry issues new farcaster account id's and maintains a mapping between the id
- *         and the custody address that owns it. It implements a recovery system which allows an id
+ * @notice IDRegistry issues new farcaster account id's (fids) and maintains a mapping between the fid
+ *         and the custody address that owns it. It implements a recovery system which allows a fid
  *         to be recovered if the address custodying it is lost.
  *
  * @dev Function calls use payable to marginally reduce gas usage.
  */
-contract AccountRegistry is ERC2771Context {
+contract IDRegistry is ERC2771Context {
     constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
 
     /*//////////////////////////////////////////////////////////////

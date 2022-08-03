@@ -2,10 +2,10 @@
 pragma solidity ^0.8.15;
 
 import "forge-std/Test.sol";
-import "../src/AccountRegistry.sol";
+import "../src/IDRegistry.sol";
 
-contract AccountRegistryTest is Test {
-    AccountRegistry accountRegistry;
+contract IDRegistryTest is Test {
+    IDRegistry idRegistry;
 
     /*//////////////////////////////////////////////////////////////
                              EVENTS
@@ -32,7 +32,7 @@ contract AccountRegistryTest is Test {
     uint256 escrowPeriod = 259_200;
 
     function setUp() public {
-        accountRegistry = new AccountRegistry(trustedForwarder);
+        idRegistry = new IDRegistry(trustedForwarder);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -44,28 +44,28 @@ contract AccountRegistryTest is Test {
         vm.prank(alice);
         vm.expectEmit(true, true, false, true);
         emit Register(alice, 1);
-        accountRegistry.register();
-        assertEq(accountRegistry.idOf(alice), 1);
+        idRegistry.register();
+        assertEq(idRegistry.idOf(alice), 1);
 
         // 2. bob registers after alice and claims id 2
         vm.prank(bob);
         vm.expectEmit(true, true, false, true);
         emit Register(bob, 2);
-        accountRegistry.register();
-        assertEq(accountRegistry.idOf(bob), 2);
+        idRegistry.register();
+        assertEq(idRegistry.idOf(bob), 2);
     }
 
     function testCannotRegisterTwice() public {
         // 1. alice reigsters and claims id 1
         vm.startPrank(alice);
-        accountRegistry.register();
+        idRegistry.register();
 
         // 2. alice attempts to register again and fails
         vm.expectRevert(HasId.selector);
-        accountRegistry.register();
+        idRegistry.register();
         vm.stopPrank();
 
-        assertEq(accountRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -75,46 +75,46 @@ contract AccountRegistryTest is Test {
     function testTransfer() public {
         // 1. alice registers the first account and claims id 1
         vm.startPrank(alice);
-        accountRegistry.register();
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(bob), 0);
+        idRegistry.register();
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
 
         // 2. alice transfers the id to bob
         vm.expectEmit(true, true, false, true);
         emit Transfer(alice, bob, 1);
-        accountRegistry.transfer(bob);
+        idRegistry.transfer(bob);
 
-        assertEq(accountRegistry.idOf(alice), 0);
-        assertEq(accountRegistry.idOf(bob), 1);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 1);
     }
 
     function testCannotTransferToAddressWithId() public {
         // 1. alice and bob claim id's 1 and 2
         vm.prank(alice);
-        accountRegistry.register();
+        idRegistry.register();
         vm.prank(bob);
-        accountRegistry.register();
+        idRegistry.register();
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(bob), 2);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 2);
 
         // 2. alice tries to transfer id to bob's address
         vm.prank(alice);
         vm.expectRevert(HasId.selector);
-        accountRegistry.transfer(bob);
+        idRegistry.transfer(bob);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(bob), 2);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 2);
     }
 
     function testCannotTransferIfNoId() public {
         // 1. alice tries to transfer an id to bob
         vm.prank(alice);
         vm.expectRevert(ZeroId.selector);
-        accountRegistry.transfer(bob);
+        idRegistry.transfer(bob);
 
-        assertEq(accountRegistry.idOf(alice), 0);
-        assertEq(accountRegistry.idOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -124,31 +124,31 @@ contract AccountRegistryTest is Test {
     function testSetRecoveryAddress() public {
         // 1. alice registers id 1
         vm.startPrank(alice);
-        accountRegistry.register();
+        idRegistry.register();
 
         // 2. alice sets bob as her recovery address
         vm.expectEmit(true, true, false, true);
         emit SetRecoveryAddress(bob, 1);
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.setRecoveryAddress(bob);
 
-        assertEq(accountRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.recoveryOf(1), bob);
 
         // 3. alice sets charlie as her recovery address
         vm.expectEmit(true, true, false, true);
         emit SetRecoveryAddress(charlie, 1);
-        accountRegistry.setRecoveryAddress(charlie);
+        idRegistry.setRecoveryAddress(charlie);
         vm.stopPrank();
 
-        assertEq(accountRegistry.recoveryOf(1), charlie);
+        assertEq(idRegistry.recoveryOf(1), charlie);
     }
 
     function testCannotSetRecoveryAddressWithoutId() public {
         vm.startPrank(alice);
         vm.expectRevert(ZeroId.selector);
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
-        assertEq(accountRegistry.recoveryOf(1), address(0));
+        assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -158,62 +158,62 @@ contract AccountRegistryTest is Test {
     function testRequestRecovery() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
         emit RequestRecovery(1, alice, charlie);
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.recoveryOf(1), bob);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryClockOf(1), block.timestamp);
-        assertEq(accountRegistry.recoveryDestinationOf(1), charlie);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryClockOf(1), block.timestamp);
+        assertEq(idRegistry.recoveryDestinationOf(1), charlie);
     }
 
     function testCannotRequestRecoveryUnlessAuthorized() public {
         // 1. alice registers t id 1
         vm.prank(alice);
-        accountRegistry.register();
+        idRegistry.register();
 
         // 2. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
         vm.expectRevert(Unauthorized.selector);
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
     }
 
     function testCannotRequestRecoveryToAddressThatOwnsAnId() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. charlie registers id 2
         vm.prank(charlie);
-        accountRegistry.register();
+        idRegistry.register();
 
         // 3. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
         vm.expectRevert(HasId.selector);
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 2);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 2);
     }
 
     function testCannotRequestRecoveryUnlessIssued() public {
         // 1. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
         vm.expectRevert(Unauthorized.selector);
-        accountRegistry.requestRecovery(alice, bob);
+        idRegistry.requestRecovery(alice, bob);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -223,122 +223,122 @@ contract AccountRegistryTest is Test {
     function testRecoveryCompletion() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
         // 3. after escrow period, bob completes the recovery to charlie
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectEmit(true, true, false, true);
         emit Transfer(alice, charlie, 1);
-        accountRegistry.completeRecovery(alice);
+        idRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        assertEq(accountRegistry.idOf(alice), 0);
-        assertEq(accountRegistry.idOf(charlie), 1);
-        assertEq(accountRegistry.recoveryOf(1), address(0));
-        assertEq(accountRegistry.recoveryClockOf(1), 0);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(charlie), 1);
+        assertEq(idRegistry.recoveryOf(1), address(0));
+        assertEq(idRegistry.recoveryClockOf(1), 0);
     }
 
     function testCannotCompleteRecoveryIfUnauthorized() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         uint256 requestBlock = block.timestamp;
         vm.prank(bob);
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
         // 3. charlie calls completeRecovery on alice's id, which fails
         vm.prank(charlie);
         vm.warp(requestBlock + escrowPeriod);
         vm.expectRevert(Unauthorized.selector);
-        accountRegistry.completeRecovery(alice);
+        idRegistry.completeRecovery(alice);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryOf(1), bob);
-        assertEq(accountRegistry.recoveryClockOf(1), requestBlock);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.recoveryClockOf(1), requestBlock);
     }
 
     function testCannotCompleteRecoveryIfNotStarted() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob calls recovery complete on alice's id, which fails
         vm.startPrank(bob);
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
-        accountRegistry.completeRecovery(alice);
+        idRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryOf(1), bob);
-        assertEq(accountRegistry.recoveryClockOf(1), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.recoveryClockOf(1), 0);
     }
 
     // cannot complete a recovery if enough time hasn't passed
     function testCannotCompleteRecoveryWhenInEscrow() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
         uint256 requestBlock = block.timestamp;
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
         // 3. before the escrow period, bob completes the recovery to charlie
         vm.expectRevert(Escrow.selector);
-        accountRegistry.completeRecovery(alice);
+        idRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryOf(1), bob);
-        assertEq(accountRegistry.recoveryClockOf(1), requestBlock);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.recoveryClockOf(1), requestBlock);
     }
 
     function testCannotCompleteRecoveryToAddressThatOwnsAnId() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         uint256 requestBlock = block.timestamp;
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
         // 3. charlie registers id 2
         vm.prank(charlie);
-        accountRegistry.register();
+        idRegistry.register();
 
         // 4. after escrow period, bob completes the recovery to charlie which fails
         vm.startPrank(bob);
         vm.warp(requestBlock + escrowPeriod);
         vm.expectRevert(HasId.selector);
-        accountRegistry.completeRecovery(alice);
+        idRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 2);
-        assertEq(accountRegistry.recoveryOf(1), bob);
-        assertEq(accountRegistry.recoveryClockOf(1), requestBlock);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 2);
+        assertEq(idRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.recoveryClockOf(1), requestBlock);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -348,104 +348,104 @@ contract AccountRegistryTest is Test {
     function testCancelRecoveryFromCustodyAddress() public {
         // 1. alice registers id 1 and sets bob as her recovery
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
         // 3. alice cancels the recovery
         vm.prank(alice);
         vm.expectEmit(true, false, false, true);
         emit CancelRecovery(1);
-        accountRegistry.cancelRecovery(alice);
+        idRegistry.cancelRecovery(alice);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), bob);
 
         // 4. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
-        accountRegistry.completeRecovery(alice);
+        idRegistry.completeRecovery(alice);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryOf(1), bob);
-        assertEq(accountRegistry.recoveryClockOf(1), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.recoveryClockOf(1), 0);
     }
 
     function testCancelRecoveryFromRecoveryAddress() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
         // 3. after 1 block, bob cancels the recovery
         vm.prank(bob);
         vm.expectEmit(true, false, false, true);
         emit CancelRecovery(1);
-        accountRegistry.cancelRecovery(alice);
+        idRegistry.cancelRecovery(alice);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), bob);
 
         // 4. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
-        accountRegistry.completeRecovery(alice);
+        idRegistry.completeRecovery(alice);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryOf(1), bob);
-        assertEq(accountRegistry.recoveryClockOf(1), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.recoveryClockOf(1), 0);
     }
 
     function testCannotCancelRecoveryIfNotStarted() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
 
         // 2. alice cancels the recovery which fails
         vm.expectRevert(NoRecovery.selector);
-        accountRegistry.cancelRecovery(alice);
+        idRegistry.cancelRecovery(alice);
         vm.stopPrank();
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.recoveryClockOf(1), 0);
-        assertEq(accountRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.recoveryClockOf(1), 0);
+        assertEq(idRegistry.recoveryOf(1), bob);
     }
 
     function testCannotCancelRecoveryIfUnauthorized() public {
         // 1. alice registers id 1 and sets bob as her recovery address
         vm.startPrank(alice);
-        accountRegistry.register();
-        accountRegistry.setRecoveryAddress(bob);
+        idRegistry.register();
+        idRegistry.setRecoveryAddress(bob);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
-        accountRegistry.requestRecovery(alice, charlie);
+        idRegistry.requestRecovery(alice, charlie);
 
         // 3. charlie cancels the recovery which fails
         vm.prank(charlie);
         vm.expectRevert(Unauthorized.selector);
-        accountRegistry.cancelRecovery(alice);
+        idRegistry.cancelRecovery(alice);
 
-        assertEq(accountRegistry.idOf(alice), 1);
-        assertEq(accountRegistry.idOf(charlie), 0);
-        assertEq(accountRegistry.recoveryClockOf(1), block.timestamp);
-        assertEq(accountRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryClockOf(1), block.timestamp);
+        assertEq(idRegistry.recoveryOf(1), bob);
     }
 }

@@ -3,9 +3,9 @@ pragma solidity ^0.8.15;
 
 import "forge-std/Script.sol";
 
-import {AccountRegistry} from "../src/AccountRegistry.sol";
+import {IDRegistry} from "../src/IDRegistry.sol";
 
-contract AccountRegistryScript is Script {
+contract IDRegistryScript is Script {
     address gorliTrustedForwarder = address(0x7A95fA73250dc53556d264522150A940d4C50238);
 
     // TODO: coverage does not like empty functions, and I can't remember if this was important to the deploy
@@ -14,6 +14,6 @@ contract AccountRegistryScript is Script {
 
     function run() public {
         vm.broadcast();
-        new AccountRegistry(gorliTrustedForwarder);
+        new IDRegistry(gorliTrustedForwarder);
     }
 }
