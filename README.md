@@ -1,6 +1,6 @@
 # Contracts
 
-Implementation of the AccountRegistry and Namespace contracts specified in the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are built with [Foundry](https://github.com/foundry-rs/foundry), a modular toolkit for developing Ethereum contracts. Please see the [documentation](docs/docs.md) for more details about the contracts.
+Implementation of the Farcaster ID Registry and Farcaster Name Registry contracts specified in the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are built with [Foundry](https://github.com/foundry-rs/foundry), a modular toolkit for developing Ethereum contracts. Please see the [documentation](docs/docs.md) for more details about the contracts.
 
 ## :package: Installing Dependencies
 
@@ -20,7 +20,7 @@ Code follows the [Solidity style guide](https://docs.soliditylang.org/en/v0.8.15
 
 ## Deploying
 
-Account Registry Deployment Addresses:
+ID Registry Deployment Addresses:
 
 | Network | Address                                                                                                                       |
 | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
