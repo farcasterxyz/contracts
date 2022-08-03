@@ -64,8 +64,7 @@ Usernames can be registered for up to a year by paying the registration fee, sim
 
 A username can exist in these states:
 
-- `reserved` - the name is reserved, and can be minted during pre-registration
-- `unreserved` - the name is not reserved, and cannot be minted during pre-registration
+- `reserved` - the name can only be minted by the preregistrar
 - `registerable` - the name has never been minted and is available to mint
 - `registered` - the name is currently registered to an address
 - `renewable` - the name's registration has expired and it can only be renewed by the owner
@@ -76,19 +75,18 @@ A username can exist in these states:
 ```mermaid
     stateDiagram-v2
         direction LR
-        reserved --> registerable: reservation period
+        reserved --> registerable: end(preregistration)
         reserved --> registered: preregister
-        unreserved --> registerable: reservation period
         registerable --> registered: register
-        registered --> renewable: year end
-        renewable --> biddable: renewal period
+        registered --> renewable: end(year)
+        renewable --> biddable: end(renewal)
         biddable --> registered: bid
         registered --> registered: transfer
         registered --> escrow: request recovery
-        escrow --> recoverable: escrow period
-        escrow --> renewable: year end
+        escrow --> recoverable: end(escrow)
+        escrow --> renewable: end(year)
         recoverable --> registered: transfer, cancel <br>  or complete recovery
-        recoverable --> renewable: year end
+        recoverable --> renewable: end(year)
         renewable --> registered: renew
         escrow --> registered: transfer <br> cancel recovery
 ```
@@ -97,7 +95,7 @@ Only the `registerable` and `biddable` states are terminal, all other states hav
 
 The username state transitions when users take certain actions:
 
-- `preregister` - minting a new username during the reservation period
+- `preregister` - minting a new username during the reservation period from the preregistrar
 - `register` - minting a new username after the reservation period
 - `transfer` - moving a username to a new custody address
 - `renew` - paying the renewal fee on a renewable username
@@ -108,10 +106,10 @@ The username state transitions when users take certain actions:
 
 The username state can automatically transition when certain periods of time pass:
 
-- `year end` - the end of the calendar year in GMT
-- `renewal period` - 31 days from the expiration at the year's end (Feb 1st)
-- `escrow period` - 3 days from the `request recovery` action
-- `reservation period` - 15 days from the launch of the contract
+- `end(year)` - the end of the calendar year in GMT
+- `end(renewal)` - 31 days from the expiration at the year's end (Feb 1st)
+- `end(escrow)` - 3 days from the `request recovery` action
+- `end(preregistration)` - 48 hours from the launch of the contract
 
 ## 3. Recovery System
 
