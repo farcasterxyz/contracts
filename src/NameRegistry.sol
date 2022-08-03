@@ -28,10 +28,10 @@ error NoRecovery(); // The recovery request could not be found
 error InvalidRecovery(); // The recovery address is being set to the custody address
 
 /**
- * @title Namespace
+ * @title NameRegistry
  * @author varunsrin
  */
-contract Namespace is ERC721, Owned, ERC2771Context {
+contract NameRegistry is ERC721, Owned, ERC2771Context {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////

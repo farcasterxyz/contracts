@@ -2,10 +2,10 @@
 pragma solidity ^0.8.15;
 
 import "forge-std/Test.sol";
-import "../src/Namespace.sol";
+import "../src/NameRegistry.sol";
 
 contract NameSpaceTest is Test {
-    Namespace private namespace;
+    NameRegistry private nameRegistry;
 
     /*//////////////////////////////////////////////////////////////
                              EVENTS
@@ -44,7 +44,14 @@ contract NameSpaceTest is Test {
     uint256 private aliceBiddableTs = 1675123200; // Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
-        namespace = new Namespace("Farcaster Namespace", "FCN", admin, address(this), trustedForwarder, preregistrar);
+        nameRegistry = new NameRegistry(
+            "Farcaster NameRegistry",
+            "FCN",
+            admin,
+            address(this),
+            trustedForwarder,
+            preregistrar
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -53,71 +60,71 @@ contract NameSpaceTest is Test {
 
     function testGenerateCommit() public {
         // alphabetic name
-        bytes32 commit1 = namespace.generateCommit("alice", alice, "secret");
+        bytes32 commit1 = nameRegistry.generateCommit("alice", alice, "secret");
         assertEq(commit1, 0xe89b588f69839d6c3411027709e47c05713159feefc87e3173f64c01f4b41c72);
 
         // 1-char name
-        bytes32 commit2 = namespace.generateCommit("1", alice, "secret");
+        bytes32 commit2 = nameRegistry.generateCommit("1", alice, "secret");
         assertEq(commit2, 0xf52e7be4097c2afdc86002c691c7e5fab52be36748174fe15303bb32cb106da6);
 
         // 16-char alphabetic
-        bytes32 commit3 = namespace.generateCommit("alicenwonderland", alice, "secret");
+        bytes32 commit3 = nameRegistry.generateCommit("alicenwonderland", alice, "secret");
         assertEq(commit3, 0x94f5dd34daadfe7565398163e7cb955832b2a2e963a6365346ab8ba92b5f5126);
 
         // 16-char alphanumeric name
-        bytes32 commit4 = namespace.generateCommit("alice0wonderland", alice, "secret");
+        bytes32 commit4 = nameRegistry.generateCommit("alice0wonderland", alice, "secret");
         assertEq(commit4, 0xdf1dc48666da9fcc229a254aa77ffab008da2d29b617fada59b645b7cc0928b9);
 
         // 16-char alphanumeric hyphenated name
-        bytes32 commit5 = namespace.generateCommit("-al1c3w0nderl4nd", alice, "secret");
+        bytes32 commit5 = nameRegistry.generateCommit("-al1c3w0nderl4nd", alice, "secret");
         assertEq(commit5, 0x48ba82e0c3aa3f6a18bff166ca475b8cb257b83768160ee7e2702e9834d7380d);
     }
 
     function testCannotGenerateCommitWithInvalidName() public {
         vm.expectRevert(InvalidName.selector);
-        namespace.generateCommit("Alice", alice, "secret");
+        nameRegistry.generateCommit("Alice", alice, "secret");
 
         vm.expectRevert(InvalidName.selector);
-        namespace.generateCommit("a/lice", alice, "secret");
+        nameRegistry.generateCommit("a/lice", alice, "secret");
 
         vm.expectRevert(InvalidName.selector);
-        namespace.generateCommit("a:lice", alice, "secret");
+        nameRegistry.generateCommit("a:lice", alice, "secret");
 
         vm.expectRevert(InvalidName.selector);
-        namespace.generateCommit("a`ice", alice, "secret");
+        nameRegistry.generateCommit("a`ice", alice, "secret");
 
         vm.expectRevert(InvalidName.selector);
-        namespace.generateCommit("a{ice", alice, "secret");
+        nameRegistry.generateCommit("a{ice", alice, "secret");
 
         vm.expectRevert(InvalidName.selector);
-        namespace.generateCommit("", alice, "secret");
+        nameRegistry.generateCommit("", alice, "secret");
 
         // We cannot specify valid UTF-8 chars like £ in a test using string literals, so we encode
         // a bytes16 string that has the second character set to a byte-value of 129, which is a
         // valid UTF-8 character that cannot be typed
         bytes16 nameWithInvalidUtfChar = 0x61816963650000000000000000000000;
         vm.expectRevert(InvalidName.selector);
-        namespace.generateCommit(nameWithInvalidUtfChar, alice, "secret");
+        nameRegistry.generateCommit(nameWithInvalidUtfChar, alice, "secret");
     }
 
     function testMakeCommit() public {
         vm.startPrank(alice);
-        vm.warp(namespace.PREREGISTRATION_END_TS());
+        vm.warp(nameRegistry.PREREGISTRATION_END_TS());
 
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
-        namespace.makeCommit(commitHash);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
+        nameRegistry.makeCommit(commitHash);
 
-        assertEq(namespace.timestampOf(commitHash), block.timestamp);
+        assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
         vm.stopPrank();
     }
 
     function testCannotMakeCommitDuringPreregistration() public {
         vm.startPrank(alice);
-        vm.warp(namespace.PREREGISTRATION_END_TS() - 1);
+        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
 
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
         vm.expectRevert(NotRegistrable.selector);
-        namespace.makeCommit(commitHash);
+        nameRegistry.makeCommit(commitHash);
 
         vm.stopPrank();
     }
@@ -133,35 +140,35 @@ contract NameSpaceTest is Test {
 
         // 2. Make the commitment to register the name alice, but deliver it to bob
         vm.startPrank(alice);
-        bytes32 commitHash = namespace.generateCommit("alice", bob, "secret");
-        namespace.makeCommit(commitHash);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", bob, "secret");
+        nameRegistry.makeCommit(commitHash);
 
         // 3. Register the name alice, and deliver it to bob
         vm.warp(block.timestamp + commitRegisterDelay);
         vm.expectEmit(true, true, true, false);
         emit Transfer(address(0), bob, uint256(bytes32("alice")));
         uint256 balance = alice.balance;
-        namespace.register{value: 0.01 ether}("alice", bob, "secret");
+        nameRegistry.register{value: 0.01 ether}("alice", bob, "secret");
 
         // 4. Assert that the name was registered and the balance was returned.
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
-        assertEq(alice.balance, balance - namespace.currYearFee());
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
+        assertEq(alice.balance, balance - nameRegistry.currYearFee());
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
 
         // 5. Check that comitting and minting again fails
-        namespace.makeCommit(commitHash);
+        nameRegistry.makeCommit(commitHash);
         vm.expectRevert(NotRegistrable.selector);
         vm.warp(block.timestamp + commitRegisterDelay);
-        namespace.register{value: 0.01 ether}("alice", bob, "secret");
+        nameRegistry.register{value: 0.01 ether}("alice", bob, "secret");
 
         // 6. Check that alice can still mint another name to bob
-        bytes32 commitHashMorty = namespace.generateCommit("morty", bob, "secret");
-        namespace.makeCommit(commitHashMorty);
+        bytes32 commitHashMorty = nameRegistry.generateCommit("morty", bob, "secret");
+        nameRegistry.makeCommit(commitHashMorty);
         vm.warp(block.timestamp + commitRegisterDelay);
 
-        namespace.register{value: 0.01 ether}("morty", bob, "secret");
-        assertEq(namespace.ownerOf(uint256(bytes32("morty"))), bob);
-        assertEq(namespace.balanceOf(bob), 2);
+        nameRegistry.register{value: 0.01 ether}("morty", bob, "secret");
+        assertEq(nameRegistry.ownerOf(uint256(bytes32("morty"))), bob);
+        assertEq(nameRegistry.balanceOf(bob), 2);
 
         vm.stopPrank();
     }
@@ -171,11 +178,11 @@ contract NameSpaceTest is Test {
         vm.warp(aliceRegisterTs);
 
         vm.startPrank(alice);
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
-        namespace.makeCommit(commitHash);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
+        nameRegistry.makeCommit(commitHash);
 
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.register{value: 1 wei}("alice", alice, "secret");
+        nameRegistry.register{value: 1 wei}("alice", alice, "secret");
         vm.stopPrank();
     }
 
@@ -185,31 +192,31 @@ contract NameSpaceTest is Test {
         vm.warp(aliceRegisterTs);
 
         bytes16 username = "bob";
-        bytes32 commitHash = namespace.generateCommit(username, owner, secret);
+        bytes32 commitHash = nameRegistry.generateCommit(username, owner, secret);
 
         // 2. Attempt to register the name before making the commit
         vm.startPrank(alice);
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register{value: 0.01 ether}(username, owner, secret);
+        nameRegistry.register{value: 0.01 ether}(username, owner, secret);
 
-        namespace.makeCommit(commitHash);
+        nameRegistry.makeCommit(commitHash);
 
         // 3. Attempt to register using an incorrect owner address
         address incorrectOwner = address(0x1234A);
         vm.assume(owner != incorrectOwner);
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register{value: 0.01 ether}(username, incorrectOwner, secret);
+        nameRegistry.register{value: 0.01 ether}(username, incorrectOwner, secret);
 
         // 4. Attempt to register using an incorrect secret
         bytes32 incorrectSecret = "foobar";
         vm.assume(secret != incorrectSecret);
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register{value: 0.01 ether}(username, owner, incorrectSecret);
+        nameRegistry.register{value: 0.01 ether}(username, owner, incorrectSecret);
 
         // 5. Attempt to register using an incorrect name
         bytes16 incorrectUsername = "alice";
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register{value: 0.01 ether}(incorrectUsername, owner, secret);
+        nameRegistry.register{value: 0.01 ether}(incorrectUsername, owner, secret);
         vm.stopPrank();
     }
 
@@ -220,13 +227,13 @@ contract NameSpaceTest is Test {
 
         // 2. Make the commitment to register the name alice
         vm.startPrank(alice);
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
-        namespace.makeCommit(commitHash);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
+        nameRegistry.makeCommit(commitHash);
 
         // 3. Try to register the name and fail
         vm.warp(block.timestamp + commitRegisterDelay - 1);
         vm.expectRevert(InvalidCommit.selector);
-        namespace.register{value: 0.01 ether}("alice", alice, "secret");
+        nameRegistry.register{value: 0.01 ether}("alice", alice, "secret");
 
         vm.stopPrank();
     }
@@ -236,12 +243,12 @@ contract NameSpaceTest is Test {
         bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, owner, secret));
 
         // 1. Fast forward to the registration period
-        vm.warp(namespace.PREREGISTRATION_END_TS());
-        namespace.makeCommit(invalidCommit);
+        vm.warp(nameRegistry.PREREGISTRATION_END_TS());
+        nameRegistry.makeCommit(invalidCommit);
 
         // Register using an incorrect name
         vm.expectRevert(InvalidName.selector);
-        namespace.register{value: 0.01 ether}(incorrectUsername, owner, secret);
+        nameRegistry.register{value: 0.01 ether}(incorrectUsername, owner, secret);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -249,50 +256,50 @@ contract NameSpaceTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testPreregister() public {
-        vm.warp(namespace.PREREGISTRATION_END_TS() - 1);
+        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
 
         vm.prank(preregistrar);
         vm.expectEmit(true, true, true, false);
         emit Transfer(address(0), alice, uint256(bytes32("alice")));
-        namespace.preregister(alice, "alice");
+        nameRegistry.preregister(alice, "alice");
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
 
         vm.stopPrank();
     }
 
     function testCannotPreregisterAfterRegistrationStarts() public {
-        vm.warp(namespace.PREREGISTRATION_END_TS());
+        vm.warp(nameRegistry.PREREGISTRATION_END_TS());
 
         vm.prank(preregistrar);
         vm.expectRevert(Registrable.selector);
-        namespace.preregister(alice, "alice");
+        nameRegistry.preregister(alice, "alice");
 
         vm.expectRevert(Registrable.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.expiryOf(aliceTokenId), 0);
 
         vm.stopPrank();
     }
 
     function testCannotPreregisterTwice() public {
-        vm.warp(namespace.PREREGISTRATION_END_TS() - 1);
+        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
 
         vm.prank(preregistrar);
-        namespace.preregister(alice, "alice");
+        nameRegistry.preregister(alice, "alice");
 
         vm.prank(preregistrar);
         vm.expectRevert("ALREADY_MINTED");
-        namespace.preregister(alice, "alice");
+        nameRegistry.preregister(alice, "alice");
 
         vm.stopPrank();
     }
 
     function testCannotPreregisterFromArbitraryAddress() public {
-        vm.warp(namespace.PREREGISTRATION_END_TS() - 1);
+        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
         vm.expectRevert(Unauthorized.selector);
-        namespace.preregister(alice, "alice");
+        nameRegistry.preregister(alice, "alice");
         vm.stopPrank();
     }
 
@@ -309,10 +316,10 @@ contract NameSpaceTest is Test {
         vm.expectEmit(true, true, true, true);
         emit Renew(aliceTokenId, timestamp2024);
         vm.prank(alice);
-        namespace.renew{value: 0.01 ether}(aliceTokenId);
+        nameRegistry.renew{value: 0.01 ether}(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testRenewOther() public {
@@ -325,10 +332,10 @@ contract NameSpaceTest is Test {
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
         emit Renew(aliceTokenId, timestamp2024);
-        namespace.renew{value: 0.01 ether}(aliceTokenId);
+        nameRegistry.renew{value: 0.01 ether}(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testRenewWithOverpayment() public {
@@ -338,12 +345,12 @@ contract NameSpaceTest is Test {
         // Renew alice's registration, but overpay the amount
         vm.startPrank(alice);
         uint256 balance = alice.balance;
-        namespace.renew{value: 0.02 ether}(aliceTokenId);
+        nameRegistry.renew{value: 0.02 ether}(aliceTokenId);
         vm.stopPrank();
 
         assertEq(alice.balance, balance - 0.01 ether);
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testCannotRenewWithoutPayment() public {
@@ -354,11 +361,11 @@ contract NameSpaceTest is Test {
         // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.renew(aliceTokenId);
+        nameRegistry.renew(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
     }
 
     function testCannotRenewIfRegistrable() public {
@@ -369,11 +376,11 @@ contract NameSpaceTest is Test {
         // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
         vm.expectRevert(Registrable.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId);
+        nameRegistry.renew{value: 0.01 ether}(aliceTokenId);
 
         vm.expectRevert(Registrable.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.expiryOf(aliceTokenId), 0);
     }
 
     function testCannotRenewIfRegistrable2() public {
@@ -384,11 +391,11 @@ contract NameSpaceTest is Test {
         // 2. Renewing fails if insufficient funds are provided
         vm.prank(alice);
         vm.expectRevert(Registrable.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId);
+        nameRegistry.renew{value: 0.01 ether}(aliceTokenId);
 
         vm.expectRevert(Registrable.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.expiryOf(aliceTokenId), 0);
     }
 
     function testCannotRenewIfBiddable() public {
@@ -398,11 +405,11 @@ contract NameSpaceTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(Biddable.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId);
+        nameRegistry.renew{value: 0.01 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
     }
 
     function testCannotRenewIfRegistered() public {
@@ -412,10 +419,10 @@ contract NameSpaceTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(Registered.selector);
-        namespace.renew{value: 0.01 ether}(aliceTokenId);
+        nameRegistry.renew{value: 0.01 ether}(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -426,40 +433,40 @@ contract NameSpaceTest is Test {
         // 1. Register alice and fast-forward to the start of the auction
         registerAlice();
         vm.prank(alice);
-        namespace.approve(bob, aliceTokenId);
+        nameRegistry.approve(bob, aliceTokenId);
         vm.warp(aliceBiddableTs);
 
         // 2. Bob bids and fails because bid < premium + fee
         vm.deal(bob, 1001 ether);
         vm.startPrank(bob);
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.bid{value: 1000 ether}(aliceTokenId);
+        nameRegistry.bid{value: 1000 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.balanceOf(bob), 0);
-        assertEq(namespace.getApproved(aliceTokenId), bob);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.getApproved(aliceTokenId), bob);
 
         // 3. Bob bids and succeeds because bid >= premium + fee
-        namespace.bid{value: 1_000.01 ether}(aliceTokenId);
+        nameRegistry.bid{value: 1_000.01 ether}(aliceTokenId);
         vm.stopPrank();
 
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
-        assertEq(namespace.balanceOf(alice), 0);
-        assertEq(namespace.balanceOf(bob), 1);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
-        assertEq(namespace.getApproved(aliceTokenId), address(0));
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.getApproved(aliceTokenId), address(0));
 
         // 4. Alice bids again and fails because the name is no longer for auction
         vm.prank(alice);
         vm.expectRevert(NotBiddable.selector);
-        namespace.bid(aliceTokenId);
+        nameRegistry.bid(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
-        assertEq(namespace.balanceOf(alice), 0);
-        assertEq(namespace.balanceOf(bob), 1);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testBidAndOverpay() public {
@@ -470,7 +477,7 @@ contract NameSpaceTest is Test {
         // 2. Bob bids and overpays
         vm.deal(bob, 1001 ether);
         vm.prank(bob);
-        namespace.bid{value: 1001 ether}(aliceTokenId);
+        nameRegistry.bid{value: 1001 ether}(aliceTokenId);
 
         // 3. Check that bob's change is returned to him correctly
         assertEq(bob.balance, 0.990821917808219179 ether);
@@ -486,23 +493,23 @@ contract NameSpaceTest is Test {
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.bid{value: 900.0091 ether}(aliceTokenId);
+        nameRegistry.bid{value: 900.0091 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.balanceOf(bob), 0);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
 
         // 3. Bob bids and succeeds because bid > price
-        namespace.bid{value: 900.0092 ether}(aliceTokenId);
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
+        nameRegistry.bid{value: 900.0092 ether}(aliceTokenId);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
         vm.stopPrank();
 
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
-        assertEq(namespace.balanceOf(alice), 0);
-        assertEq(namespace.balanceOf(bob), 1);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testBidOnHundredthStep() public {
@@ -515,22 +522,22 @@ contract NameSpaceTest is Test {
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.bid{value: 0.0348 ether}(aliceTokenId);
+        nameRegistry.bid{value: 0.0348 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.balanceOf(bob), 0);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
 
         // 3. Bob bids and succeeds because bid > price
-        namespace.bid{value: 0.0349 ether}(aliceTokenId);
+        nameRegistry.bid{value: 0.0349 ether}(aliceTokenId);
         vm.stopPrank();
 
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
-        assertEq(namespace.balanceOf(alice), 0);
-        assertEq(namespace.balanceOf(bob), 1);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testBidOnPenultimateStep() public {
@@ -543,22 +550,22 @@ contract NameSpaceTest is Test {
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.bid{value: 0.00568949771 ether}(aliceTokenId);
+        nameRegistry.bid{value: 0.00568949771 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.balanceOf(bob), 0);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
 
         // 3. Bob bids and succeeds because bid > price
-        namespace.bid{value: 0.005689498772 ether}(aliceTokenId);
+        nameRegistry.bid{value: 0.005689498772 ether}(aliceTokenId);
         vm.stopPrank();
 
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
-        assertEq(namespace.balanceOf(alice), 0);
-        assertEq(namespace.balanceOf(bob), 1);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testBidFlatRate() public {
@@ -569,22 +576,22 @@ contract NameSpaceTest is Test {
 
         // 2. Bob bids and fails because bid < price (0 + fee) == 0.0056803653
         vm.expectRevert(InsufficientFunds.selector);
-        namespace.bid{value: 0.0056803652 ether}(aliceTokenId);
+        nameRegistry.bid{value: 0.0056803652 ether}(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(bob), 0);
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
 
         // 3. Bob bids and succeeds because bid > price (0 + fee)
-        namespace.bid{value: 0.0056803653 ether}(aliceTokenId);
+        nameRegistry.bid{value: 0.0056803653 ether}(aliceTokenId);
         vm.stopPrank();
 
-        assertEq(namespace.ownerOf(aliceTokenId), bob);
-        assertEq(namespace.balanceOf(alice), 0);
-        assertEq(namespace.balanceOf(bob), 1);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testCannotBidUnlessBiddable() public {
@@ -595,23 +602,23 @@ contract NameSpaceTest is Test {
         vm.startPrank(bob);
         vm.warp(aliceRenewableTs - 1);
         vm.expectRevert(NotBiddable.selector);
-        namespace.bid(aliceTokenId);
+        nameRegistry.bid(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.balanceOf(bob), 0);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
 
         // 2. Bid during renewable state should fail
         vm.warp(aliceBiddableTs - 1);
         vm.expectRevert(NotBiddable.selector);
-        namespace.bid(aliceTokenId);
+        nameRegistry.bid(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.balanceOf(bob), 0);
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
         vm.stopPrank();
     }
 
@@ -619,36 +626,36 @@ contract NameSpaceTest is Test {
         // 1. Register alice and set up a recovery address.
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. Bob requests a recovery of @alice to Charlie
         vm.startPrank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
-        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
 
         // 3. Bob completes a bid on alice
         vm.warp(aliceBiddableTs);
         vm.deal(bob, 1001 ether);
-        namespace.bid{value: 1001 ether}(aliceTokenId);
+        nameRegistry.bid{value: 1001 ether}(aliceTokenId);
         vm.stopPrank();
 
         // 4. Assert that the recovery state has been unset
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
     function testCannotBidIfRegistrable() public {
         // 1. Bid on @alice when it is not minted
         vm.prank(bob);
         vm.expectRevert(Registrable.selector);
-        namespace.bid(aliceTokenId);
+        nameRegistry.bid(aliceTokenId);
 
         vm.expectRevert(Registrable.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(alice), 0);
-        assertEq(namespace.balanceOf(bob), 0);
-        assertEq(namespace.expiryOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -660,34 +667,34 @@ contract NameSpaceTest is Test {
 
         vm.warp(aliceBiddableTs);
         vm.expectRevert(Expired.selector);
-        namespace.ownerOf(aliceTokenId);
+        nameRegistry.ownerOf(aliceTokenId);
     }
 
     function testOwnerOfRevertsIfRegistrable() public {
         vm.expectRevert(Registrable.selector);
-        namespace.ownerOf(aliceTokenId);
+        nameRegistry.ownerOf(aliceTokenId);
     }
 
     function testTransferFromResetsRecovery() public {
         // 1. Register alice and set up a recovery address.
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. Bob requests a recovery of @alice to Charlie
         vm.prank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
-        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
 
         // 3. Alice transfers then name to david
         vm.prank(alice);
-        namespace.transferFrom(alice, david, aliceTokenId);
+        nameRegistry.transferFrom(alice, david, aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), david);
-        assertEq(namespace.balanceOf(alice), 0);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.ownerOf(aliceTokenId), david);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
     function testTransferFromCannotTransferExpiredName() public {
@@ -698,41 +705,41 @@ contract NameSpaceTest is Test {
         vm.startPrank(alice);
         vm.warp(aliceRenewableTs);
         vm.expectRevert(Expired.selector);
-        namespace.transferFrom(alice, bob, aliceTokenId);
+        nameRegistry.transferFrom(alice, bob, aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.balanceOf(bob), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
 
         // 3. Fast forward to name in expired state
         vm.warp(aliceBiddableTs);
         vm.expectRevert(Expired.selector);
-        namespace.transferFrom(alice, bob, aliceTokenId);
+        nameRegistry.transferFrom(alice, bob, aliceTokenId);
         vm.stopPrank();
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.balanceOf(alice), 1);
-        assertEq(namespace.balanceOf(bob), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
     }
 
     function testTokenUri() public {
         uint256 tokenId = uint256(bytes32("alice"));
-        assertEq(namespace.tokenURI(tokenId), "http://www.farcaster.xyz/u/alice.json");
+        assertEq(nameRegistry.tokenURI(tokenId), "http://www.farcaster.xyz/u/alice.json");
 
         // Test with min length name
         uint256 tokenIdMin = uint256(bytes32("a"));
-        assertEq(namespace.tokenURI(tokenIdMin), "http://www.farcaster.xyz/u/a.json");
+        assertEq(nameRegistry.tokenURI(tokenIdMin), "http://www.farcaster.xyz/u/a.json");
 
         // Test with max length name
         uint256 tokenIdMax = uint256(bytes32("alicenwonderland"));
-        assertEq(namespace.tokenURI(tokenIdMax), "http://www.farcaster.xyz/u/alicenwonderland.json");
+        assertEq(nameRegistry.tokenURI(tokenIdMax), "http://www.farcaster.xyz/u/alicenwonderland.json");
     }
 
     function testCannotGetTokenUriForInvalidName() public {
         vm.expectRevert(InvalidName.selector);
-        namespace.tokenURI(uint256(bytes32("alicenWonderland")));
+        nameRegistry.tokenURI(uint256(bytes32("alicenWonderland")));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -747,14 +754,14 @@ contract NameSpaceTest is Test {
         vm.expectEmit(true, true, false, true);
         emit SetRecoveryAddress(bob, aliceTokenId);
 
-        namespace.setRecoveryAddress(aliceTokenId, bob);
-        assertEq(namespace.recoveryOf(aliceTokenId), bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
 
         // 2. alice sets charlie as her recovery address
         vm.expectEmit(true, true, false, true);
         emit SetRecoveryAddress(charlie, aliceTokenId);
-        namespace.setRecoveryAddress(aliceTokenId, charlie);
-        assertEq(namespace.recoveryOf(aliceTokenId), charlie);
+        nameRegistry.setRecoveryAddress(aliceTokenId, charlie);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), charlie);
 
         vm.stopPrank();
     }
@@ -764,9 +771,9 @@ contract NameSpaceTest is Test {
 
         vm.prank(bob);
         vm.expectRevert(Unauthorized.selector);
-        namespace.setRecoveryAddress(aliceTokenId, charlie);
+        nameRegistry.setRecoveryAddress(aliceTokenId, charlie);
 
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
     function testCannotSetRecoveryIfExpired() public {
@@ -775,13 +782,13 @@ contract NameSpaceTest is Test {
         vm.warp(aliceRenewableTs);
         vm.startPrank(alice);
         vm.expectRevert(Expired.selector);
-        namespace.setRecoveryAddress(aliceTokenId, charlie);
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+        nameRegistry.setRecoveryAddress(aliceTokenId, charlie);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
 
         vm.warp(aliceBiddableTs);
         vm.expectRevert(Expired.selector);
-        namespace.setRecoveryAddress(aliceTokenId, charlie);
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+        nameRegistry.setRecoveryAddress(aliceTokenId, charlie);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
 
         vm.stopPrank();
     }
@@ -791,9 +798,9 @@ contract NameSpaceTest is Test {
 
         vm.expectRevert(Registrable.selector);
         vm.prank(alice);
-        namespace.setRecoveryAddress(bobTokenId, bob);
+        nameRegistry.setRecoveryAddress(bobTokenId, bob);
 
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -804,37 +811,37 @@ contract NameSpaceTest is Test {
         // 1. alice registers id 1 and sets bob as her recovery address
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
         emit RequestRecovery(aliceTokenId, alice, charlie);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
-        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
-        assertEq(namespace.recoveryDestinationOf(aliceTokenId), charlie);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(nameRegistry.recoveryDestinationOf(aliceTokenId), charlie);
 
         // 3. bob then requests another recovery to david
         vm.prank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, david);
+        nameRegistry.requestRecovery(aliceTokenId, alice, david);
 
-        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
-        assertEq(namespace.recoveryDestinationOf(aliceTokenId), david);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(nameRegistry.recoveryDestinationOf(aliceTokenId), david);
     }
 
     function testCannotRequestRecoveryToZeroAddr() public {
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 1. bob requests a recovery of alice's id to 0x0
         vm.prank(bob);
         vm.expectRevert(InvalidRecovery.selector);
-        namespace.requestRecovery(aliceTokenId, alice, address(0));
+        nameRegistry.requestRecovery(aliceTokenId, alice, address(0));
 
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
-        assertEq(namespace.recoveryDestinationOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.recoveryDestinationOf(aliceTokenId), address(0));
     }
 
     function testCannotRequestRecoveryUnlessAuthorized() public {
@@ -843,20 +850,20 @@ contract NameSpaceTest is Test {
         // 1. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
         vm.expectRevert(Unauthorized.selector);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
-        assertEq(namespace.recoveryDestinationOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.recoveryDestinationOf(aliceTokenId), address(0));
     }
 
     function testCannotRequestRecoveryIfRegistrable() public {
         // 1. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
         vm.expectRevert(Unauthorized.selector);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
-        assertEq(namespace.recoveryDestinationOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.recoveryDestinationOf(aliceTokenId), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -867,82 +874,82 @@ contract NameSpaceTest is Test {
         // 1. alice registers @alice and sets bob as her recovery address and approver
         registerAlice();
         vm.startPrank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
-        namespace.approve(bob, aliceTokenId);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.approve(bob, aliceTokenId);
         vm.stopPrank();
 
         // 2. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. after escrow period, bob completes the recovery to charlie
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, charlie, aliceTokenId);
-        namespace.completeRecovery(aliceTokenId);
+        nameRegistry.completeRecovery(aliceTokenId);
         vm.stopPrank();
 
-        assertEq(namespace.ownerOf(aliceTokenId), charlie);
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
-        assertEq(namespace.getApproved(aliceTokenId), address(0));
+        assertEq(nameRegistry.ownerOf(aliceTokenId), charlie);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.getApproved(aliceTokenId), address(0));
     }
 
     function testCannotCompleteRecoveryIfUnauthorized() public {
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 1. bob requests a recovery of @alice to charlie
         vm.prank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
         // 2. alice unsets bob as her recovery, bob calls completeRecovery on @alice, which fails
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, address(0));
+        nameRegistry.setRecoveryAddress(aliceTokenId, address(0));
 
         vm.prank(bob);
         vm.expectRevert(Unauthorized.selector);
-        namespace.completeRecovery(aliceTokenId);
+        nameRegistry.completeRecovery(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
-        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), block.timestamp);
     }
 
     function testCannotCompleteRecoveryIfNotStarted() public {
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 1. bob calls recovery complete on alice's id, which fails
         vm.prank(bob);
         vm.warp(block.number + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
-        namespace.completeRecovery(aliceTokenId);
+        nameRegistry.completeRecovery(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.recoveryOf(aliceTokenId), bob);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
     }
 
     function testCannotCompleteRecoveryWhenInEscrow() public {
         // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. bob requests a recovery of @alice to charlie
         vm.startPrank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. before escrow period, bob completes the recovery to charlie
         vm.expectRevert(Escrow.selector);
-        namespace.completeRecovery(aliceTokenId);
+        nameRegistry.completeRecovery(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.recoveryOf(aliceTokenId), bob);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), block.timestamp);
         vm.stopPrank();
     }
 
@@ -950,32 +957,32 @@ contract NameSpaceTest is Test {
         // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. bob requests a recovery of @alice to charlie
         uint256 requestTs = block.timestamp;
         vm.startPrank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. during the renewal period, bob attempts to recover to charlie
         vm.warp(aliceRenewableTs);
         vm.expectRevert(Unauthorized.selector);
-        namespace.completeRecovery(aliceTokenId);
+        nameRegistry.completeRecovery(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.recoveryOf(aliceTokenId), bob);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), requestTs);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), requestTs);
 
         // 3. during expiry, bob attempts to recover to charlie
         vm.warp(aliceBiddableTs);
         vm.expectRevert(Unauthorized.selector);
-        namespace.completeRecovery(aliceTokenId);
+        nameRegistry.completeRecovery(aliceTokenId);
 
         vm.expectRevert(Expired.selector);
-        assertEq(namespace.ownerOf(aliceTokenId), address(0));
-        assertEq(namespace.recoveryOf(aliceTokenId), bob);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), requestTs);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), requestTs);
         vm.stopPrank();
     }
 
@@ -987,54 +994,54 @@ contract NameSpaceTest is Test {
         // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. bob requests a recovery of @alice to charlie
         vm.prank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. alice cancels the recovery
         vm.prank(alice);
         vm.expectEmit(true, false, false, false);
         emit CancelRecovery(aliceTokenId);
-        namespace.cancelRecovery(aliceTokenId);
+        nameRegistry.cancelRecovery(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
 
         // 4. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
-        namespace.completeRecovery(aliceTokenId);
+        nameRegistry.completeRecovery(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
     }
 
     function testCancelRecoveryFromRecoveryAddress() public {
         // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. bob requests a recovery of @alice to charlie
         vm.startPrank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. bob cancels the recovery
         vm.expectEmit(true, false, false, false);
         emit CancelRecovery(aliceTokenId);
-        namespace.cancelRecovery(aliceTokenId);
+        nameRegistry.cancelRecovery(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
 
         // 4. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
-        namespace.completeRecovery(aliceTokenId);
+        nameRegistry.completeRecovery(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
         vm.stopPrank();
     }
 
@@ -1042,34 +1049,34 @@ contract NameSpaceTest is Test {
         // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
         vm.startPrank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. alice cancels the recovery which fails
         vm.expectRevert(NoRecovery.selector);
-        namespace.cancelRecovery(aliceTokenId);
+        nameRegistry.cancelRecovery(aliceTokenId);
         vm.stopPrank();
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
     }
 
     function testCannotCancelRecoveryIfUnauthorized() public {
         // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         // 2. bob requests a recovery of @alice to charlie
         vm.prank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
         // 3. charlie cancels the recovery which fails
         vm.prank(charlie);
         vm.expectRevert(Unauthorized.selector);
-        namespace.cancelRecovery(aliceTokenId);
+        nameRegistry.cancelRecovery(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), alice);
-        assertEq(namespace.recoveryClockOf(aliceTokenId), block.timestamp);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), block.timestamp);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1079,17 +1086,17 @@ contract NameSpaceTest is Test {
     function testReclaimRegisteredNames() public {
         registerAlice();
         vm.prank(alice);
-        namespace.approve(bob, aliceTokenId);
+        nameRegistry.approve(bob, aliceTokenId);
 
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, namespace.vault(), aliceTokenId);
+        emit Transfer(alice, nameRegistry.vault(), aliceTokenId);
         vm.prank(admin);
-        namespace.reclaim(aliceTokenId);
+        nameRegistry.reclaim(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
-        assertEq(namespace.getApproved(aliceTokenId), address(0));
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.ownerOf(aliceTokenId), nameRegistry.vault());
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.getApproved(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
     function testReclaimRenewableNames() public {
@@ -1097,12 +1104,12 @@ contract NameSpaceTest is Test {
 
         vm.warp(aliceRenewableTs);
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, namespace.vault(), aliceTokenId);
+        emit Transfer(alice, nameRegistry.vault(), aliceTokenId);
         vm.prank(admin);
-        namespace.reclaim(aliceTokenId);
+        nameRegistry.reclaim(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), nameRegistry.vault());
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testReclaimBiddableNames() public {
@@ -1110,35 +1117,35 @@ contract NameSpaceTest is Test {
 
         vm.warp(aliceBiddableTs);
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, namespace.vault(), aliceTokenId);
+        emit Transfer(alice, nameRegistry.vault(), aliceTokenId);
         vm.prank(admin);
-        namespace.reclaim(aliceTokenId);
+        nameRegistry.reclaim(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2024);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), nameRegistry.vault());
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
     function testCannotReclaimUnlessMinted() public {
         vm.expectRevert(Registrable.selector);
         vm.prank(admin);
-        namespace.reclaim(aliceTokenId);
+        nameRegistry.reclaim(aliceTokenId);
     }
 
     function testReclaimResetsRecoveryState() public {
         registerAlice();
         vm.prank(alice);
-        namespace.setRecoveryAddress(aliceTokenId, bob);
+        nameRegistry.setRecoveryAddress(aliceTokenId, bob);
 
         vm.prank(bob);
-        namespace.requestRecovery(aliceTokenId, alice, charlie);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
         vm.prank(admin);
-        namespace.reclaim(aliceTokenId);
+        nameRegistry.reclaim(aliceTokenId);
 
-        assertEq(namespace.ownerOf(aliceTokenId), namespace.vault());
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
-        assertEq(namespace.recoveryOf(aliceTokenId), address(0));
-        assertEq(namespace.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), nameRegistry.vault());
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1148,30 +1155,30 @@ contract NameSpaceTest is Test {
     function testCurrYear() public {
         // Incorrectly returns 2021 for any date before 2021
         vm.warp(1607558400); // GMT Thursday, December 10, 2020 0:00:00
-        assertEq(namespace.currYear(), 2021);
+        assertEq(nameRegistry.currYear(), 2021);
 
         // Works correctly for known year range [2021 - 2037]
         vm.warp(1640095200); // GMT Tuesday, December 21, 2021 14:00:00
-        assertEq(namespace.currYear(), 2021);
+        assertEq(nameRegistry.currYear(), 2021);
 
         vm.warp(1670889599); // GMT Monday, December 12, 2022 23:59:59
-        assertEq(namespace.currYear(), 2022);
+        assertEq(nameRegistry.currYear(), 2022);
 
         // Does not work after 2037
         vm.warp(2161114288); // GMT Friday, January 1, 2038 0:00:00
         vm.expectRevert(InvalidTime.selector);
-        assertEq(namespace.currYear(), 0);
+        assertEq(nameRegistry.currYear(), 0);
     }
 
     function testCurrYearPayment() public {
         vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
-        assertEq(namespace.currYearFee(), 0.01 ether);
+        assertEq(nameRegistry.currYearFee(), 0.01 ether);
 
         vm.warp(1688256000); // GMT Sunday, July 2, 2023 0:00:00
-        assertEq(namespace.currYearFee(), 0.005013698630136986 ether);
+        assertEq(nameRegistry.currYearFee(), 0.005013698630136986 ether);
 
         vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
-        assertEq(namespace.currYearFee(), 0.000013698947234906 ether);
+        assertEq(nameRegistry.currYearFee(), 0.000013698947234906 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1183,12 +1190,12 @@ contract NameSpaceTest is Test {
         vm.warp(aliceRegisterTs);
 
         vm.startPrank(alice);
-        bytes32 commitHash = namespace.generateCommit("alice", alice, "secret");
-        namespace.makeCommit(commitHash);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
+        nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + commitRegisterDelay);
 
-        namespace.register{value: namespace.FEE()}("alice", alice, "secret");
-        assertEq(namespace.expiryOf(aliceTokenId), timestamp2023);
+        nameRegistry.register{value: nameRegistry.FEE()}("alice", alice, "secret");
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
         vm.stopPrank();
     }
 }
