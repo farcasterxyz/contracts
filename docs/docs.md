@@ -12,11 +12,11 @@ Documentation that covers the high-level functionality of each contract in the s
 
 The ID Registry contract issues Farcaster IDs (fids) for the Farcaster network.
 
-A `fid` is a uint256 that represents a unique user of the network. Fids begin at 0 and increment by one for every new account. There is an infinite supply of fids since they can go as high as ~10^77.
+An `fid` is a uint256 that represents a unique user of the network. Fids begin at 0 and increment by one for every new account. There is an infinite supply of fids since they can go as high as ~10^77.
 
-Each address can only own a single fid at a time, but they can otherwise be freely transferred between addresses. The address that currently owns a fid is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address.
+Each address can only own a single fid at a time, but they can otherwise be freely transferred between addresses. The address that currently owns an fid is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address.
 
-A fid can exist in these states:
+An fid can exist in these states:
 
 - `registerable` - the fid has never been issued
 - `registered` - the fid has been issued to an address
@@ -37,7 +37,7 @@ A fid can exist in these states:
 The fid state transitions when users take specific actions:
 
 - `register` - claiming a new fid
-- `transfer` - moving a fid to a new custody address
+- `transfer` - moving an fid to a new custody address
 - `request recovery` - requesting a recovery of the fid
 - `cancel recovery` - canceling a recovery that is in progress
 - `complete recovery` - completing a recovery that has passed the escrow period

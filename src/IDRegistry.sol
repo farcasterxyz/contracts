@@ -29,7 +29,7 @@ contract IDRegistry is ERC2771Context {
                         REGISTRY EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Register(address indexed to, uint256 indexed id);
+    event Register(address indexed to, uint256 indexed id, address recovery);
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
@@ -37,7 +37,7 @@ contract IDRegistry is ERC2771Context {
                         RECOVERY EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event SetRecoveryAddress(address indexed recovery, uint256 indexed id);
+    event ChangeRecoveryAddress(address indexed recovery, uint256 indexed id);
 
     event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
 
@@ -75,12 +75,15 @@ contract IDRegistry is ERC2771Context {
      *         have one. Id's are issued sequentially beginning at 1 and the caller becomes the
      *         custodian of the id.
      *
+     * @param recoveryAddress the address to set as the recovery, which can be set to zero address
+     *                        to disable recovery.
+     *
      * @dev Ids begin at 1 and are issued sequentially by using a uint256 counter to store the last
      *      issued id. The zero (0) id is not allowed since zero represent the absence of a value
      *      in solidity. The counter is incremented unchecked since this saves gas and is unlikely
      *      to overflow given that every increment requires a new on-chain transaction.
      */
-    function register() external payable {
+    function register(address recoveryAddress) external payable {
         address _msgSender = _msgSender();
 
         if (idOf[_msgSender] != 0) revert HasId();
@@ -90,7 +93,8 @@ contract IDRegistry is ERC2771Context {
         }
 
         idOf[_msgSender] = idCounter;
-        emit Register(_msgSender, idCounter);
+        recoveryOf[idCounter] = recoveryAddress;
+        emit Register(_msgSender, idCounter, recoveryAddress);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -141,7 +145,7 @@ contract IDRegistry is ERC2771Context {
      * INVARIANT 1:  idOf[address] != 0 if _msgSender() == recoveryOf[idOf[address]] during
      * invocation of requestRecovery, completeRecovery and cancelRecovery
      *
-     * recoveryOf[idOf[address]] != address(0) only if idOf[address] != 0 [setRecoveryAddress]
+     * recoveryOf[idOf[address]] != address(0) only if idOf[address] != 0 [changeRecoveryAddress]
      * when idOf[address] == 0, recoveryof[idOf[address]] also == address(0) [_unsafeTransfer]
      * _msgSender() != address(0) [by definition]
      *
@@ -161,13 +165,13 @@ contract IDRegistry is ERC2771Context {
      *
      * @param recoveryAddress the address to set as the recovery.
      */
-    function setRecoveryAddress(address recoveryAddress) external payable {
+    function changeRecoveryAddress(address recoveryAddress) external payable {
         uint256 id = idOf[_msgSender()];
 
         if (id == 0) revert ZeroId();
 
         recoveryOf[id] = recoveryAddress;
-        emit SetRecoveryAddress(recoveryAddress, id);
+        emit ChangeRecoveryAddress(recoveryAddress, id);
     }
 
     /**

@@ -5,65 +5,71 @@ import "forge-std/Test.sol";
 import "../src/IDRegistry.sol";
 
 contract IDRegistryTest is Test {
-    IDRegistry idRegistry;
+    IDRegistry private idRegistry;
 
     /*//////////////////////////////////////////////////////////////
-                             EVENTS
+                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Register(address indexed to, uint256 indexed id);
+    event Register(address indexed to, uint256 indexed id, address recovery);
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
-    event SetRecoveryAddress(address indexed recovery, uint256 indexed id);
+    event ChangeRecoveryAddress(address indexed recovery, uint256 indexed id);
 
     event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
 
     event CancelRecovery(uint256 indexed id);
 
     /*//////////////////////////////////////////////////////////////
-                        CONSTRUCTORS
+                              CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
-    address alice = address(0x123);
-    address bob = address(0x456);
-    address charlie = address(0x789);
-    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    uint256 escrowPeriod = 259_200;
+    address private alice = address(0x123);
+    address private bob = address(0x456);
+    address private charlie = address(0x789);
+    address private zeroAddress = address(0);
+    address private trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+
+    uint256 private escrowPeriod = 259_200;
 
     function setUp() public {
         idRegistry = new IDRegistry(trustedForwarder);
     }
 
     /*//////////////////////////////////////////////////////////////
-                       REGISTRATION TESTS
+                           REGISTRATION TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testRegister() public {
-        // 1. alice registers and claims id 1
+        // 1. alice registers id 1 and does not configure a recovery address
         vm.prank(alice);
-        vm.expectEmit(true, true, false, true);
-        emit Register(alice, 1);
-        idRegistry.register();
-        assertEq(idRegistry.idOf(alice), 1);
+        vm.expectEmit(true, true, true, true);
+        emit Register(alice, 1, zeroAddress);
+        idRegistry.register(zeroAddress);
 
-        // 2. bob registers after alice and claims id 2
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.recoveryOf(1), zeroAddress);
+
+        // 2. bob registers id 2 after alice and sets charlie a recovery address
         vm.prank(bob);
-        vm.expectEmit(true, true, false, true);
-        emit Register(bob, 2);
-        idRegistry.register();
+        vm.expectEmit(true, true, true, true);
+        emit Register(bob, 2, charlie);
+        idRegistry.register(charlie);
+
         assertEq(idRegistry.idOf(bob), 2);
+        assertEq(idRegistry.recoveryOf(2), charlie);
     }
 
     function testCannotRegisterTwice() public {
-        // 1. alice reigsters and claims id 1
-        vm.startPrank(alice);
-        idRegistry.register();
+        // 1. alice registers id 1
+        vm.prank(alice);
+        idRegistry.register(zeroAddress);
 
         // 2. alice attempts to register again and fails
+        vm.prank(alice);
         vm.expectRevert(HasId.selector);
-        idRegistry.register();
-        vm.stopPrank();
+        idRegistry.register(zeroAddress);
 
         assertEq(idRegistry.idOf(alice), 1);
     }
@@ -74,12 +80,13 @@ contract IDRegistryTest is Test {
 
     function testTransfer() public {
         // 1. alice registers the first account and claims id 1
-        vm.startPrank(alice);
-        idRegistry.register();
+        vm.prank(alice);
+        idRegistry.register(zeroAddress);
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
 
         // 2. alice transfers the id to bob
+        vm.prank(alice);
         vm.expectEmit(true, true, false, true);
         emit Transfer(alice, bob, 1);
         idRegistry.transfer(bob);
@@ -91,9 +98,9 @@ contract IDRegistryTest is Test {
     function testCannotTransferToAddressWithId() public {
         // 1. alice and bob claim id's 1 and 2
         vm.prank(alice);
-        idRegistry.register();
+        idRegistry.register(zeroAddress);
         vm.prank(bob);
-        idRegistry.register();
+        idRegistry.register(zeroAddress);
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 2);
@@ -118,51 +125,47 @@ contract IDRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        SET RECOVERY TESTS
+                          CHANGE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testSetRecoveryAddress() public {
+    function testChangeRecoveryAddress() public {
         // 1. alice registers id 1
         vm.startPrank(alice);
-        idRegistry.register();
+        idRegistry.register(zeroAddress);
 
         // 2. alice sets bob as her recovery address
         vm.expectEmit(true, true, false, true);
-        emit SetRecoveryAddress(bob, 1);
-        idRegistry.setRecoveryAddress(bob);
+        emit ChangeRecoveryAddress(bob, 1);
+        idRegistry.changeRecoveryAddress(bob);
 
         assertEq(idRegistry.recoveryOf(1), bob);
 
         // 3. alice sets charlie as her recovery address
         vm.expectEmit(true, true, false, true);
-        emit SetRecoveryAddress(charlie, 1);
-        idRegistry.setRecoveryAddress(charlie);
+        emit ChangeRecoveryAddress(charlie, 1);
+        idRegistry.changeRecoveryAddress(charlie);
         vm.stopPrank();
 
         assertEq(idRegistry.recoveryOf(1), charlie);
     }
 
-    function testCannotSetRecoveryAddressWithoutId() public {
+    function testCannotChangeRecoveryAddressWithoutId() public {
         vm.startPrank(alice);
         vm.expectRevert(ZeroId.selector);
-        idRegistry.setRecoveryAddress(bob);
+        idRegistry.changeRecoveryAddress(bob);
         vm.stopPrank();
 
         assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
-                        REQUEST RECOVERY TESTS
+                         REQUEST RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testRequestRecovery() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob requests a recovery of alice's id to charlie
+        // 1. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
         emit RequestRecovery(1, alice, charlie);
@@ -178,7 +181,7 @@ contract IDRegistryTest is Test {
     function testCannotRequestRecoveryUnlessAuthorized() public {
         // 1. alice registers t id 1
         vm.prank(alice);
-        idRegistry.register();
+        idRegistry.register(zeroAddress);
 
         // 2. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
@@ -190,15 +193,11 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotRequestRecoveryToAddressThatOwnsAnId() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
         // 2. charlie registers id 2
         vm.prank(charlie);
-        idRegistry.register();
+        idRegistry.register(zeroAddress);
 
         // 3. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
@@ -217,21 +216,17 @@ contract IDRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        COMPLETE RECOVERY TESTS
+                         COMPLETE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testRecoveryCompletion() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob requests a recovery of alice's id to charlie
+        // 1. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
         idRegistry.requestRecovery(alice, charlie);
 
-        // 3. after escrow period, bob completes the recovery to charlie
+        // 2. after escrow period, bob completes the recovery to charlie
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectEmit(true, true, false, true);
         emit Transfer(alice, charlie, 1);
@@ -245,18 +240,14 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotCompleteRecoveryIfUnauthorized() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob requests a recovery of alice's id to charlie
+        // 1. bob requests a recovery of alice's id to charlie
         uint256 requestBlock = block.timestamp;
         vm.prank(bob);
         idRegistry.requestRecovery(alice, charlie);
 
-        // 3. charlie calls completeRecovery on alice's id, which fails
+        // 2. charlie calls completeRecovery on alice's id, which fails
         vm.prank(charlie);
         vm.warp(requestBlock + escrowPeriod);
         vm.expectRevert(Unauthorized.selector);
@@ -269,13 +260,9 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotCompleteRecoveryIfNotStarted() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob calls recovery complete on alice's id, which fails
+        // 1. bob calls recovery complete on alice's id, which fails
         vm.startPrank(bob);
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
@@ -290,18 +277,14 @@ contract IDRegistryTest is Test {
 
     // cannot complete a recovery if enough time hasn't passed
     function testCannotCompleteRecoveryWhenInEscrow() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob requests a recovery of alice's id to charlie
+        // 1. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
         uint256 requestBlock = block.timestamp;
         idRegistry.requestRecovery(alice, charlie);
 
-        // 3. before the escrow period, bob completes the recovery to charlie
+        // 2. before the escrow period, bob completes the recovery to charlie
         vm.expectRevert(Escrow.selector);
         idRegistry.completeRecovery(alice);
         vm.stopPrank();
@@ -313,22 +296,18 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotCompleteRecoveryToAddressThatOwnsAnId() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob requests a recovery of alice's id to charlie
+        // 1. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         uint256 requestBlock = block.timestamp;
         idRegistry.requestRecovery(alice, charlie);
 
-        // 3. charlie registers id 2
+        // 2. charlie registers id 2
         vm.prank(charlie);
-        idRegistry.register();
+        idRegistry.register(zeroAddress);
 
-        // 4. after escrow period, bob completes the recovery to charlie which fails
+        // 3. after escrow period, bob completes the recovery to charlie which fails
         vm.startPrank(bob);
         vm.warp(requestBlock + escrowPeriod);
         vm.expectRevert(HasId.selector);
@@ -342,21 +321,17 @@ contract IDRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        CANCEL RECOVERY TESTS
+                          CANCEL RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testCancelRecoveryFromCustodyAddress() public {
-        // 1. alice registers id 1 and sets bob as her recovery
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob requests a recovery of alice's id to charlie
+        // 1. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         idRegistry.requestRecovery(alice, charlie);
 
-        // 3. alice cancels the recovery
+        // 2. alice cancels the recovery
         vm.prank(alice);
         vm.expectEmit(true, false, false, true);
         emit CancelRecovery(1);
@@ -366,7 +341,7 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.idOf(charlie), 0);
         assertEq(idRegistry.recoveryOf(1), bob);
 
-        // 4. after escrow period, bob tries to recover to charlie and fails
+        // 3. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
@@ -379,17 +354,13 @@ contract IDRegistryTest is Test {
     }
 
     function testCancelRecoveryFromRecoveryAddress() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob requests a recovery of alice's id to charlie
+        // 1. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         idRegistry.requestRecovery(alice, charlie);
 
-        // 3. after 1 block, bob cancels the recovery
+        // 2. after 1 block, bob cancels the recovery
         vm.prank(bob);
         vm.expectEmit(true, false, false, true);
         emit CancelRecovery(1);
@@ -399,7 +370,7 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.idOf(charlie), 0);
         assertEq(idRegistry.recoveryOf(1), bob);
 
-        // 4. after escrow period, bob tries to recover to charlie and fails
+        // 3. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
         vm.expectRevert(NoRecovery.selector);
         vm.prank(bob);
@@ -412,15 +383,12 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotCancelRecoveryIfNotStarted() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
+        registerAlice();
 
-        // 2. alice cancels the recovery which fails
+        // 1. alice cancels the recovery which fails
+        vm.prank(alice);
         vm.expectRevert(NoRecovery.selector);
         idRegistry.cancelRecovery(alice);
-        vm.stopPrank();
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.recoveryClockOf(1), 0);
@@ -428,17 +396,13 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotCancelRecoveryIfUnauthorized() public {
-        // 1. alice registers id 1 and sets bob as her recovery address
-        vm.startPrank(alice);
-        idRegistry.register();
-        idRegistry.setRecoveryAddress(bob);
-        vm.stopPrank();
+        registerAlice();
 
-        // 2. bob requests a recovery of alice's id to charlie
+        // 1. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         idRegistry.requestRecovery(alice, charlie);
 
-        // 3. charlie cancels the recovery which fails
+        // 2. charlie cancels the recovery which fails
         vm.prank(charlie);
         vm.expectRevert(Unauthorized.selector);
         idRegistry.cancelRecovery(alice);
@@ -447,5 +411,16 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.idOf(charlie), 0);
         assertEq(idRegistry.recoveryClockOf(1), block.timestamp);
         assertEq(idRegistry.recoveryOf(1), bob);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              TEST HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function registerAlice() internal {
+        vm.startPrank(alice);
+        idRegistry.register(zeroAddress);
+        idRegistry.changeRecoveryAddress(bob);
+        vm.stopPrank();
     }
 }

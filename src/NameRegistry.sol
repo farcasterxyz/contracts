@@ -44,7 +44,7 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
                              RECOVERY EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event SetRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
+    event ChangeRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
 
     event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
 
@@ -185,11 +185,13 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
      * @param username the username to register
      * @param to the address that will claim the username
      * @param secret the secret that protects the commitment
+     * @param recoveryAddress address which can recovery the username if the custody address is lost
      */
     function register(
         bytes16 username,
         address to,
-        bytes32 secret
+        bytes32 secret,
+        address recoveryAddress
     ) external payable {
         bytes32 commit = generateCommit(username, to, secret);
 
@@ -212,7 +214,11 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
+        recoveryOf[tokenId] = recoveryAddress;
+
         payable(_msgSender()).transfer(msg.value - _currYearFee);
+
+        // TODO: what event should fire here?
     }
 
     /**
@@ -220,8 +226,13 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
      *
      * @param to the address that will claim the username
      * @param username the username to register
+     * @param recoveryAddress address which can recovery the username if the custody address is lost
      */
-    function preregister(address to, bytes16 username) external payable {
+    function preregister(
+        address to,
+        bytes16 username,
+        address recoveryAddress
+    ) external payable {
         /**
          *
          * ASSUMPTIONS:
@@ -243,6 +254,8 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
             // currYear is selected from a pre-determined list and cannot overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
+
+        recoveryOf[tokenId] = recoveryAddress;
     }
 
     /**
@@ -282,8 +295,9 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
      *      gas-optimzied approximations for exp and ln that introduce a -3% error for every period
      *
      * @param tokenId the tokenId of the username to bid on
+     * @param recoveryAddress address which can recovery the username if the custody address is lost
      */
-    function bid(uint256 tokenId) external payable {
+    function bid(uint256 tokenId, address recoveryAddress) external payable {
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
 
@@ -318,6 +332,8 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
             // _timestampOfYear(currentYear) is taken from a pre-determined list and cannot overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
+
+        recoveryOf[tokenId] = recoveryAddress;
 
         payable(msgSender).transfer(msg.value - price);
     }
@@ -414,14 +430,13 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
     /**
      * @notice Set a recovery address which can transfer the caller's username to a new address.
      *
-     * @param recoveryAddress the recoveryAddress, which must not be the custodyAddress. It can be
-     *                        set to zero to disable the recovery functionality.
+     * @param recoveryAddress address which can recovery the username if the custody address is lost
      */
-    function setRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable {
+    function changeRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable {
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
         recoveryOf[tokenId] = recoveryAddress;
-        emit SetRecoveryAddress(recoveryAddress, tokenId);
+        emit ChangeRecoveryAddress(recoveryAddress, tokenId);
     }
 
     /**
