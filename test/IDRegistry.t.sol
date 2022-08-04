@@ -30,6 +30,7 @@ contract IDRegistryTest is Test {
     address private charlie = address(0x789);
     address private zeroAddress = address(0);
     address private trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+
     uint256 private escrowPeriod = 259_200;
 
     function setUp() public {
