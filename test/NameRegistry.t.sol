@@ -46,14 +46,9 @@ contract NameRegistryTest is Test {
     uint256 private aliceBiddableTs = 1675123200; // Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
-        nameRegistry = new NameRegistry(
-            "Farcaster NameRegistry",
-            "FCN",
-            admin,
-            address(this),
-            trustedForwarder,
-            preregistrar
-        );
+        nameRegistry = new NameRegistry(trustedForwarder);
+
+        nameRegistry.initialize("Farcaster NameRegistry", "FCN", admin, address(this), preregistrar);
     }
 
     /*//////////////////////////////////////////////////////////////

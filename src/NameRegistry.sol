@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import {Context} from "../lib/openzeppelin-contracts/contracts/utils/Context.sol";
-import {ERC721} from "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
-import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
-import {FixedPointMathLib} from "../lib/solmate/src/utils/FixedPointMathLib.sol";
-import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/ContextUpgradeable.sol";
+import {ERC721Upgradeable} from "openzeppelin-upgradeable/contracts/token/ERC721/ERC721Upgradeable.sol";
+import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/metatx/ERC2771ContextUpgradeable.sol";
+import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "openzeppelin-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
+
+import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 error InsufficientFunds(); // The transaction does not have enough money to pay for this.
 error Unauthorized(); // The caller is not authorized to perform this action.
@@ -31,18 +34,20 @@ error InvalidRecovery(); // The recovery address is being set to the custody add
  * @title NameRegistry
  * @author varunsrin
  */
-contract NameRegistry is ERC2771Context, ERC721, Ownable {
+contract NameRegistry is
+    Initializable,
+    UUPSUpgradeable,
+    ERC2771ContextUpgradeable,
+    ERC721Upgradeable,
+    OwnableUpgradeable
+{
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
-                           REGISTRATION EVENTS
+                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
     event Renew(uint256 indexed tokenId, uint256 expiry);
-
-    /*//////////////////////////////////////////////////////////////
-                             RECOVERY EVENTS
-    //////////////////////////////////////////////////////////////*/
 
     event ChangeRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
 
@@ -51,8 +56,12 @@ contract NameRegistry is ERC2771Context, ERC721, Ownable {
     event CancelRecovery(uint256 indexed id);
 
     /*//////////////////////////////////////////////////////////////
-                          REGISTRATION STORAGE
+                                 STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    // WARNING: if you change the layout of storage (order in which variables are declared), also
+    // update NameRegistryV2 layout in NameRegistryUpdate.t.sol to match. Once contracts are deployed
+    // the order of variables should never be modified.
 
     // Mapping from commitment hash to block number
     mapping(bytes32 => uint256) public timestampOf;
@@ -64,11 +73,16 @@ contract NameRegistry is ERC2771Context, ERC721, Ownable {
     uint256 internal _nextYearIdx;
 
     // The address that can register usernames during the pre-registration period
-    address private preregistrar;
+    address public preregistrar;
 
-    /*//////////////////////////////////////////////////////////////
-                            RECOVERY STORAGE
-    //////////////////////////////////////////////////////////////*/
+    // The address that reclaims are swept to
+    address public vault;
+
+    // The epoch timestamp of Jan 1 for each year starting from 2022 used to determine the current year
+    // Must be set in the initializer since non-constant variables are unsafe to declare otherwise.
+    // solhint-disable-next-line max-line-length
+    // See: https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#avoid-initial-values-in-field-declarations
+    uint256[] internal _yearTimestamps;
 
     // Mapping from tokenId to recoveryAddress
     mapping(uint256 => address) public recoveryOf;
@@ -95,40 +109,55 @@ contract NameRegistry is ERC2771Context, ERC721, Ownable {
 
     uint256 public constant PREREGISTRATION_END_TS = 1667286000; // 2022, November 1 (TODO: Replace with final date)
 
-    // The epoch timestamp of Jan 1 for each year starting from 2022
-    uint256[] internal _yearTimestamps = [
-        1640995200,
-        1672531200,
-        1704067200,
-        1735689600,
-        1767225600,
-        1798761600,
-        1830297600,
-        1861920000,
-        1893456000,
-        1924992000,
-        1956528000,
-        1988150400,
-        2019686400,
-        2051222400,
-        2082758400,
-        2114380800,
-        2145916800
-    ];
+    /*//////////////////////////////////////////////////////////////
+                      CONSTRUCTORS AND INITIALIZERS
+    //////////////////////////////////////////////////////////////*/
 
-    address public immutable vault;
+    // OpenZeppelin 4.5 made the trustedForwarder immutable which should be set in the constructor
+    // of the the implementation instead of in the initializer.
+    // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/2917
+    // solhint-disable-next-line no-empty-blocks
+    constructor(address _forwarder) ERC2771ContextUpgradeable(_forwarder) {}
 
-    constructor(
+    // UUPSProxies require all values to be set in the initializer and not in the constructor.
+    // See: https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
+    function initialize(
         string memory _name,
         string memory _symbol,
         address _owner,
         address _vault,
-        address trustedForwarder,
         address _preregistrar
-    ) ERC721(_name, _symbol) Ownable() ERC2771Context(trustedForwarder) {
+    ) public initializer {
+        __UUPSUpgradeable_init();
+
+        __ERC721_init_unchained(_name, _symbol);
+
+        // Initialize the owner to the deployer and then transfer it to _owner
+        __Ownable_init_unchained();
+        transferOwnership(_owner);
+
         vault = _vault;
         preregistrar = _preregistrar;
-        transferOwnership(_owner);
+
+        _yearTimestamps = [
+            1640995200,
+            1672531200,
+            1704067200,
+            1735689600,
+            1767225600,
+            1798761600,
+            1830297600,
+            1861920000,
+            1893456000,
+            1924992000,
+            1956528000,
+            1988150400,
+            2019686400,
+            2051222400,
+            2082758400,
+            2114380800,
+            2145916800
+        ];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -600,13 +629,21 @@ contract NameRegistry is ERC2771Context, ERC721, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     // TODO: Double check that these overrides are sane and have no unintentional side effects
-    function _msgSender() internal view override(Context, ERC2771Context) returns (address sender) {
-        sender = ERC2771Context._msgSender();
+    function _msgSender()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
+        returns (address sender)
+    {
+        sender = ERC2771ContextUpgradeable._msgSender();
     }
 
-    function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
-        return ERC2771Context._msgData();
+    function _msgData() internal view override(ContextUpgradeable, ERC2771ContextUpgradeable) returns (bytes calldata) {
+        return ERC2771ContextUpgradeable._msgData();
     }
+
+    // solhint-disable-next-line no-empty-blocks
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /*//////////////////////////////////////////////////////////////
                              INTERNAL LOGIC
