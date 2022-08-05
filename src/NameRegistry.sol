@@ -628,7 +628,6 @@ contract NameRegistry is
                          OPEN ZEPPELIN OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: Double check that these overrides are sane and have no unintentional side effects
     function _msgSender()
         internal
         view
