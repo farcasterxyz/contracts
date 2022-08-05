@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
+import {Context} from "../lib/openzeppelin-contracts/contracts/utils/Context.sol";
 import {ERC721} from "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
 import {FixedPointMathLib} from "../lib/solmate/src/utils/FixedPointMathLib.sol";
@@ -30,7 +31,7 @@ error InvalidRecovery(); // The recovery address is being set to the custody add
  * @title NameRegistry
  * @author varunsrin
  */
-contract NameRegistry is ERC721, Ownable {
+contract NameRegistry is ERC2771Context, ERC721, Ownable {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -124,7 +125,7 @@ contract NameRegistry is ERC721, Ownable {
         address _vault,
         address trustedForwarder,
         address _preregistrar
-    ) ERC721(_name, _symbol) Ownable() {
+    ) ERC721(_name, _symbol) Ownable() ERC2771Context(trustedForwarder) {
         vault = _vault;
         preregistrar = _preregistrar;
         transferOwnership(_owner);
@@ -592,6 +593,19 @@ contract NameRegistry is ERC721, Ownable {
 
             return ((nextYearTimestamp - block.timestamp) * FEE) / (nextYearTimestamp - _timestampOfYear(_currYear));
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         OPEN ZEPPELIN OVERRIDES
+    //////////////////////////////////////////////////////////////*/
+
+    // TODO: Double check that these overrides are sane and have no unintentional side effects
+    function _msgSender() internal view override(Context, ERC2771Context) returns (address sender) {
+        sender = ERC2771Context._msgSender();
+    }
+
+    function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
+        return ERC2771Context._msgData();
     }
 
     /*//////////////////////////////////////////////////////////////
