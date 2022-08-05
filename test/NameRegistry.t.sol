@@ -373,7 +373,7 @@ contract NameRegistryTest is Test {
         nameRegistry.preregister(alice, "alice", zeroAddress);
 
         vm.prank(preregistrar);
-        vm.expectRevert("ALREADY_MINTED");
+        vm.expectRevert("ERC721: token already minted");
         nameRegistry.preregister(alice, "alice", zeroAddress);
 
         vm.stopPrank();

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import {ERC721} from "../lib/solmate/src/tokens/ERC721.sol";
-import {Owned} from "../lib/solmate/src/auth/Owned.sol";
-import {FixedPointMathLib} from "../lib/solmate/src/utils/FixedPointMathLib.sol";
-import {MerkleProof} from "../lib/solmate/src/utils/MerkleProof.sol";
+import {ERC721} from "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
+import {FixedPointMathLib} from "../lib/solmate/src/utils/FixedPointMathLib.sol";
+import {Owned} from "../lib/solmate/src/auth/Owned.sol";
 
 error InsufficientFunds(); // The transaction does not have enough money to pay for this.
 error Unauthorized(); // The caller is not authorized to perform this action.
@@ -31,7 +30,7 @@ error InvalidRecovery(); // The recovery address is being set to the custody add
  * @title NameRegistry
  * @author varunsrin
  */
-contract NameRegistry is ERC721, Owned, ERC2771Context {
+contract NameRegistry is ERC721, Owned {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -125,7 +124,7 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
         address _vault,
         address trustedForwarder,
         address _preregistrar
-    ) ERC721(_name, _symbol) Owned(_owner) ERC2771Context(trustedForwarder) {
+    ) ERC721(_name, _symbol) Owned(_owner) {
         vault = _vault;
         preregistrar = _preregistrar;
     }
@@ -135,10 +134,10 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1A: If an id is not minted, expiryOf[id] must be 0 and  _ownerOf[id] and
+     * INVARIANT 1A: If an id is not minted, expiryOf[id] must be 0 and  ownerOf(id) and
      *               recoveryOf[id] must also be address(0).
      *
-     * INVARIANT 1B: If an id is minted, expiryOf[id] and _ownerOf[id] must be non-zero.
+     * INVARIANT 1B: If an id is minted, expiryOf[id] and ownerOf(id) must be non-zero.
      *
      * INVARIANT 2: A username cannot be transferred to address(0) after it is minted.
      */
@@ -326,10 +325,12 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
 
         address msgSender = _msgSender();
 
-        _unsafeTransfer(msgSender, tokenId);
+        // Safety: we must call super.ownerOf instead of ownerOf because we want to transfer
+        // ownership of the name while it is in the expired state where ownerOf would revert.
+        _transfer(super.ownerOf(tokenId), msgSender, tokenId);
 
         unchecked {
-            // _timestampOfYear(currentYear) is taken from a pre-determined list and cannot overflow
+            // Safety: _timestampOfYear(currentYear) returns from a constant list that cannot overflow.
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
@@ -353,11 +354,12 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
 
         if (block.timestamp >= expiryTs) revert Expired();
 
-        return _ownerOf[tokenId];
+        return super.ownerOf(tokenId);
     }
 
-    // balanceOf does not work as expected and also includes names that have become renewable or
-    // expired. tracking correct status would incur significant gas costs and has been avoided.
+    /**
+     * COMPATIBILITY: balanceOf will overreport the balance of the owner if the name is expired.
+     */
 
     /**
      * @notice Override the ownerOf implementation to throw if a username is expired or renewable
@@ -409,6 +411,19 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
         }
 
         return string(abi.encodePacked(BASE_URI, string(usernameBytes), ".json"));
+    }
+
+    /**
+     * Hook that ensures that recovery address is reset whenever a transfer occurs.
+     */
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual override {
+        super._afterTokenTransfer(from, to, tokenId);
+
+        _clearRecovery(tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -487,21 +502,21 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
         }
 
         // Invariant 4 prevents this from going to a null address.
-        _unsafeTransfer(recoveryDestinationOf[tokenId], tokenId);
+        _transfer(ownerOf(tokenId), recoveryDestinationOf[tokenId], tokenId);
     }
 
     /**
      * @notice Cancels a transfer request if the caller is the recoveryAddress or the
      *         custodyAddress
      *
-     * @dev Cancellation is permitted even if the username is in the renewable or expired state,
-     *      it is a more gas-efficient check and has no adverse effects.
-     *
      * @param tokenId the uint256 representation of the username.
      */
     function cancelRecovery(uint256 tokenId) external payable {
         address msgSender = _msgSender();
-        if (msgSender != _ownerOf[tokenId] && msgSender != recoveryOf[tokenId]) revert Unauthorized();
+
+        // Safety: super.ownerOf is called here instead of ownerOf since cancellation has no
+        // undesirable side effects when called in the expired state and it saves some gas.
+        if (msgSender != super.ownerOf(tokenId) && msgSender != recoveryOf[tokenId]) revert Unauthorized();
 
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
@@ -521,12 +536,14 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
     function reclaim(uint256 tokenId) external payable onlyOwner {
         if (expiryOf[tokenId] == 0) revert Registrable();
 
+        // Safety: we must call super.ownerOf instead of ownerOf because we want the admin to be
+        // able to transfer the name even if is expired and there is no current owner.
+        _transfer(super.ownerOf(tokenId), vault, tokenId);
+
         unchecked {
-            // this value is deterministic and cannot overflow for any known year
+            // Safety: this value is deterministic and cannot overflow for any known year
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
-
-        _unsafeTransfer(vault, tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -579,33 +596,6 @@ contract NameRegistry is ERC721, Owned, ERC2771Context {
     /*//////////////////////////////////////////////////////////////
                              INTERNAL LOGIC
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Moves the username to the destination and resets recovery state. Similar to
-     *      transferFrom but more gas-efficient since it doesn't check ownership or destination
-     *      validity which can be ensured by the caller explicitly or implicitly.
-     */
-    function _unsafeTransfer(address to, uint256 tokenId) private {
-        address from = _ownerOf[tokenId];
-
-        if (from == address(0)) revert Unauthorized();
-
-        // Underflow is prevented as long as the ownership is verified and overflow is unrealistic
-        // given the limited set of usernames available.
-        unchecked {
-            _balanceOf[from]--;
-
-            _balanceOf[to]++;
-        }
-
-        _ownerOf[tokenId] = to;
-
-        delete getApproved[tokenId];
-
-        _clearRecovery(tokenId);
-
-        emit Transfer(from, to, tokenId);
-    }
 
     /**
      * @dev Resets the recoveryAddress and any ongoing recoveries
