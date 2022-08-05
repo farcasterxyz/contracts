@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import {ERC721} from "../lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
 import {FixedPointMathLib} from "../lib/solmate/src/utils/FixedPointMathLib.sol";
-import {Owned} from "../lib/solmate/src/auth/Owned.sol";
+import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 error InsufficientFunds(); // The transaction does not have enough money to pay for this.
 error Unauthorized(); // The caller is not authorized to perform this action.
@@ -30,7 +30,7 @@ error InvalidRecovery(); // The recovery address is being set to the custody add
  * @title NameRegistry
  * @author varunsrin
  */
-contract NameRegistry is ERC721, Owned {
+contract NameRegistry is ERC721, Ownable {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -124,9 +124,10 @@ contract NameRegistry is ERC721, Owned {
         address _vault,
         address trustedForwarder,
         address _preregistrar
-    ) ERC721(_name, _symbol) Owned(_owner) {
+    ) ERC721(_name, _symbol) Ownable() {
         vault = _vault;
         preregistrar = _preregistrar;
+        transferOwnership(_owner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -134,7 +135,7 @@ contract NameRegistry is ERC721, Owned {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1A: If an id is not minted, expiryOf[id] must be 0 and  ownerOf(id) and
+     * INVARIANT 1A: If an id is not minted, expiryOf[id] must be 0 and ownerOf(id) and
      *               recoveryOf[id] must also be address(0).
      *
      * INVARIANT 1B: If an id is minted, expiryOf[id] and ownerOf(id) must be non-zero.
