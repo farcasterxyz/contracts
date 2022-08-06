@@ -4,8 +4,10 @@ pragma solidity ^0.8.15;
 import "forge-std/Test.sol";
 import "../src/IDRegistry.sol";
 
+/* solhint-disable state-visibility */
+
 contract IDRegistryTest is Test {
-    IDRegistry private idRegistry;
+    IDRegistry idRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -25,13 +27,13 @@ contract IDRegistryTest is Test {
                               CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
-    address private alice = address(0x123);
-    address private bob = address(0x456);
-    address private charlie = address(0x789);
-    address private zeroAddress = address(0);
-    address private trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    address alice = address(0x123);
+    address bob = address(0x456);
+    address charlie = address(0x789);
+    address zeroAddress = address(0);
+    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
 
-    uint256 private escrowPeriod = 259_200;
+    uint256 escrowPeriod = 259_200;
 
     function setUp() public {
         idRegistry = new IDRegistry(trustedForwarder);

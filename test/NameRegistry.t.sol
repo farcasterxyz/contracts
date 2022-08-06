@@ -4,8 +4,11 @@ pragma solidity ^0.8.15;
 import "forge-std/Test.sol";
 import "../src/NameRegistry.sol";
 
+/* solhint-disable state-visibility */
+/* solhint-disable max-states-count */
+
 contract NameRegistryTest is Test {
-    NameRegistry private nameRegistry;
+    NameRegistry nameRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -25,25 +28,25 @@ contract NameRegistryTest is Test {
                               CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
-    address private admin = address(0x001);
-    address private alice = address(0x123);
-    address private bob = address(0x456);
-    address private charlie = address(0x789);
-    address private david = address(0x531);
-    address private trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    address private preregistrar = address(0x572e3354fBA09e865a373aF395933d8862CFAE54);
-    address private zeroAddress = address(0);
+    address admin = address(0x001);
+    address alice = address(0x123);
+    address bob = address(0x456);
+    address charlie = address(0x789);
+    address david = address(0x531);
+    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    address preregistrar = address(0x572e3354fBA09e865a373aF395933d8862CFAE54);
+    address zeroAddress = address(0);
 
-    uint256 private escrowPeriod = 3 days;
-    uint256 private commitRegisterDelay = 60;
+    uint256 escrowPeriod = 3 days;
+    uint256 commitRegisterDelay = 60;
 
-    uint256 private timestamp2023 = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
-    uint256 private timestamp2024 = 1704067200; // Sun, Jan 1, 2024 0:00:00 GMT
+    uint256 timestamp2023 = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
+    uint256 timestamp2024 = 1704067200; // Sun, Jan 1, 2024 0:00:00 GMT
 
-    uint256 private aliceTokenId = uint256(bytes32("alice"));
-    uint256 private aliceRegisterTs = 1669881600; // Dec 1, 2022 00:00:00 GMT
-    uint256 private aliceRenewableTs = timestamp2023; // Jan 1, 2023 0:00:00 GMT
-    uint256 private aliceBiddableTs = 1675123200; // Jan 31, 2023 0:00:00 GMT
+    uint256 aliceTokenId = uint256(bytes32("alice"));
+    uint256 aliceRegisterTs = 1669881600; // Dec 1, 2022 00:00:00 GMT
+    uint256 aliceRenewableTs = timestamp2023; // Jan 1, 2023 0:00:00 GMT
+    uint256 aliceBiddableTs = 1675123200; // Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
         nameRegistry = new NameRegistry(trustedForwarder);
