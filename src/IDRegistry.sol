@@ -3,14 +3,6 @@ pragma solidity ^0.8.15;
 
 import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
 
-error Unauthorized(); // The caller does not have the authority to perform this action.
-error ZeroId(); // The id is zero, which is invalid
-error HasId(); // The custody address has another id
-
-error InvalidRecoveryAddr(); // The recovery cannot be the same as the custody address
-error NoRecovery(); // The recovery request for this id could not be found
-error Escrow(); // The recovery request is still in escrow
-
 /**
  * @title IDRegistry
  * @author varunsrin
@@ -24,6 +16,18 @@ error Escrow(); // The recovery request is still in escrow
  */
 contract IDRegistry is ERC2771Context {
     constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    error Unauthorized(); // The caller does not have the authority to perform this action.
+    error ZeroId(); // The id is zero, which is invalid
+    error HasId(); // The custody address has another id
+
+    error InvalidRecoveryAddr(); // The recovery cannot be the same as the custody address
+    error NoRecovery(); // The recovery request for this id could not be found
+    error Escrow(); // The recovery request is still in escrow
 
     /*//////////////////////////////////////////////////////////////
                         REGISTRY EVENTS
