@@ -10,26 +10,6 @@ import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Init
 
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
-error InsufficientFunds(); // The transaction does not have enough money to pay for this.
-error Unauthorized(); // The caller is not authorized to perform this action.
-
-error InvalidCommit(); // The commitment hash was not found
-error InvalidName(); // The username had invalid characters
-error InvalidTime(); // Time is too far in the future or past
-error IncorrectOwner(); // The username is not owned by the expected address
-
-error Registered(); // The username is currently registered.
-error NotRegistrable(); // The username has been registered and cannot be registered again.
-error Registrable(); // The username has never been registered.
-
-error Expired(); // The username is expired (renewable or biddable)
-error Biddable(); // The username is biddable
-error NotBiddable(); // The username is still registered or in renewal.
-
-error Escrow(); // The recovery request is still in escrow
-error NoRecovery(); // The recovery request could not be found
-error InvalidRecovery(); // The recovery address is being set to the custody address
-
 /**
  * @title NameRegistry
  * @author varunsrin
@@ -42,6 +22,30 @@ contract NameRegistry is
     OwnableUpgradeable
 {
     using FixedPointMathLib for uint256;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    error InsufficientFunds(); // The transaction does not have enough money to pay for this.
+    error Unauthorized(); // The caller is not authorized to perform this action.
+
+    error InvalidCommit(); // The commitment hash was not found
+    error InvalidName(); // The username had invalid characters
+    error InvalidTime(); // Time is too far in the future or past
+    error IncorrectOwner(); // The username is not owned by the expected address
+
+    error Registered(); // The username is currently registered.
+    error NotRegistrable(); // The username has been registered and cannot be registered again.
+    error Registrable(); // The username has never been registered.
+
+    error Expired(); // The username is expired (renewable or biddable)
+    error Biddable(); // The username is biddable
+    error NotBiddable(); // The username is still registered or in renewal.
+
+    error Escrow(); // The recovery request is still in escrow
+    error NoRecovery(); // The recovery request could not be found
+    error InvalidRecovery(); // The recovery address is being set to the custody address
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS

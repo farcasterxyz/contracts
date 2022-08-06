@@ -2,10 +2,12 @@
 pragma solidity ^0.8.15;
 
 import "forge-std/Test.sol";
-import "../src/IDRegistry.sol";
+import {IDRegistry} from "../src/IDRegistry.sol";
+
+/* solhint-disable state-visibility */
 
 contract IDRegistryTest is Test {
-    IDRegistry private idRegistry;
+    IDRegistry idRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -25,13 +27,13 @@ contract IDRegistryTest is Test {
                               CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
-    address private alice = address(0x123);
-    address private bob = address(0x456);
-    address private charlie = address(0x789);
-    address private zeroAddress = address(0);
-    address private trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    address alice = address(0x123);
+    address bob = address(0x456);
+    address charlie = address(0x789);
+    address zeroAddress = address(0);
+    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
 
-    uint256 private escrowPeriod = 259_200;
+    uint256 escrowPeriod = 259_200;
 
     function setUp() public {
         idRegistry = new IDRegistry(trustedForwarder);
@@ -68,7 +70,7 @@ contract IDRegistryTest is Test {
 
         // 2. alice attempts to register again and fails
         vm.prank(alice);
-        vm.expectRevert(HasId.selector);
+        vm.expectRevert(IDRegistry.HasId.selector);
         idRegistry.register(zeroAddress);
 
         assertEq(idRegistry.idOf(alice), 1);
@@ -107,7 +109,7 @@ contract IDRegistryTest is Test {
 
         // 2. alice tries to transfer id to bob's address
         vm.prank(alice);
-        vm.expectRevert(HasId.selector);
+        vm.expectRevert(IDRegistry.HasId.selector);
         idRegistry.transfer(bob);
 
         assertEq(idRegistry.idOf(alice), 1);
@@ -117,7 +119,7 @@ contract IDRegistryTest is Test {
     function testCannotTransferIfNoId() public {
         // 1. alice tries to transfer an id to bob
         vm.prank(alice);
-        vm.expectRevert(ZeroId.selector);
+        vm.expectRevert(IDRegistry.ZeroId.selector);
         idRegistry.transfer(bob);
 
         assertEq(idRegistry.idOf(alice), 0);
@@ -151,7 +153,7 @@ contract IDRegistryTest is Test {
 
     function testCannotChangeRecoveryAddressWithoutId() public {
         vm.startPrank(alice);
-        vm.expectRevert(ZeroId.selector);
+        vm.expectRevert(IDRegistry.ZeroId.selector);
         idRegistry.changeRecoveryAddress(bob);
         vm.stopPrank();
 
@@ -185,7 +187,7 @@ contract IDRegistryTest is Test {
 
         // 2. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
-        vm.expectRevert(Unauthorized.selector);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.requestRecovery(alice, charlie);
 
         assertEq(idRegistry.idOf(alice), 1);
@@ -201,7 +203,7 @@ contract IDRegistryTest is Test {
 
         // 3. bob requests a recovery of alice's id to charlie
         vm.startPrank(bob);
-        vm.expectRevert(HasId.selector);
+        vm.expectRevert(IDRegistry.HasId.selector);
         idRegistry.requestRecovery(alice, charlie);
 
         assertEq(idRegistry.idOf(alice), 1);
@@ -211,7 +213,7 @@ contract IDRegistryTest is Test {
     function testCannotRequestRecoveryUnlessIssued() public {
         // 1. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
-        vm.expectRevert(Unauthorized.selector);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.requestRecovery(alice, bob);
     }
 
@@ -250,7 +252,7 @@ contract IDRegistryTest is Test {
         // 2. charlie calls completeRecovery on alice's id, which fails
         vm.prank(charlie);
         vm.warp(requestBlock + escrowPeriod);
-        vm.expectRevert(Unauthorized.selector);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.completeRecovery(alice);
 
         assertEq(idRegistry.idOf(alice), 1);
@@ -265,7 +267,7 @@ contract IDRegistryTest is Test {
         // 1. bob calls recovery complete on alice's id, which fails
         vm.startPrank(bob);
         vm.warp(block.timestamp + escrowPeriod);
-        vm.expectRevert(NoRecovery.selector);
+        vm.expectRevert(IDRegistry.NoRecovery.selector);
         idRegistry.completeRecovery(alice);
         vm.stopPrank();
 
@@ -285,7 +287,7 @@ contract IDRegistryTest is Test {
         idRegistry.requestRecovery(alice, charlie);
 
         // 2. before the escrow period, bob completes the recovery to charlie
-        vm.expectRevert(Escrow.selector);
+        vm.expectRevert(IDRegistry.Escrow.selector);
         idRegistry.completeRecovery(alice);
         vm.stopPrank();
 
@@ -310,7 +312,7 @@ contract IDRegistryTest is Test {
         // 3. after escrow period, bob completes the recovery to charlie which fails
         vm.startPrank(bob);
         vm.warp(requestBlock + escrowPeriod);
-        vm.expectRevert(HasId.selector);
+        vm.expectRevert(IDRegistry.HasId.selector);
         idRegistry.completeRecovery(alice);
         vm.stopPrank();
 
@@ -343,7 +345,7 @@ contract IDRegistryTest is Test {
 
         // 3. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
-        vm.expectRevert(NoRecovery.selector);
+        vm.expectRevert(IDRegistry.NoRecovery.selector);
         vm.prank(bob);
         idRegistry.completeRecovery(alice);
 
@@ -372,7 +374,7 @@ contract IDRegistryTest is Test {
 
         // 3. after escrow period, bob tries to recover to charlie and fails
         vm.warp(block.timestamp + escrowPeriod);
-        vm.expectRevert(NoRecovery.selector);
+        vm.expectRevert(IDRegistry.NoRecovery.selector);
         vm.prank(bob);
         idRegistry.completeRecovery(alice);
 
@@ -387,7 +389,7 @@ contract IDRegistryTest is Test {
 
         // 1. alice cancels the recovery which fails
         vm.prank(alice);
-        vm.expectRevert(NoRecovery.selector);
+        vm.expectRevert(IDRegistry.NoRecovery.selector);
         idRegistry.cancelRecovery(alice);
 
         assertEq(idRegistry.idOf(alice), 1);
@@ -404,7 +406,7 @@ contract IDRegistryTest is Test {
 
         // 2. charlie cancels the recovery which fails
         vm.prank(charlie);
-        vm.expectRevert(Unauthorized.selector);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.cancelRecovery(alice);
 
         assertEq(idRegistry.idOf(alice), 1);
