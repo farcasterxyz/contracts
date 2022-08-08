@@ -30,16 +30,12 @@ contract IDRegistry is ERC2771Context {
     error Escrow(); // The recovery request is still in escrow
 
     /*//////////////////////////////////////////////////////////////
-                        REGISTRY EVENTS
+                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
     event Register(address indexed to, uint256 indexed id, address recovery);
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
-
-    /*//////////////////////////////////////////////////////////////
-                        RECOVERY EVENTS
-    //////////////////////////////////////////////////////////////*/
 
     event ChangeRecoveryAddress(address indexed recovery, uint256 indexed id);
 
@@ -48,7 +44,7 @@ contract IDRegistry is ERC2771Context {
     event CancelRecovery(uint256 indexed id);
 
     /*//////////////////////////////////////////////////////////////
-                        REGISTRY STORAGE
+                                 STORAGE
     //////////////////////////////////////////////////////////////*/
 
     // Last issued id
@@ -56,10 +52,6 @@ contract IDRegistry is ERC2771Context {
 
     // Mapping from custody address to id
     mapping(address => uint256) public idOf;
-
-    /*//////////////////////////////////////////////////////////////
-                        RECOVERY STORAGE
-    //////////////////////////////////////////////////////////////*/
 
     // Mapping from id to recovery address
     mapping(uint256 => address) public recoveryOf;
