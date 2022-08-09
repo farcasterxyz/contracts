@@ -15,6 +15,7 @@ import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC
  * @dev Function calls use payable to marginally reduce gas usage.
  */
 contract IDRegistry is ERC2771Context {
+    // solhint-disable-next-line no-empty-blocks
     constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
 
     /*//////////////////////////////////////////////////////////////
