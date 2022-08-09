@@ -59,7 +59,7 @@ contract NameRegistryUpgradeTest is Test {
         (bool s1, ) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2.setNumber.selector, 1));
         assertEq(s1, true);
 
-        // 2. Upgrade the proxy to point to the v2 ipl
+        // 2. Upgrade the proxy to point to the v2 implementation
         vm.prank(owner);
         (bool s2, ) = address(proxy).call(
             abi.encodeWithSelector(nameRegistry.upgradeTo.selector, address(nameRegistryV2))
@@ -87,10 +87,11 @@ contract NameRegistryUpgradeTest is Test {
  */
 contract NameRegistryV2 is
     Initializable,
-    UUPSUpgradeable,
-    ERC2771ContextUpgradeable,
     ERC721Upgradeable,
-    OwnableUpgradeable
+    ERC2771ContextUpgradeable,
+    PausableUpgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable
 {
     // Events: are not used and omitted for brevity
 

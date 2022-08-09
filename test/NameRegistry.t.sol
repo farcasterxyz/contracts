@@ -208,6 +208,30 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
+    function testRegisterAfterUnpausing() public {
+        // 1. Make commitment to register the name @alice
+        vm.deal(alice, 10_000 ether);
+        vm.warp(aliceRegisterTs);
+        vm.prank(alice);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
+        nameRegistry.makeCommit(commitHash);
+
+        // 2. Fast forward past the register delay and pause and unpause the contract
+        vm.warp(block.timestamp + commitRegisterDelay);
+        vm.prank(admin);
+        nameRegistry.pause();
+        vm.prank(admin);
+        nameRegistry.unpause();
+
+        // 3. Register the name alice
+        vm.prank(alice);
+        nameRegistry.register{value: 0.01 ether}("alice", alice, "secret", bob);
+
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
+    }
+
     function testCannotRegisterTheSameNameTwice() public {
         // 1. Give alice and bob money and have alice register @alice
         vm.startPrank(alice);
@@ -321,6 +345,29 @@ contract NameRegistryTest is Test {
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, owner, secret, zeroAddress);
     }
 
+    function testCannotRegisterWhilePaused() public {
+        // 1. Make the commitment to register @alice
+        vm.deal(alice, 10_000 ether);
+        vm.warp(aliceRegisterTs);
+        vm.prank(alice);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
+        nameRegistry.makeCommit(commitHash);
+
+        // 2. Pause the contract and try to register the name alice
+        vm.warp(block.timestamp + commitRegisterDelay);
+        vm.prank(admin);
+        nameRegistry.pause();
+
+        vm.prank(alice);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.register{value: 0.01 ether}("alice", alice, "secret", charlie);
+
+        vm.expectRevert(NameRegistry.Registrable.selector);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.expiryOf(aliceTokenId), 0);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
+    }
+
     /*//////////////////////////////////////////////////////////////
                           PREREGISTRATION TESTS
     //////////////////////////////////////////////////////////////*/
@@ -335,8 +382,6 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
-
-        vm.stopPrank();
     }
 
     function testPreregisterSetsRecoveryAddress() public {
@@ -382,6 +427,21 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.preregister(alice, "alice", zeroAddress);
         vm.stopPrank();
+    }
+
+    function testCannotPreregisterWhilePaused() public {
+        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
+
+        vm.prank(admin);
+        nameRegistry.pause();
+
+        vm.expectRevert("Pausable: paused");
+        vm.prank(preregistrar);
+        nameRegistry.preregister(alice, "alice", zeroAddress);
+
+        vm.expectRevert(NameRegistry.Registrable.selector);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.expiryOf(aliceTokenId), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -506,16 +566,33 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
     }
 
+    function testCannotRenewIfPaused() public {
+        registerAlice();
+        vm.warp(aliceRenewableTs);
+        vm.prank(admin);
+        nameRegistry.pause();
+
+        vm.expectRevert("Pausable: paused");
+        vm.prank(alice);
+        nameRegistry.renew{value: 0.01 ether}(aliceTokenId);
+
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 BID TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testBid() public {
         registerAlice();
-
         vm.warp(aliceBiddableTs);
         vm.deal(bob, 1001 ether);
+
         vm.prank(bob);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, aliceTokenId);
         nameRegistry.bid{value: 1_000.01 ether}(aliceTokenId, charlie);
 
         assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
@@ -768,6 +845,24 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(aliceTokenId), 0);
     }
 
+    function testCannotBidIfPaused() public {
+        registerAlice();
+        vm.deal(bob, 1001 ether);
+        vm.prank(admin);
+        nameRegistry.pause();
+        vm.warp(aliceBiddableTs);
+
+        vm.prank(bob);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.bid{value: 1_000.01 ether}(aliceTokenId, charlie);
+
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1); // balanceOf counts expired ids by design
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                               ERC-721 TESTS
     //////////////////////////////////////////////////////////////*/
@@ -785,6 +880,19 @@ contract NameRegistryTest is Test {
         nameRegistry.ownerOf(aliceTokenId);
     }
 
+    function testTransferFrom() public {
+        registerAlice();
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, aliceTokenId);
+        nameRegistry.transferFrom(alice, bob, aliceTokenId);
+
+        assertEq(nameRegistry.ownerOf(aliceTokenId), bob);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+    }
+
     function testTransferFromResetsRecovery() public {
         // 1. Register alice and set up a recovery address.
         registerAlice();
@@ -799,9 +907,12 @@ contract NameRegistryTest is Test {
 
         // 3. Alice transfers then name to david
         vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, david, aliceTokenId);
         nameRegistry.transferFrom(alice, david, aliceTokenId);
 
         assertEq(nameRegistry.ownerOf(aliceTokenId), david);
+        assertEq(nameRegistry.balanceOf(david), 1);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
@@ -830,6 +941,20 @@ contract NameRegistryTest is Test {
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+    }
+
+    function testCannotTransferFromIfPaused() public {
+        registerAlice();
+        vm.prank(admin);
+        nameRegistry.pause();
+
+        vm.prank(alice);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.transferFrom(alice, bob, aliceTokenId);
+
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
     }
@@ -913,6 +1038,18 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
+    function testCannotChangeRecoveryIfPaused() public {
+        registerAlice();
+
+        vm.prank(admin);
+        nameRegistry.pause();
+
+        vm.prank(alice);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), zeroAddress);
+    }
+
     /*//////////////////////////////////////////////////////////////
                          REQUEST RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
@@ -976,12 +1113,29 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(aliceTokenId), address(0));
     }
 
+    function testCannotRequestRecoveryifPaused() public {
+        // 1. alice registers @alice, sets bob as her recovery address and the contract is paused
+        registerAlice();
+        vm.prank(alice);
+        nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
+        vm.prank(admin);
+        nameRegistry.pause();
+
+        // 2. bob requests a recovery which fails
+        vm.prank(bob);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
+
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+        assertEq(nameRegistry.recoveryDestinationOf(aliceTokenId), address(0));
+    }
+
     /*//////////////////////////////////////////////////////////////
                          COMPLETE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testCompleteRecovery() public {
-        // 1. alice registers @alice and sets bob as her recovery address and approver
+        // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
@@ -1112,6 +1266,30 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
+    function testCannotCompleteRecoveryIfPaused() public {
+        // 1. alice registers @alice and sets bob as her recovery address, and @bob requests a recovery to recovery.
+        registerAlice();
+        vm.prank(alice);
+        nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
+        vm.prank(bob);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
+        uint256 recoveryTs = block.timestamp;
+
+        // 2. the contract is then paused by the admin and we warp past the escrow period
+        vm.prank(admin);
+        nameRegistry.pause();
+        vm.warp(recoveryTs + escrowPeriod);
+
+        // 3. bob attempts to complete the recovery, which fails
+        vm.prank(bob);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.completeRecovery(aliceTokenId);
+
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), recoveryTs);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           CANCEL RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
@@ -1171,6 +1349,27 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
+    function testCancelRecoveryIfPaused() public {
+        // 1. alice registers @alice and sets bob as her recovery address and @bob requests a recovery, after which
+        // the admin pauses the contract
+        registerAlice();
+        vm.prank(alice);
+        nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
+        vm.prank(bob);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
+        vm.prank(admin);
+        nameRegistry.pause();
+
+        // 2. alice cancels the recovery, which succeeds
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, false);
+        emit CancelRecovery(aliceTokenId);
+        nameRegistry.cancelRecovery(aliceTokenId);
+
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+    }
+
     function testCannotCancelRecoveryIfNotStarted() public {
         // 1. alice registers @alice and sets bob as her recovery address
         registerAlice();
@@ -1206,7 +1405,7 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               ADMIN TESTS
+                              RECLAIM TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testReclaimRegisteredNames() public {
@@ -1280,6 +1479,19 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
         assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+    }
+
+    function testReclaimWhenPaused() public {
+        registerAlice();
+        vm.startPrank(admin);
+        nameRegistry.pause();
+
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.reclaim(aliceTokenId);
+        vm.stopPrank();
+
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
     }
 
     /*//////////////////////////////////////////////////////////////

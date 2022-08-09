@@ -4,9 +4,11 @@ pragma solidity ^0.8.15;
 import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/ContextUpgradeable.sol";
 import {ERC721Upgradeable} from "openzeppelin-upgradeable/contracts/token/ERC721/ERC721Upgradeable.sol";
 import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/metatx/ERC2771ContextUpgradeable.sol";
-import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
-import {UUPSUpgradeable} from "openzeppelin-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "openzeppelin-upgradeable/contracts/security/PausableUpgradeable.sol";
+
+import {UUPSUpgradeable} from "openzeppelin-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
@@ -16,10 +18,11 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
  */
 contract NameRegistry is
     Initializable,
-    UUPSUpgradeable,
-    ERC2771ContextUpgradeable,
     ERC721Upgradeable,
-    OwnableUpgradeable
+    ERC2771ContextUpgradeable,
+    PausableUpgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable
 {
     using FixedPointMathLib for uint256;
 
@@ -132,14 +135,15 @@ contract NameRegistry is
         address _vault,
         address _preregistrar
     ) public initializer {
-        __UUPSUpgradeable_init();
+        __ERC721_init(_name, _symbol);
 
-        __ERC721_init_unchained(_name, _symbol);
+        __Pausable_init();
 
         // Initialize the owner to the deployer and then transfer it to _owner
-        __Ownable_init_unchained();
+        __Ownable_init();
         transferOwnership(_owner);
 
+        __UUPSUpgradeable_init();
         vault = _vault;
         preregistrar = _preregistrar;
 
@@ -200,7 +204,8 @@ contract NameRegistry is
      * @notice Save a generated commitment hash on-chain, which must be done before a registration
      *         can occur
      *
-     * @dev The commitment process prevents front-running of the username registration.
+     * @dev The commitment process prevents front-running of the username registration. Commits can be made even when
+     *      the contract is paused because it does not affect frontrunning.
      *
      * @param commit the commitment hash to be persisted on-chain
      */
@@ -214,7 +219,7 @@ contract NameRegistry is
      * @notice Mint a new username if a commitment was made previously and send it to the owner.
      *
      * @dev The registration must be made at least 5 blocks after commit to minimize front-running,
-     * or approximately 1 minute after commit.
+     * or approximately 1 minute after commit. The function is pausable since it invokes _transfer by way of _mint.
      *
      * @param username the username to register
      * @param to the address that will claim the username
@@ -258,6 +263,8 @@ contract NameRegistry is
     /**
      * @notice Mint a reserved username during the pre-registration period from the preregistrar.
      *
+     * @dev The function is pausable since it invokes _transfer by way of _mint.
+     *
      * @param to the address that will claim the username
      * @param username the username to register
      * @param recoveryAddress address which can recovery the username if the custody address is lost
@@ -277,6 +284,7 @@ contract NameRegistry is
          *
          * 3. Usernames are not validated and this must be handled by the preregistrar.
          */
+
         if (block.timestamp >= PREREGISTRATION_END_TS) revert Registrable();
 
         if (_msgSender() != preregistrar) revert Unauthorized();
@@ -297,7 +305,7 @@ contract NameRegistry is
      *
      * @param tokenId the tokenId of the name to renew
      */
-    function renew(uint256 tokenId) external payable {
+    function renew(uint256 tokenId) external payable whenNotPaused {
         if (msg.value < FEE) revert InsufficientFunds();
 
         uint256 expiryTs = expiryOf[tokenId];
@@ -447,7 +455,18 @@ contract NameRegistry is
     }
 
     /**
-     * Hook that ensures that recovery state is reset whenever a transfer occurs.
+     * @dev Hook that ensures that token transfers cannot occur when the contract is paused.
+     */
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal override whenNotPaused {
+        super._beforeTokenTransfer(from, to, tokenId);
+    }
+
+    /**
+     * @dev Hook that ensures that recovery address is reset whenever a transfer occurs.
      */
     function _afterTokenTransfer(
         address from,
@@ -482,7 +501,7 @@ contract NameRegistry is
      *
      * @param recoveryAddress address which can recovery the username if the custody address is lost
      */
-    function changeRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable {
+    function changeRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable whenNotPaused {
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
         recoveryOf[tokenId] = recoveryAddress;
@@ -492,8 +511,8 @@ contract NameRegistry is
     /**
      * @notice Requests a recovery of a username and moves it into escrow.
      *
-     * @dev Requests can be overwritten by making another request, and can be made even if the
-     *      username is in renewal or expired status.
+     * @dev Requests can be overwritten by making another request, and can be made even if the username is in renewal
+     *      or expired status.
      *
      * @param tokenId the uint256 representation of the username.
      * @param from the address that currently owns the username.
@@ -503,7 +522,7 @@ contract NameRegistry is
         uint256 tokenId,
         address from,
         address to
-    ) external payable {
+    ) external payable whenNotPaused {
         if (to == address(0)) revert InvalidRecovery();
 
         // Invariant 3 ensures that a request cannot be made after ownership change without consent
@@ -518,6 +537,8 @@ contract NameRegistry is
     /**
      * @notice Completes a recovery request and transfers the name if the escrow is complete and
      *         the username is still registered.
+     *
+     * @dev The completeRecovery function cannot be called when the contract is paused because _transfer will revert.
      *
      * @param tokenId the uint256 representation of the username.
      */
@@ -543,6 +564,9 @@ contract NameRegistry is
     /**
      * @notice Cancels a transfer request if the caller is the recoveryAddress or the
      *         custodyAddress
+     *
+     * @dev cancelRecovery is allowed even when the contract is paused to prevent the state where a user might be
+     *      unable to cancel a recovery request because the contract was paused for the escrow duration.
      *
      * @param tokenId the uint256 representation of the username.
      */
@@ -579,6 +603,20 @@ contract NameRegistry is
             // Safety: this value is deterministic and cannot overflow for any known year
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
+    }
+
+    /**
+     * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
+     */
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice pause the contract and resume registrations, renewals, recoveries and transfers of names.
+     */
+    function unpause() public onlyOwner {
+        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////
