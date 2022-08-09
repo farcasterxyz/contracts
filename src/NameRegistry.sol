@@ -20,8 +20,8 @@ contract NameRegistry is
     Initializable,
     ERC721Upgradeable,
     ERC2771ContextUpgradeable,
-    PausableUpgradeable,
     OwnableUpgradeable,
+    PausableUpgradeable,
     UUPSUpgradeable
 {
     using FixedPointMathLib for uint256;

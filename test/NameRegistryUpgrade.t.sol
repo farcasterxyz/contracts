@@ -89,8 +89,8 @@ contract NameRegistryV2 is
     Initializable,
     ERC721Upgradeable,
     ERC2771ContextUpgradeable,
-    PausableUpgradeable,
     OwnableUpgradeable,
+    PausableUpgradeable,
     UUPSUpgradeable
 {
     // Events: are not used and omitted for brevity
