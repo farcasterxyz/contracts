@@ -266,7 +266,7 @@ contract IDRegistryTest is Test {
         address charlie,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
         vm.assume(bob != charlie && alice != charlie);
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
         registerWithRecovery(alice, bob);
