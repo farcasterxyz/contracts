@@ -408,8 +408,6 @@ contract NameRegistry is
         if (block.timestamp >= expiryOf[id]) revert Expired();
 
         super.transferFrom(from, to, id);
-
-        _clearRecovery(id);
     }
 
     /**
@@ -449,7 +447,7 @@ contract NameRegistry is
     }
 
     /**
-     * Hook that ensures that recovery address is reset whenever a transfer occurs.
+     * Hook that ensures that recovery state is reset whenever a transfer occurs.
      */
     function _afterTokenTransfer(
         address from,
@@ -458,7 +456,9 @@ contract NameRegistry is
     ) internal virtual override {
         super._afterTokenTransfer(from, to, tokenId);
 
-        _clearRecovery(tokenId);
+        // Checking state before clearing is more gas-efficient than always clearing
+        if (recoveryClockOf[tokenId] != 0) delete recoveryClockOf[tokenId];
+        delete recoveryOf[tokenId];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -651,16 +651,6 @@ contract NameRegistry is
     /*//////////////////////////////////////////////////////////////
                              INTERNAL LOGIC
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Resets the recoveryAddress and any ongoing recoveries
-     */
-    function _clearRecovery(uint256 tokenId) private {
-        // Checking state before clearing is more gas-efficient than always clearing
-        if (recoveryClockOf[tokenId] != 0) delete recoveryClockOf[tokenId];
-
-        delete recoveryOf[tokenId];
-    }
 
     /**
      * @dev Returns true if the name is only composed of [a-z0-9] and the hyphen characters.
