@@ -38,6 +38,8 @@ contract IDRegistry is ERC2771Context {
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
+    event ChangeHome(uint256 indexed id, string url);
+
     event ChangeRecoveryAddress(address indexed recovery, uint256 indexed id);
 
     event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
@@ -68,24 +70,51 @@ contract IDRegistry is ERC2771Context {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Acquire a new farcaster id for the calling address, assuming that it doesn't already
-     *         have one. Id's are issued sequentially beginning at 1 and the caller becomes the
-     *         custodian of the id.
+     * @notice Acquire a Farcaster ID for caller, if it doesn't already have one.
      *
-     * @param recoveryAddress the address to set as the recovery, which can be set to zero address
-     *                        to disable recovery.
+     * @param recoveryAddress the initial recovery address, which can be set to zero to disable recovery
      *
-     * @dev Ids begin at 1 and are issued sequentially by using a uint256 counter to store the last
-     *      issued id. The zero (0) id is not allowed since zero represent the absence of a value
-     *      in solidity. The counter is incremented unchecked since this saves gas and is unlikely
-     *      to overflow given that every increment requires a new on-chain transaction.
+     * @dev Ids begin at 1 and are issued sequentially by using a uint256 counter to track the last issued id. The
+     *      zero (0) id is not allowed since zero represent the absence of a value in solidity.
      */
     function register(address recoveryAddress) external payable {
+        _register(recoveryAddress);
+    }
+
+    /**
+     * @notice Update the Home URL by emitting it as an event
+     *
+     * @param url the url to emit
+     */
+    function changeHome(string calldata url) external payable {
+        uint256 _id = idOf[_msgSender()];
+        if (_id == 0) revert ZeroId();
+
+        emit ChangeHome(_id, url);
+    }
+
+    /**
+     * @notice Performs both register and changeHome in a single transaction.
+     *
+     * @param recoveryAddress the initial recovery address, which can be set to zero to disable recovery
+     * @param url the home url to emit
+     */
+    function registerWithHome(address recoveryAddress, string calldata url) external payable {
+        _register(recoveryAddress);
+
+        // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
+        // this user at this point in time.
+        emit ChangeHome(idCounter, url);
+    }
+
+    function _register(address recoveryAddress) internal {
         address _msgSender = _msgSender();
 
         if (idOf[_msgSender] != 0) revert HasId();
 
         unchecked {
+            // Safety: this is a uint256 value and each transaction increments it by one, which would require
+            // spending ~ 2^81 gas to reach the max value (theoretically possible but not practically possible).
             idCounter++;
         }
 
