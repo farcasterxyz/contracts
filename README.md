@@ -46,6 +46,10 @@ The deploy script will generate .json outputs to track the latest deployments an
 
 You can learn more about Foundry by reading [the book](https://book.getfoundry.sh/index.html).
 
+### Static Analysis
+
+[Slither](https://github.com/crytic/slither) can be used to perform static analysis on the code and uncover security issues. Any significant code changes should have a slither run performed and we plan to add this into CI soon. Follow [the instructions](https://github.com/crytic/slither#how-to-install) to install slither with pip and then run `slither .` to view the report.
+
 ### Estimating Gas Usage
 
 Forge ships with a gas reporting tool which provides gas reports for function calls. It can be invoked with `forge test --gas-report`. But these numbers can be misleading because test suites invoke functions in ways that make them terminate very early. Some functions also vary in cost for the same code path because of storage initialization during certain invocations.
