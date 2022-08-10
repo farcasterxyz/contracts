@@ -16,7 +16,7 @@ Then, from the project root, run `yarn install` to install NPM dependencies. Onc
 - `yarn lint` uses [Prettier Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity) to find and auto-correct common problems.
 - `yarn lint:check` performs the same checks, but alerts on errors and does not fix them.
 
-Code follows the [Solidity style guide](https://docs.soliditylang.org/en/v0.8.15/style-guide.html) and documentation follows Ethereum [Natspec](https://docs.soliditylang.org/en/develop/natspec-format.html) unless otherwise specified. If you use VS Code, you can lint-on-save by installing the [Solidity](https://marketplace.visualstudio.com/items?itemName=JuanBlanco.solidity) and [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) extensions.
+Code follows the [Solidity style guide](https://docs.soliditylang.org/en/v0.8.16/style-guide.html) and documentation follows Ethereum [Natspec](https://docs.soliditylang.org/en/develop/natspec-format.html) unless otherwise specified. If you use VS Code, you can lint-on-save by installing the [Solidity](https://marketplace.visualstudio.com/items?itemName=JuanBlanco.solidity) and [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) extensions.
 
 ## Deploying
 
