@@ -15,6 +15,7 @@ contract IDRegistryTest is Test {
 
     event Register(address indexed to, uint256 indexed id, address recovery);
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
+    event ChangeHome(uint256 indexed id, string url);
     event ChangeRecoveryAddress(address indexed recovery, uint256 indexed id);
     event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
     event CancelRecovery(uint256 indexed id);
@@ -71,6 +72,47 @@ contract IDRegistryTest is Test {
         idRegistry.register(zeroAddress);
 
         assertEq(idRegistry.idOf(alice), 1);
+    }
+
+    function testChangeHome(
+        address alice,
+        address recovery,
+        string calldata url
+    ) public {
+        vm.assume(alice != trustedForwarder);
+
+        registerWithRecovery(alice, recovery);
+        vm.prank(alice);
+        vm.expectEmit(true, true, false, true);
+        emit ChangeHome(1, url);
+        idRegistry.changeHome(url);
+    }
+
+    function testCannotChangeHomeWithoutId(address alice, string calldata url) public {
+        vm.assume(alice != trustedForwarder);
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.ZeroId.selector);
+        idRegistry.changeHome(url);
+    }
+
+    function testRegisterWithHome(
+        address alice,
+        address recovery,
+        string calldata url
+    ) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != recovery);
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Register(alice, 1, recovery);
+        vm.expectEmit(true, true, false, true);
+        emit ChangeHome(1, url);
+        idRegistry.registerWithHome(recovery, url);
+
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
