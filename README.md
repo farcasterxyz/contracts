@@ -38,7 +38,7 @@ Next, source the environment variables into your shell:
 
 Use forge to run the deploy script, which can take a few minutes to complete:
 
-`forge script script/AccountRegistry.s.sol:AccountRegistryScript --rpc-url $RINKEBY_RPC_URL --private-key $RINKEBY_PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY -vvvv`
+`forge script script/IDRegistry.s.sol:IDRegistryScript --rpc-url $RINKEBY_RPC_URL --private-key $RINKEBY_PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY -vvvv`
 
 The deploy script will generate .json outputs to track the latest deployments and transactions. Do not commit these changes unless you are modifying one of the published contracts above.
 
