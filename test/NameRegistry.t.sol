@@ -1050,6 +1050,24 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(aliceTokenId), zeroAddress);
     }
 
+    function testChangeRecoveryAddressResetsRecovery() public {
+        // 1. alice registers @alice and sets bob as her recovery
+        registerAlice();
+        vm.prank(alice);
+        nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
+
+        // 2. bob requests a recovery of @alice to charlie and then alice changes the recovery address
+        vm.prank(bob);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit CancelRecovery(aliceTokenId);
+        nameRegistry.changeRecoveryAddress(aliceTokenId, david);
+
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), david);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                          REQUEST RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
@@ -1177,24 +1195,45 @@ contract NameRegistryTest is Test {
 
     function testCannotCompleteRecoveryIfUnauthorized() public {
         registerAlice();
+        // warp to ensure that block.timestamp is not zero so we can assert the reset of the recovery clock
+        vm.warp(100);
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
 
-        // 1. bob requests a recovery of @alice to charlie
         vm.prank(bob);
         nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
-        // 2. alice unsets bob as her recovery, bob calls completeRecovery on @alice, which fails
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(aliceTokenId, address(0));
-
-        vm.prank(bob);
+        vm.prank(charlie);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.completeRecovery(aliceTokenId);
 
         assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
-        assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
         assertEq(nameRegistry.recoveryClockOf(aliceTokenId), block.timestamp);
+    }
+
+    function testCannotCompleteRecoveryIfStartedByPrevious() public {
+        registerAlice();
+        vm.prank(alice);
+        nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
+
+        // 1. bob requests a recovery of @alice to charlie and then alice changes the recovery to david
+        vm.prank(bob);
+        nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
+        vm.prank(alice);
+        nameRegistry.changeRecoveryAddress(aliceTokenId, david);
+
+        // 2. after escrow period, david attempts to complete recovery which fails
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.prank(david);
+        vm.expectRevert(NameRegistry.NoRecovery.selector);
+        nameRegistry.completeRecovery(aliceTokenId);
+
+        assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(charlie), 0);
+        assertEq(nameRegistry.recoveryOf(aliceTokenId), david);
+        assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
     }
 
     function testCannotCompleteRecoveryIfNotStarted() public {
