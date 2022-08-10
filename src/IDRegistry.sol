@@ -169,6 +169,11 @@ contract IDRegistry is ERC2771Context {
 
         recoveryOf[id] = recoveryAddress;
         emit ChangeRecoveryAddress(recoveryAddress, id);
+
+        if (recoveryClockOf[id] != 0) {
+            emit CancelRecovery(id);
+            delete recoveryClockOf[id];
+        }
     }
 
     /**
@@ -232,6 +237,6 @@ contract IDRegistry is ERC2771Context {
         if (recoveryClockOf[id] == 0) revert NoRecovery();
 
         emit CancelRecovery(id);
-        recoveryClockOf[id] = 0;
+        delete recoveryClockOf[id];
     }
 }

@@ -135,6 +135,28 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.recoveryOf(1), bob);
     }
 
+    function testChangeRecoveryAddressResetsRecovery(
+        address alice,
+        address bob,
+        address charlie,
+        address david
+    ) public {
+        vm.assume(alice != trustedForwarder && bob != trustedForwarder && david != trustedForwarder);
+        vm.assume(alice != bob && alice != charlie);
+        registerWithRecovery(alice, bob);
+
+        vm.prank(bob);
+        idRegistry.requestRecovery(alice, charlie);
+
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit CancelRecovery(1);
+        idRegistry.changeRecoveryAddress(david);
+
+        assertEq(idRegistry.recoveryOf(1), david);
+        assertEq(idRegistry.recoveryClockOf(1), 0);
+    }
+
     function testCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
         vm.assume(alice != trustedForwarder && bob != trustedForwarder);
         vm.assume(alice != bob);
@@ -229,7 +251,7 @@ contract IDRegistryTest is Test {
                          COMPLETE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRecoveryCompletion(
+    function testCompleteRecovery(
         address alice,
         address bob,
         address charlie,
@@ -248,7 +270,7 @@ contract IDRegistryTest is Test {
         idRegistry.requestRecovery(alice, charlie);
 
         // 3. after escrow period, bob completes the recovery to charlie
-        vm.warp(block.timestamp + escrowPeriod);
+        vm.warp(timestamp + escrowPeriod);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, charlie, 1);
         idRegistry.completeRecovery(alice);
@@ -257,6 +279,36 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(charlie), 1);
         assertEq(idRegistry.recoveryOf(1), address(0));
+        assertEq(idRegistry.recoveryClockOf(1), 0);
+    }
+
+    function testCannotCompleteRecoveryIfChanged(
+        address alice,
+        address bob,
+        address charlie,
+        address david,
+        uint256 timestamp
+    ) public {
+        vm.assume(alice != trustedForwarder && bob != trustedForwarder && david != trustedForwarder);
+        vm.assume(alice != charlie);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        registerWithRecovery(alice, bob);
+
+        // 1. bob requests a recovery of alice's id to charlie, and then alice changes the recovery address to david
+        vm.prank(bob);
+        idRegistry.requestRecovery(alice, charlie);
+        vm.prank(alice);
+        idRegistry.changeRecoveryAddress(david);
+
+        // 2. after escrow period, bob attemps to complete the recovery which fails
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.prank(david);
+        vm.expectRevert(IDRegistry.NoRecovery.selector);
+        idRegistry.completeRecovery(alice);
+
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), david);
         assertEq(idRegistry.recoveryClockOf(1), 0);
     }
 
