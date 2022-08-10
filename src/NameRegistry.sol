@@ -134,7 +134,7 @@ contract NameRegistry is
         address _owner,
         address _vault,
         address _preregistrar
-    ) public initializer {
+    ) external initializer {
         __ERC721_init(_name, _symbol);
 
         __Pausable_init();
@@ -613,14 +613,14 @@ contract NameRegistry is
     /**
      * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
      */
-    function pause() public onlyOwner {
+    function pause() external onlyOwner {
         _pause();
     }
 
     /**
      * @notice pause the contract and resume registrations, renewals, recoveries and transfers of names.
      */
-    function unpause() public onlyOwner {
+    function unpause() external onlyOwner {
         _unpause();
     }
 
@@ -642,6 +642,8 @@ contract NameRegistry is
 
             for (uint256 i = _nextYearIdx + 1; i < length; ) {
                 if (_yearTimestamps[i] > block.timestamp) {
+                    // Slither: costly-loop is a false positive because this assignment happens once before a return.
+                    // slither-disable-next-line costly-loop
                     _nextYearIdx = i;
                     // _nextYearIdx is a predetermined value and can never overflow.
                     return _nextYearIdx + 2021;
