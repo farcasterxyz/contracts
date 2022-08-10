@@ -282,36 +282,6 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.recoveryClockOf(1), 0);
     }
 
-    function testCannotCompleteRecoveryIfChanged(
-        address alice,
-        address bob,
-        address charlie,
-        address david,
-        uint256 timestamp
-    ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && david != trustedForwarder);
-        vm.assume(alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
-        registerWithRecovery(alice, bob);
-
-        // 1. bob requests a recovery of alice's id to charlie, and then alice changes the recovery address to david
-        vm.prank(bob);
-        idRegistry.requestRecovery(alice, charlie);
-        vm.prank(alice);
-        idRegistry.changeRecoveryAddress(david);
-
-        // 2. after escrow period, bob attemps to complete the recovery which fails
-        vm.warp(block.timestamp + escrowPeriod);
-        vm.prank(david);
-        vm.expectRevert(IDRegistry.NoRecovery.selector);
-        idRegistry.completeRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(charlie), 0);
-        assertEq(idRegistry.recoveryOf(1), david);
-        assertEq(idRegistry.recoveryClockOf(1), 0);
-    }
-
     function testCannotCompleteRecoveryIfUnauthorized(
         address alice,
         address bob,
@@ -338,6 +308,36 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.idOf(charlie), 0);
         assertEq(idRegistry.recoveryOf(1), bob);
         assertEq(idRegistry.recoveryClockOf(1), timestamp);
+    }
+
+    function testCannotCompleteRecoveryIfStartedByPrevious(
+        address alice,
+        address bob,
+        address charlie,
+        address david,
+        uint256 timestamp
+    ) public {
+        vm.assume(alice != trustedForwarder && bob != trustedForwarder && david != trustedForwarder);
+        vm.assume(alice != charlie);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        registerWithRecovery(alice, bob);
+
+        // 1. bob requests a recovery of alice's id to charlie, and then alice changes the recovery address to david
+        vm.prank(bob);
+        idRegistry.requestRecovery(alice, charlie);
+        vm.prank(alice);
+        idRegistry.changeRecoveryAddress(david);
+
+        // 2. after escrow period, david attemps to complete the recovery which fails
+        vm.warp(block.timestamp + escrowPeriod);
+        vm.prank(david);
+        vm.expectRevert(IDRegistry.NoRecovery.selector);
+        idRegistry.completeRecovery(alice);
+
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(charlie), 0);
+        assertEq(idRegistry.recoveryOf(1), david);
+        assertEq(idRegistry.recoveryClockOf(1), 0);
     }
 
     function testCannotCompleteRecoveryIfNotStarted(address alice, address bob) public {

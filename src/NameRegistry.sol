@@ -506,6 +506,11 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recoveryAddress;
         emit ChangeRecoveryAddress(recoveryAddress, tokenId);
+
+        if (recoveryClockOf[tokenId] != 0) {
+            emit CancelRecovery(tokenId);
+            delete recoveryClockOf[tokenId];
+        }
     }
 
     /**
