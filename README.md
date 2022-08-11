@@ -51,3 +51,13 @@ You can learn more about Foundry by reading [the book](https://book.getfoundry.s
 Forge ships with a gas reporting tool which provides gas reports for function calls. It can be invoked with `forge test --gas-report`. But these numbers can be misleading because test suites invoke functions in ways that make them terminate very early. Some functions also vary in cost for the same code path because of storage initialization during certain invocations.
 
 The best way to estimate gas usage accurately is to write a special test suite that follows code paths that you expect to see in real-world usage. Running the gas report on just this suite will give you the most accurate estimate.
+
+### Solc dyld error on Apple M1
+
+If you see a solc dyld error like the one below and you are on an M1, follow the steps here: https://github.com/foundry-rs/foundry/issues/2712
+
+```bash
+Solc Error: dyld[35225]: Library not loaded: '/opt/homebrew/opt/z3/lib/libz3.dylib'
+  Referenced from: '/Users/<yourusername>/.svm/0.8.16/solc-0.8.16'
+  Reason: tried: '/opt/homebrew/opt/z3/lib/libz3.dylib' (no such file), '/usr/local/lib/libz3.dylib' (no such file), '/usr/lib/libz3.dylib' (no such file)
+```
