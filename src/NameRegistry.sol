@@ -249,7 +249,7 @@ contract NameRegistry is
         _mint(to, tokenId);
 
         unchecked {
-            // currYear is selected from a pre-determined list and cannot overflow
+            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot cause an overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
@@ -293,7 +293,7 @@ contract NameRegistry is
         _mint(to, tokenId);
 
         unchecked {
-            // currYear is selected from a pre-determined list and cannot overflow
+            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot cause an overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
@@ -314,12 +314,12 @@ contract NameRegistry is
         // Invariant 1B + 2 guarantee that the name is not owned by address(0) at this point.
 
         unchecked {
-            // renewTs and gracePeriod are pre-determined values and cannot overflow
+            // Safety: expirtyTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
             if (block.timestamp >= expiryTs + GRACE_PERIOD) revert Biddable();
 
             if (block.timestamp < expiryTs) revert Registered();
 
-            // currYear is selected from a pre-determined list and cannot overflow
+            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot cause an overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
@@ -346,7 +346,7 @@ contract NameRegistry is
         uint256 auctionStartTimestamp;
 
         unchecked {
-            // expiryTs is taken from a pre-determined list and cannot overflow.
+            // Safety: expirtyTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
             auctionStartTimestamp = expiryTs + GRACE_PERIOD;
         }
 
@@ -373,7 +373,7 @@ contract NameRegistry is
         _transfer(super.ownerOf(tokenId), msgSender, tokenId);
 
         unchecked {
-            // Safety: _timestampOfYear(currentYear) returns from a constant list that cannot overflow.
+            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot cause an overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
@@ -558,7 +558,7 @@ contract NameRegistry is
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
         unchecked {
-            // recoveryClockOf is always set to block.timestamp and cannot realistically overflow
+            // Safety: recoveryClockOf is always set to block.timestamp and cannot realistically overflow
             if (block.timestamp < recoveryClockOf[tokenId] + ESCROW_PERIOD) revert Escrow();
         }
 
@@ -605,7 +605,7 @@ contract NameRegistry is
         _transfer(super.ownerOf(tokenId), vault, tokenId);
 
         unchecked {
-            // Safety: this value is deterministic and cannot overflow for any known year
+            // Safety: _currYear() returns a gregorian calendar year and cannot realistically overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
     }
@@ -633,23 +633,24 @@ contract NameRegistry is
      */
     function currYear() public returns (uint256 year) {
         unchecked {
-            // _nextYearIdx is a predetermined value and can never overflow.
+            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
             if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
                 return _nextYearIdx + 2021;
             }
 
             uint256 length = _yearTimestamps.length;
 
+            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 1
             for (uint256 i = _nextYearIdx + 1; i < length; ) {
                 if (_yearTimestamps[i] > block.timestamp) {
-                    // Slither: costly-loop is a false positive because this assignment happens once before a return.
+                    // Slither false positive: https://github.com/crytic/slither/issues/1338
                     // slither-disable-next-line costly-loop
                     _nextYearIdx = i;
-                    // _nextYearIdx is a predetermined value and can never overflow.
+                    // Safety: _nextYearIdx is always <= _yearTimestamps.length which can't overflow when added to 2021
                     return _nextYearIdx + 2021;
                 }
 
-                // length and _nextyearIdx are predetermined values and can never overflow.
+                // Safety: i cannot overflow because length is a pre-determined constant value.
                 i++;
             }
 
@@ -666,9 +667,11 @@ contract NameRegistry is
         uint256 _currYear = currYear();
 
         unchecked {
-            // _timestampOfYear and currYear are pretermined values and cannot overflow.
+            // Safety: _currYear() returns a gregorian calendar year and cannot realistically overflow
             uint256 nextYearTimestamp = _timestampOfYear(_currYear + 1);
 
+            // Safety: nextYearTimestamp is guaranteed to be > block.timestamp and > _timestampOfYear(_currYear) so
+            // this cannot underflow
             return ((nextYearTimestamp - block.timestamp) * FEE) / (nextYearTimestamp - _timestampOfYear(_currYear));
         }
     }
@@ -719,8 +722,8 @@ contract NameRegistry is
                 return false;
             }
 
-            // i can never overflow because length is guaranteed to be < 16
             unchecked {
+                // Safety: i can never overflow because length is guaranteed to be <= 16
                 i++;
             }
         }
@@ -734,7 +737,7 @@ contract NameRegistry is
         unchecked {
             if (year <= 2021) revert InvalidTime();
 
-            // year can never underflow because we check its value, or overflow because of subtract
+            // Safety: year is guaranteed to be >= 2022, so this cannot underflow
             return _yearTimestamps[year - 2022];
         }
     }
