@@ -124,8 +124,8 @@ contract NameRegistry is
      * @dev Disables initialization to prevent attacks and only calls the ERC2771ContextUpgradeable constructor.
      *      All other storage values must be initialized in the implementation function. For more details:
      *
-     *      https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#initializing_the_implementation_contract
-     *      https://github.com/OpenZeppelin/openzeppelin-contracts/pull/2917
+     * https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#initializing_the_implementation_contract
+     * https://github.com/OpenZeppelin/openzeppelin-contracts/pull/2917
      */
     // solhint-disable-next-line no-empty-blocks
     constructor(address _forwarder) ERC2771ContextUpgradeable(_forwarder) {
