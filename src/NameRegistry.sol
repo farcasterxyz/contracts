@@ -120,14 +120,30 @@ contract NameRegistry is
                       CONSTRUCTORS AND INITIALIZERS
     //////////////////////////////////////////////////////////////*/
 
-    // OpenZeppelin 4.5 made the trustedForwarder immutable which should be set in the constructor
-    // of the the implementation instead of in the initializer.
-    // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/2917
+    /**
+     * @dev Disables initialization to prevent attacks and only calls the ERC2771ContextUpgradeable constructor.
+     *      All other storage values must be initialized in the implementation function. For more details:
+     *
+     *      https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#initializing_the_implementation_contract
+     *      https://github.com/OpenZeppelin/openzeppelin-contracts/pull/2917
+     */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _forwarder) ERC2771ContextUpgradeable(_forwarder) {}
+    constructor(address _forwarder) ERC2771ContextUpgradeable(_forwarder) {
+        // Audit: Is this the safest way to prevent contract initialization attacks?
+        // See: https://twitter.com/z0age/status/1551951489354145795
+        _disableInitializers();
+    }
 
-    // UUPSProxies require all values to be set in the initializer and not in the constructor.
-    // See: https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
+    /**
+     *  @dev Initializes the contract with default values and calls the initialize functions on the Base contracts. The
+     *       constructor ensures that this function can never be called directly on the implementation contract itself,
+     *       but only via the ERC1967 proxy  contract, which prevents initialize attacks. For more details:
+     *
+     *       https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
+     *       https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
+     *
+     *       Slither: incorrectly flags this method as unprotected: https://github.com/crytic/slither/issues/1341
+     */
     function initialize(
         string memory _name,
         string memory _symbol,

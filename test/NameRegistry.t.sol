@@ -3,12 +3,18 @@ pragma solidity ^0.8.16;
 
 import "forge-std/Test.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
+import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable max-states-count */
+/* solhint-disable avoid-low-level-calls */
 
 contract NameRegistryTest is Test {
+    NameRegistry nameRegistryImpl;
     NameRegistry nameRegistry;
+    ERC1967Proxy nameRegistryProxy;
+
+    address proxyAddr;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -28,14 +34,15 @@ contract NameRegistryTest is Test {
                               CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
-    address admin = address(0x001);
+    address owner = address(0x001);
+    address vault = address(this);
+    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    address preregistrar = address(0x572e3354fBA09e865a373aF395933d8862CFAE54);
+    address zeroAddress = address(0);
     address alice = address(0x123);
     address bob = address(0x456);
     address charlie = address(0x789);
     address david = address(0x531);
-    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    address preregistrar = address(0x572e3354fBA09e865a373aF395933d8862CFAE54);
-    address zeroAddress = address(0);
 
     uint256 escrowPeriod = 3 days;
     uint256 commitRegisterDelay = 60;
@@ -49,9 +56,26 @@ contract NameRegistryTest is Test {
     uint256 aliceBiddableTs = 1675123200; // Jan 31, 2023 0:00:00 GMT
 
     function setUp() public {
-        nameRegistry = new NameRegistry(trustedForwarder);
+        nameRegistryImpl = new NameRegistry(trustedForwarder);
 
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", admin, address(this), preregistrar);
+        nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
+        proxyAddr = address(nameRegistryProxy);
+
+        (bool s, ) = address(nameRegistryProxy).call(
+            abi.encodeWithSelector(
+                nameRegistry.initialize.selector,
+                "Farcaster NameRegistry",
+                "FCN",
+                owner,
+                vault,
+                preregistrar
+            )
+        );
+
+        assertEq(s, true);
+
+        // Instantiate the ERC1967 Proxy as a NameRegistry so that we can call the NameRegistry methods easily
+        nameRegistry = NameRegistry(address(nameRegistryProxy));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -218,9 +242,9 @@ contract NameRegistryTest is Test {
 
         // 2. Fast forward past the register delay and pause and unpause the contract
         vm.warp(block.timestamp + commitRegisterDelay);
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.unpause();
 
         // 3. Register the name alice
@@ -280,24 +304,24 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotRegisterWithInvalidCommit(address owner, bytes32 secret) public {
+    function testCannotRegisterWithInvalidCommit(address _owner, bytes32 secret) public {
         // 1. Fund alice and set up the commit hashes to register the name bob
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
 
         bytes16 username = "bob";
-        bytes32 commitHash = nameRegistry.generateCommit(username, owner, secret);
+        bytes32 commitHash = nameRegistry.generateCommit(username, _owner, secret);
 
         // 2. Attempt to register the name before making the commit
         vm.startPrank(alice);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
-        nameRegistry.register{value: 0.01 ether}(username, owner, secret, zeroAddress);
+        nameRegistry.register{value: 0.01 ether}(username, _owner, secret, zeroAddress);
 
         nameRegistry.makeCommit(commitHash);
 
         // 3. Attempt to register using an incorrect owner address
         address incorrectOwner = address(0x1234A);
-        vm.assume(owner != incorrectOwner);
+        vm.assume(_owner != incorrectOwner);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}(username, incorrectOwner, secret, zeroAddress);
 
@@ -305,12 +329,12 @@ contract NameRegistryTest is Test {
         bytes32 incorrectSecret = "foobar";
         vm.assume(secret != incorrectSecret);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
-        nameRegistry.register{value: 0.01 ether}(username, owner, incorrectSecret, zeroAddress);
+        nameRegistry.register{value: 0.01 ether}(username, _owner, incorrectSecret, zeroAddress);
 
         // 5. Attempt to register using an incorrect name
         bytes16 incorrectUsername = "alice";
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
-        nameRegistry.register{value: 0.01 ether}(incorrectUsername, owner, secret, zeroAddress);
+        nameRegistry.register{value: 0.01 ether}(incorrectUsername, _owner, secret, zeroAddress);
         vm.stopPrank();
     }
 
@@ -332,9 +356,9 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotRegisterWithInvalidNames(address owner, bytes32 secret) public {
+    function testCannotRegisterWithInvalidNames(address _owner, bytes32 secret) public {
         bytes16 incorrectUsername = "al{ce";
-        bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, owner, secret));
+        bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, _owner, secret));
 
         // 1. Fast forward to the registration period
         vm.warp(nameRegistry.PREREGISTRATION_END_TS());
@@ -342,7 +366,7 @@ contract NameRegistryTest is Test {
 
         // Register using an incorrect name
         vm.expectRevert(NameRegistry.InvalidName.selector);
-        nameRegistry.register{value: 0.01 ether}(incorrectUsername, owner, secret, zeroAddress);
+        nameRegistry.register{value: 0.01 ether}(incorrectUsername, _owner, secret, zeroAddress);
     }
 
     function testCannotRegisterWhilePaused() public {
@@ -355,7 +379,7 @@ contract NameRegistryTest is Test {
 
         // 2. Pause the contract and try to register the name alice
         vm.warp(block.timestamp + commitRegisterDelay);
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
 
         vm.prank(alice);
@@ -432,7 +456,7 @@ contract NameRegistryTest is Test {
     function testCannotPreregisterWhilePaused() public {
         vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
 
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
 
         vm.expectRevert("Pausable: paused");
@@ -569,7 +593,7 @@ contract NameRegistryTest is Test {
     function testCannotRenewIfPaused() public {
         registerAlice();
         vm.warp(aliceRenewableTs);
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
 
         vm.expectRevert("Pausable: paused");
@@ -848,7 +872,7 @@ contract NameRegistryTest is Test {
     function testCannotBidIfPaused() public {
         registerAlice();
         vm.deal(bob, 1001 ether);
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
         vm.warp(aliceBiddableTs);
 
@@ -947,7 +971,7 @@ contract NameRegistryTest is Test {
 
     function testCannotTransferFromIfPaused() public {
         registerAlice();
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
 
         vm.prank(alice);
@@ -1041,7 +1065,7 @@ contract NameRegistryTest is Test {
     function testCannotChangeRecoveryIfPaused() public {
         registerAlice();
 
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
 
         vm.prank(alice);
@@ -1136,7 +1160,7 @@ contract NameRegistryTest is Test {
         registerAlice();
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
 
         // 2. bob requests a recovery which fails
@@ -1314,8 +1338,8 @@ contract NameRegistryTest is Test {
         nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
         uint256 recoveryTs = block.timestamp;
 
-        // 2. the contract is then paused by the admin and we warp past the escrow period
-        vm.prank(admin);
+        // 2. the contract is then paused by the owner and we warp past the escrow period
+        vm.prank(owner);
         nameRegistry.pause();
         vm.warp(recoveryTs + escrowPeriod);
 
@@ -1390,13 +1414,13 @@ contract NameRegistryTest is Test {
 
     function testCancelRecoveryIfPaused() public {
         // 1. alice registers @alice and sets bob as her recovery address and @bob requests a recovery, after which
-        // the admin pauses the contract
+        // the owner pauses the contract
         registerAlice();
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(aliceTokenId, bob);
         vm.prank(bob);
         nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.pause();
 
         // 2. alice cancels the recovery, which succeeds
@@ -1451,11 +1475,11 @@ contract NameRegistryTest is Test {
         registerAlice();
 
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, nameRegistry.vault(), aliceTokenId);
-        vm.prank(admin);
+        emit Transfer(alice, vault, aliceTokenId);
+        vm.prank(owner);
         nameRegistry.reclaim(aliceTokenId);
 
-        assertEq(nameRegistry.ownerOf(aliceTokenId), nameRegistry.vault());
+        assertEq(nameRegistry.ownerOf(aliceTokenId), vault);
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
@@ -1465,11 +1489,11 @@ contract NameRegistryTest is Test {
 
         vm.warp(aliceRenewableTs);
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, nameRegistry.vault(), aliceTokenId);
-        vm.prank(admin);
+        emit Transfer(alice, vault, aliceTokenId);
+        vm.prank(owner);
         nameRegistry.reclaim(aliceTokenId);
 
-        assertEq(nameRegistry.ownerOf(aliceTokenId), nameRegistry.vault());
+        assertEq(nameRegistry.ownerOf(aliceTokenId), vault);
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
@@ -1478,11 +1502,11 @@ contract NameRegistryTest is Test {
 
         vm.warp(aliceBiddableTs);
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, nameRegistry.vault(), aliceTokenId);
-        vm.prank(admin);
+        emit Transfer(alice, vault, aliceTokenId);
+        vm.prank(owner);
         nameRegistry.reclaim(aliceTokenId);
 
-        assertEq(nameRegistry.ownerOf(aliceTokenId), nameRegistry.vault());
+        assertEq(nameRegistry.ownerOf(aliceTokenId), vault);
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2024);
     }
 
@@ -1491,7 +1515,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.approve(bob, aliceTokenId);
 
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.reclaim(aliceTokenId);
 
         assertEq(nameRegistry.getApproved(aliceTokenId), address(0));
@@ -1499,7 +1523,7 @@ contract NameRegistryTest is Test {
 
     function testCannotReclaimUnlessMinted() public {
         vm.expectRevert(NameRegistry.Registrable.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.reclaim(aliceTokenId);
     }
 
@@ -1511,10 +1535,10 @@ contract NameRegistryTest is Test {
         vm.prank(bob);
         nameRegistry.requestRecovery(aliceTokenId, alice, charlie);
 
-        vm.prank(admin);
+        vm.prank(owner);
         nameRegistry.reclaim(aliceTokenId);
 
-        assertEq(nameRegistry.ownerOf(aliceTokenId), nameRegistry.vault());
+        assertEq(nameRegistry.ownerOf(aliceTokenId), vault);
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
         assertEq(nameRegistry.recoveryClockOf(aliceTokenId), 0);
@@ -1522,7 +1546,7 @@ contract NameRegistryTest is Test {
 
     function testReclaimWhenPaused() public {
         registerAlice();
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         nameRegistry.pause();
 
         vm.expectRevert("Pausable: paused");
