@@ -10,7 +10,7 @@ contract IDRegistryScript is Script {
 
     // TODO: coverage does not like empty functions, and I can't remember if this was important to the deploy
     // Retaining this until we can remove safely.
-    // function setUp() public {}
+    function setUp() public {}
 
     function run() public {
         vm.broadcast();

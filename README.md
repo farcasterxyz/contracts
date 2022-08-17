@@ -28,8 +28,8 @@ ID Registry Deployment Addresses:
 
 A new instance of the contract can be deploying by using forge to execute the deployment script. To do this, create a `.env` file with the following secrets:
 
-- `RINKEBY_RPC_URL`- get this from alchemy or infura
-- `RINKEBY_PRIVATE_KEY` - [export](https://metamask.zendesk.com/hc/en-us/articles/360015289632-How-to-export-an-account-s-private-key) this from your rinkeby metamask wallet
+- `GOERLI_RPC_URL`- get this from alchemy or infura
+- `GOERLI_PRIVATE_KEY` - [export](https://metamask.zendesk.com/hc/en-us/articles/360015289632-How-to-export-an-account-s-private-key) this from your goerli metamask wallet
 - `ETHERSCAN_KEY` - get this from the [etherscan api](https://etherscan.io/myapikey.)
 
 Next, source the environment variables into your shell:
@@ -38,7 +38,7 @@ Next, source the environment variables into your shell:
 
 Use forge to run the deploy script, which can take a few minutes to complete:
 
-`forge script script/IDRegistry.s.sol:IDRegistryScript --rpc-url $RINKEBY_RPC_URL --private-key $RINKEBY_PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY -vvvv`
+`forge script script/NameRegistry.s.sol:NameRegistryScript --rpc-url $GOERLI_RPC_URL --private-key $GOERLI_PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY -vvvv`
 
 The deploy script will generate .json outputs to track the latest deployments and transactions. Do not commit these changes unless you are modifying one of the published contracts above.
 
@@ -65,3 +65,7 @@ Solc Error: dyld[35225]: Library not loaded: '/opt/homebrew/opt/z3/lib/libz3.dyl
   Referenced from: '/Users/<yourusername>/.svm/0.8.16/solc-0.8.16'
   Reason: tried: '/opt/homebrew/opt/z3/lib/libz3.dylib' (no such file), '/usr/local/lib/libz3.dylib' (no such file), '/usr/lib/libz3.dylib' (no such file)
 ```
+
+### Etherscan verification fails
+
+There's an intermittent issue with Etherscan where verification of the contract fails during deployment. Redeploying the contract later seems to resolve this.
