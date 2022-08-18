@@ -50,7 +50,12 @@ contract IDRegistry is ERC2771Context {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    // Last issued id
+    /**
+     * @notice the most recently issued id
+     *
+     * @dev Id's begin at 1 and are issued sequentially. The zero (0) id is not allowed since zero represent the
+     *      absence of a value in solidity.
+     */
     uint256 private idCounter;
 
     // Mapping from custody address to id
@@ -70,15 +75,55 @@ contract IDRegistry is ERC2771Context {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Acquire a Farcaster ID for caller, if it doesn't already have one.
+     * @notice Register an FID for the caller
      *
-     * @param recoveryAddress the initial recovery address, which can be set to zero to disable recovery
-     *
-     * @dev Ids begin at 1 and are issued sequentially by using a uint256 counter to track the last issued id. The
-     *      zero (0) id is not allowed since zero represent the absence of a value in solidity.
+     * @param recovery the initial recovery address, which can be set to zero to disable recovery
      */
-    function register(address recoveryAddress) external payable {
-        _register(recoveryAddress);
+    function register(address recovery) external payable {
+        _register(_msgSender(), recovery);
+    }
+
+    /**
+     * @notice Register an FID for the caller and set a Home
+     *
+     * @param recovery the address which can perform recovery operations, set to zero address to disable.
+     * @param homeUrl the home url for the FID
+     */
+    function register(address recovery, string calldata homeUrl) external payable {
+        _register(_msgSender(), recovery);
+
+        // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
+        // this user at this point in time.
+        emit ChangeHome(idCounter, homeUrl);
+    }
+
+    /**
+     * @notice Register an FID for the target
+     *
+     * @param target the address to register an FID for
+     * @param recovery the address which can perform recovery operations, set to zero address to disable.
+     */
+    function registerTo(address target, address recovery) external payable {
+        _register(target, recovery);
+    }
+
+    /**
+     * @notice Register an FID for the target and set a Home
+     *
+     * @param target the address to register an FID for
+     * @param recovery the address which can perform recovery operations, set to zero address to disable.
+     * @param homeUrl the home url for the FID
+     */
+    function registerTo(
+        address target,
+        address recovery,
+        string calldata homeUrl
+    ) external payable {
+        _register(target, recovery);
+
+        // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
+        // this user at this point in time.
+        emit ChangeHome(idCounter, homeUrl);
     }
 
     /**
@@ -93,24 +138,9 @@ contract IDRegistry is ERC2771Context {
         emit ChangeHome(_id, url);
     }
 
-    /**
-     * @notice Performs both register and changeHome in a single transaction.
-     *
-     * @param recoveryAddress the initial recovery address, which can be set to zero to disable recovery
-     * @param url the home url to emit
-     */
-    function registerWithHome(address recoveryAddress, string calldata url) external payable {
-        _register(recoveryAddress);
-
-        // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
-        // this user at this point in time.
-        emit ChangeHome(idCounter, url);
-    }
-
-    function _register(address recoveryAddress) internal {
-        address _msgSender = _msgSender();
-
-        if (idOf[_msgSender] != 0) revert HasId();
+    // Optimization: inlining this logic into functions can save ~ 20-40 gas per call at the expense of contract size.
+    function _register(address target, address recovery) private {
+        if (idOf[target] != 0) revert HasId();
 
         unchecked {
             // Safety: this is a uint256 value and each transaction increments it by one, which would require
@@ -118,9 +148,9 @@ contract IDRegistry is ERC2771Context {
             idCounter++;
         }
 
-        idOf[_msgSender] = idCounter;
-        recoveryOf[idCounter] = recoveryAddress;
-        emit Register(_msgSender, idCounter, recoveryAddress);
+        idOf[target] = idCounter;
+        recoveryOf[idCounter] = recovery;
+        emit Register(target, idCounter, recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -189,15 +219,15 @@ contract IDRegistry is ERC2771Context {
      *         at any time, or removed by setting it to 0x0. Changing a recovery address will not
      *         unset a currently active recovery request, that must be explicitly cancelled.
      *
-     * @param recoveryAddress the address to set as the recovery.
+     * @param recovery the address to set as the recovery.
      */
-    function changeRecoveryAddress(address recoveryAddress) external payable {
+    function changeRecoveryAddress(address recovery) external payable {
         uint256 id = idOf[_msgSender()];
 
         if (id == 0) revert ZeroId();
 
-        recoveryOf[id] = recoveryAddress;
-        emit ChangeRecoveryAddress(recoveryAddress, id);
+        recoveryOf[id] = recovery;
+        emit ChangeRecoveryAddress(recovery, id);
 
         if (recoveryClockOf[id] != 0) {
             emit CancelRecovery(id);

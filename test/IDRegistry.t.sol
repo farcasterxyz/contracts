@@ -109,9 +109,46 @@ contract IDRegistryTest is Test {
         emit Register(alice, 1, recovery);
         vm.expectEmit(true, true, false, true);
         emit ChangeHome(1, url);
-        idRegistry.registerWithHome(recovery, url);
+        idRegistry.register(recovery, url);
 
         assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
+    }
+
+    function testRegisterTo(
+        address alice,
+        address bob,
+        address recovery
+    ) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != recovery && bob != recovery);
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Register(bob, 1, recovery);
+        idRegistry.registerTo(bob, recovery);
+
+        assertEq(idRegistry.idOf(bob), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
+    }
+
+    function testRegisterToWithHome(
+        address alice,
+        address bob,
+        address recovery,
+        string calldata url
+    ) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != recovery && bob != recovery);
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Register(bob, 1, recovery);
+        vm.expectEmit(true, true, false, true);
+        emit ChangeHome(1, url);
+        idRegistry.registerTo(bob, recovery, url);
+
+        assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
