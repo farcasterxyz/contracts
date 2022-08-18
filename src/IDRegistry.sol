@@ -78,7 +78,7 @@ contract IDRegistry is ERC2771Context {
      *      zero (0) id is not allowed since zero represent the absence of a value in solidity.
      */
     function register(address recoveryAddress) external payable {
-        _register(recoveryAddress);
+        _register(_msgSender(), recoveryAddress);
     }
 
     /**
@@ -100,17 +100,15 @@ contract IDRegistry is ERC2771Context {
      * @param url the home url to emit
      */
     function registerWithHome(address recoveryAddress, string calldata url) external payable {
-        _register(recoveryAddress);
+        _register(_msgSender(), recoveryAddress);
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
         // this user at this point in time.
         emit ChangeHome(idCounter, url);
     }
 
-    function _register(address recoveryAddress) internal {
-        address _msgSender = _msgSender();
-
-        if (idOf[_msgSender] != 0) revert HasId();
+    function _register(address target, address recoveryAddress) internal {
+        if (idOf[target] != 0) revert HasId();
 
         unchecked {
             // Safety: this is a uint256 value and each transaction increments it by one, which would require
@@ -118,9 +116,9 @@ contract IDRegistry is ERC2771Context {
             idCounter++;
         }
 
-        idOf[_msgSender] = idCounter;
+        idOf[target] = idCounter;
         recoveryOf[idCounter] = recoveryAddress;
-        emit Register(_msgSender, idCounter, recoveryAddress);
+        emit Register(target, idCounter, recoveryAddress);
     }
 
     /*//////////////////////////////////////////////////////////////
