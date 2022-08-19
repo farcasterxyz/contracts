@@ -110,6 +110,7 @@ contract NameRegistryV2 is
     mapping(uint256 => address) public recoveryOf;
     mapping(uint256 => uint256) public recoveryClockOf;
     mapping(uint256 => address) public recoveryDestinationOf;
+    uint256 fee;
 
     // New storage values
     uint256 public number;

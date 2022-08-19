@@ -214,7 +214,7 @@ contract NameRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + commitRegisterDelay);
-        nameRegistry.register{value: nameRegistry.FEE()}("alice", alice, "secret", zeroAddress);
+        nameRegistry.register{value: nameRegistry.fee()}("alice", alice, "secret", zeroAddress);
 
         // 3. Register @morty to alice
         bytes32 commitHashMorty = nameRegistry.generateCommit("morty", alice, "secret");
@@ -1579,7 +1579,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.currYear(), 0);
     }
 
-    function testCurrYearPayment() public {
+    function testCurrYearFee() public {
+        // fee = 0.1 ether
         vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
         assertEq(nameRegistry.currYearFee(), 0.01 ether);
 
@@ -1588,6 +1589,46 @@ contract NameRegistryTest is Test {
 
         vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
         assertEq(nameRegistry.currYearFee(), 0.000013698947234906 ether);
+
+        // fee = 0.2 ether
+        vm.prank(owner);
+        nameRegistry.setFee(0.02 ether);
+
+        vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
+        assertEq(nameRegistry.currYearFee(), 0.02 ether);
+
+        vm.warp(1688256000); // GMT Sunday, July 2, 2023 0:00:00
+        assertEq(nameRegistry.currYearFee(), 0.010027397260273972 ether);
+
+        vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
+        assertEq(nameRegistry.currYearFee(), 0.000027397894469812 ether);
+
+        // fee = 0 ether
+        vm.prank(owner);
+        nameRegistry.setFee(0 ether);
+
+        vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
+        assertEq(nameRegistry.currYearFee(), 0);
+
+        vm.warp(1688256000); // GMT Sunday, July 2, 2023 0:00:00
+        assertEq(nameRegistry.currYearFee(), 0);
+
+        vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
+        assertEq(nameRegistry.currYearFee(), 0);
+    }
+
+    function testSetFee() public {
+        assertEq(nameRegistry.fee(), 0.01 ether);
+
+        vm.prank(owner);
+        nameRegistry.setFee(0.02 ether);
+
+        assertEq(nameRegistry.fee(), 0.02 ether);
+    }
+
+    function testCannotSetFeeUnlessOwner() public {
+        vm.expectRevert("Ownable: caller is not the owner");
+        nameRegistry.setFee(0.02 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1603,7 +1644,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + commitRegisterDelay);
 
-        nameRegistry.register{value: nameRegistry.FEE()}("alice", alice, "secret", zeroAddress);
+        nameRegistry.register{value: nameRegistry.fee()}("alice", alice, "secret", zeroAddress);
         vm.stopPrank();
     }
 }
