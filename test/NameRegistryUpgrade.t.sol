@@ -14,7 +14,7 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 /* solhint-disable state-visibility*/
 /* solhint-disable avoid-low-level-calls */
 
-contract NameReg_istryUpgradeTest is Test {
+contract NameRegistryUpgradeTest is Test {
     ERC1967Proxy proxy;
     NameRegistry nameRegistry;
     NameRegistry proxiedNameRegistry;
