@@ -677,6 +677,13 @@ contract NameRegistry is
         _unpause();
     }
 
+    /**
+     * @notice Set the yearly fee
+     */
+    function setFee(uint256 newFee) external onlyOwner {
+        fee = newFee;
+    }
+
     /*//////////////////////////////////////////////////////////////
                           YEARLY PAYMENTS LOGIC
     //////////////////////////////////////////////////////////////*/
