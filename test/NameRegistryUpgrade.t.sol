@@ -14,10 +14,12 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 /* solhint-disable state-visibility*/
 /* solhint-disable avoid-low-level-calls */
 
-contract NameRegistryUpgradeTest is Test {
+contract NameReg_istryUpgradeTest is Test {
     ERC1967Proxy proxy;
     NameRegistry nameRegistry;
+    NameRegistry proxiedNameRegistry;
     NameRegistryV2 nameRegistryV2;
+    NameRegistryV2 proxiedNameRegistryV2;
 
     address proxyAddr;
     address owner = address(0x123);
@@ -33,52 +35,51 @@ contract NameRegistryUpgradeTest is Test {
         proxy = new ERC1967Proxy(address(nameRegistry), "");
         proxyAddr = address(proxy);
 
-        (bool s, ) = address(proxy).call(
-            abi.encodeWithSelector(
-                nameRegistry.initialize.selector,
-                "Farcaster NameRegistry",
-                "FCN",
-                owner,
-                vault,
-                preregistrar
-            )
-        );
-
-        assertEq(s, true);
+        // Cast the Proxy as a NameRegistry so we can call NameRegistry methods easily
+        proxiedNameRegistry = NameRegistry(address(proxyAddr));
+        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", owner, vault, preregistrar);
     }
 
     function testInitializeSetters() public {
-        (, bytes memory returnedData) = address(proxy).call(abi.encodeWithSelector(nameRegistry.owner.selector));
-        address returnedOwner = abi.decode(returnedData, (address));
-        assertEq(returnedOwner, owner);
+        assertEq(proxiedNameRegistry.owner(), owner);
     }
 
     function testUpgrade() public {
-        // 1. Calling a v2-only function from the v1 contract should revert
+        // 1. Calling a v2-only function on the proxy should revert before the upgrade is performed
         vm.expectRevert();
         (bool s1, ) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2.setNumber.selector, 1));
         assertEq(s1, true);
 
-        // 2. Upgrade the proxy to point to the v2 implementation
+        // 2. Call upgrade on the proxy, which swaps the v1 implementation for the v2 implementation, and then recast
+        // the proxy as a NameRegistryV2
         vm.prank(owner);
-        (bool s2, ) = address(proxy).call(
-            abi.encodeWithSelector(nameRegistry.upgradeTo.selector, address(nameRegistryV2))
-        );
-        assertEq(s2, true);
+        proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
+        proxiedNameRegistryV2 = NameRegistryV2(address(proxyAddr));
 
-        // 3. Assert that data stored when proxy was connected to v1 is present after being connected to v2
-        (, bytes memory vaultData) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2.vault.selector));
-        assertEq(abi.decode(vaultData, (address)), vault);
+        // 3. Re-initialize the v2 contract
+        vm.prank(owner);
+        proxiedNameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", owner, vault, preregistrar);
 
-        // 4. Assert that data can be retrieved and stored correctly using v2-only functions
-        (, bytes memory num1) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2.number.selector));
-        assertEq(abi.decode(num1, (uint256)), 0);
+        // 4. Assert that data stored when proxy was connected to v1 is present after being connected to v2
+        assertEq(proxiedNameRegistryV2.vault(), vault);
 
-        (bool s, ) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2.setNumber.selector, 42));
-        assertEq(s, true);
+        // 5. Assert that data can be retrieved and stored correctly using v2-only functions
+        assertEq(proxiedNameRegistryV2.number(), 0);
+        proxiedNameRegistryV2.setNumber(42);
+        assertEq(proxiedNameRegistryV2.number(), 42);
 
-        (, bytes memory num2) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2.number.selector));
-        assertEq(abi.decode(num2, (uint256)), 42);
+        // 6. Assert that the new currYear() implementation works with the upgraded timestamps
+        vm.warp(3158524800); // Sunday, February 2, 2070 0:00:00 GMT
+        assertEq(proxiedNameRegistryV2.currYear(), 2072);
+
+        // Works correctly for known year range [2073 - 2074]
+        vm.warp(3284755200); // Tuesday, February 2, 2074 0:00:00 GMT
+        assertEq(proxiedNameRegistryV2.currYear(), 2074);
+
+        // Does not work after 2076
+        vm.warp(3347827200); // Sunday, February 2, 2076 0:00:00 GMT
+        vm.expectRevert(NameRegistryV2.InvalidTime.selector);
+        assertEq(proxiedNameRegistryV2.currYear(), 0);
     }
 }
 
@@ -93,6 +94,9 @@ contract NameRegistryV2 is
     PausableUpgradeable,
     UUPSUpgradeable
 {
+    // Errors: most are not used and omitted for brevity
+    error InvalidTime();
+
     // Events: are not used and omitted for brevity
 
     // Storage: The layout (ordering of non-constant variables) is preserved exactly as in V1, with
@@ -102,11 +106,12 @@ contract NameRegistryV2 is
     uint256 internal _nextYearIdx;
     address private preregistrar;
     address public vault;
-    uint256[] internal _yearTimestamps;
+    uint256[] public _yearTimestamps;
     mapping(uint256 => address) public recoveryOf;
     mapping(uint256 => uint256) public recoveryClockOf;
     mapping(uint256 => address) public recoveryDestinationOf;
-    // New storage value added for testing
+
+    // New storage values
     uint256 public number;
 
     // Constants: all unused constants are omitted
@@ -119,13 +124,13 @@ contract NameRegistryV2 is
     // Functions: all functions that were implemented are omitted for brevity, unless an abstract
     // interface requires us to reimplement them or we needed to add new functions for testing.
 
-    function initialize(
+    function initializeV2(
         string memory _name,
         string memory _symbol,
         address _owner,
         address _vault,
         address _preregistrar
-    ) public initializer {
+    ) public reinitializer(2) {
         __UUPSUpgradeable_init();
 
         __ERC721_init_unchained(_name, _symbol);
@@ -136,6 +141,12 @@ contract NameRegistryV2 is
 
         vault = _vault;
         preregistrar = _preregistrar;
+
+        _yearTimestamps = [
+            3250454400, // 2073
+            3281990400, // 2074
+            3313526400 // 2075
+        ];
     }
 
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
@@ -161,5 +172,33 @@ contract NameRegistryV2 is
     // New function added for testing
     function setNumber(uint256 _number) public {
         number = _number;
+    }
+
+    // Reimplementing currYear with new logic
+    function currYear() public returns (uint256 year) {
+        unchecked {
+            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
+            if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
+                return _nextYearIdx + 2072;
+            }
+
+            uint256 length = _yearTimestamps.length;
+
+            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 1
+            for (uint256 i = _nextYearIdx + 1; i < length; ) {
+                if (_yearTimestamps[i] > block.timestamp) {
+                    // Slither false positive: https://github.com/crytic/slither/issues/1338
+                    // slither-disable-next-line costly-loop
+                    _nextYearIdx = i;
+                    // Safety: _nextYearIdx is always <= _yearTimestamps.length which can't overflow when added to 2021
+                    return _nextYearIdx + 2072;
+                }
+
+                // Safety: i cannot overflow because length is a pre-determined constant value.
+                i++;
+            }
+
+            revert InvalidTime();
+        }
     }
 }
