@@ -100,6 +100,9 @@ contract NameRegistry is
     // Maps tokenId -> recovery destination, which is left dirty on cancellation or completion to save gas
     mapping(uint256 => address) public recoveryDestinationOf;
 
+    // Yearly fee charged for a username
+    uint256 public fee;
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -107,8 +110,6 @@ contract NameRegistry is
     string public constant BASE_URI = "http://www.farcaster.xyz/u/";
 
     uint256 public constant GRACE_PERIOD = 30 days;
-
-    uint256 public constant FEE = 0.01 ether;
 
     uint256 public constant ESCROW_PERIOD = 3 days;
 
@@ -216,6 +217,8 @@ contract NameRegistry is
             3187296000,
             3218832000 // 2072
         ];
+
+        fee = 0.01 ether;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -356,7 +359,7 @@ contract NameRegistry is
      * @param tokenId the tokenId of the name to renew
      */
     function renew(uint256 tokenId) external payable whenNotPaused {
-        if (msg.value < FEE) revert InsufficientFunds();
+        if (msg.value < fee) revert InsufficientFunds();
 
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
@@ -375,7 +378,7 @@ contract NameRegistry is
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
-        payable(_msgSender()).transfer(msg.value - FEE);
+        payable(_msgSender()).transfer(msg.value - fee);
     }
 
     /**
@@ -727,7 +730,7 @@ contract NameRegistry is
 
             // Safety: nextYearTimestamp is guaranteed to be > block.timestamp and > _timestampOfYear(_currYear) so
             // this cannot underflow
-            return ((nextYearTimestamp - block.timestamp) * FEE) / (nextYearTimestamp - _timestampOfYear(_currYear));
+            return ((nextYearTimestamp - block.timestamp) * fee) / (nextYearTimestamp - _timestampOfYear(_currYear));
         }
     }
 

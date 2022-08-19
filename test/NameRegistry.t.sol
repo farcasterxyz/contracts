@@ -214,7 +214,7 @@ contract NameRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + commitRegisterDelay);
-        nameRegistry.register{value: nameRegistry.FEE()}("alice", alice, "secret", zeroAddress);
+        nameRegistry.register{value: nameRegistry.fee()}("alice", alice, "secret", zeroAddress);
 
         // 3. Register @morty to alice
         bytes32 commitHashMorty = nameRegistry.generateCommit("morty", alice, "secret");
@@ -1603,7 +1603,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + commitRegisterDelay);
 
-        nameRegistry.register{value: nameRegistry.FEE()}("alice", alice, "secret", zeroAddress);
+        nameRegistry.register{value: nameRegistry.fee()}("alice", alice, "secret", zeroAddress);
         vm.stopPrank();
     }
 }
