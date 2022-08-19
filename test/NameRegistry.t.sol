@@ -1566,15 +1566,15 @@ contract NameRegistryTest is Test {
         vm.warp(1607558400); // GMT Thursday, December 10, 2020 0:00:00
         assertEq(nameRegistry.currYear(), 2021);
 
-        // Works correctly for known year range [2021 - 2037]
+        // Works correctly for known year range [2021 - 2072]
         vm.warp(1640095200); // GMT Tuesday, December 21, 2021 14:00:00
         assertEq(nameRegistry.currYear(), 2021);
 
         vm.warp(1670889599); // GMT Monday, December 12, 2022 23:59:59
         assertEq(nameRegistry.currYear(), 2022);
 
-        // Does not work after 2037
-        vm.warp(2161114288); // GMT Friday, January 1, 2038 0:00:00
+        // Does not work after 2072
+        vm.warp(3250454400); // GMT Friday, January 1, 2073 0:00:00
         vm.expectRevert(NameRegistry.InvalidTime.selector);
         assertEq(nameRegistry.currYear(), 0);
     }

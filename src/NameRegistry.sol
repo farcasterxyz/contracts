@@ -70,10 +70,10 @@ contract NameRegistry is
     // update NameRegistryV2 layout in NameRegistryUpdate.t.sol to match. Once contracts are deployed
     // the order of variables should never be modified.
 
-    // Mapping from commitment hash to block number
+    // Maps commitment hash -> block timestamp
     mapping(bytes32 => uint256) public timestampOf;
 
-    // Mapping from tokenID to expiration year
+    // Maps tokenID -> expiration year
     mapping(uint256 => uint256) public expiryOf;
 
     // The index of the next year in the array
@@ -82,24 +82,22 @@ contract NameRegistry is
     // The address that can register usernames during the pre-registration period
     address public preregistrar;
 
-    // The address that reclaims are swept to
+    // The address that reclaims are sent to
     address public vault;
 
     // The epoch timestamp of Jan 1 for each year starting from 2022 used to determine the current year
     // Must be set in the initializer since non-constant variables are unsafe to declare otherwise.
     // solhint-disable-next-line max-line-length
     // See: https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#avoid-initial-values-in-field-declarations
-    uint256[] internal _yearTimestamps;
+    uint256[] public _yearTimestamps;
 
-    // Mapping from tokenId to recoveryAddress
+    // Maps tokenId ->  recovery address
     mapping(uint256 => address) public recoveryOf;
 
-    // Mapping from tokenId to recovery timestamp in seconds, which is set to zero on cancellation
-    // or completion
+    // Maps tokenId -> recovery timestamp in seconds, which is set to zero on cancellation or completion
     mapping(uint256 => uint256) public recoveryClockOf;
 
-    // Mapping from tokenId to recovery destination address, which is not unset and left dirty on
-    // cancellation or completion to save gas.
+    // Maps tokenId -> recovery destination, which is left dirty on cancellation or completion to save gas
     mapping(uint256 => address) public recoveryDestinationOf;
 
     /*//////////////////////////////////////////////////////////////
@@ -163,8 +161,10 @@ contract NameRegistry is
         vault = _vault;
         preregistrar = _preregistrar;
 
+        // Audit: verify the accuracy of these timestamps using an alternative calculator
+        // epochconverter.com was used to generate these
         _yearTimestamps = [
-            1640995200,
+            1640995200, // 2022
             1672531200,
             1704067200,
             1735689600,
@@ -174,13 +174,47 @@ contract NameRegistry is
             1861920000,
             1893456000,
             1924992000,
-            1956528000,
+            1956528000, // 2032
             1988150400,
             2019686400,
             2051222400,
             2082758400,
             2114380800,
-            2145916800
+            2145916800,
+            2177452800,
+            2208988800,
+            2240611200,
+            2272147200, // 2042
+            2303683200,
+            2335219200,
+            2366841600,
+            2398377600,
+            2429913600,
+            2461449600,
+            2493072000,
+            2524608000,
+            2556144000,
+            2587680000, // 2052
+            2619302400,
+            2650838400,
+            2682374400,
+            2713910400,
+            2745532800,
+            2777068800,
+            2808604800,
+            2840140800,
+            2871763200,
+            2903299200, // 2062
+            2934835200,
+            2966371200,
+            2997993600,
+            3029529600,
+            3061065600,
+            3092601600,
+            3124224000,
+            3155760000,
+            3187296000,
+            3218832000 // 2072
         ];
     }
 
@@ -645,8 +679,13 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Returns the current year for any year between 2021 and 2037.
+     * @notice Returns the current year for any year between 2021 and 2072.
+     *
+     * @dev The year is determined by comparing the current timestamp against an array of known timestamps for Jan 1
+     *      of each year. The array contains timestamps upto 2072 after which the contract will start failing. This
+     *      can be resolved by deploying a new contract with updated timestamps in the initializer.
      */
+
     function currYear() public returns (uint256 year) {
         unchecked {
             // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
