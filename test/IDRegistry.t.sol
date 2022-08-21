@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.15;
+pragma solidity ^0.8.16;
 
 import "forge-std/Test.sol";
 import {IDRegistry} from "../src/IDRegistry.sol";
@@ -25,6 +25,7 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     address zeroAddress = address(0);
+    address owner = address(this);
     address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     uint256 escrowPeriod = 259_200;
 
@@ -40,6 +41,7 @@ contract IDRegistryTest is Test {
         vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
         vm.assume(alice != recovery);
 
+        idRegistry.disableTrustedRegister();
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit Register(alice, 1, recovery);
@@ -63,6 +65,17 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.recoveryOf(2), zeroAddress);
     }
 
+    function testCannotRegisterWhenTrustedSenderEnabled(address alice, address recovery) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
+        idRegistry.register(recovery);
+
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.recoveryOf(1), zeroAddress);
+    }
+
     function testCannotRegisterTwice(address alice) public {
         vm.assume(alice != trustedForwarder);
         registerWithRecovery(alice, zeroAddress);
@@ -72,6 +85,107 @@ contract IDRegistryTest is Test {
         idRegistry.register(zeroAddress);
 
         assertEq(idRegistry.idOf(alice), 1);
+    }
+
+    function testCannotChangeHomeWithoutId(address alice, string calldata url) public {
+        vm.assume(alice != trustedForwarder);
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.ZeroId.selector);
+        idRegistry.changeHome(url);
+    }
+
+    function testRegisterWithOptions(
+        address alice,
+        address bob,
+        address recovery,
+        string calldata url
+    ) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        idRegistry.disableTrustedRegister();
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Register(bob, 1, recovery);
+        vm.expectEmit(true, true, false, true);
+        emit ChangeHome(1, url);
+        idRegistry.register(bob, recovery, url);
+
+        assertEq(idRegistry.idOf(bob), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
+    }
+
+    function testCannotRegisterWithOptionsWhenTrustedSenderEnabled(
+        address alice,
+        address bob,
+        address recovery,
+        string calldata url
+    ) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        assertEq(idRegistry.trustedRegisterEnabled(), true);
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
+        idRegistry.register(bob, recovery, url);
+
+        assertEq(idRegistry.idOf(bob), 0);
+        assertEq(idRegistry.recoveryOf(1), zeroAddress);
+    }
+
+    function testRegisterFromTrustedSender(
+        address alice,
+        address bob,
+        address recovery,
+        string calldata url
+    ) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        idRegistry.setTrustedSender(alice);
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Register(bob, 1, recovery);
+        vm.expectEmit(true, true, false, true);
+        emit ChangeHome(1, url);
+        idRegistry.trustedRegister(bob, recovery, url);
+
+        assertEq(idRegistry.idOf(bob), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
+    }
+
+    function testCannotRegisterFromTrustedSenderUnlessEnabled(
+        address alice,
+        address bob,
+        address recovery,
+        string calldata url
+    ) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        idRegistry.disableTrustedRegister();
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.Registrable.selector);
+        idRegistry.trustedRegister(bob, recovery, url);
+
+        assertEq(idRegistry.idOf(bob), 0);
+        assertEq(idRegistry.recoveryOf(1), zeroAddress);
+    }
+
+    function testCannotRegisterFromTrustedSenderUnlessSender(
+        address alice,
+        address bob,
+        address charlie,
+        address recovery,
+        string calldata url
+    ) public {
+        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != charlie);
+        idRegistry.setTrustedSender(charlie);
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
+        idRegistry.trustedRegister(bob, recovery, url);
+
+        assertEq(idRegistry.idOf(bob), 0);
+        assertEq(idRegistry.recoveryOf(1), zeroAddress);
     }
 
     function testChangeHome(
@@ -86,70 +200,6 @@ contract IDRegistryTest is Test {
         vm.expectEmit(true, true, false, true);
         emit ChangeHome(1, url);
         idRegistry.changeHome(url);
-    }
-
-    function testCannotChangeHomeWithoutId(address alice, string calldata url) public {
-        vm.assume(alice != trustedForwarder);
-
-        vm.prank(alice);
-        vm.expectRevert(IDRegistry.ZeroId.selector);
-        idRegistry.changeHome(url);
-    }
-
-    function testRegisterWithHome(
-        address alice,
-        address recovery,
-        string calldata url
-    ) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
-        vm.assume(alice != recovery);
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit Register(alice, 1, recovery);
-        vm.expectEmit(true, true, false, true);
-        emit ChangeHome(1, url);
-        idRegistry.register(recovery, url);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.recoveryOf(1), recovery);
-    }
-
-    function testRegisterTo(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
-        vm.assume(alice != recovery && bob != recovery);
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit Register(bob, 1, recovery);
-        idRegistry.registerTo(bob, recovery);
-
-        assertEq(idRegistry.idOf(bob), 1);
-        assertEq(idRegistry.recoveryOf(1), recovery);
-    }
-
-    function testRegisterToWithHome(
-        address alice,
-        address bob,
-        address recovery,
-        string calldata url
-    ) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
-        vm.assume(alice != recovery && bob != recovery);
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit Register(bob, 1, recovery);
-        vm.expectEmit(true, true, false, true);
-        emit ChangeHome(1, url);
-        idRegistry.registerTo(bob, recovery, url);
-
-        assertEq(idRegistry.idOf(bob), 1);
-        assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -622,10 +672,69 @@ contract IDRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               OWNER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testSetTrustedSender(address alice) public {
+        vm.assume(alice != trustedForwarder);
+        assertEq(idRegistry.owner(), owner);
+
+        idRegistry.setTrustedSender(alice);
+        assertEq(idRegistry.trustedSender(), alice);
+    }
+
+    function testCannotSetTrustedSenderUnlessOwner(address alice, address bob) public {
+        vm.assume(alice != trustedForwarder && alice != zeroAddress);
+        vm.assume(idRegistry.owner() != alice);
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.setTrustedSender(bob);
+        assertEq(idRegistry.trustedSender(), zeroAddress);
+    }
+
+    function testDisableTrustedSender() public {
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.trustedRegisterEnabled(), true);
+
+        idRegistry.disableTrustedRegister();
+        assertEq(idRegistry.trustedRegisterEnabled(), false);
+    }
+
+    function testCannotDisableTrustedSenderUnlessOwner(address alice) public {
+        vm.assume(alice != trustedForwarder && alice != zeroAddress);
+        vm.assume(idRegistry.owner() != alice);
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.disableTrustedRegister();
+        assertEq(idRegistry.trustedRegisterEnabled(), true);
+    }
+
+    function testTransferOwnership(address alice) public {
+        vm.assume(alice != trustedForwarder && alice != zeroAddress);
+
+        idRegistry.transferOwnership(alice);
+        assertEq(idRegistry.owner(), alice);
+    }
+
+    function testCannotTransferOwnershipUnlessOwner(address alice, address bob) public {
+        vm.assume(alice != trustedForwarder && alice != zeroAddress && bob != zeroAddress);
+        vm.assume(alice != owner);
+        assertEq(idRegistry.owner(), owner);
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.transferOwnership(bob);
+        assertEq(idRegistry.owner(), owner);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
     function registerWithRecovery(address alice, address bob) internal {
+        idRegistry.disableTrustedRegister();
         vm.prank(alice);
         idRegistry.register(bob);
     }

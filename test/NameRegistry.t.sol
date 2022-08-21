@@ -34,10 +34,10 @@ contract NameRegistryTest is Test {
                               CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
-    address owner = address(0x001);
+    address owner = address(this);
     address vault = address(this);
     address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    address preregistrar = address(0x572e3354fBA09e865a373aF395933d8862CFAE54);
+    address trustedSender = address(0x572e3354fBA09e865a373aF395933d8862CFAE54);
     address zeroAddress = address(0);
     address alice = address(0x123);
     address bob = address(0x456);
@@ -47,6 +47,7 @@ contract NameRegistryTest is Test {
     uint256 escrowPeriod = 3 days;
     uint256 commitRegisterDelay = 60;
 
+    uint256 timestamp2022 = 1640995200; // Sun, Jan 1, 2022 0:00:00 GMT
     uint256 timestamp2023 = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
     uint256 timestamp2024 = 1704067200; // Sun, Jan 1, 2024 0:00:00 GMT
 
@@ -62,14 +63,7 @@ contract NameRegistryTest is Test {
         proxyAddr = address(nameRegistryProxy);
 
         (bool s, ) = address(nameRegistryProxy).call(
-            abi.encodeWithSelector(
-                nameRegistry.initialize.selector,
-                "Farcaster NameRegistry",
-                "FCN",
-                owner,
-                vault,
-                preregistrar
-            )
+            abi.encodeWithSelector(nameRegistry.initialize.selector, "Farcaster NameRegistry", "FCN", vault)
         );
 
         assertEq(s, true);
@@ -132,19 +126,18 @@ contract NameRegistryTest is Test {
     }
 
     function testMakeCommit() public {
-        vm.startPrank(alice);
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS());
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
 
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
+        vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
-        vm.stopPrank();
     }
 
     function testCannotMakeCommitDuringPreregistration() public {
         vm.startPrank(alice);
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
 
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
         vm.expectRevert(NameRegistry.NotRegistrable.selector);
@@ -158,6 +151,9 @@ contract NameRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testRegister() public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         // 1. Give alice money and fast forward to 2022 to begin registration.
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
@@ -183,6 +179,9 @@ contract NameRegistryTest is Test {
     }
 
     function testRegisterToAnotherAddress() public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         // 1. Give alice money and fast forward to 2022 to begin registration.
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
@@ -205,6 +204,9 @@ contract NameRegistryTest is Test {
     }
 
     function testRegisterWorksWhenAlreadyOwningAName() public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         // 1. Give alice money and fast forward to 2022 to begin registration.
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
@@ -233,6 +235,9 @@ contract NameRegistryTest is Test {
     }
 
     function testRegisterAfterUnpausing() public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         // 1. Make commitment to register the name @alice
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
@@ -257,6 +262,9 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotRegisterTheSameNameTwice() public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         // 1. Give alice and bob money and have alice register @alice
         vm.startPrank(alice);
         vm.deal(alice, 10_000 ether);
@@ -292,6 +300,9 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotRegisterWithoutPayment() public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
 
@@ -305,6 +316,9 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotRegisterWithInvalidCommit(address _owner, bytes32 secret) public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         // 1. Fund alice and set up the commit hashes to register the name bob
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
@@ -339,6 +353,9 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotRegisterBeforeDelay() public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         // 1. Give alice money and fast forward to 2022 to begin registration.
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
@@ -357,11 +374,11 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotRegisterWithInvalidNames(address _owner, bytes32 secret) public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         bytes16 incorrectUsername = "al{ce";
         bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, _owner, secret));
-
-        // 1. Fast forward to the registration period
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS());
         nameRegistry.makeCommit(invalidCommit);
 
         // Register using an incorrect name
@@ -370,6 +387,9 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotRegisterWhilePaused() public {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         // 1. Make the commitment to register @alice
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
@@ -393,38 +413,47 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          PREREGISTRATION TESTS
+                         REGISTER TRUSTED TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testPreregister() public {
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
+    function testTrustedRegister() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
+        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        vm.warp(timestamp2022);
 
-        vm.prank(preregistrar);
+        vm.prank(trustedSender);
         vm.expectEmit(true, true, true, false);
         emit Transfer(address(0), alice, aliceTokenId);
-        nameRegistry.preregister(alice, "alice", zeroAddress);
+        nameRegistry.trustedRegister(alice, "alice", zeroAddress);
 
         assertEq(nameRegistry.ownerOf(aliceTokenId), alice);
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
     }
 
-    function testPreregisterSetsRecoveryAddress() public {
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
+    function testTrustedRegisterSetsRecoveryAddress() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
+        assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
-        vm.prank(preregistrar);
-        nameRegistry.preregister(alice, "alice", bob);
+        vm.prank(trustedSender);
+        nameRegistry.trustedRegister(alice, "alice", bob);
 
         assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
 
         vm.stopPrank();
     }
 
-    function testCannotPreregisterAfterRegistrationStarts() public {
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS());
+    function testCannotTrustedRegisterAfterDisabled() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
 
-        vm.prank(preregistrar);
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
+        vm.prank(trustedSender);
         vm.expectRevert(NameRegistry.Registrable.selector);
-        nameRegistry.preregister(alice, "alice", zeroAddress);
+        nameRegistry.trustedRegister(alice, "alice", zeroAddress);
 
         vm.expectRevert(NameRegistry.Registrable.selector);
         assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
@@ -433,35 +462,42 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotPreregisterTwice() public {
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
+    function testCannotTrustedRegisterTwice() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
+        assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
-        vm.prank(preregistrar);
-        nameRegistry.preregister(alice, "alice", zeroAddress);
+        vm.prank(trustedSender);
+        nameRegistry.trustedRegister(alice, "alice", zeroAddress);
 
-        vm.prank(preregistrar);
+        vm.prank(trustedSender);
         vm.expectRevert("ERC721: token already minted");
-        nameRegistry.preregister(alice, "alice", zeroAddress);
+        nameRegistry.trustedRegister(alice, "alice", zeroAddress);
 
         vm.stopPrank();
     }
 
-    function testCannotPreregisterFromArbitraryAddress() public {
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
+    function testCannotTrustedRegisterFromArbitrarySender() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
+        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+
         vm.expectRevert(NameRegistry.Unauthorized.selector);
-        nameRegistry.preregister(alice, "alice", zeroAddress);
+        nameRegistry.trustedRegister(alice, "alice", zeroAddress);
         vm.stopPrank();
     }
 
-    function testCannotPreregisterWhilePaused() public {
-        vm.warp(nameRegistry.PREREGISTRATION_END_TS() - 1);
+    function testCannotTrustedRegisterWhilePaused() public {
+        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
 
         vm.prank(owner);
         nameRegistry.pause();
 
         vm.expectRevert("Pausable: paused");
-        vm.prank(preregistrar);
-        nameRegistry.preregister(alice, "alice", zeroAddress);
+        vm.prank(trustedSender);
+        nameRegistry.trustedRegister(alice, "alice", zeroAddress);
 
         vm.expectRevert(NameRegistry.Registrable.selector);
         assertEq(nameRegistry.ownerOf(aliceTokenId), address(0));
@@ -1025,7 +1061,7 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotChangeRecoveryUnlessOwner() public {
+    function testCannotChangeRecoveryAddressUnlessOwner() public {
         registerAlice();
 
         vm.prank(bob);
@@ -1035,7 +1071,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testCannotChangeRecoveryIfExpired() public {
+    function testCannotChangeRecoveryAddressIfExpired() public {
         registerAlice();
 
         vm.warp(aliceRenewableTs);
@@ -1052,7 +1088,7 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotChangeRecoveryIfRegistrable() public {
+    function testCannotChangeRecoveryAddressIfRegistrable() public {
         uint256 bobTokenId = uint256(bytes32("bob"));
 
         vm.expectRevert(NameRegistry.Registrable.selector);
@@ -1062,7 +1098,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testCannotChangeRecoveryIfPaused() public {
+    function testCannotChangeRecoveryAddressIfPaused() public {
         registerAlice();
 
         vm.prank(owner);
@@ -1468,7 +1504,7 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              RECLAIM TESTS
+                           OWNER ACTION TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testReclaimRegisteredNames() public {
@@ -1557,6 +1593,68 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(aliceTokenId), timestamp2023);
     }
 
+    // Tests below use fuzzing and use the names alice2 and bob2 to prevent collision with name convention in non
+    // fuzzed tests, and will be renamed when all tests implement fuzzing.
+
+    function testSetTrustedSender(address alice2) public {
+        vm.assume(alice2 != nameRegistry.trustedSender());
+
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(alice2);
+        assertEq(nameRegistry.trustedSender(), alice2);
+    }
+
+    function testCannotSetTrustedSenderUnlessOwner(address alice2, address bob2) public {
+        vm.assume(alice2 != trustedForwarder);
+        vm.assume(alice2 != nameRegistry.owner() && alice2 != zeroAddress);
+        assertEq(nameRegistry.trustedSender(), zeroAddress);
+
+        vm.prank(alice2);
+        vm.expectRevert("Ownable: caller is not the owner");
+        nameRegistry.setTrustedSender(bob2);
+        assertEq(nameRegistry.trustedSender(), zeroAddress);
+    }
+
+    function testDisableTrustedSender() public {
+        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+        assertEq(nameRegistry.trustedRegisterEnabled(), false);
+    }
+
+    function testCannotDisableTrustedSenderUnlessOwner(address alice2) public {
+        vm.assume(alice2 != trustedForwarder);
+        vm.assume(alice2 != nameRegistry.owner() && alice2 != zeroAddress);
+        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+
+        vm.prank(alice2);
+        vm.expectRevert("Ownable: caller is not the owner");
+        nameRegistry.disableTrustedRegister();
+        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+    }
+
+    function testTransferOwnership(address alice2) public {
+        vm.assume(alice2 != zeroAddress);
+        assertEq(nameRegistry.owner(), owner);
+
+        vm.prank(owner);
+        nameRegistry.transferOwnership(alice2);
+        assertEq(nameRegistry.owner(), alice2);
+    }
+
+    function testCannotTransferOwnershipUnlessOwner(address alice2, address bob2) public {
+        vm.assume(alice2 != trustedForwarder);
+        vm.assume(alice2 != owner);
+        vm.assume(alice2 != zeroAddress && bob2 != zeroAddress);
+        assertEq(nameRegistry.owner(), owner);
+
+        vm.prank(alice2);
+        vm.expectRevert("Ownable: caller is not the owner");
+        nameRegistry.transferOwnership(bob2);
+        assertEq(nameRegistry.owner(), owner);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           YEARLY PAYMENTS TESTS
     //////////////////////////////////////////////////////////////*/
@@ -1626,7 +1724,11 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.fee(), 0.02 ether);
     }
 
-    function testCannotSetFeeUnlessOwner() public {
+    function testCannotSetFeeUnlessOwner(address alice2) public {
+        vm.assume(alice2 != trustedForwarder);
+        vm.assume(alice2 != owner);
+
+        vm.prank(alice2);
         vm.expectRevert("Ownable: caller is not the owner");
         nameRegistry.setFee(0.02 ether);
     }
@@ -1636,6 +1738,9 @@ contract NameRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function registerAlice() internal {
+        vm.prank(owner);
+        nameRegistry.disableTrustedRegister();
+
         vm.deal(alice, 10_000 ether);
         vm.warp(aliceRegisterTs);
 

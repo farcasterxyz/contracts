@@ -79,9 +79,6 @@ contract NameRegistry is
     // The index of the next year in the array
     uint256 internal _nextYearIdx;
 
-    // The address that can register usernames during the pre-registration period
-    address public preregistrar;
-
     // The address that reclaims are sent to
     address public vault;
 
@@ -103,6 +100,12 @@ contract NameRegistry is
     // Yearly fee charged for a username
     uint256 public fee;
 
+    // The trusted sender for preregistration
+    address public trustedSender;
+
+    // Only allow calls to preregister from the trusted sender
+    bool public trustedRegisterEnabled;
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -112,8 +115,6 @@ contract NameRegistry is
     uint256 public constant GRACE_PERIOD = 30 days;
 
     uint256 public constant ESCROW_PERIOD = 3 days;
-
-    uint256 public constant PREREGISTRATION_END_TS = 1667286000; // 2022, November 1 (TODO: Replace with final date)
 
     /*//////////////////////////////////////////////////////////////
                       CONSTRUCTORS AND INITIALIZERS
@@ -146,21 +147,17 @@ contract NameRegistry is
     function initialize(
         string memory _name,
         string memory _symbol,
-        address _owner,
-        address _vault,
-        address _preregistrar
+        address _vault
     ) external initializer {
         __ERC721_init(_name, _symbol);
 
         __Pausable_init();
 
-        // Initialize the owner to the deployer and then transfer it to _owner
         __Ownable_init();
-        transferOwnership(_owner);
 
         __UUPSUpgradeable_init();
+
         vault = _vault;
-        preregistrar = _preregistrar;
 
         // Audit: verify the accuracy of these timestamps using an alternative calculator
         // epochconverter.com was used to generate these
@@ -219,6 +216,8 @@ contract NameRegistry is
         ];
 
         fee = 0.01 ether;
+
+        trustedRegisterEnabled = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -263,7 +262,7 @@ contract NameRegistry is
      * @param commit the commitment hash to be persisted on-chain
      */
     function makeCommit(bytes32 commit) external {
-        if (block.timestamp < PREREGISTRATION_END_TS) revert NotRegistrable();
+        if (trustedRegisterEnabled) revert NotRegistrable();
 
         timestampOf[commit] = block.timestamp;
     }
@@ -277,21 +276,21 @@ contract NameRegistry is
      * @param username the username to register
      * @param to the address that will claim the username
      * @param secret the secret that protects the commitment
-     * @param recoveryAddress address which can recovery the username if the custody address is lost
+     * @param recovery address which can recovery the username if the custody address is lost
      */
     function register(
         bytes16 username,
         address to,
         bytes32 secret,
-        address recoveryAddress
+        address recovery
     ) external payable {
         bytes32 commit = generateCommit(username, to, secret);
 
         uint256 _currYearFee = currYearFee();
         if (msg.value < _currYearFee) revert InsufficientFunds();
 
-        // Assumption: We assume that timestampOf[commit] will always be zero before
-        // PREREGISTRATION_END_TS and therefore this will always fail during pre-registration.
+        // Assumption: We assume that timestampOf[commit] will always be zero while trustedRegisterEnabled is true
+        // and therefore this will always fail until the general registration phase is open.
         uint256 _commitBlock = timestampOf[commit];
         if (_commitBlock == 0 || _commitBlock + 60 > block.timestamp) revert InvalidCommit();
         delete timestampOf[commit];
@@ -306,7 +305,7 @@ contract NameRegistry is
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
-        recoveryOf[tokenId] = recoveryAddress;
+        recoveryOf[tokenId] = recovery;
 
         payable(_msgSender()).transfer(msg.value - _currYearFee);
 
@@ -314,18 +313,18 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Mint a reserved username during the pre-registration period from the preregistrar.
+     * @notice Mint a username during the invitation period from the trusted sender.
      *
      * @dev The function is pausable since it invokes _transfer by way of _mint.
      *
      * @param to the address that will claim the username
      * @param username the username to register
-     * @param recoveryAddress address which can recovery the username if the custody address is lost
+     * @param recovery address which can recovery the username if the custody address is lost
      */
-    function preregister(
+    function trustedRegister(
         address to,
         bytes16 username,
-        address recoveryAddress
+        address recovery
     ) external payable {
         /**
          *
@@ -333,14 +332,13 @@ contract NameRegistry is
          *
          * 1. Commit-reveal scheme is unnecessary here since front-running is not possible.
          *
-         * 2. We do not charge for pre-registration of names.
+         * 2. We do not charge for trusted registration
          *
-         * 3. Usernames are not validated and this must be handled by the preregistrar.
+         * 3. Usernames are not validated and this must be handled by the trusted sender.
          */
 
-        if (block.timestamp >= PREREGISTRATION_END_TS) revert Registrable();
-
-        if (_msgSender() != preregistrar) revert Unauthorized();
+        if (!trustedRegisterEnabled) revert Registrable();
+        if (_msgSender() != trustedSender) revert Unauthorized();
 
         uint256 tokenId = uint256(bytes32(username));
         _mint(to, tokenId);
@@ -350,7 +348,7 @@ contract NameRegistry is
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
-        recoveryOf[tokenId] = recoveryAddress;
+        recoveryOf[tokenId] = recovery;
     }
 
     /**
@@ -390,9 +388,9 @@ contract NameRegistry is
      *      gas-optimzied approximations for exp and ln that introduce a -3% error for every period
      *
      * @param tokenId the tokenId of the username to bid on
-     * @param recoveryAddress address which can recovery the username if the custody address is lost
+     * @param recovery address which can recovery the username if the custody address is lost
      */
-    function bid(uint256 tokenId, address recoveryAddress) external payable {
+    function bid(uint256 tokenId, address recovery) external payable {
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
 
@@ -430,7 +428,7 @@ contract NameRegistry is
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
-        recoveryOf[tokenId] = recoveryAddress;
+        recoveryOf[tokenId] = recovery;
 
         payable(msgSender).transfer(msg.value - price);
     }
@@ -552,13 +550,13 @@ contract NameRegistry is
     /**
      * @notice Set a recovery address which can transfer the caller's username to a new address.
      *
-     * @param recoveryAddress address which can recovery the username if the custody address is lost
+     * @param recovery address which can recovery the username if the custody address is lost
      */
-    function changeRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable whenNotPaused {
+    function changeRecoveryAddress(uint256 tokenId, address recovery) external payable whenNotPaused {
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
-        recoveryOf[tokenId] = recoveryAddress;
-        emit ChangeRecoveryAddress(recoveryAddress, tokenId);
+        recoveryOf[tokenId] = recovery;
+        emit ChangeRecoveryAddress(recovery, tokenId);
 
         if (recoveryClockOf[tokenId] != 0) {
             emit CancelRecovery(tokenId);
@@ -620,8 +618,7 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Cancels a transfer request if the caller is the recoveryAddress or the
-     *         custodyAddress
+     * @notice Cancels a transfer request if the caller is the recovery or the custodyAddress
      *
      * @dev cancelRecovery is allowed even when the contract is paused to prevent the state where a user might be
      *      unable to cancel a recovery request because the contract was paused for the escrow duration.
@@ -642,7 +639,7 @@ contract NameRegistry is
     }
 
     /*//////////////////////////////////////////////////////////////
-                               ADMIN LOGIC
+                              OWNER ACTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -682,6 +679,20 @@ contract NameRegistry is
      */
     function setFee(uint256 newFee) external onlyOwner {
         fee = newFee;
+    }
+
+    /**
+     * @notice Changes the address from which registerTrusted calls can be made
+     */
+    function setTrustedSender(address _trustedSender) external onlyOwner {
+        trustedSender = _trustedSender;
+    }
+
+    /**
+     * @notice Disables registerTrusted and enables register calls from any address.
+     */
+    function disableTrustedRegister() external onlyOwner {
+        trustedRegisterEnabled = false;
     }
 
     /*//////////////////////////////////////////////////////////////

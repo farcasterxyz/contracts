@@ -1,5 +1,5 @@
 [profile.default]
-fuzz_runs = 1000
+fuzz_runs = 1_000
 libs = ['lib']
 gas_reports = ["*"]
 optimizer = true
