@@ -27,8 +27,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     error Unauthorized(); // The caller does not have the authority to perform this action.
     error ZeroId(); // The id is zero, which is invalid
     error HasId(); // The custody address has another id
-    error TrustedSenderDisabled(); // The trusted sender methods cannot be used
-    error UntrustedSender(); // The sender does not match the trusted sender
+    error Registrable(); // The trusted sender methods cannot be used when state is registrable
 
     error InvalidRecoveryAddr(); // The recovery cannot be the same as the custody address
     error NoRecovery(); // The recovery request for this id could not be found
@@ -61,7 +60,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     address public trustedSender;
 
     // Only allow calls to preregister from the trusted sender
-    bool public trustedSenderEnabled = true;
+    bool public trustedRegisterEnabled = true;
 
     // Mapping from custody address to id
     mapping(address => uint256) public idOf;
@@ -86,14 +85,14 @@ contract IDRegistry is ERC2771Context, Ownable {
      */
     // Optimization: if we don't need the recovery address and can avoid the assginment, we save about 2500 gas
     function register(address recovery) external payable {
-        if (trustedSenderEnabled) revert UntrustedSender();
+        if (trustedRegisterEnabled) revert Unauthorized();
         _register(_msgSender(), recovery);
     }
 
     /**
      * @notice Register an FID for another address and configure all optional settings
      *
-     * @dev Slightly more gas efficient than calling registerFromTrustedSender post-registration
+     * @dev Slightly more gas efficient than calling trustedRegister post-registration
      *
      * @param to the address to register an FID for
      * @param recovery the address which can perform recovery operations
@@ -104,7 +103,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         address recovery,
         string calldata url
     ) external payable {
-        if (trustedSenderEnabled) revert UntrustedSender();
+        if (trustedRegisterEnabled) revert Unauthorized();
         _register(to, recovery);
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
@@ -119,12 +118,12 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @param recovery the address which can perform recovery operations, set to zero address to disable.
      * @param url the home url for the FID
      */
-    function registerFromTrustedSender(
+    function trustedRegister(
         address to,
         address recovery,
         string calldata url
     ) external payable {
-        if (!trustedSenderEnabled) revert TrustedSenderDisabled();
+        if (!trustedRegisterEnabled) revert Registrable();
         if (_msgSender() != trustedSender) revert Unauthorized();
 
         _register(to, recovery);
@@ -317,8 +316,8 @@ contract IDRegistry is ERC2771Context, Ownable {
         trustedSender = _trustedSender;
     }
 
-    function disableTrustedSender() external onlyOwner {
-        trustedSenderEnabled = false;
+    function disableTrustedRegister() external onlyOwner {
+        trustedRegisterEnabled = false;
     }
 
     /*//////////////////////////////////////////////////////////////

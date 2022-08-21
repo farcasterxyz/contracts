@@ -40,7 +40,7 @@ contract IDRegistryTest is Test {
         vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
         vm.assume(alice != recovery);
 
-        idRegistry.disableTrustedSender();
+        idRegistry.disableTrustedRegister();
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit Register(alice, 1, recovery);
@@ -68,7 +68,7 @@ contract IDRegistryTest is Test {
         vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
 
         vm.prank(alice);
-        vm.expectRevert(IDRegistry.UntrustedSender.selector);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.register(recovery);
 
         assertEq(idRegistry.idOf(alice), 0);
@@ -101,7 +101,7 @@ contract IDRegistryTest is Test {
         string calldata url
     ) public {
         vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
-        idRegistry.disableTrustedSender();
+        idRegistry.disableTrustedRegister();
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
@@ -121,10 +121,10 @@ contract IDRegistryTest is Test {
         string calldata url
     ) public {
         vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
-        assertEq(idRegistry.trustedSenderEnabled(), true);
+        assertEq(idRegistry.trustedRegisterEnabled(), true);
 
         vm.prank(alice);
-        vm.expectRevert(IDRegistry.UntrustedSender.selector);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.register(bob, recovery, url);
 
         assertEq(idRegistry.idOf(bob), 0);
@@ -145,7 +145,7 @@ contract IDRegistryTest is Test {
         emit Register(bob, 1, recovery);
         vm.expectEmit(true, true, false, true);
         emit ChangeHome(1, url);
-        idRegistry.registerFromTrustedSender(bob, recovery, url);
+        idRegistry.trustedRegister(bob, recovery, url);
 
         assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.recoveryOf(1), recovery);
@@ -158,11 +158,11 @@ contract IDRegistryTest is Test {
         string calldata url
     ) public {
         vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
-        idRegistry.disableTrustedSender();
+        idRegistry.disableTrustedRegister();
 
         vm.prank(alice);
-        vm.expectRevert(IDRegistry.TrustedSenderDisabled.selector);
-        idRegistry.registerFromTrustedSender(bob, recovery, url);
+        vm.expectRevert(IDRegistry.Registrable.selector);
+        idRegistry.trustedRegister(bob, recovery, url);
 
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.recoveryOf(1), zeroAddress);
@@ -181,7 +181,7 @@ contract IDRegistryTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.Unauthorized.selector);
-        idRegistry.registerFromTrustedSender(bob, recovery, url);
+        idRegistry.trustedRegister(bob, recovery, url);
 
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.recoveryOf(1), zeroAddress);
@@ -694,10 +694,10 @@ contract IDRegistryTest is Test {
 
     function testDisableTrustedSender() public {
         assertEq(idRegistry.owner(), address(this));
-        assertEq(idRegistry.trustedSenderEnabled(), true);
+        assertEq(idRegistry.trustedRegisterEnabled(), true);
 
-        idRegistry.disableTrustedSender();
-        assertEq(idRegistry.trustedSenderEnabled(), false);
+        idRegistry.disableTrustedRegister();
+        assertEq(idRegistry.trustedRegisterEnabled(), false);
     }
 
     function testCannotDisableTrustedSenderUnlessOwner(address alice) public {
@@ -706,8 +706,8 @@ contract IDRegistryTest is Test {
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.disableTrustedSender();
-        assertEq(idRegistry.trustedSenderEnabled(), true);
+        idRegistry.disableTrustedRegister();
+        assertEq(idRegistry.trustedRegisterEnabled(), true);
     }
 
     function testTransferOwnership(address alice) public {
@@ -733,7 +733,7 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function registerWithRecovery(address alice, address bob) internal {
-        idRegistry.disableTrustedSender();
+        idRegistry.disableTrustedRegister();
         vm.prank(alice);
         idRegistry.register(bob);
     }
