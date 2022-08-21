@@ -12,13 +12,14 @@ Documentation that covers the high-level functionality of each contract in the s
 
 The ID Registry contract issues Farcaster IDs (fids) for the Farcaster network.
 
-An `fid` is a uint256 that represents a unique user of the network. Fids begin at 0 and increment by one for every new account. There is an infinite supply of fids since they can go as high as ~10^77.
+An `fid` is a uint256 that represents a unique user of the network. Fids begin at 0 and increment by one for every new account. There is an infinite supply of fids since they can go as high as ~10^77. IDs begin in the invitable state, where they can only be registered by a pre-determined address. The owner can disable trusted registration which then allows anyone to register an fid.
 
 Each address can only own a single fid at a time, but they can otherwise be freely transferred between addresses. The address that currently owns an fid is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address.
 
 An fid can exist in these states:
 
-- `registerable` - the fid has never been issued
+- `invitable` - the fid has never been issued, and can be registered by the trusted sender
+- `registerable` - the fid has never been issued, and can be registered by anyone
 - `registered` - the fid has been issued to an address
 - `escrow` - a recovery request has been submitted and is pending escrow
 - `recoverable` - a recovery request has completed escrow and is pending completion.
@@ -26,6 +27,8 @@ An fid can exist in these states:
 ```mermaid
     stateDiagram-v2
         direction LR
+        invitable --> registerable: disable trusted register
+        invitable --> registered: trusted register
         registerable --> registered: register
         registered --> registered: transfer
         registered --> escrow: request recovery
@@ -36,11 +39,13 @@ An fid can exist in these states:
 
 The fid state transitions when users take specific actions:
 
-- `register` - claiming a new fid
-- `transfer` - moving an fid to a new custody address
-- `request recovery` - requesting a recovery of the fid
-- `cancel recovery` - canceling a recovery that is in progress
-- `complete recovery` - completing a recovery that has passed the escrow period
+- `register` - register a new fid from any address
+- `trusted register` - register a new fid from the trusted sender
+- `disable trusted register` - allow registration from any sender
+- `transfer` - move an fid to a new custody address
+- `request recovery` - request a recovery of the fid
+- `cancel recovery` - cancel a recovery that is in progress
+- `complete recovery` - complete a recovery that has passed the escrow period
 
 The fid state can automatically transition when certain periods of time pass:
 
@@ -50,7 +55,7 @@ The fid state can automatically transition when certain periods of time pass:
 
 The Name Registry contract issues Farcaster names (fnames) for the Farcaster network.
 
-An `fname` is an ERC-721 token that represents a unique name like @alice. An fname can have up to 16 characters that include lowercase letters, numbers or hyphens. It should that match the regular expression `^[a-zA-Z0-9-]{1,16}$`. The address that owns an fname is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address.
+An `fname` is an ERC-721 token that represents a unique name like @alice. An fname can have up to 16 characters that include lowercase letters, numbers or hyphens. It should that match the regular expression `^[a-zA-Z0-9-]{1,16}$`. The address that owns an fname is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address. Similar to IDs, Farcaster Names also begin in the invitable state, where they can only be registered by a pre-determined address. The owner can disable trusted registration which then allows anyone to register an fname.
 
 Fnames can be registered for up to a year by paying the registration fee, similar to domain names. Unlike most ERC-721 tokens, minting the token does not imply permanent ownership. Registration uses a two-phase commit reveal system to prevent frontrunning.
 
@@ -64,9 +69,9 @@ Fnames can be registered for up to a year by paying the registration fee, simila
 
 An fname can exist in these states:
 
-- `reserved` - the name can only be minted by the preregistrar
-- `registerable` - the name has never been minted and is available to mint
-- `registered` - the name is currently registered to an address
+- `invitable` - the name has never been minted, and can only be minted by the trusted sender
+- `registerable` - the name has never been minted and can be minted by anone
+- `registered` - the name is registered to an address
 - `renewable` - the name's registration has expired and it can only be renewed by the owner
 - `biddable` - the name's registration has expired and it can be bid on by anyone
 - `escrow` - a recovery request has been submitted and is pending escrow
@@ -75,8 +80,8 @@ An fname can exist in these states:
 ```mermaid
     stateDiagram-v2
         direction LR
-        reserved --> registerable: end(preregistration)
-        reserved --> registered: preregister
+        invitable --> registerable: disable trusted register
+        invitable --> registered: trusted register
         registerable --> registered: register
         registered --> renewable: end(year)
         renewable --> biddable: end(renewal)
@@ -95,21 +100,21 @@ Only the `registerable` and `biddable` states are terminal, all other states hav
 
 The fname state transitions when users take certain actions:
 
-- `preregister` - minting a new fname during the reservation period from the preregistrar
-- `register` - minting a new fname after the reservation period
-- `transfer` - moving a fname to a new custody address
-- `renew` - paying the renewal fee on a renewable fname
-- `bid` - placing a bid on a biddable fname
-- `request recovery` - requesting a recovery of the fname
-- `cancel recovery` - canceling a recovery that is in progress
-- `complete recovery` - completing a recovery that has passed the escrow period
+- `register` - mint a new fname from any sender
+- `trusted register` - mint a new fname from the trusted sender
+- `disable trusted register` - allow registrations from any sender
+- `transfer` - move a fname to a new custody address
+- `renew` - pay the renewal fee on a renewable fname
+- `bid` - place a bid on a biddable fname
+- `request recovery` - request a recovery of the fname
+- `cancel recovery` - cancel a recovery that is in progress
+- `complete recovery` - complete a recovery that has passed the escrow period
 
 The fname state can automatically transition when certain periods of time pass:
 
 - `end(year)` - the end of the calendar year in GMT
 - `end(renewal)` - 31 days from the expiration at the year's end (Feb 1st)
 - `end(escrow)` - 3 days from the `request recovery` action
-- `end(preregistration)` - 48 hours from the launch of the contract
 
 ## 3. Recovery System
 

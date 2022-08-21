@@ -312,10 +312,16 @@ contract IDRegistry is ERC2771Context, Ownable {
                               OWNER ACTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Changes the address from which registerTrusted calls can be made
+     */
     function setTrustedSender(address _trustedSender) external onlyOwner {
         trustedSender = _trustedSender;
     }
 
+    /**
+     * @notice Disables registerTrusted and enables register calls from any address.
+     */
     function disableTrustedRegister() external onlyOwner {
         trustedRegisterEnabled = false;
     }
