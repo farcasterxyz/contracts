@@ -95,17 +95,17 @@ contract IDRegistry is ERC2771Context, Ownable {
      *
      * @dev Slightly more gas efficient than calling registerFromTrustedSender post-registration
      *
-     * @param target the address to register an FID for
+     * @param to the address to register an FID for
      * @param recovery the address which can perform recovery operations
      * @param url the home url for the FID
      */
     function register(
-        address target,
+        address to,
         address recovery,
         string calldata url
     ) external payable {
         if (trustedSenderEnabled) revert UntrustedSender();
-        _register(target, recovery);
+        _register(to, recovery);
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
         // this user at this point in time.
@@ -113,21 +113,21 @@ contract IDRegistry is ERC2771Context, Ownable {
     }
 
     /**
-     * @notice Register an FID for a target address and configure all optional settings
+     * @notice Register an FID for another address and configure all optional settings
      *
-     * @param target the address to register an FID for
+     * @param to the address to register an FID for
      * @param recovery the address which can perform recovery operations, set to zero address to disable.
      * @param url the home url for the FID
      */
     function registerFromTrustedSender(
-        address target,
+        address to,
         address recovery,
         string calldata url
     ) external payable {
         if (!trustedSenderEnabled) revert TrustedSenderDisabled();
         if (_msgSender() != trustedSender) revert Unauthorized();
 
-        _register(target, recovery);
+        _register(to, recovery);
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
         // this user at this point in time.
@@ -148,8 +148,8 @@ contract IDRegistry is ERC2771Context, Ownable {
 
     // Optimization: inlining this logic into functions can save ~ 20-40 gas per call at the expense of contract size
     // and duplicating logic in solidity code.
-    function _register(address target, address recovery) private {
-        if (idOf[target] != 0) revert HasId();
+    function _register(address to, address recovery) private {
+        if (idOf[to] != 0) revert HasId();
 
         unchecked {
             // Safety: this is a uint256 value and each transaction increments it by one, which would require
@@ -158,9 +158,9 @@ contract IDRegistry is ERC2771Context, Ownable {
         }
 
         // Incrementing before assigning ensures that the first id issued is 1, and not 0.
-        idOf[target] = idCounter;
+        idOf[to] = idCounter;
         recoveryOf[idCounter] = recovery;
-        emit Register(target, idCounter, recovery);
+        emit Register(to, idCounter, recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
