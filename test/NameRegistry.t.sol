@@ -1025,7 +1025,7 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotChangeRecoveryUnlessOwner() public {
+    function testCannotChangeRecoveryAddressUnlessOwner() public {
         registerAlice();
 
         vm.prank(bob);
@@ -1035,7 +1035,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testCannotChangeRecoveryIfExpired() public {
+    function testCannotChangeRecoveryAddressIfExpired() public {
         registerAlice();
 
         vm.warp(aliceRenewableTs);
@@ -1052,7 +1052,7 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotChangeRecoveryIfRegistrable() public {
+    function testCannotChangeRecoveryAddressIfRegistrable() public {
         uint256 bobTokenId = uint256(bytes32("bob"));
 
         vm.expectRevert(NameRegistry.Registrable.selector);
@@ -1062,7 +1062,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(aliceTokenId), address(0));
     }
 
-    function testCannotChangeRecoveryIfPaused() public {
+    function testCannotChangeRecoveryAddressIfPaused() public {
         registerAlice();
 
         vm.prank(owner);

@@ -277,13 +277,13 @@ contract NameRegistry is
      * @param username the username to register
      * @param to the address that will claim the username
      * @param secret the secret that protects the commitment
-     * @param recoveryAddress address which can recovery the username if the custody address is lost
+     * @param recovery address which can recovery the username if the custody address is lost
      */
     function register(
         bytes16 username,
         address to,
         bytes32 secret,
-        address recoveryAddress
+        address recovery
     ) external payable {
         bytes32 commit = generateCommit(username, to, secret);
 
@@ -306,7 +306,7 @@ contract NameRegistry is
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
-        recoveryOf[tokenId] = recoveryAddress;
+        recoveryOf[tokenId] = recovery;
 
         payable(_msgSender()).transfer(msg.value - _currYearFee);
 
@@ -320,12 +320,12 @@ contract NameRegistry is
      *
      * @param to the address that will claim the username
      * @param username the username to register
-     * @param recoveryAddress address which can recovery the username if the custody address is lost
+     * @param recovery address which can recovery the username if the custody address is lost
      */
     function preregister(
         address to,
         bytes16 username,
-        address recoveryAddress
+        address recovery
     ) external payable {
         /**
          *
@@ -350,7 +350,7 @@ contract NameRegistry is
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
-        recoveryOf[tokenId] = recoveryAddress;
+        recoveryOf[tokenId] = recovery;
     }
 
     /**
@@ -390,9 +390,9 @@ contract NameRegistry is
      *      gas-optimzied approximations for exp and ln that introduce a -3% error for every period
      *
      * @param tokenId the tokenId of the username to bid on
-     * @param recoveryAddress address which can recovery the username if the custody address is lost
+     * @param recovery address which can recovery the username if the custody address is lost
      */
-    function bid(uint256 tokenId, address recoveryAddress) external payable {
+    function bid(uint256 tokenId, address recovery) external payable {
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
 
@@ -430,7 +430,7 @@ contract NameRegistry is
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
-        recoveryOf[tokenId] = recoveryAddress;
+        recoveryOf[tokenId] = recovery;
 
         payable(msgSender).transfer(msg.value - price);
     }
@@ -552,13 +552,13 @@ contract NameRegistry is
     /**
      * @notice Set a recovery address which can transfer the caller's username to a new address.
      *
-     * @param recoveryAddress address which can recovery the username if the custody address is lost
+     * @param recovery address which can recovery the username if the custody address is lost
      */
-    function changeRecoveryAddress(uint256 tokenId, address recoveryAddress) external payable whenNotPaused {
+    function changeRecoveryAddress(uint256 tokenId, address recovery) external payable whenNotPaused {
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
-        recoveryOf[tokenId] = recoveryAddress;
-        emit ChangeRecoveryAddress(recoveryAddress, tokenId);
+        recoveryOf[tokenId] = recovery;
+        emit ChangeRecoveryAddress(recovery, tokenId);
 
         if (recoveryClockOf[tokenId] != 0) {
             emit CancelRecovery(tokenId);
@@ -620,8 +620,7 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Cancels a transfer request if the caller is the recoveryAddress or the
-     *         custodyAddress
+     * @notice Cancels a transfer request if the caller is the recovery or the custodyAddress
      *
      * @dev cancelRecovery is allowed even when the contract is paused to prevent the state where a user might be
      *      unable to cancel a recovery request because the contract was paused for the escrow duration.
