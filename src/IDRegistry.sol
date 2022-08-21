@@ -84,6 +84,7 @@ contract IDRegistry is ERC2771Context, Ownable {
      *
      * @param recovery the initial recovery address, which can be set to zero to disable recovery
      */
+    // Optimization: if we don't need the recovery address and can avoid the assginment, we save about 2500 gas
     function register(address recovery) external payable {
         if (trustedSenderEnabled) revert UntrustedSender();
         _register(_msgSender(), recovery);
@@ -145,7 +146,8 @@ contract IDRegistry is ERC2771Context, Ownable {
         emit ChangeHome(_id, url);
     }
 
-    // Optimization: inlining this logic into functions can save ~ 20-40 gas per call at the expense of contract size.
+    // Optimization: inlining this logic into functions can save ~ 20-40 gas per call at the expense of contract size
+    // and duplicating logic in solidity code.
     function _register(address target, address recovery) private {
         if (idOf[target] != 0) revert HasId();
 
