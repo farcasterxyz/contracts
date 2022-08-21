@@ -47,6 +47,7 @@ contract NameRegistryTest is Test {
     uint256 escrowPeriod = 3 days;
     uint256 commitRegisterDelay = 60;
 
+    uint256 timestamp2022 = 1640995200; // Sun, Jan 1, 2022 0:00:00 GMT
     uint256 timestamp2023 = 1672531200; // Sun, Jan 1, 2023 0:00:00 GMT
     uint256 timestamp2024 = 1704067200; // Sun, Jan 1, 2024 0:00:00 GMT
 
@@ -62,13 +63,7 @@ contract NameRegistryTest is Test {
         proxyAddr = address(nameRegistryProxy);
 
         (bool s, ) = address(nameRegistryProxy).call(
-            abi.encodeWithSelector(
-                nameRegistry.initialize.selector,
-                "Farcaster NameRegistry",
-                "FCN",
-                vault,
-                trustedSender
-            )
+            abi.encodeWithSelector(nameRegistry.initialize.selector, "Farcaster NameRegistry", "FCN", vault)
         );
 
         assertEq(s, true);
@@ -422,8 +417,10 @@ contract NameRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testTrustedRegister() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
-        vm.warp(timestamp2023 - 1);
+        vm.warp(timestamp2022);
 
         vm.prank(trustedSender);
         vm.expectEmit(true, true, true, false);
@@ -435,6 +432,8 @@ contract NameRegistryTest is Test {
     }
 
     function testTrustedRegisterSetsRecoveryAddress() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
         vm.prank(trustedSender);
@@ -446,6 +445,9 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotTrustedRegisterAfterDisabled() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
+
         vm.prank(owner);
         nameRegistry.disableTrustedRegister();
 
@@ -461,6 +463,8 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotTrustedRegisterTwice() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
         vm.prank(trustedSender);
@@ -474,6 +478,8 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotTrustedRegisterFromArbitrarySender() public {
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
         vm.expectRevert(NameRegistry.Unauthorized.selector);
@@ -483,6 +489,8 @@ contract NameRegistryTest is Test {
 
     function testCannotTrustedRegisterWhilePaused() public {
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        vm.prank(owner);
+        nameRegistry.setTrustedSender(trustedSender);
 
         vm.prank(owner);
         nameRegistry.pause();
@@ -1599,12 +1607,12 @@ contract NameRegistryTest is Test {
     function testCannotSetTrustedSenderUnlessOwner(address alice2, address bob2) public {
         vm.assume(alice2 != trustedForwarder);
         vm.assume(alice2 != nameRegistry.owner() && alice2 != zeroAddress);
-        assertEq(nameRegistry.trustedSender(), trustedSender);
+        assertEq(nameRegistry.trustedSender(), zeroAddress);
 
         vm.prank(alice2);
         vm.expectRevert("Ownable: caller is not the owner");
         nameRegistry.setTrustedSender(bob2);
-        assertEq(nameRegistry.trustedSender(), trustedSender);
+        assertEq(nameRegistry.trustedSender(), zeroAddress);
     }
 
     function testDisableTrustedSender() public {

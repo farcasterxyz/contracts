@@ -24,7 +24,6 @@ contract NameRegistryUpgradeTest is Test {
     address proxyAddr;
     address owner = address(this);
     address vault = address(0x456);
-    address preregistrar = address(0x789);
 
     address private trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
 
@@ -37,7 +36,7 @@ contract NameRegistryUpgradeTest is Test {
 
         // Cast the Proxy as a NameRegistry so we can call NameRegistry methods easily
         proxiedNameRegistry = NameRegistry(address(proxyAddr));
-        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault, preregistrar);
+        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
     }
 
     function testInitializeSetters() public {
@@ -58,7 +57,7 @@ contract NameRegistryUpgradeTest is Test {
 
         // 3. Re-initialize the v2 contract
         vm.prank(owner);
-        proxiedNameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", owner, vault, preregistrar);
+        proxiedNameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", vault);
 
         // 4. Assert that data stored when proxy was connected to v1 is present after being connected to v2
         assertEq(proxiedNameRegistryV2.vault(), vault);
@@ -130,9 +129,7 @@ contract NameRegistryV2 is
     function initializeV2(
         string memory _name,
         string memory _symbol,
-        address _owner,
-        address _vault,
-        address _preregistrar
+        address _vault
     ) public reinitializer(2) {
         __UUPSUpgradeable_init();
 
@@ -140,10 +137,8 @@ contract NameRegistryV2 is
 
         // Initialize the owner to the deployer and then transfer it to _owner
         __Ownable_init_unchained();
-        transferOwnership(_owner);
 
         vault = _vault;
-        preregistrar = _preregistrar;
 
         _yearTimestamps = [
             3250454400, // 2073

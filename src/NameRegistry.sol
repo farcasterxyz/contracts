@@ -147,8 +147,7 @@ contract NameRegistry is
     function initialize(
         string memory _name,
         string memory _symbol,
-        address _vault,
-        address _trustedSender
+        address _vault
     ) external initializer {
         __ERC721_init(_name, _symbol);
 
@@ -157,9 +156,8 @@ contract NameRegistry is
         __Ownable_init();
 
         __UUPSUpgradeable_init();
-        vault = _vault;
 
-        trustedSender = _trustedSender;
+        vault = _vault;
 
         // Audit: verify the accuracy of these timestamps using an alternative calculator
         // epochconverter.com was used to generate these
