@@ -2,6 +2,8 @@
 pragma solidity ^0.8.16;
 
 import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
+import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
+import {Context} from "openzeppelin/contracts/utils/Context.sol";
 
 /**
  * @title IDRegistry
@@ -14,9 +16,9 @@ import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC
  *
  * @dev Function calls use payable to marginally reduce gas usage.
  */
-contract IDRegistry is ERC2771Context {
+contract IDRegistry is ERC2771Context, Ownable {
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) {}
+    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) Ownable() {}
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -25,6 +27,8 @@ contract IDRegistry is ERC2771Context {
     error Unauthorized(); // The caller does not have the authority to perform this action.
     error ZeroId(); // The id is zero, which is invalid
     error HasId(); // The custody address has another id
+    error TrustedSenderDisabled(); // The trusted sender methods cannot be used
+    error UntrustedSender(); // The sender does not match the trusted sender
 
     error InvalidRecoveryAddr(); // The recovery cannot be the same as the custody address
     error NoRecovery(); // The recovery request for this id could not be found
@@ -50,13 +54,14 @@ contract IDRegistry is ERC2771Context {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @notice the most recently issued id
-     *
-     * @dev Id's begin at 1 and are issued sequentially. The zero (0) id is not allowed since zero represent the
-     *      absence of a value in solidity.
-     */
+    // The most recent fid issued by the contract.
     uint256 private idCounter;
+
+    // The trusted sender for preregistration
+    address public trustedSender;
+
+    // Only allow calls to preregister from the trusted sender
+    bool public trustedSenderEnabled = true;
 
     // Mapping from custody address to id
     mapping(address => uint256) public idOf;
@@ -80,50 +85,52 @@ contract IDRegistry is ERC2771Context {
      * @param recovery the initial recovery address, which can be set to zero to disable recovery
      */
     function register(address recovery) external payable {
+        if (trustedSenderEnabled) revert UntrustedSender();
         _register(_msgSender(), recovery);
     }
 
     /**
-     * @notice Register an FID for the caller and set a Home
+     * @notice Register an FID for another address and configure all optional settings
      *
-     * @param recovery the address which can perform recovery operations, set to zero address to disable.
-     * @param homeUrl the home url for the FID
-     */
-    function register(address recovery, string calldata homeUrl) external payable {
-        _register(_msgSender(), recovery);
-
-        // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
-        // this user at this point in time.
-        emit ChangeHome(idCounter, homeUrl);
-    }
-
-    /**
-     * @notice Register an FID for the target
+     * @dev Slightly more gas efficient than calling registerFromTrustedSender post-registration
      *
      * @param target the address to register an FID for
-     * @param recovery the address which can perform recovery operations, set to zero address to disable.
+     * @param recovery the address which can perform recovery operations
+     * @param url the home url for the FID
      */
-    function registerTo(address target, address recovery) external payable {
-        _register(target, recovery);
-    }
-
-    /**
-     * @notice Register an FID for the target and set a Home
-     *
-     * @param target the address to register an FID for
-     * @param recovery the address which can perform recovery operations, set to zero address to disable.
-     * @param homeUrl the home url for the FID
-     */
-    function registerTo(
+    function register(
         address target,
         address recovery,
-        string calldata homeUrl
+        string calldata url
     ) external payable {
+        if (trustedSenderEnabled) revert UntrustedSender();
         _register(target, recovery);
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
         // this user at this point in time.
-        emit ChangeHome(idCounter, homeUrl);
+        emit ChangeHome(idCounter, url);
+    }
+
+    /**
+     * @notice Register an FID for a target address and configure all optional settings
+     *
+     * @param target the address to register an FID for
+     * @param recovery the address which can perform recovery operations, set to zero address to disable.
+     * @param url the home url for the FID
+     */
+    function registerFromTrustedSender(
+        address target,
+        address recovery,
+        string calldata url
+    ) external payable {
+        if (!trustedSenderEnabled) revert TrustedSenderDisabled();
+        if (_msgSender() != trustedSender) revert Unauthorized();
+
+        _register(target, recovery);
+
+        // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
+        // this user at this point in time.
+        emit ChangeHome(idCounter, url);
     }
 
     /**
@@ -148,6 +155,7 @@ contract IDRegistry is ERC2771Context {
             idCounter++;
         }
 
+        // Incrementing before assigning ensures that the first id issued is 1, and not 0.
         idOf[target] = idCounter;
         recoveryOf[idCounter] = recovery;
         emit Register(target, idCounter, recovery);
@@ -164,14 +172,14 @@ contract IDRegistry is ERC2771Context {
      * @param to The address to transfer the id to.
      */
     function transfer(address to) external payable {
-        address _msgSender = _msgSender();
-        uint256 id = idOf[_msgSender];
+        address sender = _msgSender();
+        uint256 id = idOf[sender];
 
         if (id == 0) revert ZeroId();
 
         if (idOf[to] != 0) revert HasId();
 
-        _unsafeTransfer(id, _msgSender, to);
+        _unsafeTransfer(id, sender, to);
     }
 
     /**
@@ -290,12 +298,36 @@ contract IDRegistry is ERC2771Context {
     function cancelRecovery(address from) external payable {
         uint256 id = idOf[from];
 
-        address _msgSender = _msgSender();
+        address sender = _msgSender();
 
-        if (_msgSender != from && _msgSender != recoveryOf[id]) revert Unauthorized();
+        if (sender != from && sender != recoveryOf[id]) revert Unauthorized();
         if (recoveryClockOf[id] == 0) revert NoRecovery();
 
         emit CancelRecovery(id);
         delete recoveryClockOf[id];
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              OWNER ACTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function setTrustedSender(address _trustedSender) external onlyOwner {
+        trustedSender = _trustedSender;
+    }
+
+    function disableTrustedSender() external onlyOwner {
+        trustedSenderEnabled = false;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         OPEN ZEPPELIN OVERRIDES
+    //////////////////////////////////////////////////////////////*/
+
+    function _msgSender() internal view override(Context, ERC2771Context) returns (address sender) {
+        sender = ERC2771Context._msgSender();
+    }
+
+    function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
+        return ERC2771Context._msgData();
     }
 }
