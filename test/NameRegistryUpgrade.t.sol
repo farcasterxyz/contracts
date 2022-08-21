@@ -22,7 +22,7 @@ contract NameRegistryUpgradeTest is Test {
     NameRegistryV2 proxiedNameRegistryV2;
 
     address proxyAddr;
-    address owner = address(0x123);
+    address owner = address(this);
     address vault = address(0x456);
     address preregistrar = address(0x789);
 
@@ -37,7 +37,7 @@ contract NameRegistryUpgradeTest is Test {
 
         // Cast the Proxy as a NameRegistry so we can call NameRegistry methods easily
         proxiedNameRegistry = NameRegistry(address(proxyAddr));
-        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", owner, vault, preregistrar);
+        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault, preregistrar);
     }
 
     function testInitializeSetters() public {

@@ -25,6 +25,7 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     address zeroAddress = address(0);
+    address owner = address(this);
     address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     uint256 escrowPeriod = 259_200;
 
@@ -676,7 +677,7 @@ contract IDRegistryTest is Test {
 
     function testSetTrustedSender(address alice) public {
         vm.assume(alice != trustedForwarder);
-        assertEq(idRegistry.owner(), address(this));
+        assertEq(idRegistry.owner(), owner);
 
         idRegistry.setTrustedSender(alice);
         assertEq(idRegistry.trustedSender(), alice);
@@ -693,7 +694,7 @@ contract IDRegistryTest is Test {
     }
 
     function testDisableTrustedSender() public {
-        assertEq(idRegistry.owner(), address(this));
+        assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.trustedRegisterEnabled(), true);
 
         idRegistry.disableTrustedRegister();
@@ -719,13 +720,13 @@ contract IDRegistryTest is Test {
 
     function testCannotTransferOwnershipUnlessOwner(address alice, address bob) public {
         vm.assume(alice != trustedForwarder && alice != zeroAddress && bob != zeroAddress);
-        vm.assume(alice != idRegistry.owner());
-        assertEq(idRegistry.owner(), address(this));
+        vm.assume(alice != owner);
+        assertEq(idRegistry.owner(), owner);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
         idRegistry.transferOwnership(bob);
-        assertEq(idRegistry.owner(), address(this));
+        assertEq(idRegistry.owner(), owner);
     }
 
     /*//////////////////////////////////////////////////////////////

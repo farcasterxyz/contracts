@@ -147,7 +147,6 @@ contract NameRegistry is
     function initialize(
         string memory _name,
         string memory _symbol,
-        address _owner,
         address _vault,
         address _trustedSender
     ) external initializer {
@@ -155,9 +154,7 @@ contract NameRegistry is
 
         __Pausable_init();
 
-        // Initialize the owner to the deployer and then transfer it to _owner
         __Ownable_init();
-        transferOwnership(_owner);
 
         __UUPSUpgradeable_init();
         vault = _vault;

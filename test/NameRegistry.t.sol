@@ -34,7 +34,7 @@ contract NameRegistryTest is Test {
                               CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
 
-    address owner = address(0x001);
+    address owner = address(this);
     address vault = address(this);
     address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     address trustedSender = address(0x572e3354fBA09e865a373aF395933d8862CFAE54);
@@ -66,7 +66,6 @@ contract NameRegistryTest is Test {
                 nameRegistry.initialize.selector,
                 "Farcaster NameRegistry",
                 "FCN",
-                owner,
                 vault,
                 trustedSender
             )
@@ -1717,7 +1716,11 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.fee(), 0.02 ether);
     }
 
-    function testCannotSetFeeUnlessOwner() public {
+    function testCannotSetFeeUnlessOwner(address alice2) public {
+        vm.assume(alice2 != trustedForwarder);
+        vm.assume(alice2 != owner);
+
+        vm.prank(alice2);
         vm.expectRevert("Ownable: caller is not the owner");
         nameRegistry.setFee(0.02 ether);
     }
