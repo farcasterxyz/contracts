@@ -292,6 +292,8 @@ contract NameRegistry is
         // Assumption: We assume that timestampOf[commit] will always be zero while trustedRegisterEnabled is true
         // and therefore this will always fail until the general registration phase is open.
         uint256 _commitBlock = timestampOf[commit];
+
+        // Audit: verify that this duration is the right amount to use
         if (_commitBlock == 0 || _commitBlock + 60 > block.timestamp) revert InvalidCommit();
         delete timestampOf[commit];
 
@@ -308,8 +310,6 @@ contract NameRegistry is
         recoveryOf[tokenId] = recovery;
 
         payable(_msgSender()).transfer(msg.value - _currYearFee);
-
-        // TODO: what event should fire here?
     }
 
     /**
