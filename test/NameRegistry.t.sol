@@ -74,15 +74,9 @@ contract NameRegistryTest is Test {
 
         nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
         proxyAddr = address(nameRegistryProxy);
-
-        (bool s, ) = address(nameRegistryProxy).call(
-            abi.encodeWithSelector(nameRegistry.initialize.selector, "Farcaster NameRegistry", "FCN", vault)
-        );
-
-        assertEq(s, true);
-
         // Instantiate the ERC1967 Proxy as a NameRegistry so that we can call the NameRegistry methods easily
         nameRegistry = NameRegistry(address(nameRegistryProxy));
+        nameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
     }
 
     /*//////////////////////////////////////////////////////////////
