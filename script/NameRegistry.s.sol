@@ -12,31 +12,21 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 contract NameRegistryScript is Script {
     address gorliTrustedForwarder = address(0x7A95fA73250dc53556d264522150A940d4C50238);
     NameRegistry nameRegistry;
+    NameRegistry proxiedNameRegistry;
     ERC1967Proxy proxy;
 
-    address owner = address(0x123);
+    // TODO: Fix the vault address
     address vault = address(0x123);
-    address preregistrar = address(0x123);
-
-    function setUp() public {}
 
     function run() public {
         vm.broadcast();
         nameRegistry = new NameRegistry(gorliTrustedForwarder);
 
         vm.broadcast();
-        new ERC1967Proxy(address(nameRegistry), "");
+        proxy = new ERC1967Proxy(address(nameRegistry), "");
+        proxiedNameRegistry = NameRegistry(address(proxy));
 
         vm.broadcast();
-        (bool s, ) = address(proxy).call(
-            abi.encodeWithSelector(
-                nameRegistry.initialize.selector,
-                "Farcaster NameRegistry",
-                "FCN",
-                owner,
-                vault,
-                preregistrar
-            )
-        );
+        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
     }
 }
