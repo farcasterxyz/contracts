@@ -261,7 +261,7 @@ contract NameRegistry is
      *
      * @param commit the commitment hash to be persisted on-chain
      */
-    function makeCommit(bytes32 commit) external {
+    function makeCommit(bytes32 commit) external payable {
         if (trustedRegisterEnabled) revert NotRegistrable();
 
         timestampOf[commit] = block.timestamp;
