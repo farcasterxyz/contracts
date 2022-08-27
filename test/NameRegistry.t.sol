@@ -37,7 +37,6 @@ contract NameRegistryTest is Test {
     address owner = address(this);
     address vault = address(this);
     address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    address trustedSender = address(0x572e3354fBA09e865a373aF395933d8862CFAE54);
     address zeroAddress = address(0);
 
     address constant PRECOMPILE_CONTRACTS = address(9); // some addresses up to 0x9 are precompiled contracts
@@ -486,15 +485,16 @@ contract NameRegistryTest is Test {
                          REGISTER TRUSTED TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTrustedRegister(address _trustedSender, address alice) public {
+    function testTrustedRegister(address trustedSender, address alice) public {
         vm.assume(alice != zeroAddress);
+        vm.assume(trustedSender != trustedForwarder);
 
         vm.warp(TS_2022);
         vm.prank(owner);
-        nameRegistry.setTrustedSender(_trustedSender);
+        nameRegistry.setTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
-        vm.prank(_trustedSender);
+        vm.prank(trustedSender);
         vm.expectEmit(true, true, true, false);
         emit Transfer(address(0), alice, aliceTokenId);
         nameRegistry.trustedRegister(alice, "alice", zeroAddress);
@@ -504,30 +504,33 @@ contract NameRegistryTest is Test {
     }
 
     function testTrustedRegisterSetsRecoveryAddress(
-        address _trustedSender,
+        address trustedSender,
         address alice,
         address bob
     ) public {
         vm.assume(alice != zeroAddress);
+        vm.assume(trustedSender != trustedForwarder);
 
         vm.prank(owner);
-        nameRegistry.setTrustedSender(_trustedSender);
+        nameRegistry.setTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
-        vm.prank(_trustedSender);
+        vm.prank(trustedSender);
         nameRegistry.trustedRegister(alice, "alice", bob);
         assertEq(nameRegistry.recoveryOf(aliceTokenId), bob);
     }
 
-    function testCannotTrustedRegisterWhenDisabled(address _trustedSender, address alice) public {
+    function testCannotTrustedRegisterWhenDisabled(address trustedSender, address alice) public {
         vm.assume(alice != zeroAddress);
+        vm.assume(trustedSender != trustedForwarder);
+
         vm.prank(owner);
-        nameRegistry.setTrustedSender(_trustedSender);
+        nameRegistry.setTrustedSender(trustedSender);
 
         vm.prank(owner);
         nameRegistry.disableTrustedRegister();
 
-        vm.prank(_trustedSender);
+        vm.prank(trustedSender);
         vm.expectRevert(NameRegistry.Registrable.selector);
         nameRegistry.trustedRegister(alice, "alice", zeroAddress);
 
@@ -536,47 +539,52 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(aliceTokenId), 0);
     }
 
-    function testCannotTrustedRegisterTwice(address _trustedSender, address alice) public {
+    function testCannotTrustedRegisterTwice(address trustedSender, address alice) public {
         vm.assume(alice != zeroAddress);
+        vm.assume(trustedSender != trustedForwarder);
+
         vm.prank(owner);
-        nameRegistry.setTrustedSender(_trustedSender);
+        nameRegistry.setTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
-        vm.prank(_trustedSender);
+        vm.prank(trustedSender);
         nameRegistry.trustedRegister(alice, "alice", zeroAddress);
 
-        vm.prank(_trustedSender);
+        vm.prank(trustedSender);
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.trustedRegister(alice, "alice", zeroAddress);
     }
 
     function testCannotTrustedRegisterFromArbitrarySender(
-        address _trustedSender,
+        address trustedSender,
         address arbitrarySender,
         address alice
     ) public {
-        vm.assume(arbitrarySender != _trustedSender);
+        vm.assume(arbitrarySender != trustedSender);
+        vm.assume(trustedSender != trustedForwarder);
         vm.assume(alice != zeroAddress);
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
 
         vm.prank(owner);
-        nameRegistry.setTrustedSender(_trustedSender);
+        nameRegistry.setTrustedSender(trustedSender);
 
         vm.prank(arbitrarySender);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.trustedRegister(alice, "alice", zeroAddress);
     }
 
-    function testCannotTrustedRegisterWhilePaused(address _trustedSender, address alice) public {
+    function testCannotTrustedRegisterWhilePaused(address trustedSender, address alice) public {
         vm.assume(alice != zeroAddress);
+        vm.assume(trustedSender != trustedForwarder);
+
         assertEq(nameRegistry.trustedRegisterEnabled(), true);
         vm.prank(owner);
-        nameRegistry.setTrustedSender(_trustedSender);
+        nameRegistry.setTrustedSender(trustedSender);
 
         vm.prank(owner);
         nameRegistry.pause();
 
-        vm.prank(_trustedSender);
+        vm.prank(trustedSender);
         vm.expectRevert("Pausable: paused");
         nameRegistry.trustedRegister(alice, "alice", zeroAddress);
 
