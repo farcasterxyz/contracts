@@ -3,11 +3,12 @@ pragma solidity ^0.8.16;
 
 import "forge-std/Test.sol";
 import {IDRegistry} from "../src/IDRegistry.sol";
+import {IDRegistryTestable} from "./Utils.sol";
 
 /* solhint-disable state-visibility */
 
 contract IDRegistryTest is Test {
-    IDRegistry idRegistry;
+    IDRegistryTestable idRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -33,7 +34,7 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        idRegistry = new IDRegistry(FORWARDER);
+        idRegistry = new IDRegistryTestable(FORWARDER);
     }
 
     /*//////////////////////////////////////////////////////////////
