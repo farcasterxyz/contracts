@@ -52,9 +52,7 @@ You can learn more about Foundry by reading [the book](https://book.getfoundry.s
 
 ### Estimating Gas Usage
 
-Forge ships with a gas reporting tool which provides gas reports for function calls. It can be invoked with `forge test --gas-report`. But these numbers can be misleading because test suites invoke functions in ways that make them terminate very early. Some functions also vary in cost for the same code path because of storage initialization during certain invocations.
-
-The best way to estimate gas usage accurately is to write a special test suite that follows code paths that you expect to see in real-world usage. For instance, `forge test --match-contract IDRegistryGasUsage --gas-report` will execute a test suite specially designed to estimate gas usage in the IDRegistry register function.
+Forge's gas reporting tool can be inaccurate when run across our entire test suite. Gas estimates can be lower than expected because tests cover failure cases that terminate early, or higher than expected because the first test run always causes storage initialization. A more robust way is to write a special suite of tests that mimic real-world usage of contracts and estimate gas on those calls only. Our gas estimation suite can be invoked with `forge test --match-contract GasUsage --gas-report`.
 
 ### Solc dyld error on Apple M1
 
