@@ -1,5 +1,4 @@
 [profile.default]
-fuzz_runs = 1_000
 libs = ['lib']
 gas_reports = ["*"]
 optimizer = true
@@ -10,5 +9,8 @@ src = 'src'
 test = "test"
 
 [profile.ci]
-fuzz_runs = 1_000
+
 verbosity = 4
+
+[fuzz]
+runs = 1_000
