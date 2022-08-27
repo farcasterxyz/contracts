@@ -2,7 +2,7 @@
 pragma solidity ^0.8.16;
 
 import "forge-std/Test.sol";
-import {IDRegistry} from "../src/IDRegistry.sol";
+import {IDRegistryTestable} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 import {MinimalForwarder} from "openzeppelin/contracts/metatx/MinimalForwarder.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
@@ -12,7 +12,7 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 /* solhint-disable avoid-low-level-calls */
 
 contract MetaTxTest is Test {
-    IDRegistry idRegistry;
+    IDRegistryTestable idRegistry;
     ERC1967Proxy nameRegistryProxy;
     NameRegistry nameRegistryImpl;
     NameRegistry nameRegistry;
@@ -44,7 +44,7 @@ contract MetaTxTest is Test {
         forwarder = new MinimalForwarder();
 
         // Set up the idRegistry and move to a state where it is no longer in trusted registration
-        idRegistry = new IDRegistry(address(forwarder));
+        idRegistry = new IDRegistryTestable(address(forwarder));
         idRegistry.disableTrustedRegister();
 
         // Set up the nameRegistry and proxy, and move to a state where it is no longer in trusted registration

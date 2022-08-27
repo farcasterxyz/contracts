@@ -2,17 +2,17 @@
 pragma solidity ^0.8.16;
 
 import "forge-std/Test.sol";
-import {IDRegistry} from "../src/IDRegistry.sol";
+import {IDRegistryTestable} from "./Utils.sol";
 
 /* solhint-disable state-visibility */
 
 contract IDRegistryGasUsageTest is Test {
-    IDRegistry idRegistry;
+    IDRegistryTestable idRegistry;
 
     address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
 
     function setUp() public {
-        idRegistry = new IDRegistry(FORWARDER);
+        idRegistry = new IDRegistryTestable(FORWARDER);
     }
 
     function testGasRegister() public {
@@ -24,7 +24,8 @@ contract IDRegistryGasUsageTest is Test {
         }
     }
 
-    function testGasRegisterWithOptions(string calldata url) public {
+    function testGasRegisterWithOptions() public {
+        string memory url = "https://farcaster.xyz";
         idRegistry.disableTrustedRegister();
         for (uint256 i = 0; i < 25; i++) {
             idRegistry.register(address(uint160(i)), address(0), url);
@@ -32,7 +33,8 @@ contract IDRegistryGasUsageTest is Test {
         }
     }
 
-    function testGasRegisterFromTrustedSender(string calldata url) public {
+    function testGasRegisterFromTrustedSender() public {
+        string memory url = "https://farcaster.xyz";
         idRegistry.setTrustedSender(address(500));
 
         for (uint256 i = 0; i < 25; i++) {

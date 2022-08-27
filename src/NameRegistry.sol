@@ -86,7 +86,7 @@ contract NameRegistry is
     // Must be set in the initializer since non-constant variables are unsafe to declare otherwise.
     // solhint-disable-next-line max-line-length
     // See: https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#avoid-initial-values-in-field-declarations
-    uint256[] public _yearTimestamps;
+    uint256[] private _yearTimestamps;
 
     // Maps tokenId ->  recovery address
     mapping(uint256 => address) public recoveryOf;
@@ -261,7 +261,7 @@ contract NameRegistry is
      *
      * @param commit the commitment hash to be persisted on-chain
      */
-    function makeCommit(bytes32 commit) external {
+    function makeCommit(bytes32 commit) external payable {
         if (trustedRegisterEnabled) revert NotRegistrable();
 
         timestampOf[commit] = block.timestamp;

@@ -56,23 +56,23 @@ contract IDRegistry is ERC2771Context, Ownable {
     // The most recent fid issued by the contract.
     uint256 private idCounter;
 
-    // The trusted sender for preregistration
-    address public trustedSender;
+    // The trusted sender that can register names
+    address internal _trustedSender;
 
-    // Only allow calls to preregister from the trusted sender
-    bool public trustedRegisterEnabled = true;
+    // Allow registration calls from the trusted sender if set to 1
+    uint256 internal _trustedRegisterEnabled = 1;
 
     // Mapping from custody address to id
-    mapping(address => uint256) public idOf;
+    mapping(address => uint256) internal _idOf;
 
     // Mapping from id to recovery address
-    mapping(uint256 => address) public recoveryOf;
+    mapping(uint256 => address) internal _recoveryOf;
 
     // Mapping from id to recovery start (in blocks)
-    mapping(uint256 => uint256) public recoveryClockOf;
+    mapping(uint256 => uint256) internal _recoveryClockOf;
 
     // Mapping from id to recovery destination address
-    mapping(uint256 => address) public recoveryDestinationOf;
+    mapping(uint256 => address) internal _recoveryDestinationOf;
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -85,7 +85,7 @@ contract IDRegistry is ERC2771Context, Ownable {
      */
     // Optimization: if we don't need the recovery address and can avoid the assginment, we save about 2500 gas
     function register(address recovery) external payable {
-        if (trustedRegisterEnabled) revert Unauthorized();
+        if (_trustedRegisterEnabled == 1) revert Unauthorized();
         _register(_msgSender(), recovery);
     }
 
@@ -103,7 +103,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         address recovery,
         string calldata url
     ) external payable {
-        if (trustedRegisterEnabled) revert Unauthorized();
+        if (_trustedRegisterEnabled == 1) revert Unauthorized();
         _register(to, recovery);
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
@@ -123,8 +123,8 @@ contract IDRegistry is ERC2771Context, Ownable {
         address recovery,
         string calldata url
     ) external payable {
-        if (!trustedRegisterEnabled) revert Registrable();
-        if (_msgSender() != trustedSender) revert Unauthorized();
+        if (_trustedRegisterEnabled == 0) revert Registrable();
+        if (_msgSender() != _trustedSender) revert Unauthorized();
 
         _register(to, recovery);
 
@@ -139,7 +139,7 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @param url the url to emit
      */
     function changeHome(string calldata url) external payable {
-        uint256 _id = idOf[_msgSender()];
+        uint256 _id = _idOf[_msgSender()];
         if (_id == 0) revert ZeroId();
 
         emit ChangeHome(_id, url);
@@ -148,7 +148,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     // Optimization: inlining this logic into functions can save ~ 20-40 gas per call at the expense of contract size
     // and duplicating logic in solidity code.
     function _register(address to, address recovery) private {
-        if (idOf[to] != 0) revert HasId();
+        if (_idOf[to] != 0) revert HasId();
 
         unchecked {
             // Safety: this is a uint256 value and each transaction increments it by one, which would require
@@ -157,8 +157,8 @@ contract IDRegistry is ERC2771Context, Ownable {
         }
 
         // Incrementing before assigning ensures that the first id issued is 1, and not 0.
-        idOf[to] = idCounter;
-        recoveryOf[idCounter] = recovery;
+        _idOf[to] = idCounter;
+        _recoveryOf[idCounter] = recovery;
         emit Register(to, idCounter, recovery);
     }
 
@@ -174,11 +174,11 @@ contract IDRegistry is ERC2771Context, Ownable {
      */
     function transfer(address to) external payable {
         address sender = _msgSender();
-        uint256 id = idOf[sender];
+        uint256 id = _idOf[sender];
 
         if (id == 0) revert ZeroId();
 
-        if (idOf[to] != 0) revert HasId();
+        if (_idOf[to] != 0) revert HasId();
 
         _unsafeTransfer(id, sender, to);
     }
@@ -192,12 +192,12 @@ contract IDRegistry is ERC2771Context, Ownable {
         address from,
         address to
     ) private {
-        idOf[to] = id;
-        idOf[from] = 0;
+        _idOf[to] = id;
+        _idOf[from] = 0;
 
         // since this is rarely true, checking before assigning is more gas efficient
-        if (recoveryClockOf[id] != 0) recoveryClockOf[id] = 0;
-        recoveryOf[id] = address(0);
+        if (_recoveryClockOf[id] != 0) _recoveryClockOf[id] = 0;
+        _recoveryOf[id] = address(0);
 
         emit Transfer(from, to, id);
     }
@@ -207,17 +207,17 @@ contract IDRegistry is ERC2771Context, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1:  idOf[address] != 0 if _msgSender() == recoveryOf[idOf[address]] during
+     * INVARIANT 1:  _idOf[address] != 0 if _msgSender() == _recoveryOf[_idOf[address]] during
      * invocation of requestRecovery, completeRecovery and cancelRecovery
      *
-     * recoveryOf[idOf[address]] != address(0) only if idOf[address] != 0 [changeRecoveryAddress]
-     * when idOf[address] == 0, recoveryof[idOf[address]] also == address(0) [_unsafeTransfer]
+     * _recoveryOf[_idOf[address]] != address(0) only if _idOf[address] != 0 [changeRecoveryAddress]
+     * when _idOf[address] == 0, recoveryof[_idOf[address]] also == address(0) [_unsafeTransfer]
      * _msgSender() != address(0) [by definition]
      *
-     * INVARIANT 2:  idOf[address] != 0 if recoveryClockOf[idOf[address]] != 0
+     * INVARIANT 2:  _idOf[address] != 0 if _recoveryClockOf[_idOf[address]] != 0
      *
-     * recoveryClockOf[idOf[address]] != 0 only if idOf[address] != 0 [requestRecovery]
-     * when idOf[address] == 0, recoveryClockOf[idOf[address]] also == 0 [_unsafeTransfer]
+     * _recoveryClockOf[_idOf[address]] != 0 only if _idOf[address] != 0 [requestRecovery]
+     * when _idOf[address] == 0, _recoveryClockOf[_idOf[address]] also == 0 [_unsafeTransfer]
      */
 
     /**
@@ -231,16 +231,16 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @param recovery the address to set as the recovery.
      */
     function changeRecoveryAddress(address recovery) external payable {
-        uint256 id = idOf[_msgSender()];
+        uint256 id = _idOf[_msgSender()];
 
         if (id == 0) revert ZeroId();
 
-        recoveryOf[id] = recovery;
+        _recoveryOf[id] = recovery;
         emit ChangeRecoveryAddress(recovery, id);
 
-        if (recoveryClockOf[id] != 0) {
+        if (_recoveryClockOf[id] != 0) {
             emit CancelRecovery(id);
-            delete recoveryClockOf[id];
+            delete _recoveryClockOf[id];
         }
     }
 
@@ -256,13 +256,13 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @param to the address to transfer the id to.
      */
     function requestRecovery(address from, address to) external payable {
-        uint256 id = idOf[from];
+        uint256 id = _idOf[from];
 
-        if (_msgSender() != recoveryOf[id]) revert Unauthorized();
-        if (idOf[to] != 0) revert HasId();
+        if (_msgSender() != _recoveryOf[id]) revert Unauthorized();
+        if (_idOf[to] != 0) revert HasId();
 
-        recoveryClockOf[id] = block.timestamp;
-        recoveryDestinationOf[id] = to;
+        _recoveryClockOf[id] = block.timestamp;
+        _recoveryDestinationOf[id] = to;
         emit RequestRecovery(id, from, to);
     }
 
@@ -275,17 +275,17 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @param from the address that currently owns the id.
      */
     function completeRecovery(address from) external payable {
-        uint256 id = idOf[from];
-        address destination = recoveryDestinationOf[id];
+        uint256 id = _idOf[from];
+        address destination = _recoveryDestinationOf[id];
 
-        if (_msgSender() != recoveryOf[id]) revert Unauthorized();
-        if (recoveryClockOf[id] == 0) revert NoRecovery();
+        if (_msgSender() != _recoveryOf[id]) revert Unauthorized();
+        if (_recoveryClockOf[id] == 0) revert NoRecovery();
 
-        if (block.timestamp < recoveryClockOf[id] + 259_200) revert Escrow();
-        if (idOf[destination] != 0) revert HasId();
+        if (block.timestamp < _recoveryClockOf[id] + 259_200) revert Escrow();
+        if (_idOf[destination] != 0) revert HasId();
 
         _unsafeTransfer(id, from, destination);
-        recoveryClockOf[id] = 0;
+        _recoveryClockOf[id] = 0;
     }
 
     /**
@@ -297,15 +297,15 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @param from the address that currently owns the id.
      */
     function cancelRecovery(address from) external payable {
-        uint256 id = idOf[from];
+        uint256 id = _idOf[from];
 
         address sender = _msgSender();
 
-        if (sender != from && sender != recoveryOf[id]) revert Unauthorized();
-        if (recoveryClockOf[id] == 0) revert NoRecovery();
+        if (sender != from && sender != _recoveryOf[id]) revert Unauthorized();
+        if (_recoveryClockOf[id] == 0) revert NoRecovery();
 
         emit CancelRecovery(id);
-        delete recoveryClockOf[id];
+        delete _recoveryClockOf[id];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -315,15 +315,15 @@ contract IDRegistry is ERC2771Context, Ownable {
     /**
      * @notice Changes the address from which registerTrusted calls can be made
      */
-    function setTrustedSender(address _trustedSender) external onlyOwner {
-        trustedSender = _trustedSender;
+    function setTrustedSender(address newTrustedSender) external onlyOwner {
+        _trustedSender = newTrustedSender;
     }
 
     /**
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedRegister() external onlyOwner {
-        trustedRegisterEnabled = false;
+        _trustedRegisterEnabled = 0;
     }
 
     /*//////////////////////////////////////////////////////////////
