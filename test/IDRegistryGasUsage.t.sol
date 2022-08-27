@@ -9,22 +9,17 @@ import {IDRegistry} from "../src/IDRegistry.sol";
 contract IDRegistryGasUsageTest is Test {
     IDRegistry idRegistry;
 
-    /*//////////////////////////////////////////////////////////////
-                              CONSTRUCTORS
-    //////////////////////////////////////////////////////////////*/
-
-    address zeroAddress = address(0);
-    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
 
     function setUp() public {
-        idRegistry = new IDRegistry(trustedForwarder);
+        idRegistry = new IDRegistry(FORWARDER);
     }
 
     function testGasRegister() public {
         idRegistry.disableTrustedRegister();
         for (uint256 i = 0; i < 25; i++) {
             vm.prank(address(uint160(i)));
-            idRegistry.register(zeroAddress);
+            idRegistry.register(address(0));
             assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
         }
     }
@@ -32,7 +27,7 @@ contract IDRegistryGasUsageTest is Test {
     function testGasRegisterWithOptions(string calldata url) public {
         idRegistry.disableTrustedRegister();
         for (uint256 i = 0; i < 25; i++) {
-            idRegistry.register(address(uint160(i)), zeroAddress, url);
+            idRegistry.register(address(uint160(i)), address(0), url);
             assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
         }
     }
@@ -42,7 +37,7 @@ contract IDRegistryGasUsageTest is Test {
 
         for (uint256 i = 0; i < 25; i++) {
             vm.prank(address(500));
-            idRegistry.trustedRegister(address(uint160(i)), zeroAddress, url);
+            idRegistry.trustedRegister(address(uint160(i)), address(0), url);
             assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
         }
     }

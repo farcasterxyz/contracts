@@ -21,16 +21,19 @@ contract IDRegistryTest is Test {
     event CancelRecovery(uint256 indexed id);
 
     /*//////////////////////////////////////////////////////////////
-                              CONSTRUCTORS
+                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    address zeroAddress = address(0);
+    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    uint256 constant ESCROW_PERIOD = 259_200;
     address owner = address(this);
-    address trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    uint256 escrowPeriod = 259_200;
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        idRegistry = new IDRegistry(trustedForwarder);
+        idRegistry = new IDRegistry(FORWARDER);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -38,7 +41,7 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testRegister(address alice, address recovery) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != recovery);
 
         idRegistry.disableTrustedRegister();
@@ -52,43 +55,43 @@ contract IDRegistryTest is Test {
     }
 
     function testRegisterIncrementsIds(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
-        registerWithRecovery(alice, zeroAddress);
+        registerWithRecovery(alice, address(0));
 
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
-        emit Register(bob, 2, zeroAddress);
-        idRegistry.register(zeroAddress);
+        emit Register(bob, 2, address(0));
+        idRegistry.register(address(0));
 
         assertEq(idRegistry.idOf(bob), 2);
-        assertEq(idRegistry.recoveryOf(2), zeroAddress);
+        assertEq(idRegistry.recoveryOf(2), address(0));
     }
 
     function testCannotRegisterWhenTrustedSenderEnabled(address alice, address recovery) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.register(recovery);
 
         assertEq(idRegistry.idOf(alice), 0);
-        assertEq(idRegistry.recoveryOf(1), zeroAddress);
+        assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
     function testCannotRegisterTwice(address alice) public {
-        vm.assume(alice != trustedForwarder);
-        registerWithRecovery(alice, zeroAddress);
+        vm.assume(alice != FORWARDER);
+        registerWithRecovery(alice, address(0));
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.HasId.selector);
-        idRegistry.register(zeroAddress);
+        idRegistry.register(address(0));
 
         assertEq(idRegistry.idOf(alice), 1);
     }
 
     function testCannotChangeHomeWithoutId(address alice, string calldata url) public {
-        vm.assume(alice != trustedForwarder);
+        vm.assume(alice != FORWARDER);
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.ZeroId.selector);
@@ -101,7 +104,7 @@ contract IDRegistryTest is Test {
         address recovery,
         string calldata url
     ) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
         idRegistry.disableTrustedRegister();
 
         vm.prank(alice);
@@ -121,7 +124,7 @@ contract IDRegistryTest is Test {
         address recovery,
         string calldata url
     ) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
         assertEq(idRegistry.trustedRegisterEnabled(), true);
 
         vm.prank(alice);
@@ -129,7 +132,7 @@ contract IDRegistryTest is Test {
         idRegistry.register(bob, recovery, url);
 
         assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.recoveryOf(1), zeroAddress);
+        assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
     function testRegisterFromTrustedSender(
@@ -138,7 +141,7 @@ contract IDRegistryTest is Test {
         address recovery,
         string calldata url
     ) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
         idRegistry.setTrustedSender(alice);
 
         vm.prank(alice);
@@ -158,7 +161,7 @@ contract IDRegistryTest is Test {
         address recovery,
         string calldata url
     ) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
         idRegistry.disableTrustedRegister();
 
         vm.prank(alice);
@@ -166,7 +169,7 @@ contract IDRegistryTest is Test {
         idRegistry.trustedRegister(bob, recovery, url);
 
         assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.recoveryOf(1), zeroAddress);
+        assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
     function testCannotRegisterFromTrustedSenderUnlessSender(
@@ -176,7 +179,7 @@ contract IDRegistryTest is Test {
         address recovery,
         string calldata url
     ) public {
-        vm.assume(alice != trustedForwarder && recovery != trustedForwarder);
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != charlie);
         idRegistry.setTrustedSender(charlie);
 
@@ -185,7 +188,7 @@ contract IDRegistryTest is Test {
         idRegistry.trustedRegister(bob, recovery, url);
 
         assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.recoveryOf(1), zeroAddress);
+        assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
     function testChangeHome(
@@ -193,7 +196,7 @@ contract IDRegistryTest is Test {
         address recovery,
         string calldata url
     ) public {
-        vm.assume(alice != trustedForwarder);
+        vm.assume(alice != FORWARDER);
 
         registerWithRecovery(alice, recovery);
         vm.prank(alice);
@@ -207,8 +210,8 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testTransfer(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && alice != bob);
-        registerWithRecovery(alice, zeroAddress);
+        vm.assume(alice != FORWARDER && alice != bob);
+        registerWithRecovery(alice, address(0));
         assertEq(idRegistry.idOf(bob), 0);
 
         vm.prank(alice);
@@ -221,11 +224,11 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotTransferToAddressWithId(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
 
-        registerWithRecovery(alice, zeroAddress);
-        registerWithRecovery(bob, zeroAddress);
+        registerWithRecovery(alice, address(0));
+        registerWithRecovery(bob, address(0));
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.HasId.selector);
@@ -236,7 +239,7 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotTransferIfNoId(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.ZeroId.selector);
@@ -251,9 +254,9 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testChangeRecoveryAddress(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
-        registerWithRecovery(alice, zeroAddress);
+        registerWithRecovery(alice, address(0));
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(alice);
@@ -270,7 +273,7 @@ contract IDRegistryTest is Test {
         address charlie,
         address david
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && david != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && david != FORWARDER);
         vm.assume(alice != bob && alice != charlie);
         registerWithRecovery(alice, bob);
 
@@ -287,7 +290,7 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
 
         vm.prank(alice);
@@ -306,7 +309,7 @@ contract IDRegistryTest is Test {
         address bob,
         address charlie
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(alice != charlie);
         registerWithRecovery(alice, bob);
 
@@ -327,10 +330,10 @@ contract IDRegistryTest is Test {
         address bob,
         address charlie
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(alice != charlie);
         vm.assume(bob != address(0));
-        registerWithRecovery(alice, zeroAddress);
+        registerWithRecovery(alice, address(0));
 
         vm.prank(bob);
         vm.expectRevert(IDRegistry.Unauthorized.selector);
@@ -339,7 +342,7 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(charlie), 0);
         assertEq(idRegistry.recoveryClockOf(1), 0);
-        assertEq(idRegistry.recoveryDestinationOf(1), zeroAddress);
+        assertEq(idRegistry.recoveryDestinationOf(1), address(0));
     }
 
     function testCannotRequestRecoveryToAddressThatOwnsAnId(
@@ -347,7 +350,7 @@ contract IDRegistryTest is Test {
         address bob,
         address charlie
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(alice != charlie);
         registerWithRecovery(alice, bob);
         registerWithRecovery(charlie, bob);
@@ -359,7 +362,7 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(charlie), 2);
         assertEq(idRegistry.recoveryClockOf(1), 0);
-        assertEq(idRegistry.recoveryDestinationOf(1), zeroAddress);
+        assertEq(idRegistry.recoveryDestinationOf(1), address(0));
     }
 
     function testCannotRequestRecoveryUnlessIssued(
@@ -367,7 +370,7 @@ contract IDRegistryTest is Test {
         address bob,
         address charlie
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != charlie);
         vm.assume(bob != address(0));
 
@@ -386,9 +389,9 @@ contract IDRegistryTest is Test {
         address charlie,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         registerWithRecovery(alice, bob);
 
         // 1. warp ahead of zero so that we can assert that recoveryClockOf is reset correctly
@@ -399,7 +402,7 @@ contract IDRegistryTest is Test {
         idRegistry.requestRecovery(alice, charlie);
 
         // 3. after escrow period, bob completes the recovery to charlie
-        vm.warp(timestamp + escrowPeriod);
+        vm.warp(timestamp + ESCROW_PERIOD);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, charlie, 1);
         idRegistry.completeRecovery(alice);
@@ -417,9 +420,9 @@ contract IDRegistryTest is Test {
         address charlie,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(bob != charlie && alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         registerWithRecovery(alice, bob);
 
         // 1. bob requests a recovery of alice's id to charlie
@@ -428,7 +431,7 @@ contract IDRegistryTest is Test {
         idRegistry.requestRecovery(alice, charlie);
 
         // 2. charlie calls completeRecovery on alice's id, which fails
-        vm.warp(timestamp + escrowPeriod);
+        vm.warp(timestamp + ESCROW_PERIOD);
         vm.prank(charlie);
         vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.completeRecovery(alice);
@@ -446,9 +449,9 @@ contract IDRegistryTest is Test {
         address david,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && david != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && david != FORWARDER);
         vm.assume(alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         registerWithRecovery(alice, bob);
 
         // 1. bob requests a recovery of alice's id to charlie, and then alice changes the recovery address to david
@@ -458,7 +461,7 @@ contract IDRegistryTest is Test {
         idRegistry.changeRecoveryAddress(david);
 
         // 2. after escrow period, david attemps to complete the recovery which fails
-        vm.warp(block.timestamp + escrowPeriod);
+        vm.warp(block.timestamp + ESCROW_PERIOD);
         vm.prank(david);
         vm.expectRevert(IDRegistry.NoRecovery.selector);
         idRegistry.completeRecovery(alice);
@@ -470,12 +473,12 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotCompleteRecoveryIfNotStarted(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
         registerWithRecovery(alice, bob);
 
         // 1. bob calls recovery complete on alice's id, which fails
-        vm.warp(block.timestamp + escrowPeriod);
+        vm.warp(block.timestamp + ESCROW_PERIOD);
         vm.prank(bob);
         vm.expectRevert(IDRegistry.NoRecovery.selector);
         idRegistry.completeRecovery(alice);
@@ -491,9 +494,9 @@ contract IDRegistryTest is Test {
         address charlie,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         registerWithRecovery(alice, bob);
 
         // 1. bob requests a recovery of alice's id to charlie
@@ -518,9 +521,9 @@ contract IDRegistryTest is Test {
         address charlie,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         registerWithRecovery(alice, bob);
 
         // 1. bob requests a recovery of alice's id to charlie
@@ -530,11 +533,11 @@ contract IDRegistryTest is Test {
 
         // 2. charlie registers id 2
         vm.prank(charlie);
-        idRegistry.register(zeroAddress);
+        idRegistry.register(address(0));
 
         // 3. after escrow period, bob completes the recovery to charlie which fails
         vm.startPrank(bob);
-        vm.warp(timestamp + escrowPeriod);
+        vm.warp(timestamp + ESCROW_PERIOD);
         vm.expectRevert(IDRegistry.HasId.selector);
         idRegistry.completeRecovery(alice);
         vm.stopPrank();
@@ -555,9 +558,9 @@ contract IDRegistryTest is Test {
         address charlie,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         registerWithRecovery(alice, bob);
 
         // 1. bob requests a recovery of alice's id to charlie
@@ -576,7 +579,7 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.recoveryOf(1), bob);
 
         // 3. after escrow period, bob tries to recover to charlie and fails
-        vm.warp(timestamp + escrowPeriod);
+        vm.warp(timestamp + ESCROW_PERIOD);
         vm.expectRevert(IDRegistry.NoRecovery.selector);
         vm.prank(bob);
         idRegistry.completeRecovery(alice);
@@ -593,9 +596,9 @@ contract IDRegistryTest is Test {
         address charlie,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         registerWithRecovery(alice, bob);
 
         // 1. bob requests a recovery of alice's id to charlie
@@ -614,7 +617,7 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.recoveryOf(1), bob);
 
         // 3. after escrow period, bob tries to recover to charlie and fails
-        vm.warp(timestamp + escrowPeriod);
+        vm.warp(timestamp + ESCROW_PERIOD);
         vm.expectRevert(IDRegistry.NoRecovery.selector);
         vm.prank(bob);
         idRegistry.completeRecovery(alice);
@@ -630,7 +633,7 @@ contract IDRegistryTest is Test {
         address bob,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
         registerWithRecovery(alice, bob);
 
@@ -650,9 +653,9 @@ contract IDRegistryTest is Test {
         address charlie,
         uint256 timestamp
     ) public {
-        vm.assume(alice != trustedForwarder && bob != trustedForwarder && charlie != trustedForwarder);
+        vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(bob != charlie && alice != charlie);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - escrowPeriod);
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         registerWithRecovery(alice, bob);
 
         // 1. bob requests a recovery of alice's id to charlie
@@ -676,7 +679,7 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testSetTrustedSender(address alice) public {
-        vm.assume(alice != trustedForwarder);
+        vm.assume(alice != FORWARDER);
         assertEq(idRegistry.owner(), owner);
 
         idRegistry.setTrustedSender(alice);
@@ -684,13 +687,13 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotSetTrustedSenderUnlessOwner(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && alice != zeroAddress);
+        vm.assume(alice != FORWARDER && alice != address(0));
         vm.assume(idRegistry.owner() != alice);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
         idRegistry.setTrustedSender(bob);
-        assertEq(idRegistry.trustedSender(), zeroAddress);
+        assertEq(idRegistry.trustedSender(), address(0));
     }
 
     function testDisableTrustedSender() public {
@@ -702,7 +705,7 @@ contract IDRegistryTest is Test {
     }
 
     function testCannotDisableTrustedSenderUnlessOwner(address alice) public {
-        vm.assume(alice != trustedForwarder && alice != zeroAddress);
+        vm.assume(alice != FORWARDER && alice != address(0));
         vm.assume(idRegistry.owner() != alice);
 
         vm.prank(alice);
@@ -712,14 +715,14 @@ contract IDRegistryTest is Test {
     }
 
     function testTransferOwnership(address alice) public {
-        vm.assume(alice != trustedForwarder && alice != zeroAddress);
+        vm.assume(alice != FORWARDER && alice != address(0));
 
         idRegistry.transferOwnership(alice);
         assertEq(idRegistry.owner(), alice);
     }
 
     function testCannotTransferOwnershipUnlessOwner(address alice, address bob) public {
-        vm.assume(alice != trustedForwarder && alice != zeroAddress && bob != zeroAddress);
+        vm.assume(alice != FORWARDER && alice != address(0) && bob != address(0));
         vm.assume(alice != owner);
         assertEq(idRegistry.owner(), owner);
 
