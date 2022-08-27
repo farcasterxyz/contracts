@@ -126,7 +126,7 @@ contract IDRegistryTest is Test {
         string calldata url
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        assertEq(idRegistry.trustedRegisterEnabled(), true);
+        assertEq(idRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.Unauthorized.selector);
@@ -699,10 +699,10 @@ contract IDRegistryTest is Test {
 
     function testDisableTrustedSender() public {
         assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.trustedRegisterEnabled(), true);
+        assertEq(idRegistry.trustedRegisterEnabled(), 1);
 
         idRegistry.disableTrustedRegister();
-        assertEq(idRegistry.trustedRegisterEnabled(), false);
+        assertEq(idRegistry.trustedRegisterEnabled(), 0);
     }
 
     function testCannotDisableTrustedSenderUnlessOwner(address alice) public {
@@ -712,7 +712,7 @@ contract IDRegistryTest is Test {
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
         idRegistry.disableTrustedRegister();
-        assertEq(idRegistry.trustedRegisterEnabled(), true);
+        assertEq(idRegistry.trustedRegisterEnabled(), 1);
     }
 
     function testTransferOwnership(address alice) public {

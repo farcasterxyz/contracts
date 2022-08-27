@@ -56,8 +56,11 @@ contract IDRegistry is ERC2771Context, Ownable {
     // The most recent fid issued by the contract.
     uint256 private idCounter;
 
-    // The trusted sender for preregistration
+    // The trusted sender that can register names
     address internal _trustedSender;
+
+    // Allow registration calls from the trusted sender if set to 1
+    uint256 internal _trustedRegisterEnabled = 1;
 
     // Mapping from custody address to id
     mapping(address => uint256) internal _idOf;
@@ -71,9 +74,6 @@ contract IDRegistry is ERC2771Context, Ownable {
     // Mapping from id to recovery destination address
     mapping(uint256 => address) internal _recoveryDestinationOf;
 
-    // Only allow calls to preregister from the trusted sender
-    bool internal _trustedRegisterEnabled = true;
-
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
@@ -85,7 +85,7 @@ contract IDRegistry is ERC2771Context, Ownable {
      */
     // Optimization: if we don't need the recovery address and can avoid the assginment, we save about 2500 gas
     function register(address recovery) external payable {
-        if (_trustedRegisterEnabled) revert Unauthorized();
+        if (_trustedRegisterEnabled == 1) revert Unauthorized();
         _register(_msgSender(), recovery);
     }
 
@@ -103,7 +103,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         address recovery,
         string calldata url
     ) external payable {
-        if (_trustedRegisterEnabled) revert Unauthorized();
+        if (_trustedRegisterEnabled == 1) revert Unauthorized();
         _register(to, recovery);
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
@@ -123,7 +123,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         address recovery,
         string calldata url
     ) external payable {
-        if (!_trustedRegisterEnabled) revert Registrable();
+        if (_trustedRegisterEnabled == 0) revert Registrable();
         if (_msgSender() != _trustedSender) revert Unauthorized();
 
         _register(to, recovery);
@@ -323,7 +323,7 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedRegister() external onlyOwner {
-        _trustedRegisterEnabled = false;
+        _trustedRegisterEnabled = 0;
     }
 
     /*//////////////////////////////////////////////////////////////

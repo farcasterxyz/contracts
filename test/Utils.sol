@@ -28,7 +28,7 @@ contract IDRegistryTestable is IDRegistry {
         return _trustedSender;
     }
 
-    function trustedRegisterEnabled() public view returns (bool) {
+    function trustedRegisterEnabled() public view returns (uint256) {
         return _trustedRegisterEnabled;
     }
 }
