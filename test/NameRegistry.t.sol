@@ -1559,6 +1559,7 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _assumeClean(bob);
+        _assumeClean(david);
         vm.assume(alice != bob);
         vm.assume(alice != charlie);
         vm.assume(charlie != address(0));
