@@ -21,21 +21,18 @@ contract NameRegistryUpgradeTest is Test {
     NameRegistryV2 nameRegistryV2;
     NameRegistryV2 proxiedNameRegistryV2;
 
-    address proxyAddr;
     address owner = address(this);
-    address vault = address(0x456);
+    address vault = address(this);
 
-    address private trustedForwarder = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    address private constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
 
     function setUp() public {
-        nameRegistry = new NameRegistry(trustedForwarder);
-        nameRegistryV2 = new NameRegistryV2(trustedForwarder);
-
+        nameRegistry = new NameRegistry(FORWARDER);
+        nameRegistryV2 = new NameRegistryV2(FORWARDER);
         proxy = new ERC1967Proxy(address(nameRegistry), "");
-        proxyAddr = address(proxy);
 
         // Cast the Proxy as a NameRegistry so we can call NameRegistry methods easily
-        proxiedNameRegistry = NameRegistry(address(proxyAddr));
+        proxiedNameRegistry = NameRegistry(address(proxy));
         proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
     }
 
@@ -53,7 +50,7 @@ contract NameRegistryUpgradeTest is Test {
         // the proxy as a NameRegistryV2
         vm.prank(owner);
         proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
-        proxiedNameRegistryV2 = NameRegistryV2(address(proxyAddr));
+        proxiedNameRegistryV2 = NameRegistryV2(address(proxy));
 
         // 3. Re-initialize the v2 contract
         vm.prank(owner);

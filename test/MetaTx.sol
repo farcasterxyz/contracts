@@ -31,10 +31,10 @@ contract MetaTxTest is Test {
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
     // The largest uint256 that can be used as an ECDSA private key
-    uint256 privateKeyMax = 115792089237316195423570985008687907852837564279074904382605163141518161494337;
+    uint256 constant PKEY_MAX = 115792089237316195423570985008687907852837564279074904382605163141518161494337;
 
     // A timestamp during which registrations are allowed - Dec 1, 2022 00:00:00 GMT
-    uint256 aliceRegisterTs = 1669881600;
+    uint256 constant DEC1_2022_TS = 1669881600;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -64,7 +64,7 @@ contract MetaTxTest is Test {
         address recovery,
         uint256 alicePrivateKey
     ) public {
-        vm.assume(alicePrivateKey > 0 && alicePrivateKey < privateKeyMax);
+        vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);
 
         // 1. Construct the ForwardRequest which contains all the parameters needed to make the call
@@ -98,7 +98,7 @@ contract MetaTxTest is Test {
         address recovery,
         uint256 alicePrivateKey
     ) public {
-        vm.assume(alicePrivateKey > 0 && alicePrivateKey < privateKeyMax);
+        vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);
 
         // 1. Make the commit
@@ -116,7 +116,7 @@ contract MetaTxTest is Test {
         bytes memory makeCommitSig = _signReq(makeCommitReq, alicePrivateKey);
 
         vm.deal(trustedSender, 1 ether);
-        vm.warp(aliceRegisterTs);
+        vm.warp(DEC1_2022_TS);
         vm.prank(trustedSender);
         forwarder.execute(makeCommitReq, makeCommitSig);
 
