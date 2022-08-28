@@ -247,8 +247,7 @@ contract NameRegistry is
         address to,
         bytes32 secret
     ) public pure returns (bytes32) {
-        if (!_isValidUsername(username)) revert InvalidName();
-
+        _isValidUsername(username);
         return keccak256(abi.encode(username, to, secret));
     }
 
@@ -480,7 +479,7 @@ contract NameRegistry is
         // can be performed safely to obtain the username
         bytes16 tokenIdBytes16 = bytes16(bytes32(tokenId));
 
-        if (!_isValidUsername(tokenIdBytes16)) revert InvalidName();
+        _isValidUsername(tokenIdBytes16);
 
         // Iterate backwards from the last byte until we find the first non-zero byte which marks
         // the end of the username, which is guaranteed to be <= 16 bytes / chars.
@@ -779,7 +778,7 @@ contract NameRegistry is
     /**
      * @dev Returns true if the name is only composed of [a-z0-9] and the hyphen characters.
      */
-    function _isValidUsername(bytes16 username) private pure returns (bool) {
+    function _isValidUsername(bytes16 username) private pure {
         uint256 length = username.length;
 
         if (username == bytes16(0)) revert InvalidName();
@@ -795,7 +794,7 @@ contract NameRegistry is
                 (charInt >= 58 && charInt <= 96) ||
                 charInt >= 123
             ) {
-                return false;
+                revert InvalidName();
             }
 
             unchecked {
@@ -803,7 +802,6 @@ contract NameRegistry is
                 i++;
             }
         }
-        return true;
     }
 
     /**
