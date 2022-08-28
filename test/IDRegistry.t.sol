@@ -17,8 +17,8 @@ contract IDRegistryTest is Test {
     event Register(address indexed to, uint256 indexed id, address recovery, string url);
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
     event ChangeHome(uint256 indexed id, string url);
-    event ChangeRecoveryAddress(address indexed recovery, uint256 indexed id);
-    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
+    event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
     event CancelRecovery(uint256 indexed id);
 
     /*//////////////////////////////////////////////////////////////
@@ -237,7 +237,7 @@ contract IDRegistryTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, false, true);
-        emit ChangeRecoveryAddress(bob, 1);
+        emit ChangeRecoveryAddress(1, bob);
         idRegistry.changeRecoveryAddress(bob);
 
         assertEq(idRegistry.recoveryOf(1), bob);
@@ -291,7 +291,7 @@ contract IDRegistryTest is Test {
 
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
-        emit RequestRecovery(1, alice, charlie);
+        emit RequestRecovery(alice, charlie, 1);
         idRegistry.requestRecovery(alice, charlie);
 
         assertEq(idRegistry.idOf(alice), 1);

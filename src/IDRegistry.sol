@@ -43,9 +43,9 @@ contract IDRegistry is ERC2771Context, Ownable {
 
     event ChangeHome(uint256 indexed id, string url);
 
-    event ChangeRecoveryAddress(address indexed recovery, uint256 indexed id);
+    event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
-    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
 
     event CancelRecovery(uint256 indexed id);
 
@@ -222,7 +222,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         if (id == 0) revert ZeroId();
 
         _recoveryOf[id] = recovery;
-        emit ChangeRecoveryAddress(recovery, id);
+        emit ChangeRecoveryAddress(id, recovery);
 
         if (_recoveryClockOf[id] != 0) {
             emit CancelRecovery(id);
@@ -249,7 +249,7 @@ contract IDRegistry is ERC2771Context, Ownable {
 
         _recoveryClockOf[id] = block.timestamp;
         _recoveryDestinationOf[id] = to;
-        emit RequestRecovery(id, from, to);
+        emit RequestRecovery(from, to, id);
     }
 
     /**
