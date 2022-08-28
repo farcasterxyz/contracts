@@ -485,7 +485,7 @@ contract NameRegistryTest is Test {
         vm.warp(JAN1_2022_TS);
         vm.prank(owner);
         nameRegistry.setTrustedSender(trustedSender);
-        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
         vm.expectEmit(true, true, true, false);
@@ -506,7 +506,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(owner);
         nameRegistry.setTrustedSender(trustedSender);
-        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
         nameRegistry.trustedRegister(alice, "alice", bob);
@@ -538,7 +538,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(owner);
         nameRegistry.setTrustedSender(trustedSender);
-        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
         nameRegistry.trustedRegister(alice, "alice", address(0));
@@ -556,7 +556,7 @@ contract NameRegistryTest is Test {
         vm.assume(arbitrarySender != trustedSender);
         vm.assume(trustedSender != FORWARDER);
         vm.assume(alice != address(0));
-        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(owner);
         nameRegistry.setTrustedSender(trustedSender);
@@ -570,7 +570,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != address(0));
         vm.assume(trustedSender != FORWARDER);
 
-        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
         vm.prank(owner);
         nameRegistry.setTrustedSender(trustedSender);
 
@@ -1995,22 +1995,22 @@ contract NameRegistryTest is Test {
     }
 
     function testDisableTrustedSender() public {
-        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(owner);
         nameRegistry.disableTrustedRegister();
-        assertEq(nameRegistry.trustedRegisterEnabled(), false);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 0);
     }
 
     function testCannotDisableTrustedSenderUnlessOwner(address alice) public {
         _assumeClean(alice);
         vm.assume(alice != owner);
-        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
         nameRegistry.disableTrustedRegister();
-        assertEq(nameRegistry.trustedRegisterEnabled(), true);
+        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
     }
 
     function testTransferOwnership(address alice) public {

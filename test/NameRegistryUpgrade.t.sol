@@ -108,7 +108,7 @@ contract NameRegistryV2 is
     mapping(uint256 => address) public recoveryDestinationOf;
     uint256 fee;
     address public trustedSender;
-    bool public trustedRegisterEnabled = true;
+    uint256 trustedRegisterEnabled;
 
     // New storage values
     uint256 public number;

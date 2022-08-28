@@ -100,11 +100,11 @@ contract NameRegistry is
     // Yearly fee charged for a username
     uint256 public fee;
 
-    // The trusted sender for preregistration
+    // The trusted sender that can register names
     address public trustedSender;
 
-    // Only allow calls to preregister from the trusted sender
-    bool public trustedRegisterEnabled;
+    // Allow registration calls from the trusted sender if set to 1
+    uint256 public trustedRegisterEnabled;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -217,7 +217,7 @@ contract NameRegistry is
 
         fee = 0.01 ether;
 
-        trustedRegisterEnabled = true;
+        trustedRegisterEnabled = 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -262,7 +262,7 @@ contract NameRegistry is
      * @param commit the commitment hash to be persisted on-chain
      */
     function makeCommit(bytes32 commit) external payable {
-        if (trustedRegisterEnabled) revert NotRegistrable();
+        if (trustedRegisterEnabled == 1) revert NotRegistrable();
 
         timestampOf[commit] = block.timestamp;
     }
@@ -337,7 +337,7 @@ contract NameRegistry is
          * 3. Usernames are not validated and this must be handled by the trusted sender.
          */
 
-        if (!trustedRegisterEnabled) revert Registrable();
+        if (trustedRegisterEnabled == 0) revert Registrable();
         if (_msgSender() != trustedSender) revert Unauthorized();
 
         uint256 tokenId = uint256(bytes32(username));
@@ -692,7 +692,7 @@ contract NameRegistry is
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedRegister() external onlyOwner {
-        trustedRegisterEnabled = false;
+        trustedRegisterEnabled = 0;
     }
 
     /*//////////////////////////////////////////////////////////////
