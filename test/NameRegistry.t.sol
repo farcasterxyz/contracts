@@ -1326,8 +1326,6 @@ contract NameRegistryTest is Test {
         vm.prank(bob);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, charlie);
         vm.prank(alice);
-        vm.expectEmit(true, false, false, true);
-        emit CancelRecovery(ALICE_TOKEN_ID);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, david);
 
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), david);

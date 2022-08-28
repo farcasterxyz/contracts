@@ -558,7 +558,6 @@ contract NameRegistry is
         emit ChangeRecoveryAddress(tokenId, recovery);
 
         if (recoveryClockOf[tokenId] != 0) {
-            emit CancelRecovery(tokenId);
             delete recoveryClockOf[tokenId];
         }
     }
