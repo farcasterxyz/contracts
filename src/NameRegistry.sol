@@ -56,9 +56,9 @@ contract NameRegistry is
 
     event Renew(uint256 indexed tokenId, uint256 expiry);
 
-    event ChangeRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
+    event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
 
-    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
 
     event CancelRecovery(uint256 indexed id);
 
@@ -438,7 +438,7 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Override the ownerOf implementation to throw if a username is expired or renewable.
+     * @notice Override the ownerOf implementation to throw if a username is renewable or biddable.
      */
     function ownerOf(uint256 tokenId) public view override returns (address) {
         uint256 expiryTs = expiryOf[tokenId];
@@ -456,8 +456,7 @@ contract NameRegistry is
      */
 
     /**
-     * @notice Override the ownerOf implementation to throw if a username is expired or renewable
-     *          and to clear the recovery address if it is set.
+     * @notice Override the transferFrom implementation to throw if the name is renewable or biddable.
      */
     function transferFrom(
         address from,
@@ -556,10 +555,9 @@ contract NameRegistry is
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
         recoveryOf[tokenId] = recovery;
-        emit ChangeRecoveryAddress(recovery, tokenId);
+        emit ChangeRecoveryAddress(tokenId, recovery);
 
         if (recoveryClockOf[tokenId] != 0) {
-            emit CancelRecovery(tokenId);
             delete recoveryClockOf[tokenId];
         }
     }
@@ -587,7 +585,7 @@ contract NameRegistry is
         recoveryClockOf[tokenId] = block.timestamp;
         recoveryDestinationOf[tokenId] = to;
 
-        emit RequestRecovery(tokenId, from, to);
+        emit RequestRecovery(from, to, tokenId);
     }
 
     /**

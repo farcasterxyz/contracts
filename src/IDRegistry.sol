@@ -37,15 +37,15 @@ contract IDRegistry is ERC2771Context, Ownable {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Register(address indexed to, uint256 indexed id, address recovery);
+    event Register(address indexed to, uint256 indexed id, address recovery, string url);
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
     event ChangeHome(uint256 indexed id, string url);
 
-    event ChangeRecoveryAddress(address indexed recovery, uint256 indexed id);
+    event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
-    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
 
     event CancelRecovery(uint256 indexed id);
 
@@ -79,24 +79,11 @@ contract IDRegistry is ERC2771Context, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Register an FID for the caller
+     * @notice Register a Farcaster ID
      *
-     * @param recovery the initial recovery address, which can be set to zero to disable recovery
-     */
-    // Optimization: if we don't need the recovery address and can avoid the assginment, we save about 2500 gas
-    function register(address recovery) external payable {
-        if (_trustedRegisterEnabled == 1) revert Unauthorized();
-        _register(_msgSender(), recovery);
-    }
-
-    /**
-     * @notice Register an FID for another address and configure all optional settings
-     *
-     * @dev Slightly more gas efficient than calling trustedRegister post-registration
-     *
-     * @param to the address to register an FID for
-     * @param recovery the address which can perform recovery operations
-     * @param url the home url for the FID
+     * @param to the address which will own the fid
+     * @param recovery the address which can recover the id
+     * @param url the home url for the fid
      */
     function register(
         address to,
@@ -108,15 +95,15 @@ contract IDRegistry is ERC2771Context, Ownable {
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
         // this user at this point in time.
-        emit ChangeHome(idCounter, url);
+        emit Register(to, idCounter, recovery, url);
     }
 
     /**
-     * @notice Register an FID for another address and configure all optional settings
+     * @notice Register a Farcaster ID
      *
-     * @param to the address to register an FID for
-     * @param recovery the address which can perform recovery operations, set to zero address to disable.
-     * @param url the home url for the FID
+     * @param to the address which will own the fid
+     * @param recovery the address which can recover the id
+     * @param url the home url for the fid
      */
     function trustedRegister(
         address to,
@@ -130,7 +117,7 @@ contract IDRegistry is ERC2771Context, Ownable {
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
         // this user at this point in time.
-        emit ChangeHome(idCounter, url);
+        emit Register(to, idCounter, recovery, url);
     }
 
     /**
@@ -159,7 +146,6 @@ contract IDRegistry is ERC2771Context, Ownable {
         // Incrementing before assigning ensures that the first id issued is 1, and not 0.
         _idOf[to] = idCounter;
         _recoveryOf[idCounter] = recovery;
-        emit Register(to, idCounter, recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -236,10 +222,9 @@ contract IDRegistry is ERC2771Context, Ownable {
         if (id == 0) revert ZeroId();
 
         _recoveryOf[id] = recovery;
-        emit ChangeRecoveryAddress(recovery, id);
+        emit ChangeRecoveryAddress(id, recovery);
 
         if (_recoveryClockOf[id] != 0) {
-            emit CancelRecovery(id);
             delete _recoveryClockOf[id];
         }
     }
@@ -263,7 +248,7 @@ contract IDRegistry is ERC2771Context, Ownable {
 
         _recoveryClockOf[id] = block.timestamp;
         _recoveryDestinationOf[id] = to;
-        emit RequestRecovery(id, from, to);
+        emit RequestRecovery(from, to, id);
     }
 
     /**
