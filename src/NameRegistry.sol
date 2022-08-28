@@ -805,13 +805,13 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
+     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year between 2022 and 2072
      */
     function _timestampOfYear(uint256 year) private view returns (uint256) {
         unchecked {
-            if (year <= 2021) revert InvalidTime();
-
-            // Safety: year is guaranteed to be >= 2022, so this cannot underflow
+            // Safety: The array index will not go below zero, since year is always set to at least currYear(),
+            // which must be >= 2022. The array index will not go above array.length(51) until the year 2072, since
+            // year is always set to at most currYear() + 1, which must be <= 2072 in the year 2071
             return _yearTimestamps[year - 2022];
         }
     }
