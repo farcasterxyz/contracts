@@ -28,6 +28,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     error ZeroId(); // The id is zero, which is invalid
     error HasId(); // The custody address has another id
     error Registrable(); // The trusted sender methods cannot be used when state is registrable
+    error ZeroAddress(); // the id is being transferred to the zero address
 
     error InvalidRecoveryAddr(); // The recovery cannot be the same as the custody address
     error NoRecovery(); // The recovery request for this id could not be found
@@ -91,6 +92,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         string calldata url
     ) external payable {
         if (_trustedRegisterEnabled == 1) revert Unauthorized();
+        if (to == address(0)) revert ZeroAddress();
         _register(to, recovery);
 
         // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
@@ -170,18 +172,20 @@ contract IDRegistry is ERC2771Context, Ownable {
     }
 
     /**
-     * @dev Moves ownership of an id to a new address. This function is unsafe because it does
-     *      not perform any invariant checks.
+     * @dev Moves ownership of an id to a new address. This function is unsafe because it does not verify that the
+     * from owns an id or that the to doesn't own an id, which should be ensured by the caller.
      */
     function _unsafeTransfer(
         uint256 id,
         address from,
         address to
     ) private {
+        if (to == address(0)) revert ZeroAddress();
+
         _idOf[to] = id;
         _idOf[from] = 0;
 
-        // since this is rarely true, checking before assigning is more gas efficient
+        // Perf: Checking before assigning is more gas efficient since this is usually false.
         if (_recoveryClockOf[id] != 0) _recoveryClockOf[id] = 0;
         _recoveryOf[id] = address(0);
 

@@ -49,6 +49,7 @@ contract IDRegistryTest is Test {
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != recovery);
+        vm.assume(bob != address(0));
 
         idRegistry.disableTrustedRegister();
         vm.prank(alice);
@@ -67,6 +68,7 @@ contract IDRegistryTest is Test {
     ) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
+        vm.assume(bob != address(0));
         _register(alice, address(0));
 
         vm.prank(bob);
@@ -85,6 +87,8 @@ contract IDRegistryTest is Test {
         string calldata url
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
+        vm.assume(alice != address(0));
+        vm.assume(bob != address(0));
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.Unauthorized.selector);
@@ -97,12 +101,24 @@ contract IDRegistryTest is Test {
     function testCannotRegisterTwice(address alice) public {
         vm.assume(alice != FORWARDER);
         _register(alice, address(0));
+        vm.assume(alice != address(0));
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.HasId.selector);
         idRegistry.register(alice, address(0), "");
 
         assertEq(idRegistry.idOf(alice), 1);
+    }
+
+    function testCannotRegisterToZeroAddress(address alice) public {
+        vm.assume(alice != FORWARDER);
+        idRegistry.disableTrustedRegister();
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.ZeroAddress.selector);
+        idRegistry.register(address(0), address(0), "");
+
+        assertEq(idRegistry.idOf(address(0)), 0);
     }
 
     function testRegisterFromTrustedSender(
@@ -187,6 +203,7 @@ contract IDRegistryTest is Test {
 
     function testTransfer(address alice, address bob) public {
         vm.assume(alice != FORWARDER && alice != bob);
+        vm.assume(bob != address(0));
         _register(alice, address(0));
         assertEq(idRegistry.idOf(bob), 0);
 
@@ -197,6 +214,19 @@ contract IDRegistryTest is Test {
 
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(bob), 1);
+    }
+
+    function testCannotTransferToZeroAddress(address alice) public {
+        vm.assume(alice != FORWARDER);
+
+        _register(alice, address(0));
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.ZeroAddress.selector);
+        idRegistry.transfer(address(0));
+
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(address(0)), 0);
     }
 
     function testCannotTransferToAddressWithId(address alice, address bob) public {
@@ -365,6 +395,7 @@ contract IDRegistryTest is Test {
     ) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != charlie);
+        vm.assume(charlie != address(0));
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         _register(alice, bob);
 
@@ -497,6 +528,7 @@ contract IDRegistryTest is Test {
     ) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER && charlie != FORWARDER);
         vm.assume(alice != charlie);
+        vm.assume(charlie != address(0));
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
         _register(alice, bob);
 
@@ -518,6 +550,34 @@ contract IDRegistryTest is Test {
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(charlie), 2);
+        assertEq(idRegistry.recoveryOf(1), bob);
+        assertEq(idRegistry.recoveryClockOf(1), timestamp);
+    }
+
+    function testCannotCompleteRecoveryToZeroAddress(
+        address alice,
+        address bob,
+        uint256 timestamp
+    ) public {
+        vm.assume(alice != FORWARDER && bob != FORWARDER);
+
+        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        _register(alice, bob);
+
+        // 1. bob requests a recovery of alice's id to address(0)
+        vm.warp(timestamp);
+        vm.prank(bob);
+        idRegistry.requestRecovery(alice, address(0));
+
+        // 3. after escrow period, bob completes the recovery to address(0) which fails
+        vm.startPrank(bob);
+        vm.warp(timestamp + ESCROW_PERIOD);
+        vm.expectRevert(IDRegistry.ZeroAddress.selector);
+        idRegistry.completeRecovery(alice);
+        vm.stopPrank();
+
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(address(0)), 0);
         assertEq(idRegistry.recoveryOf(1), bob);
         assertEq(idRegistry.recoveryClockOf(1), timestamp);
     }
@@ -711,6 +771,7 @@ contract IDRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function _register(address alice, address bob) internal {
+        vm.assume(alice != address(0));
         idRegistry.disableTrustedRegister();
         vm.prank(alice);
         idRegistry.register(alice, bob, "");
