@@ -19,13 +19,9 @@ contract NameRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
-
     event Renew(uint256 indexed tokenId, uint256 expiry);
-
-    event ChangeRecoveryAddress(address indexed recovery, uint256 indexed tokenId);
-
-    event RequestRecovery(uint256 indexed id, address indexed from, address indexed to);
-
+    event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
     event CancelRecovery(uint256 indexed id);
 
     /*//////////////////////////////////////////////////////////////
@@ -488,7 +484,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
-        vm.expectEmit(true, true, true, false);
+        vm.expectEmit(true, true, true, true);
         emit Transfer(address(0), alice, ALICE_TOKEN_ID);
         nameRegistry.trustedRegister(alice, "alice", address(0));
 
@@ -1224,14 +1220,14 @@ contract NameRegistryTest is Test {
         // 1. alice sets bob as her recovery address
         vm.startPrank(alice);
         vm.expectEmit(true, true, false, true);
-        emit ChangeRecoveryAddress(alice, ALICE_TOKEN_ID);
+        emit ChangeRecoveryAddress(ALICE_TOKEN_ID, alice);
 
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), alice);
 
         // 2. alice sets charlie as her recovery address
         vm.expectEmit(true, true, false, true);
-        emit ChangeRecoveryAddress(charlie, ALICE_TOKEN_ID);
+        emit ChangeRecoveryAddress(ALICE_TOKEN_ID, charlie);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, charlie);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), charlie);
 
@@ -1363,7 +1359,7 @@ contract NameRegistryTest is Test {
         // 2. bob requests a recovery of alice's id to charlie
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
-        emit RequestRecovery(ALICE_TOKEN_ID, alice, charlie);
+        emit RequestRecovery(alice, charlie, ALICE_TOKEN_ID);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, charlie);
 
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
