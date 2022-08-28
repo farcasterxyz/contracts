@@ -225,7 +225,6 @@ contract IDRegistry is ERC2771Context, Ownable {
         emit ChangeRecoveryAddress(id, recovery);
 
         if (_recoveryClockOf[id] != 0) {
-            emit CancelRecovery(id);
             delete _recoveryClockOf[id];
         }
     }

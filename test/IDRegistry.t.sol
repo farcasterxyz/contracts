@@ -257,8 +257,6 @@ contract IDRegistryTest is Test {
         idRegistry.requestRecovery(alice, charlie);
 
         vm.prank(alice);
-        vm.expectEmit(true, false, false, true);
-        emit CancelRecovery(1);
         idRegistry.changeRecoveryAddress(david);
 
         assertEq(idRegistry.recoveryOf(1), david);
