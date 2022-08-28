@@ -485,6 +485,7 @@ contract NameRegistry is
         // Iterate backwards from the last byte until we find the first non-zero byte which marks
         // the end of the username, which is guaranteed to be <= 16 bytes / chars.
         for (uint256 i = 15; ; --i) {
+            // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
             if (uint8(tokenIdBytes16[i]) != 0) {
                 lastCharIdx = i;
                 break;
@@ -707,6 +708,7 @@ contract NameRegistry is
 
     function currYear() public returns (uint256 year) {
         unchecked {
+            // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
             // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
             if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
                 return _nextYearIdx + 2021;
@@ -805,13 +807,13 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year.
+     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year between 2022 and 2072
      */
     function _timestampOfYear(uint256 year) private view returns (uint256) {
         unchecked {
-            if (year <= 2021) revert InvalidTime();
-
-            // Safety: year is guaranteed to be >= 2022, so this cannot underflow
+            // Safety: The array index will not go below zero, since year is always set to at least currYear(),
+            // which must be >= 2022. The array index will not go above array.length(51) until the year 2072, since
+            // year is always set to at most currYear() + 1, which must be <= 2072 in the year 2071
             return _yearTimestamps[year - 2022];
         }
     }
