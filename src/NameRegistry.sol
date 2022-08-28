@@ -485,6 +485,7 @@ contract NameRegistry is
         // Iterate backwards from the last byte until we find the first non-zero byte which marks
         // the end of the username, which is guaranteed to be <= 16 bytes / chars.
         for (uint256 i = 15; ; --i) {
+            // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
             if (uint8(tokenIdBytes16[i]) != 0) {
                 lastCharIdx = i;
                 break;
@@ -707,6 +708,7 @@ contract NameRegistry is
 
     function currYear() public returns (uint256 year) {
         unchecked {
+            // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
             // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
             if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
                 return _nextYearIdx + 2021;
