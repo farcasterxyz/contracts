@@ -80,7 +80,7 @@ contract MetaTxTest is Test {
             // the gas limit that should be used for the call
             gas: 100_000,
             // the call data that should be forwarded to the contract
-            data: abi.encodeWithSelector(bytes4(keccak256("register(address,address,string)")), alice, recovery, "") // calldata
+            data: abi.encodeWithSelector(bytes4(keccak256("register(address,address,string)")), alice, recovery, "")
         });
 
         bytes memory signature = _signReq(req, alicePrivateKey);
