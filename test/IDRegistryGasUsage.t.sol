@@ -16,15 +16,6 @@ contract IDRegistryGasUsageTest is Test {
     }
 
     function testGasRegister() public {
-        idRegistry.disableTrustedRegister();
-        for (uint256 i = 0; i < 25; i++) {
-            vm.prank(address(uint160(i)));
-            idRegistry.register(address(0));
-            assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
-        }
-    }
-
-    function testGasRegisterWithOptions() public {
         string memory url = "https://farcaster.xyz";
         idRegistry.disableTrustedRegister();
         for (uint256 i = 0; i < 25; i++) {
