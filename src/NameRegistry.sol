@@ -247,8 +247,7 @@ contract NameRegistry is
         address to,
         bytes32 secret
     ) public pure returns (bytes32) {
-        if (!_isValidUsername(username)) revert InvalidName();
-
+        _validateName(username);
         return keccak256(abi.encode(username, to, secret));
     }
 
@@ -480,7 +479,7 @@ contract NameRegistry is
         // can be performed safely to obtain the username
         bytes16 tokenIdBytes16 = bytes16(bytes32(tokenId));
 
-        if (!_isValidUsername(tokenIdBytes16)) revert InvalidName();
+        _validateName(tokenIdBytes16);
 
         // Iterate backwards from the last byte until we find the first non-zero byte which marks
         // the end of the username, which is guaranteed to be <= 16 bytes / chars.
@@ -493,7 +492,7 @@ contract NameRegistry is
         }
 
         // Safety: we can assume that lastCharIndex is always > 0 since registering a username with
-        // all empty bytes is not permitted by _isValidUsername.
+        // all empty bytes is not permitted by _validateName.
 
         // Construct a new bytes[] with the valid username characters.
         bytes memory usernameBytes = new bytes(lastCharIdx + 1);
@@ -777,25 +776,53 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Returns true if the name is only composed of [a-z0-9] and the hyphen characters.
+     * @dev Returns true if the name meets our conditions for a valid username.
      */
-    function _isValidUsername(bytes16 username) private pure returns (bool) {
+    // solhint-disable-next-line code-complexity
+    function _validateName(bytes16 username) private pure {
         uint256 length = username.length;
+        bool nameEnded = false;
 
-        if (username == bytes16(0)) revert InvalidName();
+        // Iterate over the bytes16 username one char at a time, ensuring that:
+        //   1. The name begins with [a-z 0-9] or the ascii numbers [48-57, 97-122] inclusive
+        //   2. The name can contain [a-z 0-9 -] or the ascoii numbers [45, 48-57, 97-122] inclusive
+        //   3. Once the name is ended with a NULL char (0), the follows character must also be NULLs
+
+        // If the name begins with a hyphen, reject it
+        if (uint8(username[0]) == 45) revert InvalidName();
 
         for (uint256 i = 0; i < length; ) {
             uint8 charInt = uint8(username[i]);
-            // Optimize: consider using a bitmask to check for valid characters which may be more
-            // efficient.
-            // Allow inclusive ranges 45(-), 48 - 57 (0-9), 97-122 (a-z)
-            if (
-                (charInt >= 1 && charInt <= 44) ||
-                (charInt >= 46 && charInt <= 47) ||
-                (charInt >= 58 && charInt <= 96) ||
-                charInt >= 123
-            ) {
-                return false;
+
+            if (nameEnded) {
+                // Since the name has ended, ensure that this character is NULL.
+                if (charInt != 0) {
+                    revert InvalidName();
+                }
+            } else {
+                // Since the name hasn't ended ensure that this character does not contain any invalid ascii values
+                if ((charInt >= 1 && charInt <= 44)) {
+                    revert InvalidName();
+                }
+
+                if ((charInt >= 46 && charInt <= 47)) {
+                    revert InvalidName();
+                }
+
+                if ((charInt >= 58 && charInt <= 96)) {
+                    revert InvalidName();
+                }
+
+                if (charInt >= 123) {
+                    revert InvalidName();
+                }
+
+                // On seeing the first NULL char in the name, revert if is the first char in the name, otherwise
+                // mark the name as ended
+                if (charInt == 0) {
+                    if (i == 0) revert InvalidName();
+                    nameEnded = true;
+                }
             }
 
             unchecked {
@@ -803,7 +830,6 @@ contract NameRegistry is
                 i++;
             }
         }
-        return true;
     }
 
     /**

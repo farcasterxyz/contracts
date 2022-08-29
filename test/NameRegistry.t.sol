@@ -91,8 +91,8 @@ contract NameRegistryTest is Test {
         assertEq(commit4, 0xdf1dc48666da9fcc229a254aa77ffab008da2d29b617fada59b645b7cc0928b9);
 
         // 16-char alphanumeric hyphenated name
-        bytes32 commit5 = nameRegistry.generateCommit("-al1c3w0nderl4nd", alice, "secret");
-        assertEq(commit5, 0x48ba82e0c3aa3f6a18bff166ca475b8cb257b83768160ee7e2702e9834d7380d);
+        bytes32 commit5 = nameRegistry.generateCommit("al1c3-w0nderl4nd", alice, "secret");
+        assertEq(commit5, 0xbf29b096d3867cc3f3d913d0ee76882adbfa28f28d73bbe372218bd7b282189b);
     }
 
     function testCannotGenerateCommitWithInvalidName(address alice) public {
@@ -112,14 +112,29 @@ contract NameRegistryTest is Test {
         nameRegistry.generateCommit("a{ice", alice, "secret");
 
         vm.expectRevert(NameRegistry.InvalidName.selector);
-        nameRegistry.generateCommit("", alice, "secret");
+        nameRegistry.generateCommit("-alice", alice, "secret");
 
-        // We cannot specify valid UTF-8 chars like £ in a test using string literals, so we encode
-        // a bytes16 string that has the second character set to a byte-value of 129, which is a
-        // valid UTF-8 character that cannot be typed
-        bytes16 nameWithInvalidUtfChar = 0x61816963650000000000000000000000;
         vm.expectRevert(NameRegistry.InvalidName.selector);
-        nameRegistry.generateCommit(nameWithInvalidUtfChar, alice, "secret");
+        nameRegistry.generateCommit(" alice", alice, "secret");
+
+        bytes16 blankName = 0x00000000000000000000000000000000;
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(blankName, alice, "secret");
+
+        // Should reject "a�ice", where � == 129 which is an invalid ASCII character
+        bytes16 nameWithInvalidAsciiChar = 0x61816963650000000000000000000000;
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(nameWithInvalidAsciiChar, alice, "secret");
+
+        // Should reject "a�ice", where � == NULL
+        bytes16 nameWithEmptyByte = 0x61006963650000000000000000000000;
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(nameWithEmptyByte, alice, "secret");
+
+        // Should reject "�lice", where � == NULL
+        bytes16 nameWithStartingEmptyByte = 0x006c6963650000000000000000000000;
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(nameWithStartingEmptyByte, alice, "secret");
     }
 
     function testMakeCommit(address alice) public {
