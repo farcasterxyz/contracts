@@ -30,7 +30,7 @@ contract NameRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     address owner = address(this);
-    address vault = address(this);
+    address vault = address(0x123456);
 
     // Known contracts that must not be made to call other contracts in tests
     address[] knownContracts = [
@@ -2134,6 +2134,38 @@ contract NameRegistryTest is Test {
         vm.prank(alice2);
         vm.expectRevert(NameRegistry.NotTreasurer.selector);
         nameRegistry.setFee(0.02 ether);
+    }
+
+    function testWithdrawFunds(address alice) public {
+        _assumeClean(alice);
+        _grant(TREASURER_ROLE, alice);
+        vm.deal(address(nameRegistry), 1 ether);
+
+        vm.prank(alice);
+        nameRegistry.withdraw(1 ether);
+        assertEq(address(nameRegistry).balance, 0 ether);
+        assertEq(vault.balance, 1 ether);
+    }
+
+    function testCannotWithdrawUnlessTreasurer(address alice) public {
+        _assumeClean(alice);
+        vm.deal(address(nameRegistry), 1 ether);
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.NotTreasurer.selector);
+        nameRegistry.withdraw(0.01 ether);
+        assertEq(address(nameRegistry).balance, 1 ether);
+    }
+
+    function testCannotWithdrawInvalidAmount(address alice) public {
+        _assumeClean(alice);
+        _grant(TREASURER_ROLE, alice);
+        vm.deal(address(nameRegistry), 1 ether);
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.WithdrawTooMuch.selector);
+        nameRegistry.withdraw(1.01 ether);
+        assertEq(address(nameRegistry).balance, 1 ether);
     }
 
     /*//////////////////////////////////////////////////////////////

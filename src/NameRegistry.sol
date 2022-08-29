@@ -55,6 +55,9 @@ contract NameRegistry is
     error NotModerator();
     error NotTreasurer();
 
+    error WithdrawFailed();
+    error WithdrawTooMuch();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -694,14 +697,6 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Set the yearly fee
-     */
-    function setFee(uint256 newFee) external {
-        if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
-        fee = newFee;
-    }
-
-    /**
      * @notice Changes the address from which registerTrusted calls can be made
      */
     function setTrustedSender(address _trustedSender) external {
@@ -715,6 +710,30 @@ contract NameRegistry is
     function disableTrustedRegister() external {
         if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
         trustedRegisterEnabled = 0;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            TREASURER ACTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Set the yearly fee
+     */
+    function setFee(uint256 newFee) external {
+        if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
+        fee = newFee;
+    }
+
+    /**
+     * @notice Withdraw a specified amount of ether to the vault
+     */
+    function withdraw(uint256 amount) external {
+        if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
+        if (address(this).balance < amount) revert WithdrawTooMuch();
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, ) = vault.call{value: amount}("");
+        if (!success) revert WithdrawFailed();
     }
 
     /*//////////////////////////////////////////////////////////////
