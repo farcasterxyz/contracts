@@ -16,6 +16,8 @@ An `fid` is a uint256 that represents a unique user of the network. Fids begin a
 
 Each address can only own a single fid at a time, but they can otherwise be freely transferred between addresses. The address that currently owns an fid is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address.
 
+### State Machine
+
 An fid can exist in these states:
 
 - `invitable` - the fid has never been issued, and can be registered by the trusted sender
@@ -67,6 +69,8 @@ Fnames can be registered for up to a year by paying the registration fee, simila
 
 4. If an fname is expired (`renewable` or `biddable`) the `ownerOf` function will return the zero address, while the `balanceOf` function will include expired names in its count.
 
+### State Machine
+
 An fname can exist in these states:
 
 - `invitable` - the name has never been minted, and can only be minted by the trusted sender
@@ -115,6 +119,19 @@ The fname state can automatically transition when certain periods of time pass:
 - `end(year)` - the end of the calendar year in GMT
 - `end(renewal)` - 31 days from the expiration at the year's end (Feb 1st)
 - `end(escrow)` - 3 days from the `request recovery` action
+
+### Permissions
+
+The Name Registry, unlike the ID Registry, implements an Access Control system that defines roles which can be granted to different addresses. The system has three high permissioned roles which must be kept secure to perform infrequent, sensitive operations:
+
+- **Default Administrator** - Can grant and revoke all other roles.
+- **Owner** - Used to upgrade the contract, change the trusted sender and disable trusted sending.
+- **Treasurer** - Used to withdraw funds and set the fee rate.
+
+The system also has two lower permissioned roles that can be granted to people performing more frequent operations:
+
+- **Operator** - Used by on-call teams to pause and resume the contract.
+- **Moderator** - Used by moderators to reclaim names from users and change the location to which they are reclaimed.
 
 ## 3. Recovery System
 
