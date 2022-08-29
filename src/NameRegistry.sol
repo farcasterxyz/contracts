@@ -127,7 +127,7 @@ contract NameRegistry is
     uint256 public constant ESCROW_PERIOD = 3 days;
 
     // TODO: Does this work correctly in an upgraded contract?
-    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
@@ -177,7 +177,6 @@ contract NameRegistry is
         __UUPSUpgradeable_init();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(OWNER_ROLE, _msgSender());
 
         vault = _vault;
 
@@ -702,7 +701,7 @@ contract NameRegistry is
      * @notice Changes the address from which registerTrusted calls can be made
      */
     function setTrustedSender(address _trustedSender) external {
-        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
         trustedSender = _trustedSender;
     }
 
@@ -710,7 +709,7 @@ contract NameRegistry is
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedRegister() external {
-        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
         trustedRegisterEnabled = 0;
     }
 
@@ -718,7 +717,7 @@ contract NameRegistry is
      * @notice Changes the address to which funds can be withdrawn
      */
     function changeVault(address _vault) external {
-        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
         vault = _vault;
         emit ChangeVault(_vault);
     }
@@ -833,7 +832,7 @@ contract NameRegistry is
 
     // solhint-disable-next-line no-empty-blocks
     function _authorizeUpgrade(address) internal view override {
-        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
     }
 
     /*//////////////////////////////////////////////////////////////

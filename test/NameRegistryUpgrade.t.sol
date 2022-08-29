@@ -26,7 +26,7 @@ contract NameRegistryUpgradeTest is Test {
     address upgrader = address(0x456);
 
     address private constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     function setUp() public {
         nameRegistry = new NameRegistry(FORWARDER);
@@ -35,7 +35,7 @@ contract NameRegistryUpgradeTest is Test {
 
         proxiedNameRegistry = NameRegistry(address(proxy));
         proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
-        proxiedNameRegistry.grantRole(OWNER_ROLE, upgrader);
+        proxiedNameRegistry.grantRole(ADMIN_ROLE, upgrader);
     }
 
     function testInitializeSetters() public {
