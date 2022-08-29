@@ -2222,7 +2222,7 @@ contract NameRegistryTest is Test {
         nameRegistry.changeVault(address(this));
 
         vm.prank(alice);
-        vm.expectRevert(NameRegistry.WithdrawFailed.selector);
+        vm.expectRevert(NameRegistry.CallFailed.selector);
         nameRegistry.withdraw(1 ether);
         assertEq(address(nameRegistry).balance, 1 ether);
     }
