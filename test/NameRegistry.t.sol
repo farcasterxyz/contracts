@@ -4,6 +4,7 @@ pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable max-states-count */
@@ -1998,7 +1999,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedSender(), address(0));
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(NameRegistry.NotOwner.selector);
         nameRegistry.setTrustedSender(bob);
         assertEq(nameRegistry.trustedSender(), address(0));
     }
@@ -2017,31 +2018,60 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(NameRegistry.NotOwner.selector);
         nameRegistry.disableTrustedRegister();
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
     }
 
-    function testTransferOwnership(address alice) public {
+    function testGrantOwnerRole(address alice) public {
         _assumeClean(alice);
+        bytes32 ownerRole = nameRegistry.OWNER_ROLE();
+
         vm.assume(alice != address(0));
-        assertEq(nameRegistry.owner(), owner);
+        assertEq(nameRegistry.hasRole(ownerRole, owner), true);
+        assertEq(nameRegistry.hasRole(ownerRole, alice), false);
 
         vm.prank(owner);
-        nameRegistry.transferOwnership(alice);
-        assertEq(nameRegistry.owner(), alice);
+        nameRegistry.grantRole(ownerRole, alice);
+        assertEq(nameRegistry.hasRole(ownerRole, owner), true);
+        assertEq(nameRegistry.hasRole(ownerRole, alice), true);
     }
 
-    function testCannotTransferOwnershipUnlessOwner(address alice, address bob) public {
+    function testRevokeOwnerRole(address alice) public {
+        _assumeClean(alice);
+        bytes32 ownerRole = nameRegistry.OWNER_ROLE();
+        vm.assume(alice != address(0));
+
+        vm.prank(owner);
+        nameRegistry.grantRole(ownerRole, alice);
+        assertEq(nameRegistry.hasRole(ownerRole, alice), true);
+
+        vm.prank(owner);
+        nameRegistry.revokeRole(ownerRole, alice);
+        assertEq(nameRegistry.hasRole(ownerRole, alice), false);
+    }
+
+    function testCannotGrantOwnerRoleUnlessDefaultAdmin(address alice, address bob) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != owner);
-        assertEq(nameRegistry.owner(), owner);
+        bytes32 ownerRole = nameRegistry.OWNER_ROLE();
+        bytes32 adminRole = nameRegistry.DEFAULT_ADMIN_ROLE();
+        assertEq(nameRegistry.hasRole(ownerRole, owner), true);
+        assertEq(nameRegistry.hasRole(ownerRole, bob), false);
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        nameRegistry.transferOwnership(bob);
-        assertEq(nameRegistry.owner(), owner);
+        vm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account ",
+                Strings.toHexString(uint160(alice), 20),
+                " is missing role ",
+                Strings.toHexString(uint256(adminRole), 32)
+            )
+        );
+        nameRegistry.grantRole(ownerRole, bob);
+        assertEq(nameRegistry.hasRole(ownerRole, owner), true);
+        assertEq(nameRegistry.hasRole(ownerRole, bob), false);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2118,7 +2148,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice2 != owner);
 
         vm.prank(alice2);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(NameRegistry.NotOwner.selector);
         nameRegistry.setFee(0.02 ether);
     }
 

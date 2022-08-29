@@ -5,7 +5,7 @@ import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/Conte
 import {ERC721Upgradeable} from "openzeppelin-upgradeable/contracts/token/ERC721/ERC721Upgradeable.sol";
 import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/metatx/ERC2771ContextUpgradeable.sol";
 import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import {AccessControlUpgradeable} from "openzeppelin-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 import {PausableUpgradeable} from "openzeppelin-upgradeable/contracts/security/PausableUpgradeable.sol";
 
 import {UUPSUpgradeable} from "openzeppelin-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
@@ -20,7 +20,7 @@ contract NameRegistry is
     Initializable,
     ERC721Upgradeable,
     ERC2771ContextUpgradeable,
-    OwnableUpgradeable,
+    AccessControlUpgradeable,
     PausableUpgradeable,
     UUPSUpgradeable
 {
@@ -49,6 +49,8 @@ contract NameRegistry is
     error Escrow(); // The recovery request is still in escrow
     error NoRecovery(); // The recovery request could not be found
     error InvalidRecovery(); // The recovery address is being set to the custody address
+
+    error NotOwner();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -116,6 +118,8 @@ contract NameRegistry is
 
     uint256 public constant ESCROW_PERIOD = 3 days;
 
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
+
     /*//////////////////////////////////////////////////////////////
                       CONSTRUCTORS AND INITIALIZERS
     //////////////////////////////////////////////////////////////*/
@@ -153,9 +157,12 @@ contract NameRegistry is
 
         __Pausable_init();
 
-        __Ownable_init();
+        __AccessControl_init();
 
         __UUPSUpgradeable_init();
+
+        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _setupRole(OWNER_ROLE, _msgSender());
 
         vault = _vault;
 
@@ -645,7 +652,9 @@ contract NameRegistry is
      *
      * @param tokenId the uint256 representation of the username.
      */
-    function reclaim(uint256 tokenId) external payable onlyOwner {
+    function reclaim(uint256 tokenId) external payable {
+        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+
         if (expiryOf[tokenId] == 0) revert Registrable();
 
         // Safety: we must call super.ownerOf instead of ownerOf because we want the admin to be
@@ -661,35 +670,40 @@ contract NameRegistry is
     /**
      * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
      */
-    function pause() external onlyOwner {
+    function pause() external {
+        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
         _pause();
     }
 
     /**
      * @notice pause the contract and resume registrations, renewals, recoveries and transfers of names.
      */
-    function unpause() external onlyOwner {
+    function unpause() external {
+        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
         _unpause();
     }
 
     /**
      * @notice Set the yearly fee
      */
-    function setFee(uint256 newFee) external onlyOwner {
+    function setFee(uint256 newFee) external {
+        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
         fee = newFee;
     }
 
     /**
      * @notice Changes the address from which registerTrusted calls can be made
      */
-    function setTrustedSender(address _trustedSender) external onlyOwner {
+    function setTrustedSender(address _trustedSender) external {
+        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
         trustedSender = _trustedSender;
     }
 
     /**
      * @notice Disables registerTrusted and enables register calls from any address.
      */
-    function disableTrustedRegister() external onlyOwner {
+    function disableTrustedRegister() external {
+        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
         trustedRegisterEnabled = 0;
     }
 
@@ -768,8 +782,19 @@ contract NameRegistry is
         return ERC2771ContextUpgradeable._msgData();
     }
 
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable, ERC721Upgradeable)
+        returns (bool)
+    {
+        return ERC721Upgradeable.supportsInterface(interfaceId);
+    }
+
     // solhint-disable-next-line no-empty-blocks
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal view override {
+        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+    }
 
     /*//////////////////////////////////////////////////////////////
                              INTERNAL LOGIC
