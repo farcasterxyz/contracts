@@ -2213,6 +2213,20 @@ contract NameRegistryTest is Test {
         assertEq(address(nameRegistry).balance, 1 ether);
     }
 
+    function testCannotWithdrawToNonPayableAddress(address alice) public {
+        _assumeClean(alice);
+        _grant(TREASURER_ROLE, alice);
+        vm.deal(address(nameRegistry), 1 ether);
+
+        vm.prank(ADMIN);
+        nameRegistry.changeVault(address(this));
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.WithdrawFailed.selector);
+        nameRegistry.withdraw(1 ether);
+        assertEq(address(nameRegistry).balance, 1 ether);
+    }
+
     /*//////////////////////////////////////////////////////////////
                              OPERATOR TESTS
     //////////////////////////////////////////////////////////////*/
