@@ -2008,6 +2008,22 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
     }
 
+    function testCannotReclaimUnlessModerator(address alice) public {
+        _assumeClean(alice);
+        _register(alice);
+
+        vm.prank(owner);
+        vm.expectRevert(NameRegistry.NotModerator.selector);
+        nameRegistry.reclaim(ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               OWNER TESTS
+    //////////////////////////////////////////////////////////////*/
+
     function testSetTrustedSender(address alice) public {
         vm.assume(alice != nameRegistry.trustedSender());
 
