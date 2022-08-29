@@ -21,22 +21,25 @@ contract NameRegistryUpgradeTest is Test {
     NameRegistryV2 nameRegistryV2;
     NameRegistryV2 proxiedNameRegistryV2;
 
-    address owner = address(this);
+    address defaultAdmin = address(this);
     address vault = address(this);
+    address upgrader = address(0x456);
 
     address private constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
 
     function setUp() public {
         nameRegistry = new NameRegistry(FORWARDER);
         nameRegistryV2 = new NameRegistryV2(FORWARDER);
         proxy = new ERC1967Proxy(address(nameRegistry), "");
 
-        // Cast the Proxy as a NameRegistry so we can call NameRegistry methods easily
         proxiedNameRegistry = NameRegistry(address(proxy));
         proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
+        proxiedNameRegistry.grantRole(OWNER_ROLE, upgrader);
     }
 
     function testInitializeSetters() public {
+        // Check that values set in the initializer are persisted correctly
         assertEq(proxiedNameRegistry.vault(), vault);
     }
 
@@ -48,12 +51,12 @@ contract NameRegistryUpgradeTest is Test {
 
         // 2. Call upgrade on the proxy, which swaps the v1 implementation for the v2 implementation, and then recast
         // the proxy as a NameRegistryV2
-        vm.prank(owner);
+        vm.prank(upgrader);
         proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
         proxiedNameRegistryV2 = NameRegistryV2(address(proxy));
 
         // 3. Re-initialize the v2 contract
-        vm.prank(owner);
+        vm.prank(upgrader);
         proxiedNameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", vault);
 
         // 4. Assert that data stored when proxy was connected to v1 is present after being connected to v2
@@ -76,6 +79,13 @@ contract NameRegistryUpgradeTest is Test {
         vm.warp(3347827200); // Sunday, February 2, 2076 0:00:00 GMT
         vm.expectRevert(NameRegistryV2.InvalidTime.selector);
         assertEq(proxiedNameRegistryV2.currYear(), 0);
+    }
+
+    function testCannotUpgradeUnlessOwner(address alice) public {
+        vm.assume(alice != defaultAdmin && alice != upgrader);
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.NotOwner.selector);
+        proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
     }
 }
 
