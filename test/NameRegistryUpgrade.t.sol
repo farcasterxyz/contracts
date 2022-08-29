@@ -22,9 +22,10 @@ contract NameRegistryUpgradeTest is Test {
     NameRegistryV2 proxiedNameRegistryV2;
 
     address defaultAdmin = address(this);
-    address vault = address(this);
-    address upgrader = address(0x456);
 
+    address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
+    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
+    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
     address private constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
@@ -34,13 +35,13 @@ contract NameRegistryUpgradeTest is Test {
         proxy = new ERC1967Proxy(address(nameRegistry), "");
 
         proxiedNameRegistry = NameRegistry(address(proxy));
-        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
-        proxiedNameRegistry.grantRole(ADMIN_ROLE, upgrader);
+        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
+        proxiedNameRegistry.grantRole(ADMIN_ROLE, ADMIN);
     }
 
     function testInitializeSetters() public {
         // Check that values set in the initializer are persisted correctly
-        assertEq(proxiedNameRegistry.vault(), vault);
+        assertEq(proxiedNameRegistry.vault(), VAULT);
     }
 
     function testUpgrade() public {
@@ -51,16 +52,16 @@ contract NameRegistryUpgradeTest is Test {
 
         // 2. Call upgrade on the proxy, which swaps the v1 implementation for the v2 implementation, and then recast
         // the proxy as a NameRegistryV2
-        vm.prank(upgrader);
+        vm.prank(ADMIN);
         proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
         proxiedNameRegistryV2 = NameRegistryV2(address(proxy));
 
         // 3. Re-initialize the v2 contract
-        vm.prank(upgrader);
-        proxiedNameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", vault);
+        vm.prank(ADMIN);
+        proxiedNameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", VAULT, POOL);
 
         // 4. Assert that data stored when proxy was connected to v1 is present after being connected to v2
-        assertEq(proxiedNameRegistryV2.vault(), vault);
+        assertEq(proxiedNameRegistryV2.vault(), VAULT);
 
         // 5. Assert that data can be retrieved and stored correctly using v2-only functions
         assertEq(proxiedNameRegistryV2.number(), 0);
@@ -82,7 +83,7 @@ contract NameRegistryUpgradeTest is Test {
     }
 
     function testCannotUpgradeUnlessOwner(address alice) public {
-        vm.assume(alice != defaultAdmin && alice != upgrader);
+        vm.assume(alice != defaultAdmin && alice != ADMIN);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotOwner.selector);
         proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
@@ -112,13 +113,14 @@ contract NameRegistryV2 is
     uint256 internal _nextYearIdx;
     address private preregistrar;
     address public vault;
+    address public pool;
     uint256[] public _yearTimestamps;
     mapping(uint256 => address) public recoveryOf;
     mapping(uint256 => uint256) public recoveryClockOf;
     mapping(uint256 => address) public recoveryDestinationOf;
-    uint256 fee;
+    uint256 public fee;
     address public trustedSender;
-    uint256 trustedRegisterEnabled;
+    uint256 public trustedRegisterEnabled;
 
     // New storage values
     uint256 public number;
@@ -136,7 +138,8 @@ contract NameRegistryV2 is
     function initializeV2(
         string memory _name,
         string memory _symbol,
-        address _vault
+        address _vault,
+        address _pool
     ) public reinitializer(2) {
         __UUPSUpgradeable_init();
 
@@ -146,6 +149,8 @@ contract NameRegistryV2 is
         __Ownable_init_unchained();
 
         vault = _vault;
+
+        pool = _pool;
 
         _yearTimestamps = [
             3250454400, // 2073

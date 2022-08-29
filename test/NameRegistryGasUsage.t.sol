@@ -12,7 +12,8 @@ contract NameRegistryGasUsageTest is Test {
     NameRegistry nameRegistry;
     ERC1967Proxy nameRegistryProxy;
 
-    address vault = address(this);
+    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
+    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -51,7 +52,7 @@ contract NameRegistryGasUsageTest is Test {
         nameRegistryImpl = new NameRegistry(TRUSTED_FORWARDER);
         nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
         nameRegistry = NameRegistry(address(nameRegistryProxy));
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
+        nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
         nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
     }
 

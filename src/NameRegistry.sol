@@ -72,6 +72,8 @@ contract NameRegistry is
 
     event ChangeVault(address indexed vault);
 
+    event ChangePool(address indexed pool);
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -89,8 +91,11 @@ contract NameRegistry is
     // The index of the next year in the array
     uint256 internal _nextYearIdx;
 
-    // The address that reclaims are sent to
+    // The address that funds can be withdrawn to
     address public vault;
+
+    // The address that names can be reclaimed to
+    address public pool;
 
     // The epoch timestamp of Jan 1 for each year starting from 2022 used to determine the current year
     // Must be set in the initializer since non-constant variables are unsafe to declare otherwise.
@@ -166,7 +171,8 @@ contract NameRegistry is
     function initialize(
         string memory _name,
         string memory _symbol,
-        address _vault
+        address _vault,
+        address _pool
     ) external initializer {
         __ERC721_init(_name, _symbol);
 
@@ -179,6 +185,8 @@ contract NameRegistry is
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         vault = _vault;
+
+        pool = _pool;
 
         // Audit: verify the accuracy of these timestamps using an alternative calculator
         // epochconverter.com was used to generate these
@@ -662,7 +670,7 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Move the username from the current owner to the vault and renew it for another year
+     * @notice Move the username from the current owner to the pool and renew it for another year
      *
      * @param tokenId the uint256 representation of the username.
      */
@@ -673,7 +681,7 @@ contract NameRegistry is
 
         // Safety: we must call super.ownerOf instead of ownerOf because we want the admin to be
         // able to transfer the name even if is expired and there is no current owner.
-        _transfer(super.ownerOf(tokenId), vault, tokenId);
+        _transfer(super.ownerOf(tokenId), pool, tokenId);
 
         unchecked {
             // Safety: _currYear() returns a gregorian calendar year and cannot realistically overflow
@@ -720,6 +728,15 @@ contract NameRegistry is
         if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
         vault = _vault;
         emit ChangeVault(_vault);
+    }
+
+    /**
+     * @notice Changes the address to which names are reclaimed
+     */
+    function changePool(address _pool) external {
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        pool = _pool;
+        emit ChangePool(_pool);
     }
 
     /*//////////////////////////////////////////////////////////////

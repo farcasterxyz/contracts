@@ -25,13 +25,13 @@ contract NameRegistryTest is Test {
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
     event CancelRecovery(uint256 indexed id);
     event ChangeVault(address indexed vault);
+    event ChangePool(address indexed pool);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     address defaultAdmin = address(this);
-    address vault = address(0x123456);
 
     // Known contracts that must not be made to call other contracts in tests
     address[] knownContracts = [
@@ -42,10 +42,12 @@ contract NameRegistryTest is Test {
         address(0x185a4dc360CE69bDCceE33b3784B0282f7961aea), // ???
         address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D) // ???
     ];
+    address constant PRECOMPILE_CONTRACTS = address(9); // some addresses up to 0x9 are precompiled contracts
 
     address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
     address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    address constant PRECOMPILE_CONTRACTS = address(9); // some addresses up to 0x9 are precompiled contracts
+    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
+    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
     uint256 constant ESCROW_PERIOD = 3 days;
     uint256 constant COMMIT_PERIOD = 60 seconds;
@@ -72,7 +74,7 @@ contract NameRegistryTest is Test {
         nameRegistryImpl = new NameRegistry(FORWARDER);
         nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
         nameRegistry = NameRegistry(address(nameRegistryProxy));
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
+        nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
         nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
     }
 
@@ -1905,11 +1907,11 @@ contract NameRegistryTest is Test {
         _grant(MODERATOR_ROLE, ADMIN);
 
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, vault, ALICE_TOKEN_ID);
+        emit Transfer(alice, POOL, ALICE_TOKEN_ID);
         vm.prank(ADMIN);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), vault);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
@@ -1921,11 +1923,11 @@ contract NameRegistryTest is Test {
 
         vm.warp(JAN1_2023_TS);
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, vault, ALICE_TOKEN_ID);
+        emit Transfer(alice, POOL, ALICE_TOKEN_ID);
         vm.prank(ADMIN);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), vault);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
     }
 
@@ -1936,11 +1938,11 @@ contract NameRegistryTest is Test {
 
         vm.warp(JAN31_2023_TS);
         vm.expectEmit(true, true, true, false);
-        emit Transfer(alice, vault, ALICE_TOKEN_ID);
+        emit Transfer(alice, POOL, ALICE_TOKEN_ID);
         vm.prank(ADMIN);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), vault);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
     }
 
@@ -1988,7 +1990,7 @@ contract NameRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), vault);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
@@ -2066,8 +2068,8 @@ contract NameRegistryTest is Test {
     }
 
     function testChangeVault(address alice, address bob) public {
-        vm.assume(alice != nameRegistry.trustedSender());
-        assertEq(nameRegistry.vault(), vault);
+        _assumeClean(alice);
+        assertEq(nameRegistry.vault(), VAULT);
         _grant(ADMIN_ROLE, alice);
 
         vm.prank(alice);
@@ -2079,12 +2081,34 @@ contract NameRegistryTest is Test {
 
     function testCannotChangeVaultUnlessOwner(address alice, address bob) public {
         _assumeClean(alice);
-        assertEq(nameRegistry.vault(), vault);
+        assertEq(nameRegistry.vault(), VAULT);
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotOwner.selector);
         nameRegistry.changeVault(bob);
-        assertEq(nameRegistry.vault(), vault);
+        assertEq(nameRegistry.vault(), VAULT);
+    }
+
+    function testChangePool(address alice, address bob) public {
+        _assumeClean(alice);
+        assertEq(nameRegistry.pool(), POOL);
+        _grant(ADMIN_ROLE, alice);
+
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit ChangePool(bob);
+        nameRegistry.changePool(bob);
+        assertEq(nameRegistry.pool(), bob);
+    }
+
+    function testCannotChangePoolUnlessOwner(address alice, address bob) public {
+        _assumeClean(alice);
+        assertEq(nameRegistry.pool(), POOL);
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.NotOwner.selector);
+        nameRegistry.changePool(bob);
+        assertEq(nameRegistry.pool(), POOL);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2165,7 +2189,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.withdraw(1 ether);
         assertEq(address(nameRegistry).balance, 0 ether);
-        assertEq(vault.balance, 1 ether);
+        assertEq(VAULT.balance, 1 ether);
     }
 
     function testCannotWithdrawUnlessTreasurer(address alice) public {
