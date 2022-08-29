@@ -466,7 +466,7 @@ contract NameRegistryTest is Test {
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, alice, secret, address(0));
     }
 
-    function testCannotRegisterWhilePaused(address alice, address bob) public {
+    function testCannotRegisterWhenPaused(address alice, address bob) public {
         _assumeClean(alice);
         _disableTrusted();
         _grant(OPERATOR_ROLE, owner);
@@ -585,7 +585,7 @@ contract NameRegistryTest is Test {
         nameRegistry.trustedRegister(alice, "alice", address(0));
     }
 
-    function testCannotTrustedRegisterWhilePaused(address trustedSender, address alice) public {
+    function testCannotTrustedRegisterWhenPaused(address trustedSender, address alice) public {
         vm.assume(alice != address(0));
         vm.assume(trustedSender != FORWARDER);
         _grant(OPERATOR_ROLE, owner);
