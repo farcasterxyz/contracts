@@ -37,7 +37,7 @@ contract NameRegistryUpgradeTest is Test {
     }
 
     function testInitializeSetters() public {
-        assertEq(proxiedNameRegistry.owner(), owner);
+        assertEq(proxiedNameRegistry.vault(), vault);
     }
 
     function testUpgrade() public {

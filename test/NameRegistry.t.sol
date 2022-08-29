@@ -4,6 +4,7 @@ pragma solidity ^0.8.16;
 import "forge-std/Test.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable max-states-count */
@@ -55,6 +56,11 @@ contract NameRegistryTest is Test {
 
     uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
     uint256 constant BOB_TOKEN_ID = uint256(bytes32("bob"));
+
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
+    bytes32 public constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -256,6 +262,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _disableTrusted();
+        _grant(OPERATOR_ROLE, owner);
 
         // 1. Make commitment to register the name @alice
         vm.deal(alice, 10_000 ether);
@@ -459,9 +466,10 @@ contract NameRegistryTest is Test {
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, alice, secret, address(0));
     }
 
-    function testCannotRegisterWhilePaused(address alice, address bob) public {
+    function testCannotRegisterWhenPaused(address alice, address bob) public {
         _assumeClean(alice);
         _disableTrusted();
+        _grant(OPERATOR_ROLE, owner);
 
         // 1. Make the commitment to register @alice
         vm.deal(alice, 10_000 ether);
@@ -577,9 +585,10 @@ contract NameRegistryTest is Test {
         nameRegistry.trustedRegister(alice, "alice", address(0));
     }
 
-    function testCannotTrustedRegisterWhilePaused(address trustedSender, address alice) public {
+    function testCannotTrustedRegisterWhenPaused(address trustedSender, address alice) public {
         vm.assume(alice != address(0));
         vm.assume(trustedSender != FORWARDER);
+        _grant(OPERATOR_ROLE, owner);
 
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
         vm.prank(owner);
@@ -717,6 +726,7 @@ contract NameRegistryTest is Test {
     function testCannotRenewIfPaused(address alice) public {
         _assumeClean(alice);
         _register(alice);
+        _grant(OPERATOR_ROLE, owner);
 
         vm.warp(JAN1_2023_TS);
         vm.prank(owner);
@@ -1064,6 +1074,7 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
+        _grant(OPERATOR_ROLE, owner);
 
         vm.deal(bob, 1001 ether);
         vm.prank(owner);
@@ -1187,6 +1198,7 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
+        _grant(OPERATOR_ROLE, owner);
 
         vm.prank(owner);
         nameRegistry.pause();
@@ -1309,6 +1321,7 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
+        _grant(OPERATOR_ROLE, owner);
 
         vm.prank(owner);
         nameRegistry.pause();
@@ -1454,6 +1467,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         vm.assume(charlie != address(0));
         _register(alice);
+        _grant(OPERATOR_ROLE, owner);
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, bob);
@@ -1698,6 +1712,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         vm.assume(charlie != address(0));
         _register(alice);
+        _grant(OPERATOR_ROLE, owner);
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, bob);
@@ -1809,6 +1824,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         vm.assume(charlie != address(0));
         _register(alice);
+        _grant(OPERATOR_ROLE, owner);
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, bob);
@@ -1877,12 +1893,13 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           OWNER ACTION TESTS
+                             MODERATOR TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testReclaimRegisteredNames(address alice) public {
         _assumeClean(alice);
         _register(alice);
+        _grant(MODERATOR_ROLE, owner);
 
         vm.expectEmit(true, true, true, false);
         emit Transfer(alice, vault, ALICE_TOKEN_ID);
@@ -1897,6 +1914,7 @@ contract NameRegistryTest is Test {
     function testReclaimRenewableNames(address alice) public {
         _assumeClean(alice);
         _register(alice);
+        _grant(MODERATOR_ROLE, owner);
 
         vm.warp(JAN1_2023_TS);
         vm.expectEmit(true, true, true, false);
@@ -1911,6 +1929,7 @@ contract NameRegistryTest is Test {
     function testReclaimBiddableNames(address alice) public {
         _assumeClean(alice);
         _register(alice);
+        _grant(MODERATOR_ROLE, owner);
 
         vm.warp(JAN31_2023_TS);
         vm.expectEmit(true, true, true, false);
@@ -1927,6 +1946,7 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
+        _grant(MODERATOR_ROLE, owner);
 
         vm.prank(alice);
         nameRegistry.approve(bob, ALICE_TOKEN_ID);
@@ -1938,6 +1958,7 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotReclaimUnlessMinted() public {
+        _grant(MODERATOR_ROLE, owner);
         vm.expectRevert(NameRegistry.Registrable.selector);
         vm.prank(owner);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
@@ -1953,6 +1974,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         vm.assume(charlie != address(0));
         _register(alice);
+        _grant(MODERATOR_ROLE, owner);
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, bob);
@@ -1972,17 +1994,35 @@ contract NameRegistryTest is Test {
     function testReclaimWhenPaused(address alice) public {
         _assumeClean(alice);
         _register(alice);
+        _grant(MODERATOR_ROLE, owner);
+        _grant(OPERATOR_ROLE, owner);
 
-        vm.startPrank(owner);
+        vm.prank(owner);
         nameRegistry.pause();
 
+        vm.prank(owner);
         vm.expectRevert("Pausable: paused");
         nameRegistry.reclaim(ALICE_TOKEN_ID);
-        vm.stopPrank();
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
     }
+
+    function testCannotReclaimUnlessModerator(address alice) public {
+        _assumeClean(alice);
+        _register(alice);
+
+        vm.prank(owner);
+        vm.expectRevert(NameRegistry.NotModerator.selector);
+        nameRegistry.reclaim(ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               OWNER TESTS
+    //////////////////////////////////////////////////////////////*/
 
     function testSetTrustedSender(address alice) public {
         vm.assume(alice != nameRegistry.trustedSender());
@@ -1998,7 +2038,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedSender(), address(0));
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(NameRegistry.NotOwner.selector);
         nameRegistry.setTrustedSender(bob);
         assertEq(nameRegistry.trustedSender(), address(0));
     }
@@ -2017,31 +2057,103 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(NameRegistry.NotOwner.selector);
         nameRegistry.disableTrustedRegister();
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
     }
 
-    function testTransferOwnership(address alice) public {
+    /*//////////////////////////////////////////////////////////////
+                           DEFAULT ADMIN TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testGrantOwnerRole(address alice) public {
         _assumeClean(alice);
+
         vm.assume(alice != address(0));
-        assertEq(nameRegistry.owner(), owner);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, owner), true);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, alice), false);
 
         vm.prank(owner);
-        nameRegistry.transferOwnership(alice);
-        assertEq(nameRegistry.owner(), alice);
+        nameRegistry.grantRole(OWNER_ROLE, alice);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, owner), true);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, alice), true);
     }
 
-    function testCannotTransferOwnershipUnlessOwner(address alice, address bob) public {
+    function testRevokeOwnerRole(address alice) public {
+        _assumeClean(alice);
+        vm.assume(alice != address(0));
+
+        vm.prank(owner);
+        nameRegistry.grantRole(OWNER_ROLE, alice);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, alice), true);
+
+        vm.prank(owner);
+        nameRegistry.revokeRole(OWNER_ROLE, alice);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, alice), false);
+    }
+
+    function testCannotGrantOwnerRoleUnlessDefaultAdmin(address alice, address bob) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != owner);
-        assertEq(nameRegistry.owner(), owner);
+        bytes32 adminRole = nameRegistry.DEFAULT_ADMIN_ROLE();
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, owner), true);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, bob), false);
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        nameRegistry.transferOwnership(bob);
-        assertEq(nameRegistry.owner(), owner);
+        vm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account ",
+                Strings.toHexString(uint160(alice), 20),
+                " is missing role ",
+                Strings.toHexString(uint256(adminRole), 32)
+            )
+        );
+        nameRegistry.grantRole(OWNER_ROLE, bob);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, owner), true);
+        assertEq(nameRegistry.hasRole(OWNER_ROLE, bob), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             TREASURER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testSetFee() public {
+        _grant(TREASURER_ROLE, owner);
+        assertEq(nameRegistry.fee(), 0.01 ether);
+
+        vm.prank(owner);
+        nameRegistry.setFee(0.02 ether);
+
+        assertEq(nameRegistry.fee(), 0.02 ether);
+    }
+
+    function testCannotSetFeeUnlessTreasurer(address alice2) public {
+        vm.assume(alice2 != FORWARDER);
+
+        vm.prank(alice2);
+        vm.expectRevert(NameRegistry.NotTreasurer.selector);
+        nameRegistry.setFee(0.02 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             OPERATOR TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testCannotPauseUnlessOperator(address alice2) public {
+        vm.assume(alice2 != FORWARDER);
+
+        vm.prank(alice2);
+        vm.expectRevert(NameRegistry.NotOperator.selector);
+        nameRegistry.pause();
+    }
+
+    function testCannotUnpauseUnlessOperator(address alice2) public {
+        vm.assume(alice2 != FORWARDER);
+
+        vm.prank(alice2);
+        vm.expectRevert(NameRegistry.NotOperator.selector);
+        nameRegistry.unpause();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2067,6 +2179,7 @@ contract NameRegistryTest is Test {
     }
 
     function testCurrYearFee() public {
+        _grant(TREASURER_ROLE, owner);
         // fee = 0.1 ether
         vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
         assertEq(nameRegistry.currYearFee(), 0.01 ether);
@@ -2104,24 +2217,6 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.currYearFee(), 0);
     }
 
-    function testSetFee() public {
-        assertEq(nameRegistry.fee(), 0.01 ether);
-
-        vm.prank(owner);
-        nameRegistry.setFee(0.02 ether);
-
-        assertEq(nameRegistry.fee(), 0.02 ether);
-    }
-
-    function testCannotSetFeeUnlessOwner(address alice2) public {
-        vm.assume(alice2 != FORWARDER);
-        vm.assume(alice2 != owner);
-
-        vm.prank(alice2);
-        vm.expectRevert("Ownable: caller is not the owner");
-        nameRegistry.setFee(0.02 ether);
-    }
-
     /*//////////////////////////////////////////////////////////////
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -2154,5 +2249,10 @@ contract NameRegistryTest is Test {
     function _disableTrusted() internal {
         vm.prank(owner);
         nameRegistry.disableTrustedRegister();
+    }
+
+    function _grant(bytes32 role, address target) internal {
+        vm.prank(owner);
+        nameRegistry.grantRole(role, target);
     }
 }
