@@ -51,6 +51,9 @@ contract NameRegistry is
     error InvalidRecovery(); // The recovery address is being set to the custody address
 
     error NotOwner();
+    error NotOperator();
+    error NotModerator();
+    error NotTreasurer();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -118,7 +121,14 @@ contract NameRegistry is
 
     uint256 public constant ESCROW_PERIOD = 3 days;
 
+    // TODO: Does this work correctly in an upgraded contract?
     bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
+
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+
+    bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
+
+    bytes32 public constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
     /*//////////////////////////////////////////////////////////////
                       CONSTRUCTORS AND INITIALIZERS
@@ -653,7 +663,7 @@ contract NameRegistry is
      * @param tokenId the uint256 representation of the username.
      */
     function reclaim(uint256 tokenId) external payable {
-        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+        if (!hasRole(MODERATOR_ROLE, _msgSender())) revert NotModerator();
 
         if (expiryOf[tokenId] == 0) revert Registrable();
 
@@ -671,7 +681,7 @@ contract NameRegistry is
      * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
      */
     function pause() external {
-        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+        if (!hasRole(OPERATOR_ROLE, _msgSender())) revert NotOperator();
         _pause();
     }
 
@@ -679,7 +689,7 @@ contract NameRegistry is
      * @notice pause the contract and resume registrations, renewals, recoveries and transfers of names.
      */
     function unpause() external {
-        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+        if (!hasRole(OPERATOR_ROLE, _msgSender())) revert NotOperator();
         _unpause();
     }
 
@@ -687,7 +697,7 @@ contract NameRegistry is
      * @notice Set the yearly fee
      */
     function setFee(uint256 newFee) external {
-        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+        if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
         fee = newFee;
     }
 
@@ -695,7 +705,7 @@ contract NameRegistry is
      * @notice Changes the address from which registerTrusted calls can be made
      */
     function setTrustedSender(address _trustedSender) external {
-        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
         trustedSender = _trustedSender;
     }
 
@@ -703,7 +713,7 @@ contract NameRegistry is
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedRegister() external {
-        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
         trustedRegisterEnabled = 0;
     }
 
@@ -793,7 +803,7 @@ contract NameRegistry is
 
     // solhint-disable-next-line no-empty-blocks
     function _authorizeUpgrade(address) internal view override {
-        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
+        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
     }
 
     /*//////////////////////////////////////////////////////////////
