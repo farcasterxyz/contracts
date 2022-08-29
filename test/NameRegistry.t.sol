@@ -24,6 +24,7 @@ contract NameRegistryTest is Test {
     event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
     event CancelRecovery(uint256 indexed id);
+    event ChangeVault(address indexed vault);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -2060,6 +2061,28 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.NotOwner.selector);
         nameRegistry.disableTrustedRegister();
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
+    }
+
+    function testChangeVault(address alice, address bob) public {
+        vm.assume(alice != nameRegistry.trustedSender());
+        assertEq(nameRegistry.vault(), vault);
+        _grant(OWNER_ROLE, alice);
+
+        vm.prank(alice);
+        vm.expectEmit(true, false, false, true);
+        emit ChangeVault(bob);
+        nameRegistry.changeVault(bob);
+        assertEq(nameRegistry.vault(), bob);
+    }
+
+    function testCannotChangeVaultUnlessOwner(address alice, address bob) public {
+        vm.assume(alice != nameRegistry.trustedSender());
+        assertEq(nameRegistry.vault(), vault);
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.NotOwner.selector);
+        nameRegistry.changeVault(bob);
+        assertEq(nameRegistry.vault(), vault);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -70,6 +70,8 @@ contract NameRegistry is
 
     event CancelRecovery(uint256 indexed id);
 
+    event ChangeVault(address indexed vault);
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -710,6 +712,15 @@ contract NameRegistry is
     function disableTrustedRegister() external {
         if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
         trustedRegisterEnabled = 0;
+    }
+
+    /**
+     * @notice Changes the address to which funds can be withdrawn
+     */
+    function changeVault(address _vault) external {
+        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
+        vault = _vault;
+        emit ChangeVault(_vault);
     }
 
     /*//////////////////////////////////////////////////////////////
