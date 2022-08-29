@@ -114,6 +114,9 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit("-alice", alice, "secret");
 
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(" alice", alice, "secret");
+
         bytes16 blankName = 0x00000000000000000000000000000000;
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit(blankName, alice, "secret");
