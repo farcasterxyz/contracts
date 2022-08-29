@@ -1893,7 +1893,7 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           OWNER ACTION TESTS
+                             MODERATOR TESTS
     //////////////////////////////////////////////////////////////*/
 
     function testReclaimRegisteredNames(address alice) public {
@@ -2046,6 +2046,10 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           DEFAULT ADMIN TESTS
+    //////////////////////////////////////////////////////////////*/
+
     function testGrantOwnerRole(address alice) public {
         _assumeClean(alice);
 
@@ -2092,6 +2096,48 @@ contract NameRegistryTest is Test {
         nameRegistry.grantRole(OWNER_ROLE, bob);
         assertEq(nameRegistry.hasRole(OWNER_ROLE, owner), true);
         assertEq(nameRegistry.hasRole(OWNER_ROLE, bob), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             TREASURER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testSetFee() public {
+        _grant(TREASURER_ROLE, owner);
+        assertEq(nameRegistry.fee(), 0.01 ether);
+
+        vm.prank(owner);
+        nameRegistry.setFee(0.02 ether);
+
+        assertEq(nameRegistry.fee(), 0.02 ether);
+    }
+
+    function testCannotSetFeeUnlessTreasurer(address alice2) public {
+        vm.assume(alice2 != FORWARDER);
+
+        vm.prank(alice2);
+        vm.expectRevert(NameRegistry.NotTreasurer.selector);
+        nameRegistry.setFee(0.02 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             OPERATOR TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testCannotPauseUnlessOperator(address alice2) public {
+        vm.assume(alice2 != FORWARDER);
+
+        vm.prank(alice2);
+        vm.expectRevert(NameRegistry.NotOperator.selector);
+        nameRegistry.pause();
+    }
+
+    function testCannotUnpauseUnlessOperator(address alice2) public {
+        vm.assume(alice2 != FORWARDER);
+
+        vm.prank(alice2);
+        vm.expectRevert(NameRegistry.NotOperator.selector);
+        nameRegistry.unpause();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2153,25 +2199,6 @@ contract NameRegistryTest is Test {
 
         vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
         assertEq(nameRegistry.currYearFee(), 0);
-    }
-
-    function testSetFee() public {
-        _grant(TREASURER_ROLE, owner);
-        assertEq(nameRegistry.fee(), 0.01 ether);
-
-        vm.prank(owner);
-        nameRegistry.setFee(0.02 ether);
-
-        assertEq(nameRegistry.fee(), 0.02 ether);
-    }
-
-    function testCannotSetFeeUnlessTreasurer(address alice2) public {
-        vm.assume(alice2 != FORWARDER);
-        vm.assume(alice2 != owner);
-
-        vm.prank(alice2);
-        vm.expectRevert(NameRegistry.NotTreasurer.selector);
-        nameRegistry.setFee(0.02 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
