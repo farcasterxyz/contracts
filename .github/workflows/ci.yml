@@ -41,21 +41,21 @@ jobs:
       - name: Run linter
         run: yarn lint
 
-      - name: Install Foundry
+      - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
 
-      - name: Run Forge build
+      - name: Run forge build
         run: |
           forge --version
           forge build --sizes
 
-      - name: Run Forge tests
+      - name: Run forge tests
         run: forge test -vvv
 
-      - name: Check Forge gas snapshot
-        run: forge snapshot --check
+      - name: Check forge snapshots
+        run: forge snapshot --check --match-contract Gas
 
       - name: Check code coverage
         run: |
