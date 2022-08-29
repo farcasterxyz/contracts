@@ -15,8 +15,9 @@ contract NameRegistryScript is Script {
     NameRegistry proxiedNameRegistry;
     ERC1967Proxy proxy;
 
-    // TODO: Fix the vault address
-    address vault = address(0x123);
+    // TODO: Fix the vault and pool address
+    address constant VAULT = address(0x123);
+    address constant POOL = address(0x456);
 
     function run() public {
         vm.broadcast();
@@ -27,6 +28,6 @@ contract NameRegistryScript is Script {
         proxiedNameRegistry = NameRegistry(address(proxy));
 
         vm.broadcast();
-        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
+        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
     }
 }

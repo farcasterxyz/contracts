@@ -55,6 +55,9 @@ contract NameRegistry is
     error NotModerator();
     error NotTreasurer();
 
+    error WithdrawFailed();
+    error WithdrawTooMuch();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -66,6 +69,10 @@ contract NameRegistry is
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
 
     event CancelRecovery(uint256 indexed id);
+
+    event ChangeVault(address indexed vault);
+
+    event ChangePool(address indexed pool);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -84,8 +91,11 @@ contract NameRegistry is
     // The index of the next year in the array
     uint256 internal _nextYearIdx;
 
-    // The address that reclaims are sent to
+    // The address that funds can be withdrawn to
     address public vault;
+
+    // The address that names can be reclaimed to
+    address public pool;
 
     // The epoch timestamp of Jan 1 for each year starting from 2022 used to determine the current year
     // Must be set in the initializer since non-constant variables are unsafe to declare otherwise.
@@ -122,7 +132,7 @@ contract NameRegistry is
     uint256 public constant ESCROW_PERIOD = 3 days;
 
     // TODO: Does this work correctly in an upgraded contract?
-    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
@@ -161,7 +171,8 @@ contract NameRegistry is
     function initialize(
         string memory _name,
         string memory _symbol,
-        address _vault
+        address _vault,
+        address _pool
     ) external initializer {
         __ERC721_init(_name, _symbol);
 
@@ -172,9 +183,10 @@ contract NameRegistry is
         __UUPSUpgradeable_init();
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(OWNER_ROLE, _msgSender());
 
         vault = _vault;
+
+        pool = _pool;
 
         // Audit: verify the accuracy of these timestamps using an alternative calculator
         // epochconverter.com was used to generate these
@@ -658,7 +670,7 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Move the username from the current owner to the vault and renew it for another year
+     * @notice Move the username from the current owner to the pool and renew it for another year
      *
      * @param tokenId the uint256 representation of the username.
      */
@@ -669,7 +681,7 @@ contract NameRegistry is
 
         // Safety: we must call super.ownerOf instead of ownerOf because we want the admin to be
         // able to transfer the name even if is expired and there is no current owner.
-        _transfer(super.ownerOf(tokenId), vault, tokenId);
+        _transfer(super.ownerOf(tokenId), pool, tokenId);
 
         unchecked {
             // Safety: _currYear() returns a gregorian calendar year and cannot realistically overflow
@@ -694,6 +706,44 @@ contract NameRegistry is
     }
 
     /**
+     * @notice Changes the address from which registerTrusted calls can be made
+     */
+    function setTrustedSender(address _trustedSender) external {
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        trustedSender = _trustedSender;
+    }
+
+    /**
+     * @notice Disables registerTrusted and enables register calls from any address.
+     */
+    function disableTrustedRegister() external {
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        trustedRegisterEnabled = 0;
+    }
+
+    /**
+     * @notice Changes the address to which funds can be withdrawn
+     */
+    function changeVault(address _vault) external {
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        vault = _vault;
+        emit ChangeVault(_vault);
+    }
+
+    /**
+     * @notice Changes the address to which names are reclaimed
+     */
+    function changePool(address _pool) external {
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        pool = _pool;
+        emit ChangePool(_pool);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            TREASURER ACTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
      * @notice Set the yearly fee
      */
     function setFee(uint256 newFee) external {
@@ -702,19 +752,15 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Changes the address from which registerTrusted calls can be made
+     * @notice Withdraw a specified amount of ether to the vault
      */
-    function setTrustedSender(address _trustedSender) external {
-        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
-        trustedSender = _trustedSender;
-    }
+    function withdraw(uint256 amount) external {
+        if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
+        if (address(this).balance < amount) revert WithdrawTooMuch();
 
-    /**
-     * @notice Disables registerTrusted and enables register calls from any address.
-     */
-    function disableTrustedRegister() external {
-        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
-        trustedRegisterEnabled = 0;
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, ) = vault.call{value: amount}("");
+        if (!success) revert WithdrawFailed();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -803,7 +849,7 @@ contract NameRegistry is
 
     // solhint-disable-next-line no-empty-blocks
     function _authorizeUpgrade(address) internal view override {
-        if (!hasRole(OWNER_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
     }
 
     /*//////////////////////////////////////////////////////////////

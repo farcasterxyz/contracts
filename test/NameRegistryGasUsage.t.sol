@@ -12,13 +12,14 @@ contract NameRegistryGasUsageTest is Test {
     NameRegistry nameRegistry;
     ERC1967Proxy nameRegistryProxy;
 
-    address vault = address(this);
-    address owner = address(this);
+    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
+    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
     address constant TRUSTED_FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     uint256 constant COMMIT_REGISTER_DELAY = 60;
 
@@ -41,6 +42,8 @@ contract NameRegistryGasUsageTest is Test {
         "jane1"
     ]; // padded to all be length 5
 
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTORS
     //////////////////////////////////////////////////////////////*/
@@ -49,11 +52,12 @@ contract NameRegistryGasUsageTest is Test {
         nameRegistryImpl = new NameRegistry(TRUSTED_FORWARDER);
         nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
         nameRegistry = NameRegistry(address(nameRegistryProxy));
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", vault);
+        nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
+        nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
     }
 
     function testGasUsage() public {
-        vm.prank(owner);
+        vm.prank(ADMIN);
         nameRegistry.disableTrustedRegister();
 
         // 1. During 2022, test making the commit and registering the name

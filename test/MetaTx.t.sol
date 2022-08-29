@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 import {IDRegistryTestable} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 import {MinimalForwarder} from "openzeppelin/contracts/metatx/MinimalForwarder.sol";
-import {EIP712} from "openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /* solhint-disable state-visibility */
@@ -24,6 +23,10 @@ contract MetaTxTest is Test {
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    address defaultAdmin = address(this);
+    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
+    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
+
     bytes32 private constant _TYPEHASH_FW_REQ =
         keccak256("ForwardRequest(address from,address to,uint256 value,uint256 gas,uint256 nonce,bytes data)");
 
@@ -35,6 +38,8 @@ contract MetaTxTest is Test {
 
     // A timestamp during which registrations are allowed - Dec 1, 2022 00:00:00 GMT
     uint256 constant DEC1_2022_TS = 1669881600;
+
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -51,7 +56,8 @@ contract MetaTxTest is Test {
         nameRegistryImpl = new NameRegistry(address(forwarder));
         nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
         nameRegistry = NameRegistry(address(nameRegistryProxy));
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", address(this));
+        nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
+        nameRegistry.grantRole(ADMIN_ROLE, defaultAdmin);
         nameRegistry.disableTrustedRegister();
     }
 

@@ -122,16 +122,16 @@ The fname state can automatically transition when certain periods of time pass:
 
 ### Permissions
 
-The Name Registry, unlike the ID Registry, implements an Access Control system that defines roles which can be granted to different addresses. The system has three high permissioned roles which must be kept secure to perform infrequent, sensitive operations:
+The Name Registry, unlike the ID Registry, implements an Access Control system that defines roles which can be granted to different addresses. The system has two high permissioned roles which must be kept secure to perform infrequent, sensitive operations:
 
-- **Default Administrator** - Can grant and revoke all other roles.
-- **Owner** - Used to upgrade the contract, change the trusted sender and disable trusted sending.
-- **Treasurer** - Used to withdraw funds and set the fee rate.
+- **Default Admin** - Can grant and revoke all other roles, including Admin.
+- **Admin** - Used to upgrade the contract, change the vault, change the trusted sender and disable trusted sending.
 
-The system also has two lower permissioned roles that can be granted to people performing more frequent operations:
+The system also has three lower permissioned roles that can be granted to people performing more frequent operations:
 
 - **Operator** - Used by on-call teams to pause and resume the contract.
 - **Moderator** - Used by moderators to reclaim names from users and change the location to which they are reclaimed.
+- **Treasurer** - Used to withdraw funds to the vault and set the fee rate.
 
 ## 3. Recovery System
 
