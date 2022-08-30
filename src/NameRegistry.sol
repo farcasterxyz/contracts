@@ -32,6 +32,7 @@ contract NameRegistry is
 
     error InsufficientFunds(); // The transaction does not have enough money to pay for this.
     error Unauthorized(); // The caller is not authorized to perform this action.
+    error CallFailed(); // Could not .call to transfer the funds
 
     error InvalidCommit(); // The commitment hash was not found
     error InvalidName(); // The username had invalid characters
@@ -55,8 +56,7 @@ contract NameRegistry is
     error NotModerator();
     error NotTreasurer();
 
-    error WithdrawFailed();
-    error WithdrawTooMuch();
+    error WithdrawTooMuch(); // Could not withdraw the requested amount
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -337,7 +337,10 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        payable(_msgSender()).transfer(msg.value - _currYearFee);
+        // Audit: use call instead of transfer of send to avoid breaking gas changes
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, ) = _msgSender().call{value: msg.value - _currYearFee}("");
+        if (!success) revert CallFailed();
     }
 
     /**
@@ -404,7 +407,10 @@ contract NameRegistry is
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
-        payable(_msgSender()).transfer(msg.value - fee);
+        // Audit: use call instead of transfer of send to avoid breaking gas changes
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, ) = _msgSender().call{value: msg.value - fee}("");
+        if (!success) revert CallFailed();
     }
 
     /**
@@ -758,9 +764,10 @@ contract NameRegistry is
         if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
         if (address(this).balance < amount) revert WithdrawTooMuch();
 
+        // Audit: use call instead of transfer of send to avoid breaking gas changes
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = vault.call{value: amount}("");
-        if (!success) revert WithdrawFailed();
+        if (!success) revert CallFailed();
     }
 
     /*//////////////////////////////////////////////////////////////
