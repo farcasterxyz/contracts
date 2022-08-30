@@ -27,7 +27,7 @@ contract IDRegistryGasUsageTest is Test {
     }
 
     function testGasRegisterFromTrustedSender() public {
-        idRegistry.setTrustedSender(TRUSTED_SENDER);
+        idRegistry.changeTrustedSender(TRUSTED_SENDER);
 
         for (uint256 i = 0; i < 25; i++) {
             address alice = address(uint160(i));

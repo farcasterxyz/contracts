@@ -74,6 +74,12 @@ contract NameRegistry is
 
     event ChangePool(address indexed pool);
 
+    event ChangeTrustedSender(address indexed trustedSender);
+
+    event DisableTrustedRegister();
+
+    event ChangeFee(uint256 fee);
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -714,9 +720,10 @@ contract NameRegistry is
     /**
      * @notice Changes the address from which registerTrusted calls can be made
      */
-    function setTrustedSender(address _trustedSender) external {
+    function changeTrustedSender(address _trustedSender) external {
         if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
         trustedSender = _trustedSender;
+        emit ChangeTrustedSender(_trustedSender);
     }
 
     /**
@@ -725,6 +732,7 @@ contract NameRegistry is
     function disableTrustedRegister() external {
         if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
         trustedRegisterEnabled = 0;
+        emit DisableTrustedRegister();
     }
 
     /**
@@ -752,9 +760,10 @@ contract NameRegistry is
     /**
      * @notice Set the yearly fee
      */
-    function setFee(uint256 newFee) external {
+    function changeFee(uint256 _fee) external {
         if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
-        fee = newFee;
+        fee = _fee;
+        emit ChangeFee(_fee);
     }
 
     /**

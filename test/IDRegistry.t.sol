@@ -20,6 +20,8 @@ contract IDRegistryTest is Test {
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
     event CancelRecovery(uint256 indexed id);
+    event ChangeTrustedSender(address indexed trustedSender);
+    event DisableTrustedRegister();
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -112,7 +114,7 @@ contract IDRegistryTest is Test {
         string calldata url
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        idRegistry.setTrustedSender(alice);
+        idRegistry.changeTrustedSender(alice);
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
@@ -149,7 +151,7 @@ contract IDRegistryTest is Test {
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != charlie);
-        idRegistry.setTrustedSender(charlie);
+        idRegistry.changeTrustedSender(charlie);
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.Unauthorized.selector);
@@ -652,21 +654,23 @@ contract IDRegistryTest is Test {
                                OWNER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testSetTrustedSender(address alice) public {
+    function testChangeTrustedSender(address alice) public {
         vm.assume(alice != FORWARDER);
         assertEq(idRegistry.owner(), owner);
 
-        idRegistry.setTrustedSender(alice);
+        vm.expectEmit(true, true, true, true);
+        emit ChangeTrustedSender(alice);
+        idRegistry.changeTrustedSender(alice);
         assertEq(idRegistry.trustedSender(), alice);
     }
 
-    function testCannotSetTrustedSenderUnlessOwner(address alice, address bob) public {
+    function testCannotChangeTrustedSenderUnlessOwner(address alice, address bob) public {
         vm.assume(alice != FORWARDER && alice != address(0));
         vm.assume(idRegistry.owner() != alice);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.setTrustedSender(bob);
+        idRegistry.changeTrustedSender(bob);
         assertEq(idRegistry.trustedSender(), address(0));
     }
 
@@ -674,6 +678,8 @@ contract IDRegistryTest is Test {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.trustedRegisterEnabled(), 1);
 
+        vm.expectEmit(true, true, true, true);
+        emit DisableTrustedRegister();
         idRegistry.disableTrustedRegister();
         assertEq(idRegistry.trustedRegisterEnabled(), 0);
     }
