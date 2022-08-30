@@ -167,7 +167,6 @@ contract IDRegistry is ERC2771Context, Ownable {
         uint256 id = _idOf[sender];
 
         if (id == 0) revert ZeroId();
-
         if (_idOf[to] != 0) revert HasId();
 
         _unsafeTransfer(id, sender, to);
@@ -185,7 +184,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         _idOf[to] = id;
         _idOf[from] = 0;
 
-        // since this is rarely true, checking before assigning is more gas efficient
+        // Perf: Checking before assigning is more gas efficient since this is often false
         if (_recoveryClockOf[id] != 0) _recoveryClockOf[id] = 0;
         _recoveryOf[id] = address(0);
 
@@ -228,9 +227,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         _recoveryOf[id] = recovery;
         emit ChangeRecoveryAddress(id, recovery);
 
-        if (_recoveryClockOf[id] != 0) {
-            delete _recoveryClockOf[id];
-        }
+        if (_recoveryClockOf[id] != 0) delete _recoveryClockOf[id];
     }
 
     /**
@@ -287,7 +284,6 @@ contract IDRegistry is ERC2771Context, Ownable {
      */
     function cancelRecovery(address from) external payable {
         uint256 id = _idOf[from];
-
         address sender = _msgSender();
 
         if (sender != from && sender != _recoveryOf[id]) revert Unauthorized();
@@ -321,8 +317,8 @@ contract IDRegistry is ERC2771Context, Ownable {
                          OPEN ZEPPELIN OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
-    function _msgSender() internal view override(Context, ERC2771Context) returns (address sender) {
-        sender = ERC2771Context._msgSender();
+    function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
+        return ERC2771Context._msgSender();
     }
 
     function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {

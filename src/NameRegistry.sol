@@ -323,12 +323,16 @@ contract NameRegistry is
         uint256 _currYearFee = currYearFee();
         if (msg.value < _currYearFee) revert InsufficientFunds();
 
-        // Assumption: We assume that timestampOf[commit] will always be zero while trustedRegisterEnabled is true
-        // and therefore this will always fail until the general registration phase is open.
+        // Assumption: timestampOf[commit] will always be zero while trustedRegisterEnabled = 1 causing this to fail,
+        // since makeCommit will always revert when trustedRegisterEnabled = 1.
         uint256 _commitBlock = timestampOf[commit];
 
         // Audit: verify that this duration is the right amount to use
         if (_commitBlock == 0 || _commitBlock + 60 > block.timestamp) revert InvalidCommit();
+
+        // Safety: this interaction is performed before the checks below, because the commit should be released if the
+        // name was discovered to be invalid and the transaction reverted. While it does not save any gas costs now
+        // deleting and cleaning up storage is generally good behavior and may be rewarded in the future.
         delete timestampOf[commit];
 
         uint256 tokenId = uint256(bytes32(username));
@@ -337,7 +341,7 @@ contract NameRegistry is
         _mint(to, tokenId);
 
         unchecked {
-            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot cause an overflow
+            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
@@ -404,9 +408,11 @@ contract NameRegistry is
         unchecked {
             // Safety: expirtyTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
             if (block.timestamp >= expiryTs + GRACE_PERIOD) revert Biddable();
+        }
 
-            if (block.timestamp < expiryTs) revert Registered();
+        if (block.timestamp < expiryTs) revert Registered();
 
+        unchecked {
             // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot cause an overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
