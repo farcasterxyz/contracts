@@ -798,31 +798,41 @@ contract NameRegistry is
      */
 
     function currYear() public returns (uint256 year) {
-        unchecked {
-            // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
-            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
-            if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
+        // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
+        if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
+            unchecked {
+                // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
                 return _nextYearIdx + 2021;
             }
+        }
 
-            uint256 length = _yearTimestamps.length;
+        uint256 length = _yearTimestamps.length;
 
+        uint256 idx;
+        unchecked {
             // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 1
-            for (uint256 i = _nextYearIdx + 1; i < length; ) {
-                if (_yearTimestamps[i] > block.timestamp) {
-                    // Slither false positive: https://github.com/crytic/slither/issues/1338
-                    // slither-disable-next-line costly-loop
-                    _nextYearIdx = i;
+            idx = _nextYearIdx + 1;
+        }
+
+        for (uint256 i = idx; i < length; ) {
+            if (_yearTimestamps[i] > block.timestamp) {
+                // Slither false positive: https://github.com/crytic/slither/issues/1338
+                // slither-disable-next-line costly-loop
+                _nextYearIdx = i;
+
+                unchecked {
                     // Safety: _nextYearIdx is always <= _yearTimestamps.length which can't overflow when added to 2021
                     return _nextYearIdx + 2021;
                 }
+            }
 
+            unchecked {
                 // Safety: i cannot overflow because length is a pre-determined constant value.
                 i++;
             }
-
-            revert InvalidTime();
         }
+
+        revert InvalidTime();
     }
 
     /**
