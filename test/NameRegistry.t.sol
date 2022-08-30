@@ -26,6 +26,9 @@ contract NameRegistryTest is Test {
     event CancelRecovery(uint256 indexed id);
     event ChangeVault(address indexed vault);
     event ChangePool(address indexed pool);
+    event ChangeTrustedSender(address indexed trustedSender);
+    event DisableTrustedRegister();
+    event ChangeFee(uint256 fee);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -531,7 +534,7 @@ contract NameRegistryTest is Test {
 
         vm.warp(JAN1_2022_TS);
         vm.prank(ADMIN);
-        nameRegistry.setTrustedSender(trustedSender);
+        nameRegistry.changeTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
@@ -552,7 +555,7 @@ contract NameRegistryTest is Test {
         vm.assume(trustedSender != FORWARDER);
 
         vm.prank(ADMIN);
-        nameRegistry.setTrustedSender(trustedSender);
+        nameRegistry.changeTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
@@ -565,7 +568,7 @@ contract NameRegistryTest is Test {
         vm.assume(trustedSender != FORWARDER);
 
         vm.prank(ADMIN);
-        nameRegistry.setTrustedSender(trustedSender);
+        nameRegistry.changeTrustedSender(trustedSender);
 
         vm.prank(ADMIN);
         nameRegistry.disableTrustedRegister();
@@ -584,7 +587,7 @@ contract NameRegistryTest is Test {
         vm.assume(trustedSender != FORWARDER);
 
         vm.prank(ADMIN);
-        nameRegistry.setTrustedSender(trustedSender);
+        nameRegistry.changeTrustedSender(trustedSender);
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
@@ -606,7 +609,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(ADMIN);
-        nameRegistry.setTrustedSender(trustedSender);
+        nameRegistry.changeTrustedSender(trustedSender);
 
         vm.prank(arbitrarySender);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
@@ -620,7 +623,7 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
         vm.prank(ADMIN);
-        nameRegistry.setTrustedSender(trustedSender);
+        nameRegistry.changeTrustedSender(trustedSender);
 
         vm.prank(ADMIN);
         nameRegistry.pause();
@@ -2065,22 +2068,24 @@ contract NameRegistryTest is Test {
                                OWNER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testSetTrustedSender(address alice) public {
+    function testChangeTrustedSender(address alice) public {
         vm.assume(alice != nameRegistry.trustedSender());
 
         vm.prank(ADMIN);
-        nameRegistry.setTrustedSender(alice);
+        vm.expectEmit(true, true, true, true);
+        emit ChangeTrustedSender(alice);
+        nameRegistry.changeTrustedSender(alice);
         assertEq(nameRegistry.trustedSender(), alice);
     }
 
-    function testCannotSetTrustedSenderUnlessOwner(address alice, address bob) public {
+    function testCannotChangeTrustedSenderUnlessOwner(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(alice != ADMIN);
         assertEq(nameRegistry.trustedSender(), address(0));
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotOwner.selector);
-        nameRegistry.setTrustedSender(bob);
+        nameRegistry.changeTrustedSender(bob);
         assertEq(nameRegistry.trustedSender(), address(0));
     }
 
@@ -2199,22 +2204,24 @@ contract NameRegistryTest is Test {
                              TREASURER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testSetFee() public {
+    function testChangeFee() public {
         _grant(TREASURER_ROLE, ADMIN);
         assertEq(nameRegistry.fee(), 0.01 ether);
 
         vm.prank(ADMIN);
-        nameRegistry.setFee(0.02 ether);
+        vm.expectEmit(true, true, true, true);
+        emit ChangeFee(0.02 ether);
+        nameRegistry.changeFee(0.02 ether);
 
         assertEq(nameRegistry.fee(), 0.02 ether);
     }
 
-    function testCannotSetFeeUnlessTreasurer(address alice2) public {
+    function testCannotChangeFeeUnlessTreasurer(address alice2) public {
         vm.assume(alice2 != FORWARDER);
 
         vm.prank(alice2);
         vm.expectRevert(NameRegistry.NotTreasurer.selector);
-        nameRegistry.setFee(0.02 ether);
+        nameRegistry.changeFee(0.02 ether);
     }
 
     function testWithdrawFunds(address alice) public {
@@ -2319,7 +2326,7 @@ contract NameRegistryTest is Test {
 
         // fee = 0.2 ether
         vm.prank(ADMIN);
-        nameRegistry.setFee(0.02 ether);
+        nameRegistry.changeFee(0.02 ether);
 
         vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
         assertEq(nameRegistry.currYearFee(), 0.02 ether);
@@ -2332,7 +2339,7 @@ contract NameRegistryTest is Test {
 
         // fee = 0 ether
         vm.prank(ADMIN);
-        nameRegistry.setFee(0 ether);
+        nameRegistry.changeFee(0 ether);
 
         vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
         assertEq(nameRegistry.currYearFee(), 0);

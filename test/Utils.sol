@@ -6,6 +6,7 @@ import {IDRegistry} from "../src/IDRegistry.sol";
  * IDRegistryTestable exposes IDRegistry's private methods for test assertions.
  */
 contract IDRegistryTestable is IDRegistry {
+    // solhint-disable-next-line no-empty-blocks
     constructor(address forwarder) IDRegistry(forwarder) {}
 
     function idOf(address addr) public view returns (uint256) {

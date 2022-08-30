@@ -49,6 +49,10 @@ contract IDRegistry is ERC2771Context, Ownable {
 
     event CancelRecovery(uint256 indexed id);
 
+    event ChangeTrustedSender(address indexed trustedSender);
+
+    event DisableTrustedRegister();
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -300,8 +304,9 @@ contract IDRegistry is ERC2771Context, Ownable {
     /**
      * @notice Changes the address from which registerTrusted calls can be made
      */
-    function setTrustedSender(address newTrustedSender) external onlyOwner {
+    function changeTrustedSender(address newTrustedSender) external onlyOwner {
         _trustedSender = newTrustedSender;
+        emit ChangeTrustedSender(newTrustedSender);
     }
 
     /**
@@ -309,6 +314,7 @@ contract IDRegistry is ERC2771Context, Ownable {
      */
     function disableTrustedRegister() external onlyOwner {
         _trustedRegisterEnabled = 0;
+        emit DisableTrustedRegister();
     }
 
     /*//////////////////////////////////////////////////////////////
