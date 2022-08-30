@@ -108,19 +108,18 @@ contract NameRegistryV2 is
 
     // Storage: The layout (ordering of non-constant variables) is preserved exactly as in V1, with
     // new values added at the bottom
-    mapping(bytes32 => uint256) public timestampOf;
-    mapping(uint256 => uint256) public expiryOf;
-    uint256 internal _nextYearIdx;
-    address private preregistrar;
-    address public vault;
-    address public pool;
-    uint256[] public _yearTimestamps;
-    mapping(uint256 => address) public recoveryOf;
-    mapping(uint256 => uint256) public recoveryClockOf;
-    mapping(uint256 => address) public recoveryDestinationOf;
     uint256 public fee;
     address public trustedSender;
     uint256 public trustedRegisterEnabled;
+    mapping(bytes32 => uint256) public timestampOf;
+    mapping(uint256 => uint256) public expiryOf;
+    address public vault;
+    address public pool;
+    uint256[] internal _yearTimestamps;
+    uint256 internal _nextYearIdx;
+    mapping(uint256 => address) public recoveryOf;
+    mapping(uint256 => uint256) public recoveryClockOf;
+    mapping(uint256 => address) public recoveryDestinationOf;
 
     // New storage values
     uint256 public number;

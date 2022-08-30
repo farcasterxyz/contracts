@@ -84,67 +84,67 @@ contract NameRegistry is
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    // WARNING: if you change the layout of storage (order in which variables are declared), also
-    // update NameRegistryV2 layout in NameRegistryUpdate.t.sol to match. Once contracts are deployed
-    // the order of variables should never be modified.
+    /// WARNING - DO NOT CHANGE THE ORDER OF THESE VARIABLES ONCE DEPLOYED
+    /// Any changes before deployment should be replicated to NameRegistryV2 in NameRegistryUpdate.t.sol
 
-    // Maps commitment hash -> block timestamp
-    mapping(bytes32 => uint256) public timestampOf;
+    // Audit: These variables are kept public to make it easier to test the contract, since using the same inherit
+    // and extend trick that we used for IDRegistry is harder to pull off here due to the UUPS structure.
 
-    // Maps tokenID -> expiration year
-    mapping(uint256 => uint256) public expiryOf;
-
-    // The index of the next year in the array
-    uint256 internal _nextYearIdx;
-
-    // The address that funds can be withdrawn to
-    address public vault;
-
-    // The address that names can be reclaimed to
-    address public pool;
-
-    // The epoch timestamp of Jan 1 for each year starting from 2022 used to determine the current year
-    // Must be set in the initializer since non-constant variables are unsafe to declare otherwise.
-    // solhint-disable-next-line max-line-length
-    // See: https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#avoid-initial-values-in-field-declarations
-    uint256[] private _yearTimestamps;
-
-    // Maps tokenId ->  recovery address
-    mapping(uint256 => address) public recoveryOf;
-
-    // Maps tokenId -> recovery timestamp in seconds, which is set to zero on cancellation or completion
-    mapping(uint256 => uint256) public recoveryClockOf;
-
-    // Maps tokenId -> recovery destination, which is left dirty on cancellation or completion to save gas
-    mapping(uint256 => address) public recoveryDestinationOf;
-
-    // Yearly fee charged for a username
+    /// @notice The fee to renew a name for a full calendar year
     uint256 public fee;
 
-    // The trusted sender that can register names
+    /// @notice The address controlled by the Farcaster Invite service that is allowed to call trustedRegister
     address public trustedSender;
 
-    // Allow registration calls from the trusted sender if set to 1
+    /// @notice Flag that determines if registration can occur through trustedRegister or register
+    /// @dev This value is initialized to 1 can only be changed to zero
     uint256 public trustedRegisterEnabled;
+
+    /// @notice Returns the block.timestamp of a commit
+    mapping(bytes32 => uint256) public timestampOf;
+
+    /// @notice Returns the expiration timestamp of a farcaster name
+    mapping(uint256 => uint256) public expiryOf;
+
+    /// @notice The address that funds can be withdrawn to
+    address public vault;
+
+    /// @notice The address that names can be reclaimed to
+    address public pool;
+
+    /// @notice Contains the timestamps of Jan 1, 0:00:00 GMT for each year from 2022 to 2072
+    uint256[] internal _yearTimestamps;
+
+    /// @notice The index of _yearTimestamps which will return the timestamp of Jan 1st of the next calendar year
+    uint256 internal _nextYearIdx;
+
+    /// @notice Returns the recovery address for a farcaster name
+    mapping(uint256 => address) public recoveryOf;
+
+    /// @notice Returns the block timestamp if there is an active recovery for a farcaster name, or 0 if none
+    mapping(uint256 => uint256) public recoveryClockOf;
+
+    /// @notice Returns the destination address for the most recent recovery attempt for a farcaster id
+    /// @dev This value is left dirty to save gas and should not be used to determine the state of a recovery
+    mapping(uint256 => address) public recoveryDestinationOf;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    string public constant BASE_URI = "http://www.farcaster.xyz/u/";
+    string internal constant BASE_URI = "http://www.farcaster.xyz/u/";
 
-    uint256 public constant GRACE_PERIOD = 30 days;
+    uint256 internal constant GRACE_PERIOD = 30 days;
 
-    uint256 public constant ESCROW_PERIOD = 3 days;
+    uint256 internal constant ESCROW_PERIOD = 3 days;
 
-    // TODO: Does this work correctly in an upgraded contract?
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
-    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
-    bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
+    bytes32 internal constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
 
-    bytes32 public constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
+    bytes32 internal constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
     /*//////////////////////////////////////////////////////////////
                       CONSTRUCTORS AND INITIALIZERS
