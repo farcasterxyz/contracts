@@ -51,7 +51,7 @@ contract NameRegistry is
     error NoRecovery(); // The recovery request could not be found
     error InvalidRecovery(); // The recovery address is being set to the custody address
 
-    error NotOwner();
+    error NotAdmin();
     error NotOperator();
     error NotModerator();
     error NotTreasurer();
@@ -175,12 +175,12 @@ contract NameRegistry is
      *       Slither: incorrectly flags this method as unprotected: https://github.com/crytic/slither/issues/1341
      */
     function initialize(
-        string memory _name,
-        string memory _symbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         address _vault,
         address _pool
     ) external initializer {
-        __ERC721_init(_name, _symbol);
+        __ERC721_init(_tokenName, _tokenSymbol);
 
         __Pausable_init();
 
@@ -323,12 +323,16 @@ contract NameRegistry is
         uint256 _currYearFee = currYearFee();
         if (msg.value < _currYearFee) revert InsufficientFunds();
 
-        // Assumption: We assume that timestampOf[commit] will always be zero while trustedRegisterEnabled is true
-        // and therefore this will always fail until the general registration phase is open.
+        // Assumption: timestampOf[commit] will always be zero while trustedRegisterEnabled = 1 causing this to fail,
+        // since makeCommit will always revert when trustedRegisterEnabled = 1.
         uint256 _commitBlock = timestampOf[commit];
 
         // Audit: verify that this duration is the right amount to use
         if (_commitBlock == 0 || _commitBlock + 60 > block.timestamp) revert InvalidCommit();
+
+        // Safety: this interaction is performed before the checks below, because the commit should be released if the
+        // name was discovered to be invalid and the transaction reverted. While it does not save any gas costs now
+        // deleting and cleaning up storage is generally good behavior and may be rewarded in the future.
         delete timestampOf[commit];
 
         uint256 tokenId = uint256(bytes32(username));
@@ -337,7 +341,7 @@ contract NameRegistry is
         _mint(to, tokenId);
 
         unchecked {
-            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot cause an overflow
+            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
@@ -352,7 +356,7 @@ contract NameRegistry is
     /**
      * @notice Mint a username during the invitation period from the trusted sender.
      *
-     * @dev The function is pausable since it invokes _transfer by way of _mint.
+     * @dev The function is pauseable since it invokes _transfer by way of _mint.
      *
      * @param to the address that will claim the username
      * @param username the username to register
@@ -402,11 +406,13 @@ contract NameRegistry is
         // Invariant 1B + 2 guarantee that the name is not owned by address(0) at this point.
 
         unchecked {
-            // Safety: expirtyTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
+            // Safety: expiryTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
             if (block.timestamp >= expiryTs + GRACE_PERIOD) revert Biddable();
+        }
 
-            if (block.timestamp < expiryTs) revert Registered();
+        if (block.timestamp < expiryTs) revert Registered();
 
+        unchecked {
             // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot cause an overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
@@ -425,7 +431,7 @@ contract NameRegistry is
      *         and decays by ~10% per period (8 hours) until it reaches zero mid-year.
      *
      * @dev The premium reduction is computed with the identity (x^y = exp(ln(x) * y)) with
-     *      gas-optimzied approximations for exp and ln that introduce a -3% error for every period
+     *      gas-optimized approximations for exp and ln that introduce a -3% error for every period
      *
      * @param tokenId the tokenId of the username to bid on
      * @param recovery address which can recovery the username if the custody address is lost
@@ -437,7 +443,7 @@ contract NameRegistry is
         uint256 auctionStartTimestamp;
 
         unchecked {
-            // Safety: expirtyTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
+            // Safety: expiryTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
             auctionStartTimestamp = expiryTs + GRACE_PERIOD;
         }
 
@@ -447,7 +453,7 @@ contract NameRegistry is
         // constant approximates fixed point division by 28,800 (num of seconds in 8 hours)
         int256 periodsSD59x18 = int256(3.47222222e13 * (block.timestamp - auctionStartTimestamp));
 
-        // Optimization: precompute return values for the first few periods and the last one.
+        // Perf: pre-compute return values for the first few periods and the last one.
 
         // Calculate the price by taking the 1000 ETH premium and discounting it by 10% for every
         // period and adding to it the renewal fee for the current year.
@@ -492,7 +498,7 @@ contract NameRegistry is
     }
 
     /**
-     * COMPATIBILITY: balanceOf will overreport the balance of the owner if the name is expired.
+     * COMPATIBILITY: balanceOf will over report the balance of the owner if the name is expired.
      */
 
     /**
@@ -640,10 +646,10 @@ contract NameRegistry is
     function completeRecovery(uint256 tokenId) external payable {
         if (block.timestamp >= expiryOf[tokenId]) revert Unauthorized();
 
-        // Invariant 3 prevents unauthorized access if the name has been re-posessed by another.
+        // Invariant 3 prevents unauthorized access if the name has been repossessed by another.
         if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
 
-        // Invariant 3 ensures that a recovery request cannot be compeleted after a change of
+        // Invariant 3 ensures that a recovery request cannot be completed after a change of
         // ownership without explicit consent from the new owner
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
@@ -721,7 +727,7 @@ contract NameRegistry is
      * @notice Changes the address from which registerTrusted calls can be made
      */
     function changeTrustedSender(address _trustedSender) external {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
         trustedSender = _trustedSender;
         emit ChangeTrustedSender(_trustedSender);
     }
@@ -730,7 +736,7 @@ contract NameRegistry is
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedRegister() external {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
         trustedRegisterEnabled = 0;
         emit DisableTrustedRegister();
     }
@@ -739,7 +745,7 @@ contract NameRegistry is
      * @notice Changes the address to which funds can be withdrawn
      */
     function changeVault(address _vault) external {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
         vault = _vault;
         emit ChangeVault(_vault);
     }
@@ -748,7 +754,7 @@ contract NameRegistry is
      * @notice Changes the address to which names are reclaimed
      */
     function changePool(address _pool) external {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
         pool = _pool;
         emit ChangePool(_pool);
     }
@@ -787,36 +793,46 @@ contract NameRegistry is
      * @notice Returns the current year for any year between 2021 and 2072.
      *
      * @dev The year is determined by comparing the current timestamp against an array of known timestamps for Jan 1
-     *      of each year. The array contains timestamps upto 2072 after which the contract will start failing. This
+     *      of each year. The array contains timestamps up to 2072 after which the contract will start failing. This
      *      can be resolved by deploying a new contract with updated timestamps in the initializer.
      */
 
     function currYear() public returns (uint256 year) {
-        unchecked {
-            // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
-            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
-            if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
+        // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
+        if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
+            unchecked {
+                // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
                 return _nextYearIdx + 2021;
             }
+        }
 
-            uint256 length = _yearTimestamps.length;
+        uint256 length = _yearTimestamps.length;
 
+        uint256 idx;
+        unchecked {
             // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 1
-            for (uint256 i = _nextYearIdx + 1; i < length; ) {
-                if (_yearTimestamps[i] > block.timestamp) {
-                    // Slither false positive: https://github.com/crytic/slither/issues/1338
-                    // slither-disable-next-line costly-loop
-                    _nextYearIdx = i;
+            idx = _nextYearIdx + 1;
+        }
+
+        for (uint256 i = idx; i < length; ) {
+            if (_yearTimestamps[i] > block.timestamp) {
+                // Slither false positive: https://github.com/crytic/slither/issues/1338
+                // slither-disable-next-line costly-loop
+                _nextYearIdx = i;
+
+                unchecked {
                     // Safety: _nextYearIdx is always <= _yearTimestamps.length which can't overflow when added to 2021
                     return _nextYearIdx + 2021;
                 }
+            }
 
+            unchecked {
                 // Safety: i cannot overflow because length is a pre-determined constant value.
                 i++;
             }
-
-            revert InvalidTime();
         }
+
+        revert InvalidTime();
     }
 
     /**
@@ -865,7 +881,7 @@ contract NameRegistry is
 
     // solhint-disable-next-line no-empty-blocks
     function _authorizeUpgrade(address) internal view override {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -882,7 +898,7 @@ contract NameRegistry is
 
         // Iterate over the bytes16 username one char at a time, ensuring that:
         //   1. The name begins with [a-z 0-9] or the ascii numbers [48-57, 97-122] inclusive
-        //   2. The name can contain [a-z 0-9 -] or the ascoii numbers [45, 48-57, 97-122] inclusive
+        //   2. The name can contain [a-z 0-9 -] or the ascii numbers [45, 48-57, 97-122] inclusive
         //   3. Once the name is ended with a NULL char (0), the follows character must also be NULLs
 
         // If the name begins with a hyphen, reject it

@@ -12,13 +12,13 @@ import {Context} from "openzeppelin/contracts/utils/Context.sol";
  *
  * @notice IDRegistry issues new farcaster account id's (fids) and maintains a mapping between the fid
  *         and the custody address that owns it. It implements a recovery system which allows a fid
- *         to be recovered if the address custodying it is lost.
+ *         to be recovered if the custody address is lost.
  *
  * @dev Function calls use payable to marginally reduce gas usage.
  */
 contract IDRegistry is ERC2771Context, Ownable {
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) Ownable() {}
+    constructor(address _forwarder) ERC2771Context(_forwarder) Ownable() {}
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -167,7 +167,6 @@ contract IDRegistry is ERC2771Context, Ownable {
         uint256 id = _idOf[sender];
 
         if (id == 0) revert ZeroId();
-
         if (_idOf[to] != 0) revert HasId();
 
         _unsafeTransfer(id, sender, to);
@@ -185,7 +184,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         _idOf[to] = id;
         _idOf[from] = 0;
 
-        // since this is rarely true, checking before assigning is more gas efficient
+        // Perf: Checking before assigning is more gas efficient since this is often false
         if (_recoveryClockOf[id] != 0) _recoveryClockOf[id] = 0;
         _recoveryOf[id] = address(0);
 
@@ -201,7 +200,7 @@ contract IDRegistry is ERC2771Context, Ownable {
      * invocation of requestRecovery, completeRecovery and cancelRecovery
      *
      * _recoveryOf[_idOf[address]] != address(0) only if _idOf[address] != 0 [changeRecoveryAddress]
-     * when _idOf[address] == 0, recoveryof[_idOf[address]] also == address(0) [_unsafeTransfer]
+     * when _idOf[address] == 0, recoveryOf[_idOf[address]] also == address(0) [_unsafeTransfer]
      * _msgSender() != address(0) [by definition]
      *
      * INVARIANT 2:  _idOf[address] != 0 if _recoveryClockOf[_idOf[address]] != 0
@@ -213,7 +212,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     /**
      * @notice Choose a recovery address which has the ability to transfer the caller's id to a new
      *         address. The transfer happens in two steps - a request, and a complete which must
-     *         occur after the escrow period has passed. During escroew, the custody address can
+     *         occur after the escrow period has passed. During escrow, the custody address can
      *         cancel the transaction. The recovery address can be changed by the custody address
      *         at any time, or removed by setting it to 0x0. Changing a recovery address will not
      *         unset a currently active recovery request, that must be explicitly cancelled.
@@ -228,9 +227,7 @@ contract IDRegistry is ERC2771Context, Ownable {
         _recoveryOf[id] = recovery;
         emit ChangeRecoveryAddress(id, recovery);
 
-        if (_recoveryClockOf[id] != 0) {
-            delete _recoveryClockOf[id];
-        }
+        if (_recoveryClockOf[id] != 0) delete _recoveryClockOf[id];
     }
 
     /**
@@ -287,7 +284,6 @@ contract IDRegistry is ERC2771Context, Ownable {
      */
     function cancelRecovery(address from) external payable {
         uint256 id = _idOf[from];
-
         address sender = _msgSender();
 
         if (sender != from && sender != _recoveryOf[id]) revert Unauthorized();
@@ -321,8 +317,8 @@ contract IDRegistry is ERC2771Context, Ownable {
                          OPEN ZEPPELIN OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
-    function _msgSender() internal view override(Context, ERC2771Context) returns (address sender) {
-        sender = ERC2771Context._msgSender();
+    function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
+        return ERC2771Context._msgSender();
     }
 
     function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
