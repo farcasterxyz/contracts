@@ -175,12 +175,12 @@ contract NameRegistry is
      *       Slither: incorrectly flags this method as unprotected: https://github.com/crytic/slither/issues/1341
      */
     function initialize(
-        string memory _name,
-        string memory _symbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         address _vault,
         address _pool
     ) external initializer {
-        __ERC721_init(_name, _symbol);
+        __ERC721_init(_tokenName, _tokenSymbol);
 
         __Pausable_init();
 

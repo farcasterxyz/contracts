@@ -18,7 +18,7 @@ import {Context} from "openzeppelin/contracts/utils/Context.sol";
  */
 contract IDRegistry is ERC2771Context, Ownable {
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _trustedForwarder) ERC2771Context(_trustedForwarder) Ownable() {}
+    constructor(address _forwarder) ERC2771Context(_forwarder) Ownable() {}
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
