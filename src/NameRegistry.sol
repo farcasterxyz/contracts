@@ -80,6 +80,8 @@ contract NameRegistry is
 
     event ChangeFee(uint256 fee);
 
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed username);
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -365,7 +367,9 @@ contract NameRegistry is
     function trustedRegister(
         address to,
         bytes16 username,
-        address recovery
+        address recovery,
+        uint256 inviter,
+        uint256 invitee
     ) external payable {
         /**
          *
@@ -390,6 +394,8 @@ contract NameRegistry is
         }
 
         recoveryOf[tokenId] = recovery;
+
+        emit Invite(inviter, invitee, username);
     }
 
     /**

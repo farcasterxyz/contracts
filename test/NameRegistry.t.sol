@@ -29,6 +29,7 @@ contract NameRegistryTest is Test {
     event ChangeTrustedSender(address indexed trustedSender);
     event DisableTrustedRegister();
     event ChangeFee(uint256 fee);
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed username);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -595,7 +596,9 @@ contract NameRegistryTest is Test {
     function testTrustedRegister(
         address trustedSender,
         address alice,
-        address recovery
+        address recovery,
+        uint256 inviter,
+        uint256 invitee
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedSender != FORWARDER);
@@ -608,7 +611,9 @@ contract NameRegistryTest is Test {
         vm.prank(trustedSender);
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(0), alice, ALICE_TOKEN_ID);
-        nameRegistry.trustedRegister(alice, "alice", recovery);
+        vm.expectEmit(true, true, true, true);
+        emit Invite(inviter, invitee, "alice");
+        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
@@ -619,7 +624,9 @@ contract NameRegistryTest is Test {
     function testCannotTrustedRegisterWhenDisabled(
         address trustedSender,
         address alice,
-        address recovery
+        address recovery,
+        uint256 inviter,
+        uint256 invitee
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedSender != FORWARDER);
@@ -632,7 +639,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(trustedSender);
         vm.expectRevert(NameRegistry.Registrable.selector);
-        nameRegistry.trustedRegister(alice, "alice", recovery);
+        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
 
         vm.expectRevert(NameRegistry.Registrable.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -645,7 +652,9 @@ contract NameRegistryTest is Test {
         address trustedSender,
         address alice,
         address recovery,
-        address recovery2
+        address recovery2,
+        uint256 inviter,
+        uint256 invitee
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedSender != FORWARDER);
@@ -656,11 +665,11 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
-        nameRegistry.trustedRegister(alice, "alice", recovery);
+        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
 
         vm.prank(trustedSender);
         vm.expectRevert("ERC721: token already minted");
-        nameRegistry.trustedRegister(alice, "alice", recovery2);
+        nameRegistry.trustedRegister(alice, "alice", recovery2, inviter, invitee);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
@@ -670,7 +679,9 @@ contract NameRegistryTest is Test {
         address trustedSender,
         address arbitrarySender,
         address alice,
-        address recovery
+        address recovery,
+        uint256 inviter,
+        uint256 invitee
     ) public {
         vm.assume(arbitrarySender != trustedSender);
         vm.assume(trustedSender != FORWARDER);
@@ -682,7 +693,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(arbitrarySender);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
-        nameRegistry.trustedRegister(alice, "alice", recovery);
+        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
 
         vm.expectRevert(NameRegistry.Registrable.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -694,7 +705,9 @@ contract NameRegistryTest is Test {
     function testCannotTrustedRegisterWhenPaused(
         address trustedSender,
         address alice,
-        address recovery
+        address recovery,
+        uint256 inviter,
+        uint256 invitee
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedSender != FORWARDER);
@@ -709,7 +722,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(trustedSender);
         vm.expectRevert("Pausable: paused");
-        nameRegistry.trustedRegister(alice, "alice", recovery);
+        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
 
         vm.expectRevert(NameRegistry.Registrable.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
