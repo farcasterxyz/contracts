@@ -176,7 +176,6 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _disableTrusted();
-        // TODO: Implement fuzzing for name using valid name generator
 
         // 1. Give alice money and fast forward to 2022 to begin registration.
         vm.deal(alice, 10_000 ether);
@@ -498,6 +497,30 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
+    function testCannotRegisterFromNonPayable(
+        address alice,
+        address charlie,
+        bytes32 secret
+    ) public {
+        _assumeClean(alice);
+        _disableTrusted();
+        vm.warp(DEC1_2022_TS);
+
+        // 2. Make the commitment to register the name alice
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
+        nameRegistry.makeCommit(commitHash);
+
+        // 3. Register the name alice from address(this) which is non payable
+        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.expectRevert(NameRegistry.CallFailed.selector);
+        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, charlie);
+
+        vm.expectRevert(NameRegistry.Registrable.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
     /*//////////////////////////////////////////////////////////////
                          REGISTER TRUSTED TESTS
     //////////////////////////////////////////////////////////////*/
@@ -739,6 +762,19 @@ contract NameRegistryTest is Test {
 
         vm.expectRevert("Pausable: paused");
         vm.prank(alice);
+        nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
+
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+    }
+
+    function testCannotRenewFromNonPayable(address alice) public {
+        _assumeClean(alice);
+        _register(alice);
+        vm.warp(JAN1_2023_TS);
+
+        vm.expectRevert(NameRegistry.CallFailed.selector);
         nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
 
         vm.expectRevert(NameRegistry.Expired.selector);
