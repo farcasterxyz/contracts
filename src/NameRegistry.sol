@@ -51,7 +51,7 @@ contract NameRegistry is
     error NoRecovery(); // The recovery request could not be found
     error InvalidRecovery(); // The recovery address is being set to the custody address
 
-    error NotOwner();
+    error NotAdmin();
     error NotOperator();
     error NotModerator();
     error NotTreasurer();
@@ -727,7 +727,7 @@ contract NameRegistry is
      * @notice Changes the address from which registerTrusted calls can be made
      */
     function changeTrustedSender(address _trustedSender) external {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
         trustedSender = _trustedSender;
         emit ChangeTrustedSender(_trustedSender);
     }
@@ -736,7 +736,7 @@ contract NameRegistry is
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedRegister() external {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
         trustedRegisterEnabled = 0;
         emit DisableTrustedRegister();
     }
@@ -745,7 +745,7 @@ contract NameRegistry is
      * @notice Changes the address to which funds can be withdrawn
      */
     function changeVault(address _vault) external {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
         vault = _vault;
         emit ChangeVault(_vault);
     }
@@ -754,7 +754,7 @@ contract NameRegistry is
      * @notice Changes the address to which names are reclaimed
      */
     function changePool(address _pool) external {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
         pool = _pool;
         emit ChangePool(_pool);
     }
@@ -881,7 +881,7 @@ contract NameRegistry is
 
     // solhint-disable-next-line no-empty-blocks
     function _authorizeUpgrade(address) internal view override {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotOwner();
+        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
     }
 
     /*//////////////////////////////////////////////////////////////

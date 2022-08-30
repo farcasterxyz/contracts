@@ -85,7 +85,7 @@ contract NameRegistryUpgradeTest is Test {
     function testCannotUpgradeUnlessOwner(address alice) public {
         vm.assume(alice != defaultAdmin && alice != ADMIN);
         vm.prank(alice);
-        vm.expectRevert(NameRegistry.NotOwner.selector);
+        vm.expectRevert(NameRegistry.NotAdmin.selector);
         proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
     }
 }
