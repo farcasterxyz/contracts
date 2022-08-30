@@ -436,7 +436,7 @@ contract IDRegistryTest is Test {
         vm.prank(alice);
         idRegistry.changeRecoveryAddress(david);
 
-        // 2. after escrow period, david attemps to complete the recovery which fails
+        // 2. after escrow period, david attempts to complete the recovery which fails
         vm.warp(block.timestamp + ESCROW_PERIOD);
         vm.prank(david);
         vm.expectRevert(IDRegistry.NoRecovery.selector);

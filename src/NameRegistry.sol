@@ -356,7 +356,7 @@ contract NameRegistry is
     /**
      * @notice Mint a username during the invitation period from the trusted sender.
      *
-     * @dev The function is pausable since it invokes _transfer by way of _mint.
+     * @dev The function is pauseable since it invokes _transfer by way of _mint.
      *
      * @param to the address that will claim the username
      * @param username the username to register
@@ -406,7 +406,7 @@ contract NameRegistry is
         // Invariant 1B + 2 guarantee that the name is not owned by address(0) at this point.
 
         unchecked {
-            // Safety: expirtyTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
+            // Safety: expiryTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
             if (block.timestamp >= expiryTs + GRACE_PERIOD) revert Biddable();
         }
 
@@ -431,7 +431,7 @@ contract NameRegistry is
      *         and decays by ~10% per period (8 hours) until it reaches zero mid-year.
      *
      * @dev The premium reduction is computed with the identity (x^y = exp(ln(x) * y)) with
-     *      gas-optimzied approximations for exp and ln that introduce a -3% error for every period
+     *      gas-optimized approximations for exp and ln that introduce a -3% error for every period
      *
      * @param tokenId the tokenId of the username to bid on
      * @param recovery address which can recovery the username if the custody address is lost
@@ -443,7 +443,7 @@ contract NameRegistry is
         uint256 auctionStartTimestamp;
 
         unchecked {
-            // Safety: expirtyTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
+            // Safety: expiryTs is a timestamp of a known calendar year and adding it to GRACE_PERIOD cannot overflow
             auctionStartTimestamp = expiryTs + GRACE_PERIOD;
         }
 
@@ -453,7 +453,7 @@ contract NameRegistry is
         // constant approximates fixed point division by 28,800 (num of seconds in 8 hours)
         int256 periodsSD59x18 = int256(3.47222222e13 * (block.timestamp - auctionStartTimestamp));
 
-        // Optimization: precompute return values for the first few periods and the last one.
+        // Perf: pre-compute return values for the first few periods and the last one.
 
         // Calculate the price by taking the 1000 ETH premium and discounting it by 10% for every
         // period and adding to it the renewal fee for the current year.
@@ -498,7 +498,7 @@ contract NameRegistry is
     }
 
     /**
-     * COMPATIBILITY: balanceOf will overreport the balance of the owner if the name is expired.
+     * COMPATIBILITY: balanceOf will over report the balance of the owner if the name is expired.
      */
 
     /**
@@ -646,10 +646,10 @@ contract NameRegistry is
     function completeRecovery(uint256 tokenId) external payable {
         if (block.timestamp >= expiryOf[tokenId]) revert Unauthorized();
 
-        // Invariant 3 prevents unauthorized access if the name has been re-posessed by another.
+        // Invariant 3 prevents unauthorized access if the name has been repossessed by another.
         if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
 
-        // Invariant 3 ensures that a recovery request cannot be compeleted after a change of
+        // Invariant 3 ensures that a recovery request cannot be completed after a change of
         // ownership without explicit consent from the new owner
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
@@ -793,7 +793,7 @@ contract NameRegistry is
      * @notice Returns the current year for any year between 2021 and 2072.
      *
      * @dev The year is determined by comparing the current timestamp against an array of known timestamps for Jan 1
-     *      of each year. The array contains timestamps upto 2072 after which the contract will start failing. This
+     *      of each year. The array contains timestamps up to 2072 after which the contract will start failing. This
      *      can be resolved by deploying a new contract with updated timestamps in the initializer.
      */
 
@@ -898,7 +898,7 @@ contract NameRegistry is
 
         // Iterate over the bytes16 username one char at a time, ensuring that:
         //   1. The name begins with [a-z 0-9] or the ascii numbers [48-57, 97-122] inclusive
-        //   2. The name can contain [a-z 0-9 -] or the ascoii numbers [45, 48-57, 97-122] inclusive
+        //   2. The name can contain [a-z 0-9 -] or the ascii numbers [45, 48-57, 97-122] inclusive
         //   3. Once the name is ended with a NULL char (0), the follows character must also be NULLs
 
         // If the name begins with a hyphen, reject it

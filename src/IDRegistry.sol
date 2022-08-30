@@ -12,7 +12,7 @@ import {Context} from "openzeppelin/contracts/utils/Context.sol";
  *
  * @notice IDRegistry issues new farcaster account id's (fids) and maintains a mapping between the fid
  *         and the custody address that owns it. It implements a recovery system which allows a fid
- *         to be recovered if the address custodying it is lost.
+ *         to be recovered if the custody address is lost.
  *
  * @dev Function calls use payable to marginally reduce gas usage.
  */
@@ -200,7 +200,7 @@ contract IDRegistry is ERC2771Context, Ownable {
      * invocation of requestRecovery, completeRecovery and cancelRecovery
      *
      * _recoveryOf[_idOf[address]] != address(0) only if _idOf[address] != 0 [changeRecoveryAddress]
-     * when _idOf[address] == 0, recoveryof[_idOf[address]] also == address(0) [_unsafeTransfer]
+     * when _idOf[address] == 0, recoveryOf[_idOf[address]] also == address(0) [_unsafeTransfer]
      * _msgSender() != address(0) [by definition]
      *
      * INVARIANT 2:  _idOf[address] != 0 if _recoveryClockOf[_idOf[address]] != 0
@@ -212,7 +212,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     /**
      * @notice Choose a recovery address which has the ability to transfer the caller's id to a new
      *         address. The transfer happens in two steps - a request, and a complete which must
-     *         occur after the escrow period has passed. During escroew, the custody address can
+     *         occur after the escrow period has passed. During escrow, the custody address can
      *         cancel the transaction. The recovery address can be changed by the custody address
      *         at any time, or removed by setting it to 0x0. Changing a recovery address will not
      *         unset a currently active recovery request, that must be explicitly cancelled.
