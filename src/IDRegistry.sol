@@ -57,25 +57,27 @@ contract IDRegistry is ERC2771Context, Ownable {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    // The most recent fid issued by the contract.
-    uint256 private idCounter;
+    /// @notice Tracks the last farcaster id that was issued
+    uint256 internal idCounter;
 
-    // The trusted sender that can register names
+    /// @notice The address controlled by the Farcaster Invite service that is allowed to call trustedRegister
     address internal _trustedSender;
 
-    // Allow registration calls from the trusted sender if set to 1
+    /// @notice Flag that determines if registration can occur through trustedRegister or register
+    /// @dev This value can only be changed to zero
     uint256 internal _trustedRegisterEnabled = 1;
 
-    // Mapping from custody address to id
+    /// @notice Returns the farcaster id for an address
     mapping(address => uint256) internal _idOf;
 
-    // Mapping from id to recovery address
+    /// @notice Returns the recovery address for a farcaster id
     mapping(uint256 => address) internal _recoveryOf;
 
-    // Mapping from id to recovery start (in blocks)
+    /// @notice Returns the block timestamp if there is an active recovery for a farcaster id, or 0 if none
     mapping(uint256 => uint256) internal _recoveryClockOf;
 
-    // Mapping from id to recovery destination address
+    /// @notice Returns the destination address for the most recent recovery attempt for a farcaster id
+    /// @dev This value is left dirty to save gas and should not be used to determine the state of a recovery
     mapping(uint256 => address) internal _recoveryDestinationOf;
 
     /*//////////////////////////////////////////////////////////////
