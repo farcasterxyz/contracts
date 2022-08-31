@@ -317,7 +317,7 @@ contract NameRegistryTest is Test {
 
         // 2. alice tries to register @alice again and fails
         nameRegistry.makeCommit(aliceCommitHash);
-        vm.expectRevert(NameRegistry.NotRegistrable.selector);
+        vm.expectRevert("ERC721: token already minted");
         vm.warp(block.timestamp + COMMIT_PERIOD);
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
 
@@ -329,7 +329,7 @@ contract NameRegistryTest is Test {
         vm.startPrank(bob);
         bytes32 bobCommitHash = nameRegistry.generateCommit("alice", bob, secret);
         nameRegistry.makeCommit(bobCommitHash);
-        vm.expectRevert(NameRegistry.NotRegistrable.selector);
+        vm.expectRevert("ERC721: token already minted");
         vm.warp(block.timestamp + COMMIT_PERIOD);
         nameRegistry.register{value: 0.01 ether}("alice", bob, secret, recovery);
 
@@ -359,7 +359,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
         nameRegistry.register{value: 1 wei}("alice", alice, secret, recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
@@ -383,7 +383,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}(username, bob, secret, recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), 0);
@@ -413,7 +413,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}(username, bob, incorrectSecret, recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), 0);
@@ -444,7 +444,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}(username, incorrectOwner, secret, recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(incorrectOwner), 0);
         assertEq(nameRegistry.balanceOf(bob), 0);
@@ -474,9 +474,9 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, bob, secret, recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
@@ -506,7 +506,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
@@ -528,7 +528,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, alice, secret, recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(incorrectTokenId), address(0));
         assertEq(nameRegistry.expiryOf(incorrectTokenId), 0);
         assertEq(nameRegistry.recoveryOf(incorrectTokenId), address(0));
@@ -559,7 +559,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert("Pausable: paused");
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, bob);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
@@ -583,7 +583,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.CallFailed.selector);
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, charlie);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
@@ -613,7 +613,7 @@ contract NameRegistryTest is Test {
         emit Transfer(address(0), alice, ALICE_TOKEN_ID);
         vm.expectEmit(true, true, true, true);
         emit Invite(inviter, invitee, "alice");
-        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
@@ -639,9 +639,9 @@ contract NameRegistryTest is Test {
 
         vm.prank(trustedSender);
         vm.expectRevert(NameRegistry.Registrable.selector);
-        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
@@ -665,11 +665,11 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedRegisterEnabled(), 1);
 
         vm.prank(trustedSender);
-        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
         vm.prank(trustedSender);
         vm.expectRevert("ERC721: token already minted");
-        nameRegistry.trustedRegister(alice, "alice", recovery2, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery2, inviter, invitee);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
@@ -693,9 +693,9 @@ contract NameRegistryTest is Test {
 
         vm.prank(arbitrarySender);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
-        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
@@ -722,9 +722,9 @@ contract NameRegistryTest is Test {
 
         vm.prank(trustedSender);
         vm.expectRevert("Pausable: paused");
-        nameRegistry.trustedRegister(alice, "alice", recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
@@ -808,7 +808,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Registrable.selector);
         nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
     }
@@ -1207,6 +1207,7 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _assumeClean(charlie);
+        _assumeClean(recovery1);
         vm.assume(alice != recovery1);
         vm.assume(bob != address(0));
         vm.assume(charlie != address(0));
@@ -1217,7 +1218,7 @@ contract NameRegistryTest is Test {
 
         // 2. recovery1 requests a recovery of @alice to bob
         vm.prank(recovery1);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery1);
 
@@ -1240,7 +1241,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Registrable.selector);
         nameRegistry.bid(ALICE_TOKEN_ID, recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
@@ -1275,6 +1276,26 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
+    function testCannotBidFromNonPayable(address alice, address charlie) public {
+        _assumeClean(alice);
+        _register(alice);
+        address nonPayable = address(this);
+
+        vm.deal(nonPayable, 1001 ether);
+        vm.warp(JAN31_2023_TS);
+
+        vm.prank(nonPayable);
+        vm.expectRevert(NameRegistry.CallFailed.selector);
+        nameRegistry.bid{value: 1_000.01 ether}(ALICE_TOKEN_ID, charlie);
+
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1); // balanceOf counts expired ids by design
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.balanceOf(nonPayable), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
     /*//////////////////////////////////////////////////////////////
                               ERC-721 TESTS
     //////////////////////////////////////////////////////////////*/
@@ -1289,7 +1310,7 @@ contract NameRegistryTest is Test {
     }
 
     function testOwnerOfRevertsIfRegistrable() public {
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert("ERC721: invalid token ID");
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
@@ -1329,7 +1350,7 @@ contract NameRegistryTest is Test {
 
         // 2. Bob requests a recovery of @alice to Charlie
         vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
 
@@ -1491,8 +1512,8 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         vm.assume(alice != recovery);
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
         vm.prank(alice);
+        vm.expectRevert("ERC721: invalid token ID");
         nameRegistry.changeRecoveryAddress(BOB_TOKEN_ID, recovery);
 
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
@@ -1534,7 +1555,7 @@ contract NameRegistryTest is Test {
 
         // 2. recovery1 requests a recovery of @alice to bob and then alice changes the recovery address
         vm.prank(recovery1);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
 
@@ -1568,14 +1589,14 @@ contract NameRegistryTest is Test {
         vm.prank(recovery);
         vm.expectEmit(true, true, true, true);
         emit RequestRecovery(alice, bob, ALICE_TOKEN_ID);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), bob);
 
         // 3. recovery then requests another recovery to charlie
         vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, charlie);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
 
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), charlie);
@@ -1593,7 +1614,7 @@ contract NameRegistryTest is Test {
         // 1. recovery requests a recovery of alice's id to 0x0
         vm.prank(recovery);
         vm.expectRevert(NameRegistry.InvalidRecovery.selector);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, address(0));
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, address(0));
 
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
@@ -1613,7 +1634,7 @@ contract NameRegistryTest is Test {
         // 1. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, charlie);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
 
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
@@ -1632,7 +1653,7 @@ contract NameRegistryTest is Test {
         // 1. bob requests a recovery from alice to charlie, which fails
         vm.prank(bob);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, charlie);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
 
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
@@ -1659,7 +1680,7 @@ contract NameRegistryTest is Test {
         // 2. recovery requests a recovery which fails
         vm.prank(recovery);
         vm.expectRevert("Pausable: paused");
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
@@ -1686,7 +1707,7 @@ contract NameRegistryTest is Test {
 
         // 2. recovery requests a recovery of alice's id to bob
         vm.startPrank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         // 3. after escrow period, recovery completes the recovery to bob
         vm.warp(block.timestamp + ESCROW_PERIOD);
@@ -1719,7 +1740,7 @@ contract NameRegistryTest is Test {
 
         vm.startPrank(recovery);
         // 2. recovery requests and completes a recovery to charlie
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, charlie);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
         vm.warp(block.timestamp + ESCROW_PERIOD);
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
         vm.stopPrank();
@@ -1745,7 +1766,7 @@ contract NameRegistryTest is Test {
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
 
         vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         vm.prank(bob);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
@@ -1775,7 +1796,7 @@ contract NameRegistryTest is Test {
 
         // 1. recovery1 requests a recovery of @alice to bob and then alice changes the recovery to recovery2
         vm.prank(recovery1);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
 
@@ -1829,7 +1850,7 @@ contract NameRegistryTest is Test {
 
         // 2. recovery requests a recovery of @alice to bob
         vm.startPrank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         // 3. before escrow period, recovery completes the recovery to bob
         vm.expectRevert(NameRegistry.Escrow.selector);
@@ -1859,7 +1880,7 @@ contract NameRegistryTest is Test {
         // 2. recovery requests a recovery of @alice to bob
         uint256 requestTs = block.timestamp;
         vm.startPrank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         // 3. during the renewal period, recovery attempts to recover to bob
         vm.warp(JAN1_2023_TS);
@@ -1900,7 +1921,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
         vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
         uint256 recoveryTs = block.timestamp;
 
         // 2. the contract is then paused by the ADMIN and we warp past the escrow period
@@ -1939,7 +1960,7 @@ contract NameRegistryTest is Test {
 
         // 2. recovery requests a recovery of @alice to bob
         vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         // 3. alice cancels the recovery
         vm.prank(alice);
@@ -1976,7 +1997,7 @@ contract NameRegistryTest is Test {
 
         // 2. recovery requests a recovery of @alice to bob
         vm.startPrank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         // 3. recovery cancels the recovery
         vm.expectEmit(true, false, false, false);
@@ -2012,7 +2033,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
         vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
         vm.prank(ADMIN);
         nameRegistry.pause();
 
@@ -2064,7 +2085,7 @@ contract NameRegistryTest is Test {
 
         // 2. recovery requests a recovery of @alice to bob
         vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, bob);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         // 3. bob cancels the recovery which fails
         vm.prank(bob);
@@ -2172,7 +2193,7 @@ contract NameRegistryTest is Test {
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, bob);
 
         vm.prank(bob);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, alice, charlie);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
 
         vm.prank(ADMIN);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
