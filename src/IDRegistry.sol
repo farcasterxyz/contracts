@@ -97,10 +97,11 @@ contract IDRegistry is ERC2771Context, Ownable {
         string calldata url
     ) external payable {
         if (_trustedRegisterEnabled == 1) revert Unauthorized();
+
+        // Assumption: we don't worry if to==address(0) since that only happen once after which the _register reverts
         _register(to, recovery);
 
-        // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
-        // this user at this point in time.
+        // Assumption: the most recent value of the idCounter must equal the id of this user
         emit Register(to, idCounter, recovery, url);
     }
 
@@ -119,10 +120,10 @@ contract IDRegistry is ERC2771Context, Ownable {
         if (_trustedRegisterEnabled == 0) revert Registrable();
         if (_msgSender() != _trustedSender) revert Unauthorized();
 
+        // Assumption: we don't worry if to==address(0) since that only happen once after which the _register reverts
         _register(to, recovery);
 
-        // Assumption: we can simply grab the latest value of the idCounter which should always equal the id of the
-        // this user at this point in time.
+        // Assumption: the most recent value of the idCounter must equal the id of this user
         emit Register(to, idCounter, recovery, url);
     }
 
@@ -132,24 +133,23 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @param url the url to emit
      */
     function changeHome(string calldata url) external payable {
-        uint256 _id = _idOf[_msgSender()];
-        if (_id == 0) revert ZeroId();
+        uint256 id = _idOf[_msgSender()];
+        if (id == 0) revert ZeroId();
 
-        emit ChangeHome(_id, url);
+        emit ChangeHome(id, url);
     }
 
-    // Optimization: inlining this logic into functions can save ~ 20-40 gas per call at the expense of contract size
-    // and duplicating logic in solidity code.
-    function _register(address to, address recovery) private {
+    // Perf: inlining this logic into functions can save ~ 20-40 gas per call
+    function _register(address to, address recovery) internal {
         if (_idOf[to] != 0) revert HasId();
 
         unchecked {
-            // Safety: this is a uint256 value and each transaction increments it by one, which would require
+            // Safety: this is a uint256 value and each transaction increments it by one. overflowing would require
             // spending ~ 2^81 gas to reach the max value (theoretically possible but not practically possible).
             idCounter++;
         }
 
-        // Incrementing before assigning ensures that the first id issued is 1, and not 0.
+        // Incrementing before assigning ensures that 0 is never issued as a valid ID.
         _idOf[to] = idCounter;
         _recoveryOf[idCounter] = recovery;
     }
@@ -182,12 +182,12 @@ contract IDRegistry is ERC2771Context, Ownable {
         uint256 id,
         address from,
         address to
-    ) private {
+    ) internal {
         _idOf[to] = id;
         _idOf[from] = 0;
 
         // Perf: Checking before assigning is more gas efficient since this is often false
-        if (_recoveryClockOf[id] != 0) _recoveryClockOf[id] = 0;
+        if (_recoveryClockOf[id] != 0) delete _recoveryClockOf[id];
         _recoveryOf[id] = address(0);
 
         emit Transfer(from, to, id);
@@ -198,17 +198,32 @@ contract IDRegistry is ERC2771Context, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1:  _idOf[address] != 0 if _msgSender() == _recoveryOf[_idOf[address]] during
-     * invocation of requestRecovery, completeRecovery and cancelRecovery
+     * INVARIANT 1: if _msgSender() == _recoveryOf[_idOf[addr]] then _idOf[addr] != 0
+     * during invocation of requestRecovery, completeRecovery and cancelRecovery
      *
-     * _recoveryOf[_idOf[address]] != address(0) only if _idOf[address] != 0 [changeRecoveryAddress]
-     * when _idOf[address] == 0, recoveryOf[_idOf[address]] also == address(0) [_unsafeTransfer]
-     * _msgSender() != address(0) [by definition]
      *
-     * INVARIANT 2:  _idOf[address] != 0 if _recoveryClockOf[_idOf[address]] != 0
+     * 1. at the start, _idOf[addr] = 0 and _recoveryOf[_idOf[addr]] == address(0) ∀ addr
      *
-     * _recoveryClockOf[_idOf[address]] != 0 only if _idOf[address] != 0 [requestRecovery]
-     * when _idOf[address] == 0, _recoveryClockOf[_idOf[address]] also == 0 [_unsafeTransfer]
+     * 2. assume that _msgSender() != address(0) for all instances of _msgSender()
+     *
+     * 3. recoveryOf[addr] can be made a non-zero address only by register, trustedRegister
+     *    changeRecoveryAddress, which requires _idOf[addr] != 0
+     *
+     * 4. _idOf[addr] can only be made 0 again  by transfer and completeRecovery, which ensures
+     *    recoveryOf[addr] == address(0)
+     **/
+
+    /**
+     * INVARIANT 2: if _recoveryClockOf[_idOf[address]] != 0 then _idOf[addr] != 0
+     *
+     *
+     * 1. at the start, _idOf[addr] = 0 and _recoveryClockOf[_idOf[addr]] == 0 ∀ addr
+     *
+     * 2. _recoveryClockOf[_idOf[addr]] can only be made non-zero by requestRecovery, which
+     *    requires _idOf[addr] != 0
+     *
+     * 3. _idOf[addr] can only be made zero again by transfer or completeRecovery, which ensures
+     *    _recoveryClockOf[id[addr]] == 0
      */
 
     /**
@@ -233,11 +248,10 @@ contract IDRegistry is ERC2771Context, Ownable {
     }
 
     /**
-     * @notice Request a transfer of an existing id to a new address by calling this function from
-     *         the recovery address. The request can be completed after escrow period has passed.
+     * @notice Request a transfer of an existing id to a new address by calling this function from the recovery
+     *         address. The request can be completed after escrow period has passed.
      *
-     * @dev The id != 0 assertion can be skipped because of invariant 1. The escrow period is
-     *       tracked using a clock which is set to zero when no recovery request is active, and is
+     * @dev The escrow period is tracked using a clock which is set to zero when no recovery request is active, and is
      *       set to the block timestamp when a request is opened.
      *
      * @param from the address that currently owns the id.
@@ -247,6 +261,8 @@ contract IDRegistry is ERC2771Context, Ownable {
         uint256 id = _idOf[from];
 
         if (_msgSender() != _recoveryOf[id]) revert Unauthorized();
+        // Assumption: id != 0 because of invariant 1
+
         if (_idOf[to] != 0) revert HasId();
 
         _recoveryClockOf[id] = block.timestamp;
@@ -258,29 +274,25 @@ contract IDRegistry is ERC2771Context, Ownable {
      * @notice Complete a transfer of an existing id to a new address by calling this function from
      *         the recovery address. The request can be completed if the escrow period has passed.
      *
-     * @dev The id != 0 assertion can be skipped because of invariant 1 and 2.
-     *
      * @param from the address that currently owns the id.
      */
     function completeRecovery(address from) external payable {
         uint256 id = _idOf[from];
-        address destination = _recoveryDestinationOf[id];
+        address to = _recoveryDestinationOf[id];
 
         if (_msgSender() != _recoveryOf[id]) revert Unauthorized();
         if (_recoveryClockOf[id] == 0) revert NoRecovery();
+        // Assumption: id != 0 because of invariant 1 and 2 (either asserts this)
 
-        if (block.timestamp < _recoveryClockOf[id] + 259_200) revert Escrow();
-        if (_idOf[destination] != 0) revert HasId();
+        if (block.timestamp < _recoveryClockOf[id] + 3 days) revert Escrow();
+        if (_idOf[to] != 0) revert HasId();
 
-        _unsafeTransfer(id, from, destination);
-        _recoveryClockOf[id] = 0;
+        _unsafeTransfer(id, from, to);
     }
 
     /**
      * @notice Cancel the recovery of an existing id by calling this function from the recovery
      *         or custody address. The request can be completed if the escrow period has passed.
-     *
-     * @dev The id != 0 assertion can be skipped because of invariant 1 and 2.
      *
      * @param from the address that currently owns the id.
      */
@@ -289,10 +301,12 @@ contract IDRegistry is ERC2771Context, Ownable {
         address sender = _msgSender();
 
         if (sender != from && sender != _recoveryOf[id]) revert Unauthorized();
+        // Assumption: id != 0 because of invariant 1
+
         if (_recoveryClockOf[id] == 0) revert NoRecovery();
+        delete _recoveryClockOf[id];
 
         emit CancelRecovery(id);
-        delete _recoveryClockOf[id];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -302,7 +316,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     /**
      * @notice Changes the address from which registerTrusted calls can be made
      */
-    function changeTrustedSender(address newTrustedSender) external onlyOwner {
+    function changeTrustedSender(address newTrustedSender) external payable onlyOwner {
         _trustedSender = newTrustedSender;
         emit ChangeTrustedSender(newTrustedSender);
     }
@@ -310,7 +324,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     /**
      * @notice Disables registerTrusted and enables register calls from any address.
      */
-    function disableTrustedRegister() external onlyOwner {
+    function disableTrustedRegister() external payable onlyOwner {
         _trustedRegisterEnabled = 0;
         emit DisableTrustedRegister();
     }

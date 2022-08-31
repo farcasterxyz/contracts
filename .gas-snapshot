@@ -1,4 +1,4 @@
-IDRegistryGasUsageTest:testGasRegister() (gas: 800370)
-IDRegistryGasUsageTest:testGasRegisterFromTrustedSender() (gas: 842391)
-NameRegistryGasUsageTest:testGasRegisterUsage() (gas: 2332147)
-NameRegistryGasUsageTest:testGasTrustedRegisterUsage() (gas: 1131307)
+IDRegistryGasUsageTest:testGasRegister() (gas: 800346)
+IDRegistryGasUsageTest:testGasRegisterFromTrustedSender() (gas: 842367)
+NameRegistryGasUsageTest:testGasRegisterUsage() (gas: 2331192)
+NameRegistryGasUsageTest:testGasTrustedRegisterUsage() (gas: 1170123)

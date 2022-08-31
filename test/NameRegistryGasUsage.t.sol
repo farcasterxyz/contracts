@@ -146,7 +146,7 @@ contract NameRegistryGasUsageTest is Test {
             vm.warp(DEC1_2022_TS);
 
             vm.prank(TRUSTED_SENDER);
-            nameRegistry.trustedRegister(alice, name, RECOVERY, inviterId, inviteeId);
+            nameRegistry.trustedRegister(name, alice, RECOVERY, inviterId, inviteeId);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(nameRegistry.expiryOf(nameTokenId), JAN1_2023_TS);
