@@ -22,8 +22,8 @@ contract NameRegistryGasUsageTest is Test {
     address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
     address constant TRUSTED_FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     uint256 constant COMMIT_REGISTER_DELAY = 60;
-    address constant RECOVERY = address(0x456);
-    address constant TRUSTED_SENDER = address(0x123);
+    address constant RECOVERY = address(0x8Ca9aB5b1756B7020a299ff4dc79b5E854a5cac5);
+    address constant TRUSTED_SENDER = address(0x4E29ad5578668e2f82A921FFd5fA7720eDD59D47);
 
     uint256 constant DEC1_2022_TS = 1669881600; // Dec 1, 2022 00:00:00 GMT
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
@@ -42,7 +42,7 @@ contract NameRegistryGasUsageTest is Test {
         "harry",
         "ian11",
         "jane1"
-    ]; // padded to all be length 5
+    ]; // padded to be length 5
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
