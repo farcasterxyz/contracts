@@ -4,7 +4,7 @@ import {IDRegistry} from "../src/IDRegistry.sol";
 import {BundleRegistry} from "../src/BundleRegistry.sol";
 
 /**
- * IDRegistryTestable exposes IDRegistry's private methods for test assertions.
+ * @dev IDRegistryTestable exposes IDRegistry's private methods for test assertions.
  */
 contract IDRegistryTestable is IDRegistry {
     // solhint-disable-next-line no-empty-blocks
@@ -36,14 +36,14 @@ contract IDRegistryTestable is IDRegistry {
 }
 
 /**
- * BundleRegistryTestable exposes IDRegistry's private methods for test assertions.
+ * @dev BundleRegistryTestable exposes IDRegistry's private methods for test assertions.
  */
 contract BundleRegistryTestable is BundleRegistry {
     constructor(
-        address foo,
-        address bar,
-        address baz
-    ) BundleRegistry(foo, bar, baz) {}
+        address idRegistry,
+        address nameRegistry,
+        address trustedSender
+    ) BundleRegistry(idRegistry, nameRegistry, trustedSender) {}
 
     function getTrustedSender() public view returns (address) {
         return trustedSender;

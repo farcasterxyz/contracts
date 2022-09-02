@@ -472,6 +472,7 @@ contract BundleRegistryTest is Test {
         vm.assume(a != ADMIN);
     }
 
+    // Assert that a given fname was correctly registered with id 1 and recovery
     function _assertSuccessfulRegistration(address alice, address recovery) internal {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.recoveryOf(1), recovery);
@@ -482,6 +483,7 @@ contract BundleRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
+    // Assert that a given fname was not registered and the contracts have no registrations
     function _assertUnsuccessfulRegistration(address alice) internal {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
