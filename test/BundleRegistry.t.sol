@@ -417,7 +417,7 @@ contract BundleRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
-        vm.assume(untrustedSender != address(this)); // guarantees call from untrusted sender
+        vm.assume(untrustedSender != bundleRegistry.getTrustedSender());
 
         // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
         // trusted sender is set in NameRegistry
@@ -425,11 +425,11 @@ contract BundleRegistryTest is Test {
         nameRegistry.changeTrustedSender(address(bundleRegistry));
         idRegistry.disableTrustedRegister();
 
-        // Call is made from an address that is not address(this), since addres(this) is the deployer
-        // and therefore the trusted sender for BundleRegistry
+        // Call is made from an address that is not address(this), since address(this) is the
+        // deployer and therefore the trusted sender for BundleRegistry
         vm.prank(untrustedSender);
         vm.expectRevert(BundleRegistry.Unauthorized.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter, invitee);
 
         _assertUnsuccessfulRegistration(alice);
     }
