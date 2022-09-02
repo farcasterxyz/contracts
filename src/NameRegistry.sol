@@ -380,7 +380,9 @@ contract NameRegistry is
         if (trustedRegisterEnabled == 0) revert Registrable();
 
         // Assumption: front running is not possible when registrations are restricted to a single sender
-        if (_msgSender() != trustedSender) revert Unauthorized();
+        // We explicitly don't use msgSender() here because we don't care about meta-tx for this function
+        // and it enables BatchRegistry
+        if (msg.sender != trustedSender) revert Unauthorized();
 
         _validateName(username);
 

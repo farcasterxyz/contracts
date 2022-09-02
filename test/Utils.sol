@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 import {IDRegistry} from "../src/IDRegistry.sol";
+import {BundleRegistry} from "../src/BundleRegistry.sol";
 
 /**
- * IDRegistryTestable exposes IDRegistry's private methods for test assertions.
+ * @dev IDRegistryTestable exposes IDRegistry's private methods for test assertions.
  */
 contract IDRegistryTestable is IDRegistry {
     // solhint-disable-next-line no-empty-blocks
@@ -31,5 +32,20 @@ contract IDRegistryTestable is IDRegistry {
 
     function trustedRegisterEnabled() public view returns (uint256) {
         return _trustedRegisterEnabled;
+    }
+}
+
+/**
+ * @dev BundleRegistryTestable exposes IDRegistry's private methods for test assertions.
+ */
+contract BundleRegistryTestable is BundleRegistry {
+    constructor(
+        address idRegistry,
+        address nameRegistry,
+        address trustedSender
+    ) BundleRegistry(idRegistry, nameRegistry, trustedSender) {}
+
+    function getTrustedSender() public view returns (address) {
+        return trustedSender;
     }
 }
