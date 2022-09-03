@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import "forge-std/Test.sol";
-import {NameRegistry} from "../src/NameRegistry.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
+
+import "forge-std/Test.sol";
+
+import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable max-states-count */
@@ -26,7 +28,7 @@ contract NameRegistryTest is Test {
     event CancelRecovery(uint256 indexed id);
     event ChangeVault(address indexed vault);
     event ChangePool(address indexed pool);
-    event ChangeTrustedSender(address indexed trustedSender);
+    event ChangeTrustedCaller(address indexed trustedCaller);
     event DisableTrustedRegister();
     event ChangeFee(uint256 fee);
     event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed username);
@@ -594,21 +596,21 @@ contract NameRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testTrustedRegister(
-        address trustedSender,
+        address trustedCaller,
         address alice,
         address recovery,
         uint256 inviter,
         uint256 invitee
     ) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedSender != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER);
 
         vm.warp(JAN1_2022_TS);
         vm.prank(ADMIN);
-        nameRegistry.changeTrustedSender(trustedSender);
-        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
+        nameRegistry.changeTrustedCaller(trustedCaller);
+        assertEq(nameRegistry.trustedOnly(), 1);
 
-        vm.prank(trustedSender);
+        vm.prank(trustedCaller);
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(0), alice, ALICE_TOKEN_ID);
         vm.expectEmit(true, true, true, true);
@@ -622,22 +624,22 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotTrustedRegisterWhenDisabled(
-        address trustedSender,
+        address trustedCaller,
         address alice,
         address recovery,
         uint256 inviter,
         uint256 invitee
     ) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedSender != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER);
 
         vm.prank(ADMIN);
-        nameRegistry.changeTrustedSender(trustedSender);
+        nameRegistry.changeTrustedCaller(trustedCaller);
 
         vm.prank(ADMIN);
-        nameRegistry.disableTrustedRegister();
+        nameRegistry.disableTrustedOnly();
 
-        vm.prank(trustedSender);
+        vm.prank(trustedCaller);
         vm.expectRevert(NameRegistry.Registrable.selector);
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
@@ -649,7 +651,7 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotTrustedRegisterTwice(
-        address trustedSender,
+        address trustedCaller,
         address alice,
         address recovery,
         address recovery2,
@@ -657,17 +659,17 @@ contract NameRegistryTest is Test {
         uint256 invitee
     ) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedSender != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER);
         vm.assume(recovery != recovery2);
 
         vm.prank(ADMIN);
-        nameRegistry.changeTrustedSender(trustedSender);
-        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
+        nameRegistry.changeTrustedCaller(trustedCaller);
+        assertEq(nameRegistry.trustedOnly(), 1);
 
-        vm.prank(trustedSender);
+        vm.prank(trustedCaller);
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
-        vm.prank(trustedSender);
+        vm.prank(trustedCaller);
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.trustedRegister("alice", alice, recovery2, inviter, invitee);
 
@@ -676,20 +678,20 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotTrustedRegisterFromArbitrarySender(
-        address trustedSender,
+        address trustedCaller,
         address arbitrarySender,
         address alice,
         address recovery,
         uint256 inviter,
         uint256 invitee
     ) public {
-        vm.assume(arbitrarySender != trustedSender);
-        vm.assume(trustedSender != FORWARDER);
+        vm.assume(arbitrarySender != trustedCaller);
+        vm.assume(trustedCaller != FORWARDER);
         vm.assume(alice != address(0));
-        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
+        assertEq(nameRegistry.trustedOnly(), 1);
 
         vm.prank(ADMIN);
-        nameRegistry.changeTrustedSender(trustedSender);
+        nameRegistry.changeTrustedCaller(trustedCaller);
 
         vm.prank(arbitrarySender);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
@@ -703,24 +705,24 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotTrustedRegisterWhenPaused(
-        address trustedSender,
+        address trustedCaller,
         address alice,
         address recovery,
         uint256 inviter,
         uint256 invitee
     ) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedSender != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER);
         _grant(OPERATOR_ROLE, ADMIN);
 
-        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
+        assertEq(nameRegistry.trustedOnly(), 1);
         vm.prank(ADMIN);
-        nameRegistry.changeTrustedSender(trustedSender);
+        nameRegistry.changeTrustedCaller(trustedCaller);
 
         vm.prank(ADMIN);
         nameRegistry.pause();
 
-        vm.prank(trustedSender);
+        vm.prank(trustedCaller);
         vm.expectRevert("Pausable: paused");
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
@@ -2237,44 +2239,44 @@ contract NameRegistryTest is Test {
                                ADMIN TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeTrustedSender(address alice) public {
-        vm.assume(alice != nameRegistry.trustedSender());
+    function testChangeTrustedCaller(address alice) public {
+        vm.assume(alice != nameRegistry.trustedCaller());
 
         vm.prank(ADMIN);
         vm.expectEmit(true, true, true, true);
-        emit ChangeTrustedSender(alice);
-        nameRegistry.changeTrustedSender(alice);
-        assertEq(nameRegistry.trustedSender(), alice);
+        emit ChangeTrustedCaller(alice);
+        nameRegistry.changeTrustedCaller(alice);
+        assertEq(nameRegistry.trustedCaller(), alice);
     }
 
-    function testCannotChangeTrustedSenderUnlessAdmin(address alice, address bob) public {
+    function testCannotChangeTrustedCallerUnlessAdmin(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(alice != ADMIN);
-        assertEq(nameRegistry.trustedSender(), address(0));
+        assertEq(nameRegistry.trustedCaller(), address(0));
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
-        nameRegistry.changeTrustedSender(bob);
-        assertEq(nameRegistry.trustedSender(), address(0));
+        nameRegistry.changeTrustedCaller(bob);
+        assertEq(nameRegistry.trustedCaller(), address(0));
     }
 
-    function testDisableTrustedSender() public {
-        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
+    function testDisableTrustedCaller() public {
+        assertEq(nameRegistry.trustedOnly(), 1);
 
         vm.prank(ADMIN);
-        nameRegistry.disableTrustedRegister();
-        assertEq(nameRegistry.trustedRegisterEnabled(), 0);
+        nameRegistry.disableTrustedOnly();
+        assertEq(nameRegistry.trustedOnly(), 0);
     }
 
-    function testCannotDisableTrustedSenderUnlessAdmin(address alice) public {
+    function testCannotDisableTrustedCallerUnlessAdmin(address alice) public {
         _assumeClean(alice);
         vm.assume(alice != ADMIN);
-        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
+        assertEq(nameRegistry.trustedOnly(), 1);
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
-        nameRegistry.disableTrustedRegister();
-        assertEq(nameRegistry.trustedRegisterEnabled(), 1);
+        nameRegistry.disableTrustedOnly();
+        assertEq(nameRegistry.trustedOnly(), 1);
     }
 
     function testChangeVault(address alice, address bob) public {
@@ -2554,7 +2556,7 @@ contract NameRegistryTest is Test {
 
     function _disableTrusted() internal {
         vm.prank(ADMIN);
-        nameRegistry.disableTrustedRegister();
+        nameRegistry.disableTrustedOnly();
     }
 
     function _grant(bytes32 role, address target) internal {

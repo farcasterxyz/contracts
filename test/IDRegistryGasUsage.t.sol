@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import "forge-std/Test.sol";
 import {IDRegistryTestable} from "./Utils.sol";
+
+import "forge-std/Test.sol";
 
 /* solhint-disable state-visibility */
 
@@ -18,22 +19,22 @@ contract IDRegistryGasUsageTest is Test {
     }
 
     function testGasRegister() public {
-        idRegistry.disableTrustedRegister();
+        idRegistry.disableTrustedOnly();
         for (uint256 i = 0; i < 25; i++) {
             address alice = address(uint160(i));
             idRegistry.register(alice, address(0), url);
-            assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
+            assertEq(idRegistry.getIdOf(address(uint160(i))), i + 1);
         }
     }
 
-    function testGasRegisterFromTrustedSender() public {
-        idRegistry.changeTrustedSender(TRUSTED_SENDER);
+    function testGasRegisterFromTrustedCaller() public {
+        idRegistry.changeTrustedCaller(TRUSTED_SENDER);
 
         for (uint256 i = 0; i < 25; i++) {
             address alice = address(uint160(i));
             vm.prank(TRUSTED_SENDER);
             idRegistry.trustedRegister(alice, address(0), url);
-            assertEq(idRegistry.idOf(alice), i + 1);
+            assertEq(idRegistry.getIdOf(alice), i + 1);
         }
     }
 }

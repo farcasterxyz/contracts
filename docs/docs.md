@@ -20,7 +20,7 @@ Each address can only own a single fid at a time, but they can otherwise be free
 
 An fid can exist in these states:
 
-- `invitable` - the fid has never been issued, and can be registered by the trusted sender
+- `invitable` - the fid has never been issued, and can be registered by the trusted caller
 - `registerable` - the fid has never been issued, and can be registered by anyone
 - `registered` - the fid has been issued to an address
 - `escrow` - a recovery request has been submitted and is pending escrow
@@ -42,7 +42,7 @@ An fid can exist in these states:
 The fid state transitions when users take specific actions:
 
 - `register` - register a new fid from any address
-- `trusted register` - register a new fid from the trusted sender
+- `trusted register` - register a new fid from the trusted caller
 - `disable trusted register` - allow registration from any sender
 - `transfer` - move an fid to a new custody address
 - `request recovery` - request a recovery of the fid
@@ -73,7 +73,7 @@ Fnames can be registered for up to a year by paying the registration fee, simila
 
 An fname can exist in these states:
 
-- `invitable` - the name has never been minted, and can only be minted by the trusted sender
+- `invitable` - the name has never been minted, and can only be minted by the trusted caller
 - `registerable` - the name has never been minted and can be minted by anone
 - `registered` - the name is registered to an address
 - `renewable` - the name's registration has expired and it can only be renewed by the owner
@@ -105,7 +105,7 @@ Only the `registerable` and `biddable` states are terminal, all other states hav
 The fname state transitions when users take certain actions:
 
 - `register` - mint a new fname from any sender
-- `trusted register` - mint a new fname from the trusted sender
+- `trusted register` - mint a new fname from the trusted caller
 - `disable trusted register` - allow registrations from any sender
 - `transfer` - move a fname to a new custody address
 - `renew` - pay the renewal fee on a renewable fname
@@ -125,7 +125,7 @@ The fname state can automatically transition when certain periods of time pass:
 The Name Registry, unlike the ID Registry, implements an Access Control system that defines roles which can be granted to different addresses. The system has two high permissioned roles which must be kept secure to perform infrequent, sensitive operations:
 
 - **Default Admin** - Can grant and revoke all other roles, including Admin.
-- **Admin** - Used to upgrade the contract, change the vault, change the trusted sender and disable trusted sending.
+- **Admin** - Used to upgrade the contract, change the vault, change the trusted caller and disable trusted sending.
 
 The system also has three lower permissioned roles that can be granted to people performing more frequent operations:
 

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
+import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
 import "forge-std/Script.sol";
 
 import {NameRegistry} from "../src/NameRegistry.sol";
-import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /* solhint-disable state-visibility*/
 /* solhint-disable avoid-low-level-calls */

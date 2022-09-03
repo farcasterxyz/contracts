@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
-import {IDRegistry} from "../src/IDRegistry.sol";
+
 import {BundleRegistry} from "../src/BundleRegistry.sol";
+import {IDRegistry} from "../src/IDRegistry.sol";
 
 /**
  * @dev IDRegistryTestable exposes IDRegistry's private methods for test assertions.
@@ -10,28 +11,36 @@ contract IDRegistryTestable is IDRegistry {
     // solhint-disable-next-line no-empty-blocks
     constructor(address forwarder) IDRegistry(forwarder) {}
 
-    function idOf(address addr) public view returns (uint256) {
-        return _idOf[addr];
+    function getIdCounter() public view returns (uint256) {
+        return idCounter;
     }
 
-    function recoveryOf(uint256 id) public view returns (address) {
-        return _recoveryOf[id];
+    function getIdOf(address addr) public view returns (uint256) {
+        return idOf[addr];
     }
 
-    function recoveryClockOf(uint256 id) public view returns (uint256) {
-        return _recoveryClockOf[id];
+    function getRecoveryOf(uint256 id) public view returns (address) {
+        return recoveryOf[id];
     }
 
-    function recoveryDestinationOf(uint256 id) public view returns (address) {
-        return _recoveryDestinationOf[id];
+    function setRecoveryClockOf(uint256 id, uint256 timestamp) public {
+        recoveryClockOf[id] = timestamp;
     }
 
-    function trustedSender() public view returns (address) {
-        return _trustedSender;
+    function getRecoveryClockOf(uint256 id) public view returns (uint256) {
+        return recoveryClockOf[id];
     }
 
-    function trustedRegisterEnabled() public view returns (uint256) {
-        return _trustedRegisterEnabled;
+    function getRecoveryDestinationOf(uint256 id) public view returns (address) {
+        return recoveryDestinationOf[id];
+    }
+
+    function getTrustedCaller() public view returns (address) {
+        return trustedCaller;
+    }
+
+    function getTrustedCallerOnly() public view returns (uint256) {
+        return trustedOnly;
     }
 }
 
@@ -42,10 +51,10 @@ contract BundleRegistryTestable is BundleRegistry {
     constructor(
         address idRegistry,
         address nameRegistry,
-        address trustedSender
-    ) BundleRegistry(idRegistry, nameRegistry, trustedSender) {}
+        address trustedCaller
+    ) BundleRegistry(idRegistry, nameRegistry, trustedCaller) {}
 
-    function getTrustedSender() public view returns (address) {
-        return trustedSender;
+    function getTrustedCaller() public view returns (address) {
+        return trustedCaller;
     }
 }
