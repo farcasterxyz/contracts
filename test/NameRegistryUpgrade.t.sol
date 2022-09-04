@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import "forge-std/Test.sol";
-import "../src/NameRegistry.sol";
-
 import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/ContextUpgradeable.sol";
+import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC721Upgradeable} from "openzeppelin-upgradeable/contracts/token/ERC721/ERC721Upgradeable.sol";
 import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/metatx/ERC2771ContextUpgradeable.sol";
-import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
-import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
+
+import "forge-std/Test.sol";
+
+import "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility*/
 /* solhint-disable avoid-low-level-calls */
@@ -109,8 +110,8 @@ contract NameRegistryV2 is
     // Storage: The layout (ordering of non-constant variables) is preserved exactly as in V1, with
     // new values added at the bottom
     uint256 public fee;
-    address public trustedSender;
-    uint256 public trustedRegisterEnabled;
+    address public trustedCaller;
+    uint256 public trustedOnly;
     mapping(bytes32 => uint256) public timestampOf;
     mapping(uint256 => uint256) public expiryOf;
     address public vault;

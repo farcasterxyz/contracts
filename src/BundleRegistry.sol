@@ -17,11 +17,11 @@ contract BundleRegistry is Ownable {
     error Unauthorized();
     error CallFailed();
 
-    /// @dev Emit when the trustedSender is changed by the owner after the contract is deployed
-    event ChangeTrustedSender(address indexed trustedSender, address indexed owner);
+    /// @dev Emit when the trustedCaller is changed by the owner after the contract is deployed
+    event ChangeTrustedCaller(address indexed trustedCaller, address indexed owner);
 
     /// @dev The only address that can call trustedRegister and partialTrustedRegister
-    address internal trustedSender;
+    address internal trustedCaller;
 
     /// @dev The address of the IDRegistry contract
     IDRegistry internal immutable idRegistry;
@@ -30,21 +30,21 @@ contract BundleRegistry is Ownable {
     NameRegistry internal immutable nameRegistry;
 
     /**
-     * @notice Configure the addresses of the Registry contracts and the trusted sender which is
+     * @notice Configure the addresses of the Registry contracts and the trusted caller which is
      *        allowed to register during the invitation phase.
      *
      * @param _idRegistry The address of the IDRegistry contract
      * @param _nameRegistry The address of the NameRegistry UUPS Proxy contract
-     * @param _trustedSender The address that can call trustedRegister and partialTrustedRegister
+     * @param _trustedCaller The address that can call trustedRegister and partialTrustedRegister
      */
     constructor(
         address _idRegistry,
         address _nameRegistry,
-        address _trustedSender
+        address _trustedCaller
     ) Ownable() {
         idRegistry = IDRegistry(_idRegistry);
         nameRegistry = NameRegistry(_nameRegistry);
-        trustedSender = _trustedSender;
+        trustedCaller = _trustedCaller;
     }
 
     /**
@@ -76,7 +76,7 @@ contract BundleRegistry is Ownable {
 
     /**
      * @notice Register an fid and an fname during the Goerli phase, where registration can only be
-     *         performed by the Farcaster Invite Server (trustedSender)
+     *         performed by the Farcaster Invite Server (trustedCaller)
      */
     function trustedRegister(
         address to,
@@ -86,8 +86,8 @@ contract BundleRegistry is Ownable {
         uint256 inviter,
         uint256 invitee
     ) external payable {
-        // Do not allow anyone except the Farcaster Invite Server (trustedSender) to call this
-        if (msg.sender != trustedSender) revert Unauthorized();
+        // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
+        if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.trustedRegister(to, recovery, url);
@@ -97,7 +97,7 @@ contract BundleRegistry is Ownable {
     /**
      * @notice Register an fid and an fname during the first Mainnet phase, where registration of
      *         the fid is available to all, but registration of the fname can only be performed by
-     *         the Farcaster Invite Server (trustedSender)
+     *         the Farcaster Invite Server (trustedCaller)
      */
     function partialTrustedRegister(
         address to,
@@ -107,8 +107,8 @@ contract BundleRegistry is Ownable {
         uint256 inviter,
         uint256 invitee
     ) external payable {
-        // Do not allow anyone except the Farcaster Invite Server (trustedSender) to call this
-        if (msg.sender != trustedSender) revert Unauthorized();
+        // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
+        if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.register(to, recovery, url);
@@ -116,11 +116,11 @@ contract BundleRegistry is Ownable {
     }
 
     /**
-     * @notice Change the trusted sender that can call trustedRegister and partialTrustedRegister
+     * @notice Change the trusted caller that can call trustedRegister and partialTrustedRegister
      */
-    function changeTrustedSender(address newTrustedSender) external onlyOwner {
-        trustedSender = newTrustedSender;
-        emit ChangeTrustedSender(newTrustedSender, msg.sender);
+    function changeTrustedCaller(address newTrustedCaller) external onlyOwner {
+        trustedCaller = newTrustedCaller;
+        emit ChangeTrustedCaller(newTrustedCaller, msg.sender);
     }
 
     // solhint-disable-next-line no-empty-blocks

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/ContextUpgradeable.sol";
-import {ERC721Upgradeable} from "openzeppelin-upgradeable/contracts/token/ERC721/ERC721Upgradeable.sol";
-import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/metatx/ERC2771ContextUpgradeable.sol";
-import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {AccessControlUpgradeable} from "openzeppelin-upgradeable/contracts/access/AccessControlUpgradeable.sol";
+import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/ContextUpgradeable.sol";
+import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/metatx/ERC2771ContextUpgradeable.sol";
+import {ERC721Upgradeable} from "openzeppelin-upgradeable/contracts/token/ERC721/ERC721Upgradeable.sol";
+import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {PausableUpgradeable} from "openzeppelin-upgradeable/contracts/security/PausableUpgradeable.sol";
-
 import {UUPSUpgradeable} from "openzeppelin-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
@@ -74,7 +73,7 @@ contract NameRegistry is
 
     event ChangePool(address indexed pool);
 
-    event ChangeTrustedSender(address indexed trustedSender);
+    event ChangeTrustedCaller(address indexed trustedCaller);
 
     event DisableTrustedRegister();
 
@@ -96,11 +95,11 @@ contract NameRegistry is
     uint256 public fee;
 
     /// @notice The address controlled by the Farcaster Invite service that is allowed to call trustedRegister
-    address public trustedSender;
+    address public trustedCaller;
 
     /// @notice Flag that determines if registration can occur through trustedRegister or register
     /// @dev This value is initialized to 1 can only be changed to zero
-    uint256 public trustedRegisterEnabled;
+    uint256 public trustedOnly;
 
     /// @notice Returns the block.timestamp of a commit
     mapping(bytes32 => uint256) public timestampOf;
@@ -254,7 +253,7 @@ contract NameRegistry is
 
         fee = 0.01 ether;
 
-        trustedRegisterEnabled = 1;
+        trustedOnly = 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -298,7 +297,7 @@ contract NameRegistry is
      * @param commit the commitment hash to be persisted on-chain
      */
     function makeCommit(bytes32 commit) external payable {
-        if (trustedRegisterEnabled == 1) revert NotRegistrable();
+        if (trustedOnly == 1) revert NotRegistrable();
 
         timestampOf[commit] = block.timestamp;
     }
@@ -326,8 +325,8 @@ contract NameRegistry is
         uint256 _currYearFee = currYearFee();
         if (msg.value < _currYearFee) revert InsufficientFunds();
 
-        // Assumption: timestampOf[commit] will always be zero while trustedRegisterEnabled = 1
-        // causing this to fail, since makeCommit reverts when trustedRegisterEnabled = 1.
+        // Assumption: timestampOf[commit] will always be zero while trustedOnly = 1
+        // causing this to fail, since makeCommit reverts when trustedOnly = 1.
         uint256 commitTs = timestampOf[commit];
 
         if (commitTs == 0) revert InvalidCommit();
@@ -362,7 +361,7 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Mint a username during the invitation period from the trusted sender.
+     * @notice Mint a username during the invitation period from the trusted caller.
      *
      * @dev The function is pauseable since it invokes _transfer by way of _mint.
      *
@@ -377,12 +376,12 @@ contract NameRegistry is
         uint256 inviter,
         uint256 invitee
     ) external payable {
-        if (trustedRegisterEnabled == 0) revert Registrable();
+        if (trustedOnly == 0) revert Registrable();
 
         // Assumption: front running is not possible when registrations are restricted to a single sender
         // We explicitly don't use msgSender() here because we don't care about meta-tx for this function
         // and it enables BatchRegistry
-        if (msg.sender != trustedSender) revert Unauthorized();
+        if (msg.sender != trustedCaller) revert Unauthorized();
 
         _validateName(username);
 
@@ -730,18 +729,18 @@ contract NameRegistry is
     /**
      * @notice Changes the address from which registerTrusted calls can be made
      */
-    function changeTrustedSender(address _trustedSender) external payable {
+    function changeTrustedCaller(address _trustedCaller) external payable {
         if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
-        trustedSender = _trustedSender;
-        emit ChangeTrustedSender(_trustedSender);
+        trustedCaller = _trustedCaller;
+        emit ChangeTrustedCaller(_trustedCaller);
     }
 
     /**
      * @notice Disables registerTrusted and enables register calls from any address.
      */
-    function disableTrustedRegister() external payable {
+    function disableTrustedOnly() external payable {
         if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
-        trustedRegisterEnabled = 0;
+        trustedOnly = 0;
         emit DisableTrustedRegister();
     }
 

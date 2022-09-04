@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import "forge-std/Test.sol";
-import {NameRegistry} from "../src/NameRegistry.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+import "forge-std/Test.sol";
+
+import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
 
@@ -60,7 +62,7 @@ contract NameRegistryGasUsageTest is Test {
 
     function testGasRegisterUsage() public {
         vm.prank(ADMIN);
-        nameRegistry.disableTrustedRegister();
+        nameRegistry.disableTrustedOnly();
 
         // 1. During 2022, test making the commit and registering the name
         for (uint256 i = 0; i < names.length; i++) {
@@ -132,7 +134,7 @@ contract NameRegistryGasUsageTest is Test {
 
     function testGasTrustedRegisterUsage() public {
         vm.prank(ADMIN);
-        nameRegistry.changeTrustedSender(TRUSTED_SENDER);
+        nameRegistry.changeTrustedCaller(TRUSTED_SENDER);
 
         for (uint256 i = 0; i < names.length; i++) {
             address alice = address(uint160(i) + 10); // start after the precompiles

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import "forge-std/Test.sol";
-import {IDRegistryTestable} from "./Utils.sol";
-import {BundleRegistryTestable} from "./Utils.sol";
-import {NameRegistry} from "../src/NameRegistry.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {NameRegistry} from "../src/NameRegistry.sol";
+
+import "forge-std/Test.sol";
+
+import {BundleRegistryTestable} from "./Utils.sol";
+import {IDRegistryTestable} from "./Utils.sol";
 
 /* solhint-disable state-visibility */
 
@@ -60,9 +62,9 @@ contract BundleRegistryGasUsageTest is Test {
     }
 
     function testGasRegister() public {
-        idRegistry.disableTrustedRegister();
+        idRegistry.disableTrustedOnly();
         vm.prank(ADMIN);
-        nameRegistry.disableTrustedRegister();
+        nameRegistry.disableTrustedOnly();
 
         for (uint256 i = 0; i < 10; i++) {
             address alice = address(uint160(i) + 10); // start after the precompiles
@@ -99,9 +101,9 @@ contract BundleRegistryGasUsageTest is Test {
             bytes16 name = names[i];
             uint256 nameTokenId = uint256(bytes32(name));
 
-            idRegistry.changeTrustedSender(address(bundleRegistry));
+            idRegistry.changeTrustedCaller(address(bundleRegistry));
             vm.prank(ADMIN);
-            nameRegistry.changeTrustedSender(address(bundleRegistry));
+            nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
             // 3. Register the name alice
             vm.warp(block.timestamp + 60 seconds);

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import "forge-std/Test.sol";
-import {IDRegistryTestable} from "./Utils.sol";
-import {NameRegistry} from "../src/NameRegistry.sol";
 import {MinimalForwarder} from "openzeppelin/contracts/metatx/MinimalForwarder.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+import "forge-std/Test.sol";
+
+import {IDRegistryTestable} from "./Utils.sol";
+import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable avoid-low-level-calls */
@@ -50,7 +52,7 @@ contract MetaTxTest is Test {
 
         // Set up the idRegistry and move to a state where it is no longer in trusted registration
         idRegistry = new IDRegistryTestable(address(forwarder));
-        idRegistry.disableTrustedRegister();
+        idRegistry.disableTrustedOnly();
 
         // Set up the nameRegistry and proxy, and move to a state where it is no longer in trusted registration
         nameRegistryImpl = new NameRegistry(address(forwarder));
@@ -58,7 +60,7 @@ contract MetaTxTest is Test {
         nameRegistry = NameRegistry(address(nameRegistryProxy));
         nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
         nameRegistry.grantRole(ADMIN_ROLE, defaultAdmin);
-        nameRegistry.disableTrustedRegister();
+        nameRegistry.disableTrustedOnly();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -66,7 +68,7 @@ contract MetaTxTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testIDRegistryRegister(
-        address trustedSender,
+        address trustedCaller,
         address recovery,
         uint256 alicePrivateKey
     ) public {
@@ -91,16 +93,16 @@ contract MetaTxTest is Test {
 
         bytes memory signature = _signReq(req, alicePrivateKey);
 
-        // 4. Have the trusted sender call the contract and check that the name is registered to alice.
-        vm.prank(trustedSender);
+        // 4. Have the trusted caller call the contract and check that the name is registered to alice.
+        vm.prank(trustedCaller);
         vm.expectEmit(true, true, true, true);
         emit Register(alice, 1, recovery, "");
         forwarder.execute(req, signature);
-        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.getIdOf(alice), 1);
     }
 
     function testNameRegistryRegister(
-        address trustedSender,
+        address trustedCaller,
         address recovery,
         uint256 alicePrivateKey
     ) public {
@@ -121,9 +123,9 @@ contract MetaTxTest is Test {
 
         bytes memory makeCommitSig = _signReq(makeCommitReq, alicePrivateKey);
 
-        vm.deal(trustedSender, 1 ether);
+        vm.deal(trustedCaller, 1 ether);
         vm.warp(DEC1_2022_TS);
-        vm.prank(trustedSender);
+        vm.prank(trustedCaller);
         forwarder.execute(makeCommitReq, makeCommitSig);
 
         // 2. Register the name alice
@@ -145,7 +147,7 @@ contract MetaTxTest is Test {
         bytes memory registerSig = _signReq(registerReq, alicePrivateKey);
 
         vm.warp(block.timestamp + 60);
-        vm.prank(trustedSender);
+        vm.prank(trustedCaller);
         forwarder.execute{value: 0.001 ether}(registerReq, registerSig);
         assertEq(nameRegistry.ownerOf(uint256(bytes32("alice"))), alice);
     }
