@@ -15,7 +15,7 @@ import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
  *         starts in a trusted mode where only a trusted caller can register an fid and can move
  *         to an untrusted mode where any address can register an fid. The Registry implements
  *         a recovery system which allows the custody address to nominate a recovery address that
- *         can transfer the fid to a new address after a delay period.
+ *         can transfer the fid to a new address after a delay.
  */
 contract IDRegistry is ERC2771Context, Ownable {
     /*//////////////////////////////////////////////////////////////
@@ -37,10 +37,10 @@ contract IDRegistry is ERC2771Context, Ownable {
     /// @dev Revert if register is invoked before trustedCallerOnly is disabled
     error Invitable();
 
-    /// @dev Revert a recovery operation is called when there is no active recovery.
+    /// @dev Revert if a recovery operation is called when there is no active recovery.
     error NoRecovery();
 
-    /// @dev Revert when the recovery complete is performed before the Escrow
+    /// @dev Revert when completeRecovery() is called before the escrow period has elapsed.
     error Escrow();
 
     /*//////////////////////////////////////////////////////////////

@@ -156,7 +156,7 @@ contract BundleRegistryTest is Test {
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
-        vm.expectRevert(NameRegistry.NotRegistrable.selector);
+        vm.expectRevert(NameRegistry.Invitable.selector);
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + 60 seconds);
 
@@ -190,7 +190,7 @@ contract BundleRegistryTest is Test {
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
-        vm.expectRevert(NameRegistry.NotRegistrable.selector);
+        vm.expectRevert(NameRegistry.Invitable.selector);
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + 60 seconds);
 
@@ -293,7 +293,7 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert(NameRegistry.NotInvitable.selector);
         bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter, invitee);
 
         _assertUnsuccessfulRegistration(alice);
@@ -403,7 +403,7 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert(NameRegistry.NotInvitable.selector);
         bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter, invitee);
 
         _assertUnsuccessfulRegistration(alice);

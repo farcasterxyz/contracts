@@ -25,13 +25,13 @@ contract NameRegistryTest is Test {
     event Renew(uint256 indexed tokenId, uint256 expiry);
     event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
-    event CancelRecovery(uint256 indexed id);
+    event CancelRecovery(address indexed sender, uint256 indexed id);
     event ChangeVault(address indexed vault);
     event ChangePool(address indexed pool);
     event ChangeTrustedCaller(address indexed trustedCaller);
     event DisableTrustedRegister();
     event ChangeFee(uint256 fee);
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed username);
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -71,6 +71,8 @@ contract NameRegistryTest is Test {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
     bytes32 public constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
+    uint256 public constant FEE = 0.01 ether;
+    uint256 public constant BID_START = 1_000 ether;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -161,12 +163,17 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
+
+        // If the commit is made again it replaces the previous one
+        vm.warp(block.timestamp + 1 days);
+        nameRegistry.makeCommit(commitHash);
+        assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
     }
 
     function testCannotMakeCommitDuringTrustedRegister(address alice, bytes32 secret) public {
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         vm.prank(alice);
-        vm.expectRevert(NameRegistry.NotRegistrable.selector);
+        vm.expectRevert(NameRegistry.Invitable.selector);
         nameRegistry.makeCommit(commitHash);
     }
 
@@ -176,39 +183,8 @@ contract NameRegistryTest is Test {
 
     function testRegister(
         address alice,
-        address charlie,
-        bytes32 secret
-    ) public {
-        _assumeClean(alice);
-        _disableTrusted();
-
-        // 1. Give alice money and fast forward to 2022 to begin registration.
-        vm.deal(alice, 10_000 ether);
-        vm.warp(DEC1_2022_TS);
-
-        // 2. Make the commitment to register the name alice
-        vm.startPrank(alice);
-        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
-        nameRegistry.makeCommit(commitHash);
-
-        // 3. Register the name alice
-        vm.warp(block.timestamp + COMMIT_PERIOD);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(address(0), alice, uint256(bytes32("alice")));
-        uint256 balance = alice.balance;
-        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, charlie);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        assertEq(alice.balance, balance - nameRegistry.currYearFee());
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), charlie);
-        vm.stopPrank();
-    }
-
-    function testRegisterToAnotherAddress(
-        address alice,
         address bob,
+        address recovery,
         bytes32 secret
     ) public {
         vm.assume(bob != address(0));
@@ -217,24 +193,30 @@ contract NameRegistryTest is Test {
         vm.deal(alice, 10_000 ether);
         vm.warp(DEC1_2022_TS);
 
-        // Make the commitment to register @bob to the user bob
         vm.prank(alice);
         bytes32 commitHash = nameRegistry.generateCommit("bob", bob, secret);
         nameRegistry.makeCommit(commitHash);
 
-        // Register the name @bob to bob
         vm.warp(block.timestamp + COMMIT_PERIOD);
-        vm.expectEmit(true, true, true, false);
-        emit Transfer(address(0), bob, uint256(bytes32("bob")));
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(address(0), bob, BOB_TOKEN_ID);
+        uint256 balance = alice.balance;
         vm.prank(alice);
-        nameRegistry.register{value: 0.01 ether}("bob", bob, secret, address(0));
+        nameRegistry.register{value: FEE}("bob", bob, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(commitHash), 0);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(bob), 1);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), recovery);
+        assertEq(alice.balance, balance - nameRegistry.currYearFee());
     }
 
-    function testRegisterWorksWhenAlreadyOwningAName(address alice, bytes32 secret) public {
+    function testRegisterWorksWhenAlreadyOwningAName(
+        address alice,
+        address recovery,
+        bytes32 secret
+    ) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 1 ether);
@@ -242,32 +224,38 @@ contract NameRegistryTest is Test {
 
         // Register @alice to alice
         vm.startPrank(alice);
-        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
-        nameRegistry.makeCommit(commitHash);
+        bytes32 commitHashAlice = nameRegistry.generateCommit("alice", alice, secret);
+        nameRegistry.makeCommit(commitHashAlice);
         vm.warp(block.timestamp + COMMIT_PERIOD);
-        nameRegistry.register{value: nameRegistry.fee()}("alice", alice, secret, address(0));
+        nameRegistry.register{value: nameRegistry.fee()}("alice", alice, secret, recovery);
 
         // Register @bob to alice
         bytes32 commitHashBob = nameRegistry.generateCommit("bob", alice, secret);
         nameRegistry.makeCommit(commitHashBob);
         vm.warp(block.timestamp + COMMIT_PERIOD);
-        nameRegistry.register{value: 0.01 ether}("bob", alice, secret, address(0));
+        nameRegistry.register{value: 0.01 ether}("bob", alice, secret, recovery);
+        vm.stopPrank();
 
+        assertEq(nameRegistry.timestampOf(commitHashAlice), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+
+        assertEq(nameRegistry.timestampOf(commitHashBob), 0);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), recovery);
+
         assertEq(nameRegistry.balanceOf(alice), 2);
-        vm.stopPrank();
     }
 
     function testRegisterAfterUnpausing(
         address alice,
-        address bob,
+        address recovery,
         bytes32 secret
     ) public {
         _assumeClean(alice);
-        _assumeClean(bob);
+        // _assumeClean(recovery);
         _disableTrusted();
         _grant(OPERATOR_ROLE, ADMIN);
 
@@ -287,15 +275,16 @@ contract NameRegistryTest is Test {
 
         // 3. Register the name alice
         vm.prank(alice);
-        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, bob);
+        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(commitHash), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), bob);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRegisterTheSameNameTwice(
+    function testCannotRegisterTheSameNameAgain(
         address alice,
         address bob,
         bytes32 secret,
@@ -303,43 +292,46 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _assumeClean(bob);
-        vm.assume(alice != bob);
         _disableTrusted();
-
-        // 1. Give alice and bob money and have alice register @alice
-        vm.startPrank(alice);
         vm.deal(alice, 1 ether);
         vm.deal(bob, 1 ether);
         vm.warp(DEC1_2022_TS);
 
+        // Register @alice to alice
         bytes32 aliceCommitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(aliceCommitHash);
         vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.prank(alice);
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
+        assertEq(nameRegistry.timestampOf(aliceCommitHash), 0);
 
-        // 2. alice tries to register @alice again and fails
-        nameRegistry.makeCommit(aliceCommitHash);
-        vm.expectRevert("ERC721: token already minted");
-        vm.warp(block.timestamp + COMMIT_PERIOD);
-        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        vm.stopPrank();
-
-        // 3. bob tries to register @alice and fails
-        vm.startPrank(bob);
+        // Register @alice to bob which should fail
         bytes32 bobCommitHash = nameRegistry.generateCommit("alice", bob, secret);
         nameRegistry.makeCommit(bobCommitHash);
         vm.expectRevert("ERC721: token already minted");
+        uint256 commitTs = block.timestamp;
         vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.prank(bob);
         nameRegistry.register{value: 0.01 ether}("alice", bob, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(bobCommitHash), commitTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        vm.stopPrank();
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+
+        // Fast forward to renewable and register @alice to bob which should fail
+        nameRegistry.makeCommit(bobCommitHash);
+        vm.expectRevert("ERC721: token already minted");
+        commitTs = block.timestamp;
+        vm.warp(JAN1_2023_TS);
+        vm.prank(bob);
+        nameRegistry.register{value: 0.01 ether}("alice", bob, secret, recovery);
+
+        assertEq(nameRegistry.timestampOf(bobCommitHash), commitTs);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testCannotRegisterWithoutPayment(
@@ -349,7 +341,6 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _disableTrusted();
-
         vm.deal(alice, 1 ether);
         vm.warp(DEC1_2022_TS);
 
@@ -358,13 +349,16 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         vm.prank(alice);
+        uint256 balance = alice.balance;
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.register{value: 1 wei}("alice", alice, secret, recovery);
+        nameRegistry.register{value: 0.0001 ether}("alice", alice, secret, recovery);
 
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(alice.balance, balance);
     }
 
     function testCannotRegisterWithoutCommit(
@@ -374,9 +368,8 @@ contract NameRegistryTest is Test {
         address recovery
     ) public {
         _assumeClean(alice);
-        vm.assume(bob != address(0));
         _disableTrusted();
-
+        vm.assume(bob != address(0));
         vm.deal(alice, 1 ether);
         vm.warp(DEC1_2022_TS);
 
@@ -389,6 +382,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testCannotRegisterWithInvalidCommitSecret(
@@ -400,25 +394,29 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         vm.assume(bob != address(0));
+        vm.assume(secret != incorrectSecret);
         _disableTrusted();
 
         vm.deal(alice, 10_000 ether);
         vm.warp(DEC1_2022_TS);
 
         bytes16 username = "bob";
+        uint256 commitTs = block.timestamp;
         bytes32 commitHash = nameRegistry.generateCommit(username, bob, secret);
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
-        vm.assume(secret != incorrectSecret);
         vm.prank(alice);
+        vm.warp(block.timestamp + COMMIT_PERIOD);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}(username, bob, incorrectSecret, recovery);
 
+        assertEq(nameRegistry.timestampOf(commitHash), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
     function testCannotRegisterWithInvalidCommitAddress(
@@ -431,26 +429,30 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         vm.assume(bob != address(0));
         vm.assume(incorrectOwner != address(0));
+        vm.assume(bob != incorrectOwner);
         _disableTrusted();
 
         vm.deal(alice, 10_000 ether);
         vm.warp(DEC1_2022_TS);
 
         bytes16 username = "bob";
+        uint256 commitTs = block.timestamp;
         bytes32 commitHash = nameRegistry.generateCommit(username, bob, secret);
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
-        vm.assume(bob != incorrectOwner);
+        vm.warp(block.timestamp + COMMIT_PERIOD);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}(username, incorrectOwner, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(commitHash), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(incorrectOwner), 0);
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
     function testCannotRegisterWithInvalidCommitName(
@@ -467,15 +469,18 @@ contract NameRegistryTest is Test {
         vm.warp(DEC1_2022_TS);
 
         bytes16 username = "bob";
+        uint256 commitTs = block.timestamp;
         bytes32 commitHash = nameRegistry.generateCommit(username, bob, secret);
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
         bytes16 incorrectUsername = "alice";
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
+        vm.warp(block.timestamp + COMMIT_PERIOD);
         vm.prank(alice);
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, bob, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(commitHash), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         vm.expectRevert("ERC721: invalid token ID");
@@ -483,6 +488,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
     function testCannotRegisterBeforeDelay(
@@ -492,53 +499,56 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _disableTrusted();
-
-        // 1. Give alice money and fast forward to 2022 to begin registration.
         vm.deal(alice, 10_000 ether);
         vm.warp(DEC1_2022_TS);
 
-        // 2. Make the commitment to register the name alice
+        uint256 commitTs = block.timestamp;
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
-        // 3. Try to register the name and fail
         vm.warp(block.timestamp + COMMIT_PERIOD - 1);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(commitHash), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterWithInvalidNames(
+    function testCannotRegisterWithInvalidName(
         address alice,
         bytes32 secret,
         address recovery
     ) public {
         _assumeClean(alice);
         _disableTrusted();
-
         bytes16 incorrectUsername = "al{ce";
-        uint256 incorrectTokenId = uint256(bytes32("alice"));
+        uint256 incorrectTokenId = uint256(bytes32(incorrectUsername));
+
+        uint256 commitTs = block.timestamp;
         bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, alice, secret));
         nameRegistry.makeCommit(invalidCommit);
 
+        vm.warp(block.timestamp + COMMIT_PERIOD);
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, alice, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(invalidCommit), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(incorrectTokenId), address(0));
         assertEq(nameRegistry.expiryOf(incorrectTokenId), 0);
+        assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.recoveryOf(incorrectTokenId), address(0));
     }
 
     function testCannotRegisterWhenPaused(
         address alice,
-        address bob,
+        address recovery,
         bytes32 secret
     ) public {
         _assumeClean(alice);
@@ -546,9 +556,10 @@ contract NameRegistryTest is Test {
         _grant(OPERATOR_ROLE, ADMIN);
 
         // 1. Make the commitment to register @alice
-        vm.deal(alice, 10_000 ether);
+        vm.deal(alice, 1 ether);
         vm.warp(DEC1_2022_TS);
         vm.prank(alice);
+        uint256 commitTs = block.timestamp;
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(commitHash);
 
@@ -556,37 +567,67 @@ contract NameRegistryTest is Test {
         vm.warp(block.timestamp + COMMIT_PERIOD);
         vm.prank(ADMIN);
         nameRegistry.pause();
-
         vm.prank(alice);
         vm.expectRevert("Pausable: paused");
-        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, bob);
+        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(commitHash), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testCannotRegisterFromNonPayable(
         address alice,
-        address charlie,
+        address recovery,
         bytes32 secret
     ) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.warp(DEC1_2022_TS);
 
-        // 2. Make the commitment to register the name alice
+        uint256 commitTs = block.timestamp;
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(commitHash);
 
-        // 3. Register the name alice from address(this) which is non payable
         vm.warp(block.timestamp + COMMIT_PERIOD);
         vm.expectRevert(NameRegistry.CallFailed.selector);
-        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, charlie);
+        // call register() from address(this) which is non-payable
+        nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
 
+        assertEq(nameRegistry.timestampOf(commitHash), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    function testCannotRegisterToZeroAddress(
+        address alice,
+        address recovery,
+        bytes32 secret
+    ) public {
+        _assumeClean(alice);
+        _disableTrusted();
+        vm.deal(alice, 1 ether);
+        vm.warp(DEC1_2022_TS);
+
+        uint256 commitTs = block.timestamp;
+        bytes32 commitHash = nameRegistry.generateCommit("alice", address(0), secret);
+        nameRegistry.makeCommit(commitHash);
+
+        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.expectRevert("ERC721: mint to the zero address");
+        vm.prank(alice);
+        nameRegistry.register{value: 0.01 ether}("alice", address(0), secret, recovery);
+
+        assertEq(nameRegistry.timestampOf(commitHash), commitTs);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
@@ -604,11 +645,11 @@ contract NameRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
-
         vm.warp(JAN1_2022_TS);
+        assertEq(nameRegistry.trustedOnly(), 1);
+
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(trustedCaller);
-        assertEq(nameRegistry.trustedOnly(), 1);
 
         vm.prank(trustedCaller);
         vm.expectEmit(true, true, true, true);
@@ -632,6 +673,7 @@ contract NameRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
+        vm.warp(JAN1_2022_TS);
 
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(trustedCaller);
@@ -640,7 +682,7 @@ contract NameRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         vm.prank(trustedCaller);
-        vm.expectRevert(NameRegistry.Registrable.selector);
+        vm.expectRevert(NameRegistry.NotInvitable.selector);
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
         vm.expectRevert("ERC721: invalid token ID");
@@ -650,7 +692,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTrustedRegisterTwice(
+    function testCannotTrustedRegisterNameTwice(
         address trustedCaller,
         address alice,
         address recovery,
@@ -661,6 +703,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
         vm.assume(recovery != recovery2);
+        vm.warp(JAN1_2022_TS);
 
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(trustedCaller);
@@ -673,7 +716,9 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.trustedRegister("alice", alice, recovery2, inviter, invitee);
 
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -685,10 +730,11 @@ contract NameRegistryTest is Test {
         uint256 inviter,
         uint256 invitee
     ) public {
-        vm.assume(arbitrarySender != trustedCaller);
-        vm.assume(trustedCaller != FORWARDER);
         vm.assume(alice != address(0));
+        vm.assume(trustedCaller != FORWARDER);
+        vm.assume(arbitrarySender != trustedCaller);
         assertEq(nameRegistry.trustedOnly(), 1);
+        vm.warp(JAN1_2022_TS);
 
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(trustedCaller);
@@ -713,12 +759,13 @@ contract NameRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
-        _grant(OPERATOR_ROLE, ADMIN);
+        vm.warp(JAN1_2022_TS);
 
         assertEq(nameRegistry.trustedOnly(), 1);
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(trustedCaller);
 
+        _grant(OPERATOR_ROLE, ADMIN);
         vm.prank(ADMIN);
         nameRegistry.pause();
 
@@ -733,146 +780,214 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                               RENEW TESTS
-    //////////////////////////////////////////////////////////////*/
+    function testCannotTrustedRegisterToZeroAddress(
+        address trustedCaller,
+        address recovery,
+        uint256 inviter,
+        uint256 invitee
+    ) public {
+        vm.assume(trustedCaller != FORWARDER);
+        vm.warp(JAN1_2022_TS);
 
-    function testRenewSelf(address alice) public {
-        _assumeClean(alice);
-        _register(alice);
-        vm.warp(JAN1_2023_TS);
+        assertEq(nameRegistry.trustedOnly(), 1);
+        vm.prank(ADMIN);
+        nameRegistry.changeTrustedCaller(trustedCaller);
 
-        // 2. Alice renews her own username
-        vm.expectEmit(true, true, true, true);
-        emit Renew(ALICE_TOKEN_ID, JAN1_2024_TS);
-        vm.prank(alice);
-        nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
-    }
-
-    function testRenewOther(address alice, address bob) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        _register(alice);
-        vm.warp(JAN1_2023_TS);
-
-        // 2. Bob renews alice's username for her
-        vm.deal(bob, 1 ether);
-        vm.prank(bob);
-        vm.expectEmit(true, true, true, true);
-        emit Renew(ALICE_TOKEN_ID, JAN1_2024_TS);
-        nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
-    }
-
-    function testRenewWithOverpayment(address alice) public {
-        _assumeClean(alice);
-        _register(alice);
-        vm.warp(JAN1_2023_TS);
-
-        // Renew alice's registration, but overpay the amount
-        uint256 balance = alice.balance;
-        vm.prank(alice);
-        nameRegistry.renew{value: 0.02 ether}(ALICE_TOKEN_ID);
-
-        assertEq(alice.balance, balance - 0.01 ether);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
-    }
-
-    function testCannotRenewWithoutPayment(address alice) public {
-        _assumeClean(alice);
-        _register(alice);
-        vm.warp(JAN1_2023_TS);
-
-        // 2. Renewing fails if insufficient funds are provided
-        vm.prank(alice);
-        vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.renew(ALICE_TOKEN_ID);
-
-        vm.expectRevert(NameRegistry.Expired.selector);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-    }
-
-    function testCannotRenewIfRegistrable(address alice) public {
-        _assumeClean(alice);
-        // 1. Fund alice and fast-forward to 2022, when registrations can occur
-        vm.deal(alice, 10_000 ether);
-        vm.warp(DEC1_2022_TS);
-
-        vm.prank(alice);
-        vm.expectRevert(NameRegistry.Registrable.selector);
-        nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
+        vm.prank(trustedCaller);
+        vm.expectRevert("ERC721: mint to the zero address");
+        nameRegistry.trustedRegister("alice", address(0), recovery, inviter, invitee);
 
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRenewIfBiddable(address alice) public {
-        // 1. Register alice and fast-forward to 2023 when the registration expires
+    function testCannotTrustedRegisterWithInvalidName(
+        address alice,
+        address trustedCaller,
+        address recovery,
+        uint256 inviter,
+        uint256 invitee
+    ) public {
+        vm.assume(alice != address(0));
+        vm.assume(trustedCaller != FORWARDER);
+        vm.warp(JAN1_2022_TS);
+
+        assertEq(nameRegistry.trustedOnly(), 1);
+        vm.prank(ADMIN);
+        nameRegistry.changeTrustedCaller(trustedCaller);
+
+        vm.prank(trustedCaller);
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.trustedRegister("al}ce", alice, recovery, inviter, invitee);
+
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                               RENEW TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testRenew(
+        address alice,
+        address bob,
+        uint256 amount
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(bob);
+        _register(alice);
+        // TODO: Report foundry bug when setting the max to anything higher
+        vm.assume(amount >= FEE && amount < (type(uint256).max - 3 wei));
+        vm.warp(JAN1_2023_TS);
+
+        vm.deal(bob, amount);
+        vm.prank(bob);
+        vm.expectEmit(true, true, true, true);
+        emit Renew(ALICE_TOKEN_ID, JAN1_2024_TS);
+        nameRegistry.renew{value: amount}(ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(bob.balance, amount - nameRegistry.currYearFee());
+    }
+
+    function testCannotRenewWithoutPayment(address alice, uint256 amount) public {
         _assumeClean(alice);
         _register(alice);
-        vm.warp(JAN31_2023_TS);
+        vm.warp(JAN1_2023_TS);
+
+        // Ensure that amount is always less than the fee
+        amount = (amount % FEE);
+        vm.deal(alice, amount);
 
         vm.prank(alice);
-        vm.expectRevert(NameRegistry.Biddable.selector);
-        nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
+        vm.expectRevert(NameRegistry.InsufficientFunds.selector);
+        nameRegistry.renew{value: amount}(ALICE_TOKEN_ID);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(alice.balance, amount);
+    }
+
+    function testCannotRenewIfInvitable(address alice) public {
+        _assumeClean(alice);
+        vm.deal(alice, 1 ether);
+
+        // Fast forward to 2022, when registrations can occur and do not disable trusted register
+        vm.warp(DEC1_2022_TS);
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.Registrable.selector);
+        nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
+
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    function testCannotRenewIfRegistrable(address alice) public {
+        _assumeClean(alice);
+        vm.deal(alice, 1 ether);
+
+        // Fast forward to 2022, when registrations can occur and disable trusted register
+        vm.warp(DEC1_2022_TS);
+        vm.prank(ADMIN);
+        nameRegistry.disableTrustedOnly();
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.Registrable.selector);
+        nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
+
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    function testCannotRenewIfBiddable(address alice) public {
+        _assumeClean(alice);
+        _register(alice);
+
+        // Fast-forward to 2023 when @alice is biddable
+        vm.warp(JAN31_2023_TS);
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.NotRenewable.selector);
+        nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
+
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testCannotRenewIfRegistered(address alice) public {
-        // Fast forward to the last second of this year (2022) when the registration is still valid
         _assumeClean(alice);
         _register(alice);
+        // Fast forward to the last second of 2022 when the registration is still valid
         vm.warp(JAN1_2023_TS - 1);
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.Registered.selector);
-        nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
+        nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testCannotRenewIfPaused(address alice) public {
         _assumeClean(alice);
         _register(alice);
-        _grant(OPERATOR_ROLE, ADMIN);
 
+        // Fast forward to the first second of 2023, when the name is renewable
         vm.warp(JAN1_2023_TS);
+
+        _grant(OPERATOR_ROLE, ADMIN);
         vm.prank(ADMIN);
         nameRegistry.pause();
 
         vm.expectRevert("Pausable: paused");
         vm.prank(alice);
-        nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
+        nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testCannotRenewFromNonPayable(address alice) public {
         _assumeClean(alice);
         _register(alice);
+
+        // Fast forward to the first second of 2023, when the name is renewable
         vm.warp(JAN1_2023_TS);
 
         vm.expectRevert(NameRegistry.CallFailed.selector);
-        nameRegistry.renew{value: 0.01 ether}(ALICE_TOKEN_ID);
+        nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -882,26 +997,36 @@ contract NameRegistryTest is Test {
     function testBid(
         address alice,
         address bob,
-        address charlie
+        address recovery1,
+        address recovery2,
+        uint256 amount
     ) public {
         _assumeClean(alice);
         _assumeClean(bob);
-        vm.assume(alice != bob);
         _register(alice);
+        vm.assume(alice != bob);
+        vm.assume(amount >= (BID_START + FEE) && amount < (type(uint256).max - 3 wei));
 
-        vm.deal(bob, 1001 ether);
+        vm.prank(alice);
+        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery1);
+
+        vm.deal(bob, amount);
         vm.warp(JAN31_2023_TS);
 
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, ALICE_TOKEN_ID);
-        nameRegistry.bid{value: 1_000.01 ether}(ALICE_TOKEN_ID, charlie);
+        nameRegistry.bid{value: amount}(ALICE_TOKEN_ID, recovery2);
+
+        // The fee discount for registering from Jan 31st, instead of on Jan 1st.
+        uint256 feeDiscount = 0.000821917808219179 ether;
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), charlie);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
+        assertEq(bob.balance, amount - (BID_START + FEE - feeDiscount));
     }
 
     function testBidResetsERC721Approvals(
@@ -910,7 +1035,6 @@ contract NameRegistryTest is Test {
         address charlie
     ) public {
         _assumeClean(alice);
-
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
@@ -928,23 +1052,6 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
     }
 
-    function testBidOverpaymentIsRefunded(address alice, address bob) public {
-        _assumeClean(alice);
-
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        _register(alice);
-
-        // 1. Bob bids and overpays the amount.
-        vm.warp(JAN31_2023_TS);
-        vm.deal(bob, 1001 ether);
-        vm.prank(bob);
-        nameRegistry.bid{value: 1001 ether}(ALICE_TOKEN_ID, address(0));
-
-        // 2. Check that bob 's change is returned
-        assertEq(bob.balance, 0.990821917808219179 ether);
-    }
-
     function testBidAfterOneStep(
         address alice,
         address bob,
@@ -960,6 +1067,8 @@ contract NameRegistryTest is Test {
 
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^1 * 1_000) + 0.00916894977 = 900.009169
+        // Audit: this value 0.00916894977 is slightly higher than expected, perhaps due to
+        // the approximation that we are using, should investigate further.
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
@@ -1073,9 +1182,9 @@ contract NameRegistryTest is Test {
 
         vm.warp(JAN31_2023_TS + (8 hours * 383));
         vm.deal(bob, 1000 ether);
-        vm.startPrank(bob);
 
         // 2. Bob bids and fails because bid < price (0 + fee) == 0.0056803653
+        vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
         nameRegistry.bid{value: 0.0056803652 ether}(ALICE_TOKEN_ID, recovery);
 
@@ -1087,6 +1196,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
 
         // 3. Bob bids and succeeds because bid > price (0 + fee)
+        vm.prank(bob);
         nameRegistry.bid{value: 0.0056803653 ether}(ALICE_TOKEN_ID, recovery);
         vm.stopPrank();
 
@@ -1097,110 +1207,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotBidAfterSuccessfulBid(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        _register(alice);
-
-        // 1. Bob bids and succeeds because bid >= premium + fee
-        vm.warp(JAN31_2023_TS);
-        vm.deal(bob, 1001 ether);
-        vm.prank(bob);
-        nameRegistry.bid{value: 1_000.01 ether}(ALICE_TOKEN_ID, address(0));
-
-        // 2. Alice bids again and fails because the name is no longer for auction
-        vm.prank(alice);
-        vm.expectRevert(NameRegistry.NotBiddable.selector);
-        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
-        assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testCannotBidWithUnderpayment(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        _register(alice);
-
-        // 1. Bob bids and fails because bid < premium + fee
-        vm.warp(JAN31_2023_TS);
-        vm.deal(bob, 1001 ether);
-        vm.startPrank(bob);
-        vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 1000 ether}(ALICE_TOKEN_ID, recovery);
-
-        vm.expectRevert(NameRegistry.Expired.selector);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testCannotBidWhenRegistered(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
-        // 1. Register alice and fast-forward to one second before the auction starts
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        _register(alice);
-
-        // 2. Bid during registered state should fail
-        vm.startPrank(bob);
-        vm.warp(JAN1_2023_TS - 1);
-        vm.expectRevert(NameRegistry.NotBiddable.selector);
-        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
-        vm.stopPrank();
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testCannotBidWhenRenewable(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
-        // 1. Register alice and fast-forward to one second before the auction starts
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        _register(alice);
-
-        vm.startPrank(bob);
-        vm.warp(JAN31_2023_TS - 1);
-        vm.expectRevert(NameRegistry.NotBiddable.selector);
-        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
-        vm.stopPrank();
-
-        vm.expectRevert(NameRegistry.Expired.selector);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testBidShouldClearRecovery(
+    function testBidShouldClearRecoveryClock(
         address alice,
         address bob,
         address charlie,
@@ -1218,27 +1225,126 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery1);
 
-        // 2. recovery1 requests a recovery of @alice to bob
+        // recovery1 requests a recovery of @alice to bob
         vm.prank(recovery1);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery1);
 
-        // 3. charlie completes a bid on alice
+        // charlie completes a bid on alice
         vm.warp(JAN31_2023_TS);
         vm.deal(charlie, 1001 ether);
         vm.prank(charlie);
         nameRegistry.bid{value: 1001 ether}(ALICE_TOKEN_ID, recovery2);
 
-        // 4. Assert that the recovery1 state has been change to recovery2
+        assertEq(nameRegistry.balanceOf(charlie), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
+    }
+
+    function testCannotBidWithUnderpayment(
+        address alice,
+        address bob,
+        address recovery,
+        uint256 amount
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(bob);
+        vm.assume(alice != bob);
+        _register(alice);
+
+        // Ensure that amount is always less than the bid + fee
+        amount = (amount % (BID_START + FEE));
+        vm.deal(bob, amount);
+
+        vm.warp(JAN31_2023_TS);
+        vm.prank(bob);
+        vm.expectRevert(NameRegistry.InsufficientFunds.selector);
+        nameRegistry.bid{value: amount}(ALICE_TOKEN_ID, recovery);
+
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(bob.balance, amount);
+    }
+
+    function testCannotBidWhenRegistered(
+        address alice,
+        address bob,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(bob);
+        vm.assume(alice != bob);
+        _register(alice);
+
+        vm.prank(bob);
+        // Register alice and fast-forward to one second before the name expires
+        vm.warp(JAN1_2023_TS - 1);
+        vm.expectRevert(NameRegistry.NotBiddable.selector);
+        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
+
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    function testCannotBidIfRenewable(
+        address alice,
+        address bob,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(bob);
+        vm.assume(alice != bob);
+        _register(alice);
+
+        vm.prank(bob);
+        // Fast-forward to when the registration expires and is renewable
+        vm.warp(JAN1_2023_TS);
+        vm.expectRevert(NameRegistry.NotBiddable.selector);
+        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
+
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testCannotBidIfInvitable(address bob, address recovery) public {
         _assumeClean(bob);
 
-        // 1. Bid on @alice when it is not minted and still in trusted registration
+        // Fast forward to 2022 when registrations are possible
+        vm.warp(DEC1_2022_TS);
+
+        vm.prank(bob);
+        vm.expectRevert(NameRegistry.Registrable.selector);
+        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
+
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    function testCannotBidIfRegistrable(address bob, address recovery) public {
+        _assumeClean(bob);
+
+        // Fast forward to 2022 when registrations are possible and move to Registrable
+        vm.warp(DEC1_2022_TS);
+        vm.prank(ADMIN);
+        nameRegistry.disableTrustedOnly();
+
         vm.prank(bob);
         vm.expectRevert(NameRegistry.Registrable.selector);
         nameRegistry.bid(ALICE_TOKEN_ID, recovery);
@@ -1259,31 +1365,32 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
-        _grant(OPERATOR_ROLE, ADMIN);
-
         vm.deal(bob, 1001 ether);
+        vm.warp(JAN31_2023_TS);
+
+        _grant(OPERATOR_ROLE, ADMIN);
         vm.prank(ADMIN);
         nameRegistry.pause();
-        vm.warp(JAN31_2023_TS);
 
         vm.prank(bob);
         vm.expectRevert("Pausable: paused");
-        nameRegistry.bid{value: 1_000.01 ether}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: (BID_START + FEE)}(ALICE_TOKEN_ID, recovery);
 
+        assertEq(nameRegistry.balanceOf(alice), 1); // balanceOf counts expired ids by design
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.balanceOf(alice), 1); // balanceOf counts expired ids by design
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(bob.balance, 1001 ether);
     }
 
     function testCannotBidFromNonPayable(address alice, address charlie) public {
         _assumeClean(alice);
         _register(alice);
         address nonPayable = address(this);
-
         vm.deal(nonPayable, 1001 ether);
+        // Fast forward to Biddable state
         vm.warp(JAN31_2023_TS);
 
         vm.prank(nonPayable);
@@ -1296,6 +1403,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.balanceOf(nonPayable), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nonPayable.balance, 1001 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1306,12 +1414,12 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _register(alice);
 
-        vm.warp(JAN31_2023_TS);
+        vm.warp(JAN1_2023_TS);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
-    function testOwnerOfRevertsIfRegistrable() public {
+    function testOwnerOfRevertsIfInvitableOrRegistrable() public {
         vm.expectRevert("ERC721: invalid token ID");
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
@@ -1886,7 +1994,7 @@ contract NameRegistryTest is Test {
 
         // 3. during the renewal period, recovery attempts to recover to bob
         vm.warp(JAN1_2023_TS);
-        vm.expectRevert(NameRegistry.Unauthorized.selector);
+        vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
         vm.expectRevert(NameRegistry.Expired.selector);
@@ -1896,7 +2004,7 @@ contract NameRegistryTest is Test {
 
         // 3. during expiry, recovery attempts to recover to bob
         vm.warp(JAN31_2023_TS);
-        vm.expectRevert(NameRegistry.Unauthorized.selector);
+        vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
         vm.expectRevert(NameRegistry.Expired.selector);
@@ -1967,7 +2075,7 @@ contract NameRegistryTest is Test {
         // 3. alice cancels the recovery
         vm.prank(alice);
         vm.expectEmit(true, false, false, false);
-        emit CancelRecovery(ALICE_TOKEN_ID);
+        emit CancelRecovery(alice, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
@@ -2003,7 +2111,7 @@ contract NameRegistryTest is Test {
 
         // 3. recovery cancels the recovery
         vm.expectEmit(true, false, false, false);
-        emit CancelRecovery(ALICE_TOKEN_ID);
+        emit CancelRecovery(recovery, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
@@ -2042,7 +2150,7 @@ contract NameRegistryTest is Test {
         // 2. alice cancels the recovery, which succeeds
         vm.prank(alice);
         vm.expectEmit(true, false, false, false);
-        emit CancelRecovery(ALICE_TOKEN_ID);
+        emit CancelRecovery(alice, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);

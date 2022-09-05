@@ -14,6 +14,15 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 /**
  * @title NameRegistry
  * @author varunsrin
+ * @custom:version 2.0.0
+ *
+ * @notice NameRegistry enables any ETH address to claim a Farcaster Name (fname). A name is a
+ *         rentable ERC-721 that can be registered until the end of the calendar year by paying a
+ *         fee. On expiry, the owner has 30 to renew the name by paying a fee, or it is places in
+ *         a dutch auction. The NameRegistry starts in a trusted mode where only a trusted caller
+ *         can register an fname and can move to an untrusted mode where any address can register
+ *         an fname. The Registry implements a recovery system which allows the custody address to
+ *         nominate a recovery address that can transfer the fname to a new address after a delay.
  */
 contract NameRegistry is
     Initializable,
@@ -29,33 +38,68 @@ contract NameRegistry is
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    error InsufficientFunds(); // The transaction does not have enough money to pay for this.
-    error Unauthorized(); // The caller is not authorized to perform this action.
-    error CallFailed(); // Could not .call to transfer the funds
+    /// @dev Revert when msg.value does not fully cover the cost of the operation
+    error InsufficientFunds();
 
-    error InvalidCommit(); // The commitment hash was not found
-    error InvalidName(); // The username had invalid characters
-    error InvalidTime(); // Time is too far in the future or past
-    error IncorrectOwner(); // The username is not owned by the expected address
+    /// @dev Revert when the caller does not have the authority to perform the action
+    error Unauthorized();
 
-    error Registered(); // The username is currently registered.
-    error NotRegistrable(); // The username has been registered and cannot be registered again.
-    error Registrable(); // The username has never been registered.
-
-    error Expired(); // The username is expired (renewable or biddable)
-    error Biddable(); // The username is biddable
-    error NotBiddable(); // The username is still registered or in renewal.
-
-    error Escrow(); // The recovery request is still in escrow
-    error NoRecovery(); // The recovery request could not be found
-    error InvalidRecovery(); // The recovery address is being set to the custody address
-
+    /// @dev Revert if the caller does not have ADMIN_ROLE
     error NotAdmin();
+
+    /// @dev Revert if the caller does not have OPERATOR_ROLE
     error NotOperator();
+
+    /// @dev Revert if the caller does not have MODERATOR_ROLE
     error NotModerator();
+
+    /// @dev Revert if the caller does not have TREASURER_ROLE
     error NotTreasurer();
 
+    /// @dev Revert if withdraw() is called with an amount greater than the balance
     error WithdrawTooMuch(); // Could not withdraw the requested amount
+
+    /// @dev Revert when excess funds could not be sent back to the caller
+    error CallFailed();
+
+    /// @dev Revert when the commit hash is not found
+    error InvalidCommit();
+
+    /// @dev Revert if the fname has invalid characters during registration
+    error InvalidName();
+
+    /// @dev Revert if currYear() is after the year 2172, which is not supported
+    error InvalidTime();
+
+    /// @dev Revert if renew() is called on a registered name.
+    error Registered();
+
+    /// @dev Revert if an operation is called on a name that hasn't been minted
+    error Registrable();
+
+    /// @dev Revert if makeCommit() is invoked before trustedCallerOnly is disabled
+    error Invitable();
+
+    /// @dev Revert if trustedRegister() is invoked after trustedCallerOnly is disabled
+    error NotInvitable();
+
+    /// @dev Revert if the fname being operated on is renewable or biddable
+    error Expired();
+
+    /// @dev Revert if renew() is called after the fname becomes Biddable
+    error NotRenewable();
+
+    /// @dev Revert if bid() is called on an fname that has not become Biddable.
+    error NotBiddable();
+
+    /// @dev Revert when completeRecovery() is called before the escrow period has elapsed.
+    error Escrow();
+
+    /// @dev Revert if a recovery operation is called when there is no active recovery.
+    error NoRecovery();
+
+    /// @dev Revert if the recovery address is set to address(0).
+    error InvalidRecovery();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -67,7 +111,7 @@ contract NameRegistry is
 
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
 
-    event CancelRecovery(uint256 indexed id);
+    event CancelRecovery(address indexed sender, uint256 indexed id);
 
     event ChangeVault(address indexed vault);
 
@@ -79,7 +123,7 @@ contract NameRegistry is
 
     event ChangeFee(uint256 fee);
 
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed username);
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -152,11 +196,7 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Disables initialization to prevent attacks and only calls the ERC2771ContextUpgradeable constructor.
-     *      All other storage values must be initialized in the implementation function. For more details:
-     *
-     * https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#initializing_the_implementation_contract
-     * https://github.com/OpenZeppelin/openzeppelin-contracts/pull/2917
+     * @notice Disable initialization to protect the contract and configure the trusted forwarder.
      */
     // solhint-disable-next-line no-empty-blocks
     constructor(address _forwarder) ERC2771ContextUpgradeable(_forwarder) {
@@ -166,14 +206,14 @@ contract NameRegistry is
     }
 
     /**
-     *  @dev Initializes the contract with default values and calls the initialize functions on the Base contracts. The
-     *       constructor ensures that this function can never be called directly on the implementation contract itself,
-     *       but only via the ERC1967 proxy  contract, which prevents initialize attacks. For more details:
+     * @notice Initialize default storage values and initialize inherited contracts. This should be
+     *         called once after the contract is deployed via the ERC1967 proxy. Slither incorrectly flags
+     *         this method as unprotected: https://github.com/crytic/slither/issues/1341
      *
-     *       https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
-     *       https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
-     *
-     *       Slither: incorrectly flags this method as unprotected: https://github.com/crytic/slither/issues/1341
+     * @param _tokenName   The ERC-721 name of the fname token
+     * @param _tokenSymbol The ERC-721 symbol of the fname token
+     * @param _vault       The address that funds can be withdrawn to
+     * @param _pool        The address that fnames can be reclaimed to
      */
     function initialize(
         string memory _tokenName,
@@ -189,14 +229,17 @@ contract NameRegistry is
 
         __UUPSUpgradeable_init();
 
+        // Grant the DEFAULT_ADMIN_ROLE to the deployer, which can configure other roles
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         vault = _vault;
-
         pool = _pool;
 
-        // Audit: verify the accuracy of these timestamps using an alternative calculator
-        // epochconverter.com was used to generate these
+        fee = 0.01 ether;
+
+        trustedOnly = 1;
+
+        // Audit: verify these timestamps using a calculator other than epochconverter.com
         _yearTimestamps = [
             1640995200, // 2022
             1672531200,
@@ -250,10 +293,6 @@ contract NameRegistry is
             3187296000,
             3218832000 // 2072
         ];
-
-        fee = 0.01 ether;
-
-        trustedOnly = 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -266,86 +305,79 @@ contract NameRegistry is
      *
      * INVARIANT 1B: If an id is minted, expiryOf[id] and ownerOf(id) must be non-zero.
      *
-     * INVARIANT 2: A username cannot be transferred to address(0) after it is minted.
+     * INVARIANT 2: An fname cannot be transferred to address(0) after it is minted.
      */
 
     /**
-     * @notice Generate a commitment hash used to secretly lock down a username for registration.
+     * @notice Generate a commitment that is used as part of a commit-reveal scheme to register a
+     *         an fname while protecting the registration from being front-run.
      *
-     * @dev The commitment process prevents front-running of the username registration.
-     *
-     * @param username the username to be registered
-     * @param to the address that will own the username
-     * @param secret a salt that randomizes and secures the commitment hash
+     * @param fname  The fname to be registered
+     * @param to     The address that will own the fname
+     * @param secret A secret that is known only to the caller
      */
     function generateCommit(
-        bytes16 username,
+        bytes16 fname,
         address to,
         bytes32 secret
-    ) public pure returns (bytes32) {
-        _validateName(username);
-        return keccak256(abi.encode(username, to, secret));
+    ) public pure returns (bytes32 commit) {
+        // Perf: Do not validate to != address(0) because it happens during register/mint
+
+        _validateName(fname);
+
+        commit = keccak256(abi.encode(fname, to, secret));
     }
 
     /**
-     * @notice Save a generated commitment hash on-chain, which must be done before a registration
-     *         can occur
+     * @notice Save a commitment on-chain which can be revealed later to register an fname.
+     *         Commits are allowed even when the contract is paused.
      *
-     * @dev The commitment process prevents front-running of the username registration. Commits can be made even when
-     *      the contract is paused because it does not affect frontrunning.
-     *
-     * @param commit the commitment hash to be persisted on-chain
+     * @param commit The commitment hash to be persisted on-chain
      */
     function makeCommit(bytes32 commit) external payable {
-        if (trustedOnly == 1) revert NotRegistrable();
+        if (trustedOnly == 1) revert Invitable();
 
         timestampOf[commit] = block.timestamp;
     }
 
     /**
-     * @notice Mint a new username if a commitment was made previously and send it to the owner.
+     * @notice Mint a new fname if the inputs provided match a commitment that was previously made.
+     *         This must be called at least 60 seconds after the commit was made to prevent
+     *         front-running within the same block. It fails when paused because it invokes _mint
+     *         which in turn invokes the beforeTransfer hook which fails.
      *
-     * @dev The registration must be made at least 5 blocks after commit to minimize front-running,
-     * or approximately 1 minute after commit. The function is pauseable since it invokes _transfer
-     * by way of _mint.
-     *
-     * @param username the username to register
-     * @param to the address that will claim the username
-     * @param secret the secret that protects the commitment
-     * @param recovery address which can recovery the username if the custody address is lost
+     * @param fname    The fname to register
+     * @param to       The address that will own the fname
+     * @param secret   The secret value in the commitment
+     * @param recovery The address which can recovery the fname if the custody address is lost
      */
     function register(
-        bytes16 username,
+        bytes16 fname,
         address to,
         bytes32 secret,
         address recovery
     ) external payable {
-        bytes32 commit = generateCommit(username, to, secret);
+        bytes32 commit = generateCommit(fname, to, secret);
 
         uint256 _currYearFee = currYearFee();
         if (msg.value < _currYearFee) revert InsufficientFunds();
 
-        // Assumption: timestampOf[commit] will always be zero while trustedOnly = 1
-        // causing this to fail, since makeCommit reverts when trustedOnly = 1.
+        // Perf: do not check if trustedOnly = 1, because timestampOf[commit] will always be zero
+        // while trustedOnly = 1 since makeCommit cannot be called.
         uint256 commitTs = timestampOf[commit];
-
         if (commitTs == 0) revert InvalidCommit();
 
         unchecked {
             // Audit: verify that 60s is the right duration to use
-
-            // Safety: commitTs is always set to block.timestamp in makeCommit and cannot overflow
+            // Safety: makeCommit() sets commitTs to block.timestamp which cannot overflow
             if (commitTs + 60 > block.timestamp) revert InvalidCommit();
         }
 
-        // Safety: this interaction is performed before the checks below, because the commit
-        // should be released if the name was invalid and the transaction reverted.
-        delete timestampOf[commit];
-
-        // Assumption: checking that to is non-zero and that the tokenId wasn't previously issued
-        // is handled inside _mint before any state change is made.
-        uint256 tokenId = uint256(bytes32(username));
+        // Mint checks that to != address(0) and that the tokenId wasn't previously issued
+        uint256 tokenId = uint256(bytes32(fname));
         _mint(to, tokenId);
+
+        delete timestampOf[commit];
 
         unchecked {
             // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot overflow
@@ -354,40 +386,41 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        // Safety: usage of call over transfer or send is encouraged to protect against gas pricing changes
+        // Return any excess funds back to the caller
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = _msgSender().call{value: msg.value - _currYearFee}("");
         if (!success) revert CallFailed();
     }
 
     /**
-     * @notice Mint a username during the invitation period from the trusted caller.
+     * @notice Mint a fname during the invitation period from the trusted caller.
      *
      * @dev The function is pauseable since it invokes _transfer by way of _mint.
      *
-     * @param to the address that will claim the username
-     * @param username the username to register
-     * @param recovery address which can recovery the username if the custody address is lost
+     * @param to the address that will claim the fname
+     * @param fname the fname to register
+     * @param recovery address which can recovery the fname if the custody address is lost
      */
     function trustedRegister(
-        bytes16 username,
+        bytes16 fname,
         address to,
         address recovery,
         uint256 inviter,
         uint256 invitee
     ) external payable {
-        if (trustedOnly == 0) revert Registrable();
+        // Trusted Register can only be called during the invite period (when trustedOnly = 1)
+        if (trustedOnly == 0) revert NotInvitable();
 
-        // Assumption: front running is not possible when registrations are restricted to a single sender
-        // We explicitly don't use msgSender() here because we don't care about meta-tx for this function
-        // and it enables BatchRegistry
+        // Call msg.sender instead of _msgSender() because it allows this function to be called by
+        // BatchRegistry. Meta transactions are no longer possible, but we do not need them here.
         if (msg.sender != trustedCaller) revert Unauthorized();
 
-        _validateName(username);
+        // Perf: this can be omitted to save ~3k gas if we believe that the trusted caller will
+        // never call this function with an invalid fname.
+        _validateName(fname);
 
-        // Assumption: checking that to is non-zero and that the tokenId wasn't previously issued
-        // is handled inside _mint before any state change is made.
-        uint256 tokenId = uint256(bytes32(username));
+        // Mint checks that to != address(0) and that the tokenId wasn't previously issued
+        uint256 tokenId = uint256(bytes32(fname));
         _mint(to, tokenId);
 
         unchecked {
@@ -397,54 +430,55 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        emit Invite(inviter, invitee, username);
+        emit Invite(inviter, invitee, fname);
     }
 
     /**
-     * @notice Renew a name for another year while it is in the renewable period
+     * @notice Renew a name for another year while it is in the renewable period (Jan 1 - Jan 30)
      *
      * @param tokenId the tokenId of the name to renew
      */
     function renew(uint256 tokenId) external payable whenNotPaused {
         if (msg.value < fee) revert InsufficientFunds();
 
+        // Check that the tokenID was previously registered
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
-        // Assumption: tokenID is not owned by address(0) because of INVARIANT 1B + 2
 
+        // tokenID is not owned by address(0) because of INVARIANT 1B + 2
+
+        // Check that we are still in the renewable period, and have not passed into biddable
         unchecked {
-            // Safety: expiryTs is a timestamp of a known calendar year and adding it to
-            // GRACE_PERIOD cannot overflow
-            if (block.timestamp >= expiryTs + GRACE_PERIOD) revert Biddable();
+            // Safety: expiryTs is a timestamp of a known calendar year and cannot overflow
+            if (block.timestamp >= expiryTs + GRACE_PERIOD) revert NotRenewable();
         }
 
         if (block.timestamp < expiryTs) revert Registered();
 
         unchecked {
-            // Safety: _currYear must return a known calendar year which cannot overflow here
+            // Safety: _currYear must return a known calendar year which cannot overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
-        // Safety: usage of call over transfer or send is encouraged to protect against gas pricing changes
+        // Return excess funds back to the caller
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = _msgSender().call{value: msg.value - fee}("");
         if (!success) revert CallFailed();
     }
 
     /**
-     * @notice Bid to purchase an expired username in the dutch auction, whose price is the sum of
+     * @notice Bid to purchase an expired fname in the dutch auction, whose price is the sum of
      *         the current year's fee and a premium. The premium is set to 1000 ether on Feb 1st
-     *         and decays by ~10% per period (8 hours) until it reaches zero mid-year.
+     *         and decays by ~10% per period (8 hours) until it reaches zero mid-year. The premium
+     *         reduction is computed with the identity (x^y = exp(ln(x) * y))
      *
-     * @dev The premium reduction is computed with the identity (x^y = exp(ln(x) * y)) with
-     *      gas-optimized approximations for exp and ln that introduce a -3% error for every period
-     *
-     * @param tokenId the tokenId of the username to bid on
-     * @param recovery address which can recovery the username if the custody address is lost
+     * @param tokenId  The tokenId of the fname to bid on
+     * @param recovery The address which can recovery the fname if the custody address is lost
      */
     function bid(uint256 tokenId, address recovery) external payable {
+        // Check that the tokenID was previously registered
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
 
@@ -495,7 +529,7 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Override the ownerOf implementation to throw if a username is renewable or biddable.
+     * @notice Override the ownerOf implementation to throw if an fname is renewable or biddable.
      */
     function ownerOf(uint256 tokenId) public view override returns (address) {
         uint256 expiryTs = expiryOf[tokenId];
@@ -524,21 +558,20 @@ contract NameRegistry is
     }
 
     /**
-     * @notice A distinct Uniform Resource Identifier (URI) for a given asset.
-     *
-     * @dev Throws if tokenId is not a valid token ID.
+     * @notice Return a distinct Uniform Resource Identifier (URI) for a given tokenId and throws
+     *         if tokenId is not a valid token ID.
      */
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
         uint256 lastCharIdx = 0;
 
-        // Safety: usernames are specified as 16 bytes and then converted to uint256, so the reverse
-        // can be performed safely to obtain the username
+        // Safety: fnames are specified as 16 bytes and then converted to uint256, so the reverse
+        // can be performed safely to obtain the fname
         bytes16 tokenIdBytes16 = bytes16(bytes32(tokenId));
 
         _validateName(tokenIdBytes16);
 
         // Iterate backwards from the last byte until we find the first non-zero byte which marks
-        // the end of the username, which is guaranteed to be <= 16 bytes / chars.
+        // the end of the fname, which is guaranteed to be <= 16 bytes / chars.
         for (uint256 i = 15; ; --i) {
             // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
             if (uint8(tokenIdBytes16[i]) != 0) {
@@ -547,17 +580,17 @@ contract NameRegistry is
             }
         }
 
-        // Safety: we can assume that lastCharIndex is always > 0 since registering a username with
+        // Safety: we can assume that lastCharIndex is always > 0 since registering a fname with
         // all empty bytes is not permitted by _validateName.
 
-        // Construct a new bytes[] with the valid username characters.
-        bytes memory usernameBytes = new bytes(lastCharIdx + 1);
+        // Construct a new bytes[] with the valid fname characters.
+        bytes memory fnameBytes = new bytes(lastCharIdx + 1);
 
         for (uint256 j = 0; j <= lastCharIdx; ++j) {
-            usernameBytes[j] = tokenIdBytes16[j];
+            fnameBytes[j] = tokenIdBytes16[j];
         }
 
-        return string(abi.encodePacked(BASE_URI, string(usernameBytes), ".json"));
+        return string(abi.encodePacked(BASE_URI, string(fnameBytes), ".json"));
     }
 
     /**
@@ -567,7 +600,7 @@ contract NameRegistry is
         address from,
         address to,
         uint256 tokenId
-    ) internal virtual override whenNotPaused {
+    ) internal override whenNotPaused {
         super._beforeTokenTransfer(from, to, tokenId);
     }
 
@@ -578,7 +611,7 @@ contract NameRegistry is
         address from,
         address to,
         uint256 tokenId
-    ) internal virtual override {
+    ) internal override {
         super._afterTokenTransfer(from, to, tokenId);
 
         // Checking state before clearing is more gas-efficient than always clearing
@@ -592,9 +625,9 @@ contract NameRegistry is
 
     /**
      * The custodyAddress (i.e. owner) can appoint a recoveryAddress which can transfer a
-     * specific username if the custodyAddress is lost. The recovery address must first request the
+     * specific fname if the custodyAddress is lost. The recovery address must first request the
      * transfer on-chain which moves it into escrow. If the custodyAddress does not cancel
-     * the request during escrow, the recoveryAddress can then transfer the username. The custody
+     * the request during escrow, the recoveryAddress can then transfer the fname. The custody
      * address can remove or change the recovery address at any time.
      *
      * INVARIANT 3: Changing ownerOf must set recoveryOf to address(0) and recoveryClockOf[id] to 0
@@ -603,29 +636,31 @@ contract NameRegistry is
      */
 
     /**
-     * @notice Set a recovery address which can transfer the caller's username to a new address.
+     * @notice Change the recovery address of the fname and reset any active recovery requests.
+     *         Supports ERC 2771 meta-transactions and can be called by a relayer.
      *
-     * @param recovery address which can recovery the username if the custody address is lost
+     * @param recovery The address which can recover the fname (set to 0x0 to disable recovery)
      */
     function changeRecoveryAddress(uint256 tokenId, address recovery) external payable whenNotPaused {
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
         recoveryOf[tokenId] = recovery;
 
-        // If there is an ongoing recovery, cancel it
+        // Perf: clear any active recovery requests, but check if they exist before deleting
+        // because this usually already zero
         if (recoveryClockOf[tokenId] != 0) delete recoveryClockOf[tokenId];
 
         emit ChangeRecoveryAddress(tokenId, recovery);
     }
 
     /**
-     * @notice Requests a recovery of a username and moves it into escrow.
+     * @notice Request a recovery of an fid to a new address if the caller is the recovery address.
+     *         Supports ERC 2771 meta-transactions and can be called by a relayer. Requests can be
+     *         overwritten by making another request, and can be made if the fname is in
+     *         renewable or biddable state.
      *
-     * @dev Requests can be overwritten by making another request, and can be made even if the username is in renewal
-     *      or expired status.
-     *
-     * @param tokenId the uint256 representation of the username.
-     * @param to the address to transfer the username to, which cannot be address(0).
+     * @param tokenId The tokenId of the fname being transferred.
+     * @param to      The address to transfer the fname to, which cannot be address(0)
      */
     function requestRecovery(uint256 tokenId, address to) external payable whenNotPaused {
         if (to == address(0)) revert InvalidRecovery();
@@ -633,27 +668,31 @@ contract NameRegistry is
         // Invariant 3 ensures that a request cannot be made after ownership change without consent
         if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
 
+        // Track when the escrow period started
         recoveryClockOf[tokenId] = block.timestamp;
+
+        // Store the final destination so that it cannot be modified unless completed or cancelled
         recoveryDestinationOf[tokenId] = to;
 
-        // Perf: the from param can be emitted to save gas, at the cost of breaking compat with
-        // IDRegistry's RequestRecovery event
+        // Perf: Gas costs can be reduced by omitting the from param, at the cost of breaking
+        // compatibility with the IDRegistry's RequestRecovery event
         emit RequestRecovery(ownerOf(tokenId), to, tokenId);
     }
 
     /**
      * @notice Completes a recovery request and transfers the name if the escrow is complete and
-     *         the username is still registered.
+     *         the fname is still registered.
      *
      * @dev The completeRecovery function cannot be called when the contract is paused because _transfer will revert.
      *
-     * @param tokenId the uint256 representation of the username.
+     * @param tokenId the uint256 representation of the fname.
      */
     function completeRecovery(uint256 tokenId) external payable {
-        if (block.timestamp >= expiryOf[tokenId]) revert Unauthorized();
+        if (block.timestamp >= expiryOf[tokenId]) revert Expired();
 
         // Invariant 3 ensures that a request cannot be completed after ownership change without consent
         if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
+
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
 
         unchecked {
@@ -671,19 +710,22 @@ contract NameRegistry is
      * @dev cancelRecovery is allowed even when the contract is paused to prevent the state where a user might be
      *      unable to cancel a recovery request because the contract was paused for the escrow duration.
      *
-     * @param tokenId the uint256 representation of the username.
+     * @param tokenId the uint256 representation of the fname.
      */
     function cancelRecovery(uint256 tokenId) external payable {
-        address msgSender = _msgSender();
+        address sender = _msgSender();
 
-        // Safety: super.ownerOf is called here instead of ownerOf since cancellation has no
-        // undesirable side effects when called in the expired state and it saves some gas.
-        if (msgSender != super.ownerOf(tokenId) && msgSender != recoveryOf[tokenId]) revert Unauthorized();
+        // Perf: super.ownerOf is called instead of ownerOf since cancellation has no undesirable
+        // side effects when expired and it saves some gas.
+        if (sender != super.ownerOf(tokenId) && sender != recoveryOf[tokenId]) revert Unauthorized();
 
+        // Check if there is a recovery to avoid emitting incorrect CancelRecovery events
         if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
+
+        // Clear the recovery request so that it cannot be completed
         delete recoveryClockOf[tokenId];
 
-        emit CancelRecovery(tokenId);
+        emit CancelRecovery(sender, tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -691,9 +733,9 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Move the username from the current owner to the pool and renew it for another year
+     * @notice Move the fname from the current owner to the pool and renew it for another year
      *
-     * @param tokenId the uint256 representation of the username.
+     * @param tokenId the uint256 representation of the fname.
      */
     function reclaim(uint256 tokenId) external payable {
         if (!hasRole(MODERATOR_ROLE, _msgSender())) revert NotModerator();
@@ -771,6 +813,8 @@ contract NameRegistry is
      */
     function changeFee(uint256 _fee) external payable {
         if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
+
+        // Audit does fee == 0 cause any problems with other logic?
         fee = _fee;
         emit ChangeFee(_fee);
     }
@@ -780,9 +824,10 @@ contract NameRegistry is
      */
     function withdraw(uint256 amount) external payable {
         if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
+
+        // Audit: this will not revert if the requested amount is zero, will that cause problems?
         if (address(this).balance < amount) revert WithdrawTooMuch();
 
-        // Audit: use call instead of transfer of send to avoid breaking gas changes
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = vault.call{value: amount}("");
         if (!success) revert CallFailed();
@@ -793,14 +838,14 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Returns the current year for any year between 2021 and 2072.
-     *
-     * @dev The year is determined by comparing the current timestamp against an array of known timestamps for Jan 1
-     *      of each year. The array contains timestamps up to 2072 after which the contract will start failing. This
-     *      can be resolved by deploying a new contract with updated timestamps in the initializer.
+     * @dev Returns the current year for any year between 2021 and 2072. The year is determined by
+     *      comparing the current timestamp against an array of known timestamps for Jan 1 of each
+     *      year. The array contains timestamps up to 2072 after which the contract will start
+     *      failing. This can be resolved by deploying a new contract with updated timestamps.
      */
-    // Audit: this function is kept public for testing
     function currYear() public returns (uint256 year) {
+        // Audit: this function is kept public for testing
+
         // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
         if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
             unchecked {
@@ -835,16 +880,17 @@ contract NameRegistry is
             }
         }
 
+        // Reached the end of the array without finding a year, this should never happen until 2072
         revert InvalidTime();
     }
 
     /**
-     * @notice Returns the ETH requires to register a name for the rest of the year.
+     * @notice Returns the fee (in ETH) required to register a name for the rest of the year,
+     *         prorated by the seconds left in the year.
      *
-     * @dev the fee is pro-rated for the remainder of the year by the number of seconds left.
      */
-    // Audit: this function is kept public for testing
     function currYearFee() public returns (uint256) {
+        // Audit: this function is kept public for testing
         uint256 _currYear = currYear();
 
         unchecked {
@@ -893,23 +939,23 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Returns true if the name meets our conditions for a valid username.
+     * @dev Returns true if the name meets our conditions for a valid fname.
      */
     // solhint-disable-next-line code-complexity
-    function _validateName(bytes16 username) internal pure {
-        uint256 length = username.length;
+    function _validateName(bytes16 fname) internal pure {
+        uint256 length = fname.length;
         bool nameEnded = false;
 
-        // Iterate over the bytes16 username one char at a time, ensuring that:
+        // Iterate over the bytes16 fname one char at a time, ensuring that:
         //   1. The name begins with [a-z 0-9] or the ascii numbers [48-57, 97-122] inclusive
         //   2. The name can contain [a-z 0-9 -] or the ascii numbers [45, 48-57, 97-122] inclusive
         //   3. Once the name is ended with a NULL char (0), the follows character must also be NULLs
 
         // If the name begins with a hyphen, reject it
-        if (uint8(username[0]) == 45) revert InvalidName();
+        if (uint8(fname[0]) == 45) revert InvalidName();
 
         for (uint256 i = 0; i < length; ) {
-            uint8 charInt = uint8(username[i]);
+            uint8 charInt = uint8(fname[i]);
 
             if (nameEnded) {
                 // Since the name has ended, ensure that this character is NULL.
@@ -950,7 +996,7 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Returns the timestamp of Jan 1, 0:00:00 for the given year between 2022 and 2072
+     * @dev Returns the timestamp of Jan 1, 0:00:00 for the given year between 2022 and 2072
      */
     function _timestampOfYear(uint256 year) internal view returns (uint256) {
         unchecked {
