@@ -133,7 +133,7 @@ contract IDRegistry is ERC2771Context, Ownable {
     uint256 internal trustedOnly = 1;
 
     /// @notice Returns the farcaster id for an address
-    mapping(address => uint256) internal idOf;
+    mapping(address => uint256) public idOf;
 
     /// @notice Returns the recovery address for a farcaster id
     mapping(uint256 => address) internal recoveryOf;

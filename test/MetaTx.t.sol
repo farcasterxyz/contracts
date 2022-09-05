@@ -98,7 +98,7 @@ contract MetaTxTest is Test {
         vm.expectEmit(true, true, true, true);
         emit Register(alice, 1, recovery, "");
         forwarder.execute(req, signature);
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
     }
 
     function testNameRegistryRegister(
