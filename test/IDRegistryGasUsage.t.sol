@@ -23,7 +23,7 @@ contract IDRegistryGasUsageTest is Test {
         for (uint256 i = 0; i < 25; i++) {
             address alice = address(uint160(i));
             idRegistry.register(alice, address(0), url);
-            assertEq(idRegistry.getIdOf(address(uint160(i))), i + 1);
+            assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
         }
     }
 
@@ -34,7 +34,7 @@ contract IDRegistryGasUsageTest is Test {
             address alice = address(uint160(i));
             vm.prank(TRUSTED_SENDER);
             idRegistry.trustedRegister(alice, address(0), url);
-            assertEq(idRegistry.getIdOf(alice), i + 1);
+            assertEq(idRegistry.idOf(alice), i + 1);
         }
     }
 }

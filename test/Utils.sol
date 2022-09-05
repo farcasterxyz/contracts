@@ -15,10 +15,6 @@ contract IDRegistryTestable is IDRegistry {
         return idCounter;
     }
 
-    function getIdOf(address addr) public view returns (uint256) {
-        return idOf[addr];
-    }
-
     function getRecoveryOf(uint256 id) public view returns (address) {
         return recoveryOf[id];
     }

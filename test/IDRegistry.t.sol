@@ -61,7 +61,7 @@ contract IDRegistryTest is Test {
         idRegistry.register(bob, recovery, url);
 
         assertEq(idRegistry.getIdCounter(), 1);
-        assertEq(idRegistry.getIdOf(bob), 1);
+        assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
@@ -79,7 +79,7 @@ contract IDRegistryTest is Test {
         idRegistry.register(bob, recovery, url);
 
         assertEq(idRegistry.getIdCounter(), 0);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
@@ -98,7 +98,7 @@ contract IDRegistryTest is Test {
         idRegistry.register(alice, recovery, url);
 
         assertEq(idRegistry.getIdCounter(), 1);
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
@@ -122,7 +122,7 @@ contract IDRegistryTest is Test {
         idRegistry.trustedRegister(alice, recovery, url);
 
         assertEq(idRegistry.getIdCounter(), 1);
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
@@ -140,7 +140,7 @@ contract IDRegistryTest is Test {
         idRegistry.trustedRegister(alice, recovery, url);
 
         assertEq(idRegistry.getIdCounter(), 0);
-        assertEq(idRegistry.getIdOf(alice), 0);
+        assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
@@ -160,7 +160,7 @@ contract IDRegistryTest is Test {
         idRegistry.trustedRegister(alice, recovery, url);
 
         assertEq(idRegistry.getIdCounter(), 0);
-        assertEq(idRegistry.getIdOf(alice), 0);
+        assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
@@ -182,7 +182,7 @@ contract IDRegistryTest is Test {
         idRegistry.trustedRegister(alice, recovery, url);
 
         assertEq(idRegistry.getIdCounter(), 1);
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
@@ -221,16 +221,16 @@ contract IDRegistryTest is Test {
         vm.assume(alice != bob);
         _register(alice, address(0));
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, 1);
         idRegistry.transfer(bob);
 
-        assertEq(idRegistry.getIdOf(alice), 0);
-        assertEq(idRegistry.getIdOf(bob), 1);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 1);
     }
 
     function testTransferResetsRecoveryState(
@@ -244,8 +244,8 @@ contract IDRegistryTest is Test {
         vm.assume(alice != recoveryTarget);
 
         _register(alice, recovery);
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
 
         // request a recovery to set the clock to 1
         vm.prank(recovery);
@@ -257,8 +257,8 @@ contract IDRegistryTest is Test {
         emit Transfer(alice, bob, 1);
         idRegistry.transfer(bob);
 
-        assertEq(idRegistry.getIdOf(alice), 0);
-        assertEq(idRegistry.getIdOf(bob), 1);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
@@ -273,28 +273,28 @@ contract IDRegistryTest is Test {
         _register(alice, recovery);
         _register(bob, recovery);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 2);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 2);
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.HasId.selector);
         idRegistry.transfer(bob);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 2);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 2);
     }
 
     function testCannotTransferIfNoId(address alice, address bob) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
-        assertEq(idRegistry.getIdOf(alice), 0);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 0);
 
         vm.prank(alice);
         vm.expectRevert(IDRegistry.HasNoId.selector);
         idRegistry.transfer(bob);
 
-        assertEq(idRegistry.getIdOf(alice), 0);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -367,7 +367,7 @@ contract IDRegistryTest is Test {
         emit RequestRecovery(alice, bob, 1);
         idRegistry.requestRecovery(alice, bob);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryClockOf(1), block.timestamp);
         assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
     }
@@ -390,7 +390,7 @@ contract IDRegistryTest is Test {
         vm.prank(recovery);
         idRegistry.requestRecovery(alice, charlie);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryClockOf(1), block.timestamp);
         assertEq(idRegistry.getRecoveryDestinationOf(1), charlie);
     }
@@ -413,7 +413,7 @@ contract IDRegistryTest is Test {
         vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.requestRecovery(alice, recoveryDestination);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
         assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
@@ -459,8 +459,8 @@ contract IDRegistryTest is Test {
         emit Transfer(alice, bob, 1);
         idRegistry.completeRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 0);
-        assertEq(idRegistry.getIdOf(bob), 1);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
@@ -489,8 +489,8 @@ contract IDRegistryTest is Test {
         vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.completeRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
     }
@@ -505,7 +505,7 @@ contract IDRegistryTest is Test {
         vm.expectRevert(IDRegistry.NoRecovery.selector);
         idRegistry.completeRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
@@ -532,8 +532,8 @@ contract IDRegistryTest is Test {
         vm.expectRevert(IDRegistry.Escrow.selector);
         idRegistry.completeRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
     }
@@ -562,8 +562,8 @@ contract IDRegistryTest is Test {
         idRegistry.completeRecovery(alice);
         vm.stopPrank();
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 2);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 2);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
     }
@@ -594,8 +594,8 @@ contract IDRegistryTest is Test {
         emit CancelRecovery(alice, 1);
         idRegistry.cancelRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         // 3. after escrow period, recovery tries to recover to bob and fails
@@ -604,8 +604,8 @@ contract IDRegistryTest is Test {
         vm.prank(recovery);
         idRegistry.completeRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
@@ -632,8 +632,8 @@ contract IDRegistryTest is Test {
         emit CancelRecovery(recovery, 1);
         idRegistry.cancelRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         // 3. after escrow period, recovery tries to recover to bob and fails
@@ -642,8 +642,8 @@ contract IDRegistryTest is Test {
         vm.prank(recovery);
         idRegistry.completeRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
@@ -657,7 +657,7 @@ contract IDRegistryTest is Test {
         vm.expectRevert(IDRegistry.NoRecovery.selector);
         idRegistry.cancelRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
@@ -685,8 +685,8 @@ contract IDRegistryTest is Test {
         vm.expectRevert(IDRegistry.Unauthorized.selector);
         idRegistry.cancelRecovery(alice);
 
-        assertEq(idRegistry.getIdOf(alice), 1);
-        assertEq(idRegistry.getIdOf(bob), 0);
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }

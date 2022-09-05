@@ -476,7 +476,7 @@ contract BundleRegistryTest is Test {
 
     // Assert that a given fname was correctly registered with id 1 and recovery
     function _assertSuccessfulRegistration(address alice, address recovery) internal {
-        assertEq(idRegistry.getIdOf(alice), 1);
+        assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
@@ -487,7 +487,7 @@ contract BundleRegistryTest is Test {
 
     // Assert that a given fname was not registered and the contracts have no registrations
     function _assertUnsuccessfulRegistration(address alice) internal {
-        assertEq(idRegistry.getIdOf(alice), 0);
+        assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         vm.expectRevert("ERC721: invalid token ID");
