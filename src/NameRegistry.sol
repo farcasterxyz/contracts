@@ -386,9 +386,9 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        // Return any excess funds back to the caller
+        // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, ) = _msgSender().call{value: msg.value - _currYearFee}("");
+        (bool success, ) = msg.sender.call{value: msg.value - _currYearFee}("");
         if (!success) revert CallFailed();
     }
 
@@ -411,8 +411,8 @@ contract NameRegistry is
         // Trusted Register can only be called during the invite period (when trustedOnly = 1)
         if (trustedOnly == 0) revert NotInvitable();
 
-        // Call msg.sender instead of _msgSender() because it allows this function to be called by
-        // BatchRegistry. Meta transactions are no longer possible, but we do not need them here.
+        // Call msg.sender instead of _msgSender() to prevent meta-txns and allow the function
+        // to be called by BatchRegistry. This also saves ~100 gas.
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Perf: this can be omitted to save ~3k gas if we believe that the trusted caller will
@@ -462,9 +462,9 @@ contract NameRegistry is
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
-        // Return excess funds back to the caller
+        // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, ) = _msgSender().call{value: msg.value - fee}("");
+        (bool success, ) = msg.sender.call{value: msg.value - fee}("");
         if (!success) revert CallFailed();
     }
 
@@ -474,10 +474,15 @@ contract NameRegistry is
      *         and decays by ~10% per period (8 hours) until it reaches zero mid-year. The premium
      *         reduction is computed with the identity (x^y = exp(ln(x) * y))
      *
+     * @param to       The address where the fname should be transferred
      * @param tokenId  The tokenId of the fname to bid on
      * @param recovery The address which can recovery the fname if the custody address is lost
      */
-    function bid(uint256 tokenId, address recovery) external payable {
+    function bid(
+        address to,
+        uint256 tokenId,
+        address recovery
+    ) external payable {
         // Check that the tokenID was previously registered
         uint256 expiryTs = expiryOf[tokenId];
         if (expiryTs == 0) revert Registrable();
@@ -506,10 +511,8 @@ contract NameRegistry is
 
         if (msg.value < price) revert InsufficientFunds();
 
-        address msgSender = _msgSender();
-
         // call super.ownerOf instead of ownerOf, because the latter reverts if name is expired
-        _transfer(super.ownerOf(tokenId), msgSender, tokenId);
+        _transfer(super.ownerOf(tokenId), to, tokenId);
 
         unchecked {
             // Safety: _currYear is guaranteed to be a known calendar year and cannot overflow
@@ -518,9 +521,9 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        // Safety: usage of call over transfer or send is encouraged to protect against gas pricing changes
+        // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, ) = msgSender.call{value: msg.value - price}("");
+        (bool success, ) = msg.sender.call{value: msg.value - price}("");
         if (!success) revert CallFailed();
     }
 
@@ -738,7 +741,9 @@ contract NameRegistry is
      * @param tokenId the uint256 representation of the fname.
      */
     function reclaim(uint256 tokenId) external payable {
-        if (!hasRole(MODERATOR_ROLE, _msgSender())) revert NotModerator();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(MODERATOR_ROLE, msg.sender)) revert NotModerator();
 
         if (expiryOf[tokenId] == 0) revert Registrable();
 
@@ -756,7 +761,9 @@ contract NameRegistry is
      * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
      */
     function pause() external payable {
-        if (!hasRole(OPERATOR_ROLE, _msgSender())) revert NotOperator();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
         _pause();
     }
 
@@ -764,7 +771,9 @@ contract NameRegistry is
      * @notice unpause the contract and resume registrations, renewals, recoveries and transfers of names.
      */
     function unpause() external payable {
-        if (!hasRole(OPERATOR_ROLE, _msgSender())) revert NotOperator();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
         _unpause();
     }
 
@@ -772,7 +781,9 @@ contract NameRegistry is
      * @notice Changes the address from which registerTrusted calls can be made
      */
     function changeTrustedCaller(address _trustedCaller) external payable {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         trustedCaller = _trustedCaller;
         emit ChangeTrustedCaller(_trustedCaller);
     }
@@ -781,7 +792,9 @@ contract NameRegistry is
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedOnly() external payable {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         trustedOnly = 0;
         emit DisableTrustedRegister();
     }
@@ -790,7 +803,9 @@ contract NameRegistry is
      * @notice Changes the address to which funds can be withdrawn
      */
     function changeVault(address _vault) external payable {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         vault = _vault;
         emit ChangeVault(_vault);
     }
@@ -799,7 +814,9 @@ contract NameRegistry is
      * @notice Changes the address to which names are reclaimed
      */
     function changePool(address _pool) external payable {
-        if (!hasRole(ADMIN_ROLE, _msgSender())) revert NotAdmin();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         pool = _pool;
         emit ChangePool(_pool);
     }
@@ -812,7 +829,9 @@ contract NameRegistry is
      * @notice Set the yearly fee
      */
     function changeFee(uint256 _fee) external payable {
-        if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
         // Audit does fee == 0 cause any problems with other logic?
         fee = _fee;
@@ -823,7 +842,9 @@ contract NameRegistry is
      * @notice Withdraw a specified amount of ether to the vault
      */
     function withdraw(uint256 amount) external payable {
-        if (!hasRole(TREASURER_ROLE, _msgSender())) revert NotTreasurer();
+        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
+        // and it reduces our attack surface area
+        if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
         // Audit: this will not revert if the requested amount is zero, will that cause problems?
         if (address(this).balance < amount) revert WithdrawTooMuch();

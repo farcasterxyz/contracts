@@ -997,6 +997,7 @@ contract NameRegistryTest is Test {
     function testBid(
         address alice,
         address bob,
+        address charlie,
         address recovery1,
         address recovery2,
         uint256 amount
@@ -1004,7 +1005,8 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _register(alice);
-        vm.assume(alice != bob);
+        vm.assume(alice != charlie);
+        vm.assume(charlie != address(0));
         vm.assume(amount >= (BID_START + FEE) && amount < (type(uint256).max - 3 wei));
 
         vm.prank(alice);
@@ -1015,15 +1017,15 @@ contract NameRegistryTest is Test {
 
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, bob, ALICE_TOKEN_ID);
-        nameRegistry.bid{value: amount}(ALICE_TOKEN_ID, recovery2);
+        emit Transfer(alice, charlie, ALICE_TOKEN_ID);
+        nameRegistry.bid{value: amount}(charlie, ALICE_TOKEN_ID, recovery2);
 
         // The fee discount for registering from Jan 31st, instead of on Jan 1st.
         uint256 feeDiscount = 0.000821917808219179 ether;
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.balanceOf(charlie), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
         assertEq(bob.balance, amount - (BID_START + FEE - feeDiscount));
@@ -1047,7 +1049,7 @@ contract NameRegistryTest is Test {
         // 2. Bob bids and succeeds because bid >= premium + fee
         vm.deal(bob, 1001 ether);
         vm.prank(bob);
-        nameRegistry.bid{value: 1_000.01 ether}(ALICE_TOKEN_ID, charlie);
+        nameRegistry.bid{value: 1_000.01 ether}(bob, ALICE_TOKEN_ID, charlie);
 
         assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
     }
@@ -1072,7 +1074,7 @@ contract NameRegistryTest is Test {
         vm.deal(bob, 1000 ether);
         vm.startPrank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 900.0091 ether}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: 900.0091 ether}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1082,7 +1084,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
 
         // 3. Bob bids and succeeds because bid > price
-        nameRegistry.bid{value: 900.0092 ether}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: 900.0092 ether}(bob, ALICE_TOKEN_ID, recovery);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         vm.stopPrank();
 
@@ -1109,9 +1111,9 @@ contract NameRegistryTest is Test {
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^100 * 1_000) + 0.00826484018 = 0.0348262391
         vm.deal(bob, 1 ether);
-        vm.startPrank(bob);
+        vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 0.0348 ether}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: 0.0348 ether}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1121,8 +1123,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
 
         // 3. Bob bids and succeeds because bid > price
-        nameRegistry.bid{value: 0.0349 ether}(ALICE_TOKEN_ID, recovery);
-        vm.stopPrank();
+        vm.prank(bob);
+        nameRegistry.bid{value: 0.0349 ether}(bob, ALICE_TOKEN_ID, recovery);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
@@ -1147,9 +1149,9 @@ contract NameRegistryTest is Test {
         // 2. Bob bids and fails because bid < price (premium + fee)
         // price = (0.9^382 * 1_000) + 0.00568949772 = 0.00568949772 (+ ~ - 3.31e-15)
         vm.deal(bob, 1000 ether);
-        vm.startPrank(bob);
+        vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 0.00568949771 ether}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: 0.00568949771 ether}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1159,8 +1161,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
 
         // 3. Bob bids and succeeds because bid > price
-        nameRegistry.bid{value: 0.005689498772 ether}(ALICE_TOKEN_ID, recovery);
-        vm.stopPrank();
+        vm.prank(bob);
+        nameRegistry.bid{value: 0.005689498772 ether}(bob, ALICE_TOKEN_ID, recovery);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
@@ -1186,7 +1188,7 @@ contract NameRegistryTest is Test {
         // 2. Bob bids and fails because bid < price (0 + fee) == 0.0056803653
         vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 0.0056803652 ether}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: 0.0056803652 ether}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1197,7 +1199,7 @@ contract NameRegistryTest is Test {
 
         // 3. Bob bids and succeeds because bid > price (0 + fee)
         vm.prank(bob);
-        nameRegistry.bid{value: 0.0056803653 ether}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: 0.0056803653 ether}(bob, ALICE_TOKEN_ID, recovery);
         vm.stopPrank();
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
@@ -1235,7 +1237,7 @@ contract NameRegistryTest is Test {
         vm.warp(JAN31_2023_TS);
         vm.deal(charlie, 1001 ether);
         vm.prank(charlie);
-        nameRegistry.bid{value: 1001 ether}(ALICE_TOKEN_ID, recovery2);
+        nameRegistry.bid{value: 1001 ether}(charlie, ALICE_TOKEN_ID, recovery2);
 
         assertEq(nameRegistry.balanceOf(charlie), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
@@ -1262,7 +1264,7 @@ contract NameRegistryTest is Test {
         vm.warp(JAN31_2023_TS);
         vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: amount}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: amount}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1287,7 +1289,7 @@ contract NameRegistryTest is Test {
         // Register alice and fast-forward to one second before the name expires
         vm.warp(JAN1_2023_TS - 1);
         vm.expectRevert(NameRegistry.NotBiddable.selector);
-        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid(bob, ALICE_TOKEN_ID, recovery);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
@@ -1310,7 +1312,7 @@ contract NameRegistryTest is Test {
         // Fast-forward to when the registration expires and is renewable
         vm.warp(JAN1_2023_TS);
         vm.expectRevert(NameRegistry.NotBiddable.selector);
-        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1328,7 +1330,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(bob);
         vm.expectRevert(NameRegistry.Registrable.selector);
-        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1347,7 +1349,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(bob);
         vm.expectRevert(NameRegistry.Registrable.selector);
-        nameRegistry.bid(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1374,7 +1376,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(bob);
         vm.expectRevert("Pausable: paused");
-        nameRegistry.bid{value: (BID_START + FEE)}(ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: (BID_START + FEE)}(bob, ALICE_TOKEN_ID, recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 1); // balanceOf counts expired ids by design
         assertEq(nameRegistry.balanceOf(bob), 0);
@@ -1395,7 +1397,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(nonPayable);
         vm.expectRevert(NameRegistry.CallFailed.selector);
-        nameRegistry.bid{value: 1_000.01 ether}(ALICE_TOKEN_ID, charlie);
+        nameRegistry.bid{value: 1_000.01 ether}(nonPayable, ALICE_TOKEN_ID, charlie);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));

@@ -116,7 +116,7 @@ contract NameRegistryGasUsageTest is Test {
             vm.warp(JAN31_2024_TS);
 
             vm.prank(alice);
-            nameRegistry.bid{value: 1_000.01 ether}(nameTokenId, RECOVERY);
+            nameRegistry.bid{value: 1_000.01 ether}(alice, nameTokenId, RECOVERY);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(nameRegistry.balanceOf(alice), 1);

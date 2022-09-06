@@ -43,6 +43,20 @@ contract MetaTxTest is Test {
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
+    uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
+
+    address[] knownContracts = [
+        address(0xCe71065D4017F316EC606Fe4422e11eB2c47c246), // FuzzerDict
+        address(0x4e59b44847b379578588920cA78FbF26c0B4956C), // CREATE2 Factory
+        address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84), // address(this)
+        address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A), // FORWARDER
+        address(0x185a4dc360CE69bDCceE33b3784B0282f7961aea), // ???
+        address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D), // ???
+        address(0xEFc56627233b02eA95bAE7e19F648d7DcD5Bb132) // ???
+    ];
+
+    address constant PRECOMPILE_CONTRACTS = address(9); // some addresses up to 0x9 are precompiled contracts
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -68,7 +82,7 @@ contract MetaTxTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testIDRegistryRegister(
-        address trustedCaller,
+        address relayer,
         address recovery,
         uint256 alicePrivateKey
     ) public {
@@ -93,63 +107,53 @@ contract MetaTxTest is Test {
 
         bytes memory signature = _signReq(req, alicePrivateKey);
 
-        // 4. Have the trusted caller call the contract and check that the name is registered to alice.
-        vm.prank(trustedCaller);
+        // 4. Have the relayer call the contract and check that the name is registered to alice.
+        vm.prank(relayer);
         vm.expectEmit(true, true, true, true);
         emit Register(alice, 1, recovery, "");
         forwarder.execute(req, signature);
         assertEq(idRegistry.idOf(alice), 1);
     }
 
-    function testNameRegistryRegister(
-        address trustedCaller,
+    function testNameRegistryTransfer(
+        address relayer,
         address recovery,
         uint256 alicePrivateKey
     ) public {
+        _assumeClean(relayer);
         vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);
 
-        // 1. Make the commit
+        // Register the name alice
         bytes32 commitHash = nameRegistry.generateCommit(bytes16("alice"), alice, "secret");
 
-        MinimalForwarder.ForwardRequest memory makeCommitReq = MinimalForwarder.ForwardRequest({
-            from: alice,
-            to: address(nameRegistry),
-            nonce: forwarder.getNonce(alice),
-            value: 0,
-            gas: 100_000,
-            data: abi.encodeWithSelector(NameRegistry.makeCommit.selector, commitHash) // calldata
-        });
-
-        bytes memory makeCommitSig = _signReq(makeCommitReq, alicePrivateKey);
-
-        vm.deal(trustedCaller, 1 ether);
+        vm.deal(relayer, 1 ether);
         vm.warp(DEC1_2022_TS);
-        vm.prank(trustedCaller);
-        forwarder.execute(makeCommitReq, makeCommitSig);
-
-        // 2. Register the name alice
-        MinimalForwarder.ForwardRequest memory registerReq = MinimalForwarder.ForwardRequest({
-            from: alice,
-            to: address(nameRegistry),
-            nonce: forwarder.getNonce(alice),
-            value: 0.001 ether,
-            gas: 200_000,
-            data: abi.encodeWithSelector(
-                NameRegistry.register.selector,
-                bytes16("alice"),
-                alice,
-                bytes32("secret"),
-                recovery
-            )
-        });
-
-        bytes memory registerSig = _signReq(registerReq, alicePrivateKey);
+        vm.prank(relayer);
+        nameRegistry.makeCommit(commitHash);
 
         vm.warp(block.timestamp + 60);
-        vm.prank(trustedCaller);
-        forwarder.execute{value: 0.001 ether}(registerReq, registerSig);
+        vm.prank(relayer);
+        nameRegistry.register{value: 0.001 ether}(bytes16("alice"), alice, bytes32("secret"), recovery);
         assertEq(nameRegistry.ownerOf(uint256(bytes32("alice"))), alice);
+
+        address bob = address(bytes20(bytes32("bob")));
+
+        // Transfer the name alice via a meta transaction
+        MinimalForwarder.ForwardRequest memory transferReq = MinimalForwarder.ForwardRequest({
+            from: alice,
+            to: address(nameRegistry),
+            nonce: forwarder.getNonce(alice),
+            value: 0 ether,
+            gas: 200_000,
+            data: abi.encodeWithSelector(NameRegistry.transferFrom.selector, alice, bob, ALICE_TOKEN_ID)
+        });
+
+        bytes memory transferSig = _signReq(transferReq, alicePrivateKey);
+
+        vm.prank(relayer);
+        forwarder.execute(transferReq, transferSig);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
     }
 
     function _signReq(MinimalForwarder.ForwardRequest memory req, uint256 privateKey) private returns (bytes memory) {
@@ -178,5 +182,14 @@ contract MetaTxTest is Test {
                     address(forwarder)
                 )
             );
+    }
+
+    function _assumeClean(address a) internal {
+        // TODO: extract the general assume functions into a utils so it can be shared with NameRegistry.t.sol
+        for (uint256 i = 0; i < knownContracts.length; i++) {
+            vm.assume(a != knownContracts[i]);
+        }
+
+        vm.assume(a > PRECOMPILE_CONTRACTS);
     }
 }
