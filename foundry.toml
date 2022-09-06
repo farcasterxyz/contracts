@@ -1,16 +1,9 @@
 [profile.default]
-libs = ['lib']
-gas_reports = ["*"]
-optimizer = true
-optimizer_runs = 10_000
-out = 'out'
 solc_version = "0.8.16"
-src = 'src'
-test = "test"
+optimizer_runs = 10_000
 
 [profile.ci]
-
-verbosity = 4
+verbosity = 3
 
 [fuzz]
-runs = 1_000
+runs = 512

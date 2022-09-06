@@ -1,7 +1,7 @@
 arrowParens: "avoid"
 bracketSpacing: true
 endOfLine: "auto"
-printWidth: 120
+printWidth: 100
 singleQuote: false
 tabWidth: 2
 trailingComma: "all"
@@ -11,6 +11,7 @@ overrides:
     options:
       compiler: "0.8.16"
       tabWidth: 4
+      printWidth: 120
       useTabs: false
       singleQuote: false
       bracketSpacing: false
