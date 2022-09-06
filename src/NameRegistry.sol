@@ -183,6 +183,15 @@ contract NameRegistry is
 
     uint256 internal constant ESCROW_PERIOD = 3 days;
 
+    /// @dev Starting price of every bid during the first period
+    uint256 internal constant BID_START_PRICE = 1000 ether;
+
+    /// @dev 60.18-decimal fixed-point that decreases the price by 10% when multiplied
+    uint256 internal constant BID_PERIOD_DECREASE_UD60X18 = 0.9 ether;
+
+    /// @dev 60.18-decimal fixed-point that approximates divide by 28,800 when multiplied
+    uint256 internal constant DIV_28800_UD60X18 = 3.47222222e13;
+
     bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -497,17 +506,33 @@ contract NameRegistry is
 
         if (auctionStartTimestamp > block.timestamp) revert NotBiddable();
 
-        // Calculate the num of 8 hr periods since expiry as a fixed point signed decimal. The
-        // constant approximates fixed point division by 28,800 (num of seconds in 8 hours)
-        int256 periodsSD59x18 = int256(3.47222222e13 * (block.timestamp - auctionStartTimestamp));
+        uint256 price;
 
-        // Perf: pre-compute return values for the first few periods and the last one.
+        unchecked {
+            // Safety: cannot underflow because auctionStartTimestamp always <= block.timestamp and
+            // cannot overflow because block.timestamp - auctionStartTimestamp realistically will not
+            // evaluate to more than 10^10 (~315 years) which can be safely multiplied with the
+            // DIV_28800_UD60X18 constant and stay under the int256 max value.
 
-        // Calculate the price by taking the 1000 ETH premium and discounting it by 10% for every
-        // period and adding to it the renewal fee for the current year.
-        uint256 price = uint256(1_000 ether).mulWadDown(
-            uint256(FixedPointMathLib.powWad(int256(0.9 ether), periodsSD59x18))
-        ) + currYearFee();
+            // Calculate the number of 8 hr periods elapsed since the auction started by dividing
+            // the number of seconds elapsed by 28,800 using fixed-point decimals with 18 places
+            int256 periodsSD59x18 = int256((block.timestamp - auctionStartTimestamp) * DIV_28800_UD60X18);
+
+            // Perf: Avoided pre-computing the values for some periods and saving them in storage which
+            // adds a lot of complexity for small gas savings (need to estimate, but probably <1k gas
+            // in certain cases
+
+            // Audit: intuitively the below cannot underflow, but how do we prove it?
+
+            // Calculate the current bid price by taking the starting price (1000 ETH) and discounting
+            // it by the decrease factor (10%) for every 8 hour period elapsed since the auction started
+            // and adding the renewal fee for the remainder of the year.
+            price =
+                uint256(BID_START_PRICE).mulWadDown(
+                    uint256(FixedPointMathLib.powWad(int256(BID_PERIOD_DECREASE_UD60X18), periodsSD59x18))
+                ) +
+                currYearFee();
+        }
 
         if (msg.value < price) revert InsufficientFunds();
 
