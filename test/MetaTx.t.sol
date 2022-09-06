@@ -115,11 +115,6 @@ contract MetaTxTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
     }
 
-    //[FAIL. Reason: CallFailed() Counterexample: calldata=0x836f852f000000000000000000000000efc56627233b02ea95bae7e19f648d7dcd5bb132000000000000000000000000000000000000000000000000000000000000228d0000000000000000000000000000000000000000000000000000000000001f82,
-    // args=[
-    // ,
-    // 0x000000000000000000000000000000000000228d, 8066]] testNameRegistryTransfer(address,address,uint256) (runs: 127, μ: 230237, ~: 230228)
-
     function testNameRegistryTransfer(
         address relayer,
         address recovery,
