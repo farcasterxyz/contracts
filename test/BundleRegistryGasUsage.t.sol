@@ -107,7 +107,7 @@ contract BundleRegistryGasUsageTest is Test {
 
             // 3. Register the name alice
             vm.warp(block.timestamp + 60 seconds);
-            bundleRegistry.trustedRegister(alice, RECOVERY, URL, name, 1, 2);
+            bundleRegistry.trustedRegister(alice, RECOVERY, URL, name, 1);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(nameRegistry.expiryOf(nameTokenId), JAN1_2023_TS);

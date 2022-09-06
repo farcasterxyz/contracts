@@ -83,15 +83,14 @@ contract BundleRegistry is Ownable {
         address recovery,
         string calldata url,
         bytes16 username,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) external payable {
         // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.trustedRegister(to, recovery, url);
-        nameRegistry.trustedRegister(username, to, recovery, inviter, invitee);
+        nameRegistry.trustedRegister(username, to, recovery, inviter, idRegistry.idOf(to));
     }
 
     /**
@@ -104,15 +103,14 @@ contract BundleRegistry is Ownable {
         address recovery,
         string calldata url,
         bytes16 username,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) external payable {
         // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.register(to, recovery, url);
-        nameRegistry.trustedRegister(username, to, recovery, inviter, invitee);
+        nameRegistry.trustedRegister(username, to, recovery, inviter, idRegistry.idOf(to));
     }
 
     /**

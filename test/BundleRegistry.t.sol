@@ -21,6 +21,7 @@ contract BundleRegistryTest is Test {
     ERC1967Proxy nameRegistryProxy;
 
     event ChangeTrustedCaller(address indexed trustedCaller, address indexed owner);
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -213,8 +214,7 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
@@ -224,7 +224,9 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        vm.expectEmit(true, true, true, true);
+        emit Invite(inviter, 1, "alice");
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertSuccessfulRegistration(alice, recovery);
     }
@@ -234,7 +236,6 @@ contract BundleRegistryTest is Test {
         address recovery,
         string calldata url,
         uint256 inviter,
-        uint256 invitee,
         address untrustedCaller
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
@@ -250,7 +251,7 @@ contract BundleRegistryTest is Test {
         // and therefore the trusted caller for BundleRegistry
         vm.prank(untrustedCaller);
         vm.expectRevert(BundleRegistry.Unauthorized.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -259,8 +260,7 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
@@ -272,7 +272,7 @@ contract BundleRegistryTest is Test {
         idRegistry.disableTrustedOnly();
 
         vm.expectRevert(NameRegistry.Registrable.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -281,8 +281,7 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
@@ -294,7 +293,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         vm.expectRevert(NameRegistry.NotInvitable.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -303,8 +302,7 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
@@ -315,7 +313,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         vm.expectRevert(NameRegistry.Registrable.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -328,8 +326,7 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
@@ -340,7 +337,9 @@ contract BundleRegistryTest is Test {
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
         idRegistry.disableTrustedOnly();
 
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        vm.expectEmit(true, true, true, true);
+        emit Invite(inviter, 1, "alice");
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertSuccessfulRegistration(alice, recovery);
     }
@@ -349,8 +348,7 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
@@ -361,7 +359,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
         vm.expectRevert(IDRegistry.Invitable.selector);
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -370,8 +368,7 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
@@ -383,7 +380,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         vm.expectRevert(IDRegistry.Invitable.selector);
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -392,8 +389,7 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
-        uint256 invitee
+        uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
@@ -404,7 +400,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         vm.expectRevert(NameRegistry.NotInvitable.selector);
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -414,7 +410,6 @@ contract BundleRegistryTest is Test {
         address recovery,
         string calldata url,
         uint256 inviter,
-        uint256 invitee,
         address untrustedCaller
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
@@ -431,7 +426,7 @@ contract BundleRegistryTest is Test {
         // deployer and therefore the trusted caller for BundleRegistry
         vm.prank(untrustedCaller);
         vm.expectRevert(BundleRegistry.Unauthorized.selector);
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter, invitee);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
