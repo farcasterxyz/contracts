@@ -395,10 +395,14 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, ) = msg.sender.call{value: msg.value - _currYearFee}("");
-        if (!success) revert CallFailed();
+        unchecked {
+            // Safety: msg.value >= _currYearFee by check above, so this cannot overflow
+
+            // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
+            // solhint-disable-next-line avoid-low-level-calls
+            (bool success, ) = msg.sender.call{value: msg.value - _currYearFee}("");
+            if (!success) revert CallFailed();
+        }
     }
 
     /**
@@ -471,10 +475,14 @@ contract NameRegistry is
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
-        // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, ) = msg.sender.call{value: msg.value - fee}("");
-        if (!success) revert CallFailed();
+        unchecked {
+            // Safety: msg.value >= fee by check above, so this cannot overflow
+
+            // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
+            // solhint-disable-next-line avoid-low-level-calls
+            (bool success, ) = msg.sender.call{value: msg.value - fee}("");
+            if (!success) revert CallFailed();
+        }
     }
 
     /**
@@ -571,10 +579,14 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, ) = msg.sender.call{value: msg.value - price}("");
-        if (!success) revert CallFailed();
+        unchecked {
+            // Safety: msg.value >= price by check above, so this cannot underflow
+
+            // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
+            // solhint-disable-next-line avoid-low-level-calls
+            (bool success, ) = msg.sender.call{value: msg.value - price}("");
+            if (!success) revert CallFailed();
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
