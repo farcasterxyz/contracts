@@ -61,7 +61,7 @@ contract NameRegistryTest is Test {
     uint256 constant DEC1_2022_TS = 1669881600; // Dec 1, 2022 00:00:00 GMT
     uint256 constant JAN1_2022_TS = 1640995200; // Jan 1, 2022 0:00:00 GMT
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
-    uint256 constant JAN31_2023_TS = 1675123200; // Jan 31, 2023 0:00:00 GMT
+    uint256 constant FEB1_2023_TS = 1675209600; // Feb 1, 2023 0:00:00 GMT
     uint256 constant JAN1_2024_TS = 1704067200; // Jan 1, 2024 0:00:00 GMT
 
     uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
@@ -926,7 +926,7 @@ contract NameRegistryTest is Test {
         _register(alice);
 
         // Fast-forward to 2023 when @alice is biddable
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotRenewable.selector);
@@ -1015,7 +1015,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery1);
 
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
         uint256 winningBid = BID_START + nameRegistry.currYearFee();
         vm.assume(amount >= (winningBid) && amount < (type(uint256).max - 3 wei));
         vm.deal(bob, amount);
@@ -1046,7 +1046,7 @@ contract NameRegistryTest is Test {
         // 1. Set bob as the approver of alice's token
         vm.prank(alice);
         nameRegistry.approve(bob, ALICE_TOKEN_ID);
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
 
         // 2. Bob bids and succeeds because bid >= premium + fee
         vm.deal(bob, 1001 ether);
@@ -1068,7 +1068,7 @@ contract NameRegistryTest is Test {
         vm.deal(bob, 1000 ether);
 
         // After 1 step, we expect the bid premium to be 900.000000000000606000 after errors
-        vm.warp(JAN31_2023_TS + 8 hours);
+        vm.warp(FEB1_2023_TS + 8 hours);
         uint256 bidPremium = 900.000000000000606000 ether;
         uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
 
@@ -1108,7 +1108,7 @@ contract NameRegistryTest is Test {
         vm.deal(bob, 1 ether);
 
         // After 100 steps, we expect the bid premium to be 0.026561398887589000 after errors
-        vm.warp(JAN31_2023_TS + (8 hours * 100));
+        vm.warp(FEB1_2023_TS + (8 hours * 100));
         uint256 bidPremium = .026561398887589000 ether;
         uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
 
@@ -1147,7 +1147,7 @@ contract NameRegistryTest is Test {
         vm.deal(bob, 1 ether);
 
         // After 393 steps, we expect the bid premium to be 0.000000000000001000 after errors
-        vm.warp(JAN31_2023_TS + (8 hours * 393));
+        vm.warp(FEB1_2023_TS + (8 hours * 393));
         uint256 bidPremium = .000000000000001000 ether;
         uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
 
@@ -1186,7 +1186,7 @@ contract NameRegistryTest is Test {
         vm.deal(bob, 1 ether);
 
         // After 393 steps, we expect the bid premium to be 0.0 after errors
-        vm.warp(JAN31_2023_TS + (8 hours * 394));
+        vm.warp(FEB1_2023_TS + (8 hours * 394));
         uint256 bidPrice = nameRegistry.currYearFee();
 
         // Bid slightly lower than the bidPrice which fails
@@ -1238,7 +1238,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery1);
 
         // charlie completes a bid on alice
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
         vm.deal(charlie, 1001 ether);
         vm.prank(charlie);
         nameRegistry.bid{value: 1001 ether}(charlie, ALICE_TOKEN_ID, recovery2);
@@ -1265,7 +1265,7 @@ contract NameRegistryTest is Test {
         amount = (amount % (BID_START + FEE));
         vm.deal(bob, amount);
 
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
         vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
         nameRegistry.bid{value: amount}(bob, ALICE_TOKEN_ID, recovery);
@@ -1372,7 +1372,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         _register(alice);
         vm.deal(bob, 1001 ether);
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
 
         _grant(OPERATOR_ROLE, ADMIN);
         vm.prank(ADMIN);
@@ -1397,7 +1397,7 @@ contract NameRegistryTest is Test {
         address nonPayable = address(this);
         vm.deal(nonPayable, 1001 ether);
         // Fast forward to Biddable state
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
 
         vm.prank(nonPayable);
         vm.expectRevert(NameRegistry.CallFailed.selector);
@@ -1502,7 +1502,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(bob), 0);
 
         // 3. Fast forward to name in expired state
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
         vm.stopPrank();
@@ -1616,7 +1616,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != recovery);
         _register(alice);
 
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
@@ -2009,7 +2009,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
 
         // 3. during expiry, recovery attempts to recover to bob
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
@@ -2258,7 +2258,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != POOL);
         _grant(MODERATOR_ROLE, ADMIN);
 
-        vm.warp(JAN31_2023_TS);
+        vm.warp(FEB1_2023_TS);
         vm.expectEmit(true, true, true, false);
         emit Transfer(alice, POOL, ALICE_TOKEN_ID);
         vm.prank(ADMIN);

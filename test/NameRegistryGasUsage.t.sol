@@ -30,7 +30,7 @@ contract NameRegistryGasUsageTest is Test {
     uint256 constant DEC1_2022_TS = 1669881600; // Dec 1, 2022 00:00:00 GMT
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
     uint256 constant JAN1_2024_TS = 1704067200; // Jan 1, 2024 0:00:00 GMT
-    uint256 constant JAN31_2024_TS = 1706659200; // Jan 31, 2024 0:00:00 GMT
+    uint256 constant FEB1_2024_TS = 1706745600; // Feb 1, 2024 0:00:00 GMT
     uint256 constant JAN1_2025_TS = 1735689600; // Jan 1, 2025 0:00:00 GMT
 
     bytes16[10] names = [
@@ -113,7 +113,7 @@ contract NameRegistryGasUsageTest is Test {
             address bob = address(uint160(i) + 100);
             bytes16 name = names[i];
             uint256 nameTokenId = uint256(bytes32(name));
-            vm.warp(JAN31_2024_TS);
+            vm.warp(FEB1_2024_TS);
 
             vm.prank(alice);
             nameRegistry.bid{value: 1_000.01 ether}(alice, nameTokenId, RECOVERY);
