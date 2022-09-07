@@ -185,13 +185,18 @@ contract NameRegistryTest is Test {
         address alice,
         address bob,
         address recovery,
-        bytes32 secret
+        bytes32 secret,
+        uint256 amount
     ) public {
         vm.assume(bob != address(0));
         _assumeClean(alice);
         _disableTrusted();
-        vm.deal(alice, 10_000 ether);
         vm.warp(DEC1_2022_TS);
+
+        // Choose an amount that is at least equal to currYearFee()
+        uint256 fee = nameRegistry.currYearFee();
+        vm.assume(amount >= fee);
+        vm.deal(alice, amount);
 
         vm.prank(alice);
         bytes32 commitHash = nameRegistry.generateCommit("bob", bob, secret);
@@ -200,16 +205,15 @@ contract NameRegistryTest is Test {
         vm.warp(block.timestamp + COMMIT_PERIOD);
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(0), bob, BOB_TOKEN_ID);
-        uint256 balance = alice.balance;
         vm.prank(alice);
-        nameRegistry.register{value: FEE}("bob", bob, secret, recovery);
+        nameRegistry.register{value: amount}("bob", bob, secret, recovery);
 
         assertEq(nameRegistry.timestampOf(commitHash), 0);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(bob), 1);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), recovery);
-        assertEq(alice.balance, balance - nameRegistry.currYearFee());
+        assertEq(alice.balance, amount - nameRegistry.currYearFee());
     }
 
     function testRegisterWorksWhenAlreadyOwningAName(
