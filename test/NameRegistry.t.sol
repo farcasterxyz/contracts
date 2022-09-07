@@ -1020,15 +1020,12 @@ contract NameRegistryTest is Test {
         emit Transfer(alice, charlie, ALICE_TOKEN_ID);
         nameRegistry.bid{value: amount}(charlie, ALICE_TOKEN_ID, recovery2);
 
-        // The fee discount for registering from Jan 31st, instead of on Jan 1st.
-        uint256 feeDiscount = 0.000821917808219179 ether;
-
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(charlie), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
-        assertEq(bob.balance, amount - (BID_START + FEE - feeDiscount));
+        assertEq(bob.balance, amount - (BID_START + nameRegistry.currYearFee()));
     }
 
     function testBidResetsERC721Approvals(
@@ -1059,22 +1056,21 @@ contract NameRegistryTest is Test {
         address bob,
         address recovery
     ) public {
-        // 1. Register alice and fast-forward to 8 hours into the auction
         _assumeClean(alice);
-
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
-        vm.warp(JAN31_2023_TS + 8 hours);
-
-        // 2. Bob bids and fails because bid < price (premium + fee)
-        // price = (0.9^1 * 1_000) + 0.00916894977 = 900.009169
-        // Audit: this value 0.00916894977 is slightly higher than expected, perhaps due to
-        // the approximation that we are using, should investigate further.
         vm.deal(bob, 1000 ether);
+
+        // After 1 step, we expect the bid premium to be 900.000000000000606000 after errors
+        vm.warp(JAN31_2023_TS + 8 hours);
+        uint256 bidPremium = 900.000000000000606000 ether;
+        uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
+
+        // Bid below the price and fail
         vm.startPrank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 900.0091 ether}(bob, ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: bidPrice - 1 wei}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1083,8 +1079,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
 
-        // 3. Bob bids and succeeds because bid > price
-        nameRegistry.bid{value: 900.0092 ether}(bob, ALICE_TOKEN_ID, recovery);
+        // Bid above the price and succeed
+        nameRegistry.bid{value: bidPrice}(bob, ALICE_TOKEN_ID, recovery);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         vm.stopPrank();
 
@@ -1100,20 +1096,21 @@ contract NameRegistryTest is Test {
         address bob,
         address recovery
     ) public {
-        // 1. Register alice and fast-forward to 800 hours into the auction
         _assumeClean(alice);
-
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
-        vm.warp(JAN31_2023_TS + (8 hours * 100));
-
-        // 2. Bob bids and fails because bid < price (premium + fee)
-        // price = (0.9^100 * 1_000) + 0.00826484018 = 0.0348262391
         vm.deal(bob, 1 ether);
+
+        // After 100 steps, we expect the bid premium to be 0.026561398887589000 after errors
+        vm.warp(JAN31_2023_TS + (8 hours * 100));
+        uint256 bidPremium = .026561398887589000 ether;
+        uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
+
+        // Bid below the price and fail
         vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 0.0348 ether}(bob, ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: bidPrice - 1 wei}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1122,9 +1119,9 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
 
-        // 3. Bob bids and succeeds because bid > price
+        // Bid above the price and succeed
         vm.prank(bob);
-        nameRegistry.bid{value: 0.0349 ether}(bob, ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: bidPrice}(bob, ALICE_TOKEN_ID, recovery);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
@@ -1133,25 +1130,26 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidOnPenultimateStep(
+    function testBidOnLastStep(
         address alice,
         address bob,
         address recovery
     ) public {
-        // 1. Register alice and fast-forward to 3056 hours into the auction
         _assumeClean(alice);
-
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
-        vm.warp(JAN31_2023_TS + (8 hours * 382));
+        vm.deal(bob, 1 ether);
 
-        // 2. Bob bids and fails because bid < price (premium + fee)
-        // price = (0.9^382 * 1_000) + 0.00568949772 = 0.00568949772 (+ ~ - 3.31e-15)
-        vm.deal(bob, 1000 ether);
+        // After 393 steps, we expect the bid premium to be 0.000000000000001000 after errors
+        vm.warp(JAN31_2023_TS + (8 hours * 393));
+        uint256 bidPremium = .000000000000001000 ether;
+        uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
+
+        // Bid below the price and fail
         vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 0.00568949771 ether}(bob, ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: bidPrice - 1 wei}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1160,9 +1158,9 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
 
-        // 3. Bob bids and succeeds because bid > price
+        // Bid above the price and succeed
         vm.prank(bob);
-        nameRegistry.bid{value: 0.005689498772 ether}(bob, ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: bidPrice}(bob, ALICE_TOKEN_ID, recovery);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
@@ -1171,24 +1169,25 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidFlatRate(
+    function testBidAfterLastStep(
         address alice,
         address bob,
         address recovery
     ) public {
         _assumeClean(bob);
         _assumeClean(alice);
-
         vm.assume(alice != bob);
         _register(alice);
+        vm.deal(bob, 1 ether);
 
-        vm.warp(JAN31_2023_TS + (8 hours * 383));
-        vm.deal(bob, 1000 ether);
+        // After 393 steps, we expect the bid premium to be 0.0 after errors
+        vm.warp(JAN31_2023_TS + (8 hours * 394));
+        uint256 bidPrice = nameRegistry.currYearFee();
 
-        // 2. Bob bids and fails because bid < price (0 + fee) == 0.0056803653
+        // Bid slightly lower than the bidPrice which fails
         vm.prank(bob);
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
-        nameRegistry.bid{value: 0.0056803652 ether}(bob, ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: bidPrice - 1 wei}(bob, ALICE_TOKEN_ID, recovery);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
@@ -1197,9 +1196,9 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
 
-        // 3. Bob bids and succeeds because bid > price (0 + fee)
+        // Bid with the bidPrice which succeeds
         vm.prank(bob);
-        nameRegistry.bid{value: 0.0056803653 ether}(bob, ALICE_TOKEN_ID, recovery);
+        nameRegistry.bid{value: bidPrice}(bob, ALICE_TOKEN_ID, recovery);
         vm.stopPrank();
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);

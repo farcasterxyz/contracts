@@ -190,7 +190,7 @@ contract NameRegistry is
     uint256 internal constant BID_PERIOD_DECREASE_UD60X18 = 0.9 ether;
 
     /// @dev 60.18-decimal fixed-point that approximates divide by 28,800 when multiplied
-    uint256 internal constant DIV_28800_UD60X18 = 3.47222222e13;
+    uint256 internal constant DIV_28800_UD60X18 = 3.4722222222222e13;
 
     bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
@@ -478,10 +478,9 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Bid to purchase an expired fname in the dutch auction, whose price is the sum of
-     *         the current year's fee and a premium. The premium is set to 1000 ether on Feb 1st
-     *         and decays by ~10% per period (8 hours) until it reaches zero mid-year. The premium
-     *         reduction is computed with the identity (x^y = exp(ln(x) * y))
+     * @notice Bid to purchase an expired fname in a dutch auction and register it through the end
+     *         of the calendar year. The winning bid starts at ~1000.01 ETH on Feb 1st and decays
+     *         exponentially until it reaches 0 at the end of Dec 31st.
      *
      * @param to       The address where the fname should be transferred
      * @param tokenId  The tokenId of the fname to bid on
@@ -508,25 +507,51 @@ contract NameRegistry is
 
         uint256 price;
 
-        unchecked {
-            // Safety: cannot underflow because auctionStartTimestamp always <= block.timestamp and
-            // cannot overflow because block.timestamp - auctionStartTimestamp realistically will not
-            // evaluate to more than 10^10 (~315 years) which can be safely multiplied with the
-            // DIV_28800_UD60X18 constant and stay under the int256 max value.
+        /**
+         * The price to win a bid is calculated with formula price = dutch_premium + renewal_fee
+         *
+         * dutch_premium: 1000 ETH, decreases exponentially by 10% every 8 hours since Jan 31
+         * renewal_fee  : 0.01 ETH, decreases linearly by 1/31536000 every second since Jan 1
+         *
+         * dutch_premium = 1000 ether * (0.9)^(periods), where:
+         * periods = (block.timestamp - auctionStartTimestamp) / 28_800
+         *
+         * Periods are calculated with fixed-point multiplication which causes a slight error
+         * that increases the price (DivErr), while dutch_premium is calculated with the identity
+         * (x^y = exp(ln(x) * y)) which truncates 3 digits of precision and slightly lowers the
+         * price (ExpErr).
+         *
+         * The two errors interact in different ways keeping the price slightly higher or lower
+         * than expected as shown below:
+         *
+         * +=========+======================+========================+========================+
+         * | Periods |        NoErr         |         DivErr         |    PowErr + DivErr     |
+         * +=========+======================+========================+========================+
+         * |       1 |                900.0 | 900.000000000000606876 | 900.000000000000606000 |
+         * +---------+----------------------+------------------------+------------------------+
+         * |      10 |          348.6784401 | 348.678440100002351164 | 348.678440100002351000 |
+         * +---------+----------------------+------------------------+------------------------+
+         * |     100 | 0.026561398887587476 |   0.026561398887589867 |   0.026561398887589000 |
+         * +---------+----------------------+------------------------+------------------------+
+         * |     393 | 0.000000000000001040 |   0.000000000000001040 |   0.000000000000001000 |
+         * +---------+----------------------+------------------------+------------------------+
+         * |     394 |                  0.0 |                    0.0 |                    0.0 |
+         * +---------+----------------------+------------------------+------------------------+
+         *
+         */
 
-            // Calculate the number of 8 hr periods elapsed since the auction started by dividing
-            // the number of seconds elapsed by 28,800 using fixed-point decimals with 18 places
+        unchecked {
+            // Safety: cannot underflow because auctionStartTimestamp <= block.timestamp and cannot
+            // overflow because block.timestamp - auctionStartTimestamp realistically will stay
+            // under 10^10 for the next 50 years, which can be safely multiplied with
+            // DIV_28800_UD60X18
             int256 periodsSD59x18 = int256((block.timestamp - auctionStartTimestamp) * DIV_28800_UD60X18);
 
-            // Perf: Avoided pre-computing the values for some periods and saving them in storage which
-            // adds a lot of complexity for small gas savings (need to estimate, but probably <1k gas
-            // in certain cases
+            // Perf: Precomputing common values might save gas but at the expense of storage which
+            // is our biggest constraint and so it was discarded.
 
-            // Audit: intuitively the below cannot underflow, but how do we prove it?
-
-            // Calculate the current bid price by taking the starting price (1000 ETH) and discounting
-            // it by the decrease factor (10%) for every 8 hour period elapsed since the auction started
-            // and adding the renewal fee for the remainder of the year.
+            // Safety/Audit: the below cannot intuitively underflow or overflow given the ranges,
+            // but needs proof
             price =
                 uint256(BID_START_PRICE).mulWadDown(
                     uint256(FixedPointMathLib.powWad(int256(BID_PERIOD_DECREASE_UD60X18), periodsSD59x18))
@@ -546,10 +571,18 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, ) = msg.sender.call{value: msg.value - price}("");
-        if (!success) revert CallFailed();
+        uint256 refund;
+        unchecked {
+            // Safety: msg.value >= price from above check so it cannot underflow
+            refund = msg.value - price;
+        }
+
+        if (refund > 0) {
+            // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
+            // solhint-disable-next-line avoid-low-level-calls
+            (bool success, ) = msg.sender.call{value: refund}("");
+            if (!success) revert CallFailed();
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
