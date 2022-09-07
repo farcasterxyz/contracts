@@ -859,7 +859,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(bob.balance, amount - nameRegistry.currYearFee());
+        assertEq(bob.balance, amount - FEE);
     }
 
     function testCannotRenewWithoutPayment(address alice, uint256 amount) public {
