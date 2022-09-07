@@ -179,7 +179,7 @@ contract NameRegistry is
 
     string internal constant BASE_URI = "http://www.farcaster.xyz/u/";
 
-    uint256 internal constant GRACE_PERIOD = 30 days;
+    uint256 internal constant GRACE_PERIOD = 31 days;
 
     uint256 internal constant ESCROW_PERIOD = 3 days;
 
