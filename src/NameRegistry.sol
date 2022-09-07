@@ -200,6 +200,8 @@ contract NameRegistry is
 
     bytes32 internal constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
+    uint256 internal constant INITIAL_FEE = 0.01 ether;
+
     /*//////////////////////////////////////////////////////////////
                       CONSTRUCTORS AND INITIALIZERS
     //////////////////////////////////////////////////////////////*/
@@ -242,9 +244,13 @@ contract NameRegistry is
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         vault = _vault;
-        pool = _pool;
+        emit ChangeVault(_vault);
 
-        fee = 0.01 ether;
+        pool = _pool;
+        emit ChangePool(_pool);
+
+        fee = INITIAL_FEE;
+        emit ChangeFee(INITIAL_FEE);
 
         trustedOnly = 1;
 
