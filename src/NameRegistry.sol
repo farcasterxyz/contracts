@@ -105,25 +105,80 @@ contract NameRegistry is
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Emit an event when a Farcaster Name is renewed for another year.
+     *
+     * @param tokenId The keccak256 hash of the fname
+     * @param expiry  The timestamp at which the renewal expires
+     */
     event Renew(uint256 indexed tokenId, uint256 expiry);
 
+    /**
+     * @dev Emit an event when a user invites another user to register a Farcaster Name
+     *
+     * @param inviterId The fid of the user with the invite
+     * @param inviteeId The fid of the user receiving the invite
+     * @param fname     The fname that was registered by the invitee
+     */
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
+
+    /**
+     * @dev Emit an event when a Farcaster Name's recovery address is updated
+     *
+     * @param tokenId  The keccak256 hash of the fname being updated
+     * @param recovery The new recovery address
+     */
     event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
 
-    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
+    /**
+     * @dev Emit an event when a recovery request is initiated for a Farcaster Name
+     *
+     * @param from     The custody address of the fname being recovered.
+     * @param to       The destination address for the fname when the recovery is completed.
+     * @param tokenId  The keccak256 hash of the fname being recovered
+     */
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed tokenId);
 
-    event CancelRecovery(address indexed sender, uint256 indexed id);
+    /**
+     * @dev Emit an event when a recovery request is cancelled
+     *
+     * @param by      The address that cancelled the recovery request
+     * @param tokenId The keccak256 hash of the fname
+     */
+    event CancelRecovery(address indexed by, uint256 indexed tokenId);
 
-    event ChangeVault(address indexed vault);
-
-    event ChangePool(address indexed pool);
-
+    /**
+     * @dev Emit an event when the trusted caller is modified
+     *
+     * @param trustedCaller The address of the new trusted caller.
+     */
     event ChangeTrustedCaller(address indexed trustedCaller);
 
-    event DisableTrustedRegister();
+    /**
+     * @dev Emit an event when the trusted only state is disabled.
+     */
+    event DisableTrustedOnly();
 
+    /**
+     * @dev Emit an event when the vault address is modified
+     *
+     * @param vault The address of the new vault.
+     */
+    event ChangeVault(address indexed vault);
+
+    /**
+     * @dev Emit an event when the pool address is modified
+     *
+     * @param pool The address of the new pool.
+     */
+    event ChangePool(address indexed pool);
+
+    /**
+     * @dev Emit an event when the fee is changed
+     *
+     * @param fee The new yearly registration fee
+     */
     event ChangeFee(uint256 fee);
-
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -200,6 +255,8 @@ contract NameRegistry is
 
     bytes32 internal constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
+    uint256 internal constant INITIAL_FEE = 0.01 ether;
+
     /*//////////////////////////////////////////////////////////////
                       CONSTRUCTORS AND INITIALIZERS
     //////////////////////////////////////////////////////////////*/
@@ -242,9 +299,13 @@ contract NameRegistry is
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         vault = _vault;
-        pool = _pool;
+        emit ChangeVault(_vault);
 
-        fee = 0.01 ether;
+        pool = _pool;
+        emit ChangePool(_pool);
+
+        fee = INITIAL_FEE;
+        emit ChangeFee(INITIAL_FEE);
 
         trustedOnly = 1;
 
@@ -338,8 +399,9 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Save a commitment on-chain which can be revealed later to register an fname.
-     *         Commits are allowed even when the contract is paused.
+     * @notice Save a commitment on-chain which can be revealed later to register an fname while
+     *         protecting the registration from being front-run. This is allowed even when the
+     *         contract is paused.
      *
      * @param commit The commitment hash to be persisted on-chain
      */
@@ -350,10 +412,9 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Mint a new fname if the inputs provided match a commitment that was previously made.
-     *         This must be called at least 60 seconds after the commit was made to prevent
-     *         front-running within the same block. It fails when paused because it invokes _mint
-     *         which in turn invokes the beforeTransfer hook which fails.
+     * @notice Mint a new fname if the inputs match a previous commit and if it was called at least
+     *         60 seconds after the commit's timestamp to prevent frontrunning within the same block.
+     *         It fails when paused because it invokes _mint which in turn invokes beforeTransfer()
      *
      * @param fname    The fname to register
      * @param to       The address that will own the fname
@@ -386,10 +447,11 @@ contract NameRegistry is
         uint256 tokenId = uint256(bytes32(fname));
         _mint(to, tokenId);
 
+        // Clearing unnecessary storage reduces gas consumption
         delete timestampOf[commit];
 
         unchecked {
-            // Safety: _currYear is guaranteed to be a known gregorian calendar year and cannot overflow
+            // Safety: _currYear must be a known calendar year and cannot overflow
             expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
         }
 
@@ -511,7 +573,7 @@ contract NameRegistry is
             auctionStartTimestamp = expiryTs + GRACE_PERIOD;
         }
 
-        if (auctionStartTimestamp > block.timestamp) revert NotBiddable();
+        if (block.timestamp < auctionStartTimestamp) revert NotBiddable();
 
         uint256 price;
 
@@ -617,6 +679,7 @@ contract NameRegistry is
         address to,
         uint256 id
     ) public override {
+        // Expired names should not be transferrable by the previous owner
         if (block.timestamp >= expiryOf[id]) revert Expired();
 
         super.transferFrom(from, to, id);
@@ -858,7 +921,7 @@ contract NameRegistry is
         // and it reduces our attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         trustedOnly = 0;
-        emit DisableTrustedRegister();
+        emit DisableTrustedOnly();
     }
 
     /**
@@ -927,9 +990,12 @@ contract NameRegistry is
      *      failing. This can be resolved by deploying a new contract with updated timestamps.
      */
     function currYear() public returns (uint256 year) {
-        // Audit: this function is kept public for testing
+        // Audit: block.timestamp could "roll back" to a prior year for a block in specific
+        // circumstances and this function would return the future year even though the block
+        // believes itself to be in the prior year, but it is expected to cause no issues since
+        // the rest of the contract relies on currYear() which never moves backward chronologically.
 
-        // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
+        // Implies that year has not changed since the last call, so return cached value
         if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
             unchecked {
                 // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
@@ -937,6 +1003,10 @@ contract NameRegistry is
             }
         }
 
+        // The year has changed and it may have changed by more than one year since the last call.
+        // Iterate through the array of year timestamps starting from the last known year until
+        // the first one is found that is higher than the block timestamp. Set the current year to
+        // the year that precedes that year.
         uint256 length = _yearTimestamps.length;
 
         uint256 idx;
@@ -963,7 +1033,7 @@ contract NameRegistry is
             }
         }
 
-        // Reached the end of the array without finding a year, this should never happen until 2072
+        // Iterated through the array without finding a year, this should never happen until 2072
         revert InvalidTime();
     }
 
@@ -973,15 +1043,14 @@ contract NameRegistry is
      *
      */
     function currYearFee() public returns (uint256) {
-        // Audit: this function is kept public for testing
         uint256 _currYear = currYear();
 
         unchecked {
-            // Safety: _currYear() returns a gregorian calendar year and cannot realistically overflow
+            // Safety: _currYear() returns a calendar year and cannot realistically overflow
             uint256 nextYearTimestamp = _timestampOfYear(_currYear + 1);
 
-            // Safety: nextYearTimestamp is guaranteed to be > block.timestamp and > _timestampOfYear(_currYear) so
-            // this cannot underflow
+            // Safety: nextYearTimestamp > block.timestamp >= _timestampOfYear(_currYear) so this
+            // cannot underflow
             return ((nextYearTimestamp - block.timestamp) * fee) / (nextYearTimestamp - _timestampOfYear(_currYear));
         }
     }
@@ -1022,17 +1091,19 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Returns true if the name meets our conditions for a valid fname.
+     * @dev Reverts if the name contains an invalid fname character
      */
     // solhint-disable-next-line code-complexity
     function _validateName(bytes16 fname) internal pure {
         uint256 length = fname.length;
         bool nameEnded = false;
 
-        // Iterate over the bytes16 fname one char at a time, ensuring that:
-        //   1. The name begins with [a-z 0-9] or the ascii numbers [48-57, 97-122] inclusive
-        //   2. The name can contain [a-z 0-9 -] or the ascii numbers [45, 48-57, 97-122] inclusive
-        //   3. Once the name is ended with a NULL char (0), the follows character must also be NULLs
+        /**
+         * Iterate over the bytes16 fname one char at a time, ensuring that:
+         *   1. The name begins with [a-z 0-9] or the ascii numbers [48-57, 97-122] inclusive
+         *   2. The name can contain [a-z 0-9 -] or the ascii numbers [45, 48-57, 97-122] inclusive
+         *   3. Once the name is ended with a NULL char (0), the follows character must also be NULLs
+         */
 
         // If the name begins with a hyphen, reject it
         if (uint8(fname[0]) == 45) revert InvalidName();
@@ -1041,12 +1112,12 @@ contract NameRegistry is
             uint8 charInt = uint8(fname[i]);
 
             if (nameEnded) {
-                // Since the name has ended, ensure that this character is NULL.
+                // Only NULL characters are allowed after a name has ended
                 if (charInt != 0) {
                     revert InvalidName();
                 }
             } else {
-                // Since the name hasn't ended ensure that this character does not contain any invalid ascii values
+                // Only valid ASCII characters [45, 48-57, 97-122] are allowed before the name ends
                 if ((charInt >= 1 && charInt <= 44)) {
                     revert InvalidName();
                 }
@@ -1063,8 +1134,8 @@ contract NameRegistry is
                     revert InvalidName();
                 }
 
-                // On seeing the first NULL char in the name, revert if is the first char in the name, otherwise
-                // mark the name as ended
+                // On seeing the first NULL char in the name, revert if is the first char in the
+                // name, otherwise mark the name as ended
                 if (charInt == 0) {
                     if (i == 0) revert InvalidName();
                     nameEnded = true;

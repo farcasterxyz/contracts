@@ -12,5 +12,5 @@
   "[solidity]": {
     "editor.defaultFormatter": "JuanBlanco.solidity"
   },
-  "cSpell.words": ["curr", "Invitable"]
+  "cSpell.words": ["curr", "Invitable", "Pausable", "UUPS"]
 }

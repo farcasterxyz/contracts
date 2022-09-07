@@ -23,15 +23,15 @@ contract NameRegistryTest is Test {
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
     event Renew(uint256 indexed tokenId, uint256 expiry);
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
     event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
-    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
-    event CancelRecovery(address indexed sender, uint256 indexed id);
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed tokenId);
+    event CancelRecovery(address indexed by, uint256 indexed tokenId);
+    event ChangeTrustedCaller(address indexed trustedCaller);
+    event DisableTrustedOnly();
     event ChangeVault(address indexed vault);
     event ChangePool(address indexed pool);
-    event ChangeTrustedCaller(address indexed trustedCaller);
-    event DisableTrustedRegister();
     event ChangeFee(uint256 fee);
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -2581,20 +2581,34 @@ contract NameRegistryTest is Test {
                           YEARLY PAYMENTS TESTS
     //////////////////////////////////////////////////////////////*/
 
+    // currYear() must be tested in a single test fn chronologically to reach all code paths
     function testCurrYear() public {
-        // Incorrectly returns 2021 for any date before 2021
-        vm.warp(1607558400); // GMT Thursday, December 10, 2020 0:00:00
+        // Date before 2021 incorrectly returns 2021
+        vm.warp(1607558400); // GMT Dec 10, 2020 0:00:00
         assertEq(nameRegistry.currYear(), 2021);
 
-        // Works correctly for known year range [2021 - 2072]
-        vm.warp(1640095200); // GMT Tuesday, December 21, 2021 14:00:00
+        // Date in known year range
+        vm.warp(1640095200); // GMT Dec 21, 2021 14:00:00
         assertEq(nameRegistry.currYear(), 2021);
 
-        vm.warp(1670889599); // GMT Monday, December 12, 2022 23:59:59
+        // Date in the same year as previous
+        vm.warp(1640390400); // GMT Dec 25, 2021 14:00:00
+        assertEq(nameRegistry.currYear(), 2021);
+
+        // Date which is the last second of a calendar year
+        vm.warp(1672531199); // GMT Dec 31, 2022 11:59:59
         assertEq(nameRegistry.currYear(), 2022);
 
-        // Does not work after 2072
-        vm.warp(3250454400); // GMT Friday, January 1, 2073 0:00:00
+        // Date which is the first second of the following year
+        vm.warp(1672531200); // GMT Jan 1, 2023 00:00:00
+        assertEq(nameRegistry.currYear(), 2023);
+
+        // Date which skips a year from the previous call
+        vm.warp(1738368000); // GMT Feb 1, 2025 00:00:00
+        assertEq(nameRegistry.currYear(), 2025);
+
+        // Date after 2072 which reverts
+        vm.warp(3250454400); // GMT Jan 1, 2073 0:00:00
         vm.expectRevert(NameRegistry.InvalidTime.selector);
         assertEq(nameRegistry.currYear(), 0);
     }

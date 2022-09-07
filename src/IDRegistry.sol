@@ -100,14 +100,14 @@ contract IDRegistry is ERC2771Context, Ownable {
     event CancelRecovery(address indexed by, uint256 indexed id);
 
     /**
-     * @dev Emit an event when the trusted caller is modified by the owner.
+     * @dev Emit an event when the trusted caller is modified.
      *
      * @param trustedCaller The address of the new trusted caller.
      */
     event ChangeTrustedCaller(address indexed trustedCaller);
 
     /**
-     * @dev Emit an event when the trusted only is disabled by the owner.
+     * @dev Emit an event when the trusted only state is disabled.
      */
     event DisableTrustedOnly();
 
