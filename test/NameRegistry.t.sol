@@ -1011,13 +1011,14 @@ contract NameRegistryTest is Test {
         _register(alice);
         vm.assume(alice != charlie);
         vm.assume(charlie != address(0));
-        vm.assume(amount >= (BID_START + FEE) && amount < (type(uint256).max - 3 wei));
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery1);
 
-        vm.deal(bob, amount);
         vm.warp(JAN31_2023_TS);
+        uint256 winningBid = BID_START + nameRegistry.currYearFee();
+        vm.assume(amount >= (winningBid) && amount < (type(uint256).max - 3 wei));
+        vm.deal(bob, amount);
 
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
@@ -1029,7 +1030,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(charlie), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
-        assertEq(bob.balance, amount - (BID_START + nameRegistry.currYearFee()));
+        assertEq(bob.balance, amount - (winningBid));
     }
 
     function testBidResetsERC721Approvals(
