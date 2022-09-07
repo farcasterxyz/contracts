@@ -571,18 +571,10 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
-        uint256 refund;
-        unchecked {
-            // Safety: msg.value >= price from above check so it cannot underflow
-            refund = msg.value - price;
-        }
-
-        if (refund > 0) {
-            // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
-            // solhint-disable-next-line avoid-low-level-calls
-            (bool success, ) = msg.sender.call{value: refund}("");
-            if (!success) revert CallFailed();
-        }
+        // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, ) = msg.sender.call{value: msg.value - price}("");
+        if (!success) revert CallFailed();
     }
 
     /*//////////////////////////////////////////////////////////////
