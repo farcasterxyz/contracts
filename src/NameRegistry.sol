@@ -105,25 +105,80 @@ contract NameRegistry is
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Emit an event when a Farcaster Name is renewed for another year.
+     *
+     * @param tokenId The keccak256 hash of the fname
+     * @param expiry  The timestamp at which the renewal expires
+     */
     event Renew(uint256 indexed tokenId, uint256 expiry);
 
+    /**
+     * @dev Emit an event when a user invites another user to register a Farcaster Name
+     *
+     * @param inviterId The fid of the user with the invite
+     * @param inviteeId The fid of the user receiving the invite
+     * @param fname     The fname that was registered by the invitee
+     */
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
+
+    /**
+     * @dev Emit an event when a Farcaster Name's recovery address is updated
+     *
+     * @param tokenId  The keccak256 hash of the fname being updated
+     * @param recovery The new recovery address
+     */
     event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
 
-    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
+    /**
+     * @dev Emit an event when a recovery request is initiated for a Farcaster Name
+     *
+     * @param from     The custody address of the fname being recovered.
+     * @param to       The destination address for the fname when the recovery is completed.
+     * @param tokenId  The keccak256 hash of the fname being recovered
+     */
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed tokenId);
 
-    event CancelRecovery(address indexed sender, uint256 indexed id);
+    /**
+     * @dev Emit an event when a recovery request is cancelled
+     *
+     * @param by      The address that cancelled the recovery request
+     * @param tokenId The keccak256 hash of the fname
+     */
+    event CancelRecovery(address indexed by, uint256 indexed tokenId);
 
-    event ChangeVault(address indexed vault);
-
-    event ChangePool(address indexed pool);
-
+    /**
+     * @dev Emit an event when the trusted caller is modified
+     *
+     * @param trustedCaller The address of the new trusted caller.
+     */
     event ChangeTrustedCaller(address indexed trustedCaller);
 
-    event DisableTrustedRegister();
+    /**
+     * @dev Emit an event when the trusted only state is disabled.
+     */
+    event DisableTrustedOnly();
 
+    /**
+     * @dev Emit an event when the vault address is modified
+     *
+     * @param vault The address of the new vault.
+     */
+    event ChangeVault(address indexed vault);
+
+    /**
+     * @dev Emit an event when the pool address is modified
+     *
+     * @param pool The address of the new pool.
+     */
+    event ChangePool(address indexed pool);
+
+    /**
+     * @dev Emit an event when the fee is changed
+     *
+     * @param fee The new yearly registration fee
+     */
     event ChangeFee(uint256 fee);
-
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -866,7 +921,7 @@ contract NameRegistry is
         // and it reduces our attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         trustedOnly = 0;
-        emit DisableTrustedRegister();
+        emit DisableTrustedOnly();
     }
 
     /**

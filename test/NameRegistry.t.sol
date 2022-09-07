@@ -23,15 +23,15 @@ contract NameRegistryTest is Test {
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
     event Renew(uint256 indexed tokenId, uint256 expiry);
+    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
     event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
-    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
-    event CancelRecovery(address indexed sender, uint256 indexed id);
+    event RequestRecovery(address indexed from, address indexed to, uint256 indexed tokenId);
+    event CancelRecovery(address indexed by, uint256 indexed tokenId);
+    event ChangeTrustedCaller(address indexed trustedCaller);
+    event DisableTrustedOnly();
     event ChangeVault(address indexed vault);
     event ChangePool(address indexed pool);
-    event ChangeTrustedCaller(address indexed trustedCaller);
-    event DisableTrustedRegister();
     event ChangeFee(uint256 fee);
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
