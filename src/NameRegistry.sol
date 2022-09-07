@@ -511,7 +511,7 @@ contract NameRegistry is
             auctionStartTimestamp = expiryTs + GRACE_PERIOD;
         }
 
-        if (auctionStartTimestamp > block.timestamp) revert NotBiddable();
+        if (block.timestamp < auctionStartTimestamp) revert NotBiddable();
 
         uint256 price;
 
@@ -932,7 +932,6 @@ contract NameRegistry is
         // believes itself to be in the prior year, but it is expected to cause no issues since
         // the rest of the contract relies on currYear() which never moves backward chronologically.
 
-        // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
         if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
             unchecked {
                 // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
