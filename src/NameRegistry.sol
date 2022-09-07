@@ -927,7 +927,10 @@ contract NameRegistry is
      *      failing. This can be resolved by deploying a new contract with updated timestamps.
      */
     function currYear() public returns (uint256 year) {
-        // Audit: this function is kept public for testing
+        // Audit: block.timestamp could "roll back" to a prior year for a block in specific
+        // circumstances and this function would return the future year even though the block
+        // believes itself to be in the prior year, but it is expected to cause no issues since
+        // the rest of the contract relies on currYear() which never moves backward chronologically.
 
         // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
         if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
