@@ -462,9 +462,13 @@ contract NameRegistry is
     function makeCommit(bytes32 commit) external payable {
         if (trustedOnly == 1) revert Invitable();
 
-        // Commits cannot be re-submitted immediately to prevent griefing by re-submitting commits
-        // to reset the REVEAL_DELAY clock
-        if (block.timestamp <= timestampOf[commit] + COMMIT_REPLAY_DELAY) revert CommitReplay();
+        unchecked {
+            // Safety: timestampOf is always set to block.timestamp and cannot overflow here
+
+            // Commits cannot be re-submitted immediately to prevent griefing by re-submitting commits
+            // to reset the REVEAL_DELAY clock
+            if (block.timestamp <= timestampOf[commit] + COMMIT_REPLAY_DELAY) revert CommitReplay();
+        }
 
         // Save the commit and start the REVEAL_DELAY clock
         timestampOf[commit] = block.timestamp;
