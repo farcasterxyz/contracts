@@ -211,6 +211,8 @@ contract IDRegistry is ERC2771Context, Ownable {
     /**
      * @notice Emit an event with a new home url if the caller owns an fid. This function supports
      *         ERC 2771 meta-transactions and can be called via a relayer.
+     *
+     * @param url The new home url for the fid
      */
     function changeHome(string calldata url) external payable {
         uint256 id = idOf[_msgSender()];
@@ -243,8 +245,10 @@ contract IDRegistry is ERC2771Context, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Transfer the fid to another address that does not have an fid. This function
-     *         supports ERC 2771 meta-transactions and can be called via a relayer.
+     * @notice Transfer the fid owned by this address to another address that does not have an fid.
+     *         Supports ERC 2771 meta-transactions and can be called via a relayer.
+     *
+     * @param to The address to transfer the fid to.
      */
     function transfer(address to) external payable {
         address sender = _msgSender();
@@ -310,8 +314,8 @@ contract IDRegistry is ERC2771Context, Ownable {
      */
 
     /**
-     * @notice Change the recovery address of the fid owned by this address and reset any
-     *         active recovery requests. Supports ERC 2771 meta-transactions and can be called by a
+     * @notice Change the recovery address of the fid owned by this address and reset active
+     *         recovery requests. Supports ERC 2771 meta-transactions and can be called by a
      *         relayer.
      *
      * @param recovery The address which can recover the fid (set to 0x0 to disable recovery)
@@ -353,7 +357,8 @@ contract IDRegistry is ERC2771Context, Ownable {
 
     /**
      * @notice Complete a recovery request and transfer the fid if the caller is the recovery
-     *         address. Supports ERC 2771 meta-transactions and can be called via a relayer.
+     *         address and the escrow period has passed. Supports ERC 2771 meta-transactions and
+     *         can be called via a relayer.
      *
      * @param from The address that owns the id.
      */
@@ -412,10 +417,12 @@ contract IDRegistry is ERC2771Context, Ownable {
 
     /**
      * @notice Change the trusted caller by calling this from the contract's owner.
+     *
+     * @param _trustedCaller The address of the new trusted caller
      */
-    function changeTrustedCaller(address newTrustedCaller) external payable onlyOwner {
-        trustedCaller = newTrustedCaller;
-        emit ChangeTrustedCaller(newTrustedCaller);
+    function changeTrustedCaller(address _trustedCaller) external payable onlyOwner {
+        trustedCaller = _trustedCaller;
+        emit ChangeTrustedCaller(_trustedCaller);
     }
 
     /**

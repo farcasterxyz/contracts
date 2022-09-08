@@ -111,7 +111,7 @@ contract NameRegistry is
     /**
      * @dev Emit an event when a Farcaster Name is renewed for another year.
      *
-     * @param tokenId The keccak256 hash of the fname
+     * @param tokenId The uint256 representation of the fname
      * @param expiry  The timestamp at which the renewal expires
      */
     event Renew(uint256 indexed tokenId, uint256 expiry);
@@ -128,7 +128,7 @@ contract NameRegistry is
     /**
      * @dev Emit an event when a Farcaster Name's recovery address is updated
      *
-     * @param tokenId  The keccak256 hash of the fname being updated
+     * @param tokenId  The uint256 representation of the fname being updated
      * @param recovery The new recovery address
      */
     event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
@@ -138,7 +138,7 @@ contract NameRegistry is
      *
      * @param from     The custody address of the fname being recovered.
      * @param to       The destination address for the fname when the recovery is completed.
-     * @param tokenId  The keccak256 hash of the fname being recovered
+     * @param tokenId  The uint256 representation of the fname being recovered
      */
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed tokenId);
 
@@ -146,7 +146,7 @@ contract NameRegistry is
      * @dev Emit an event when a recovery request is cancelled
      *
      * @param by      The address that cancelled the recovery request
-     * @param tokenId The keccak256 hash of the fname
+     * @param tokenId The uint256 representation of the fname
      */
     event CancelRecovery(address indexed by, uint256 indexed tokenId);
 
@@ -219,7 +219,7 @@ contract NameRegistry is
     mapping(bytes32 => uint256) public timestampOf;
 
     /**
-     * @notice Maps each the keccak256 hash of an fname to the time at which it expires
+     * @notice Maps each the uint256 representation of an fname to the time at which it expires
      * @dev    Occupies slot 4
      */
     mapping(uint256 => uint256) public expiryOf;
@@ -250,21 +250,21 @@ contract NameRegistry is
     uint256 internal nextYearIdx;
 
     /**
-     * @notice Maps each keccak256 hash of an fname to the address that can recover it
+     * @notice Maps each uint256 representation of an fname to the address that can recover it
      * @dev    Occupies slot 9
      */
     mapping(uint256 => address) public recoveryOf;
 
     /**
-     * @notice Maps each keccak256 hash of an fname to the timestamp of the recovery attempt or
-     *         zero if there is no active recovery.
+     * @notice Maps each uint256 representation of an fname to the timestamp of the recovery
+     *         attempt or zero if there is no active recovery.
      * @dev    Occupies slot 10
      */
     mapping(uint256 => uint256) public recoveryClockOf;
 
     /**
-     * @notice Maps each keccak256 hash of an fname to the destination address of the most recent
-     *         recovery attempt.
+     * @notice Maps each uint256 representation of an fname to the destination address of the most
+     *         recent recovery attempt.
      * @dev    Occupies slot 11, and the value is left dirty after a recovery to save gas and should
      *         not be relied upon to check if there is an active recovery.
      */
@@ -506,8 +506,11 @@ contract NameRegistry is
             if (block.timestamp < commitTs + REVEAL_DELAY) revert InvalidCommit();
         }
 
-        // Mint checks that to != address(0) and that the tokenId wasn't previously issued
+        // ERC-721's require a unique token number for each fname token, and we calculate this by
+        // converting the byte16 representation into a uint256
         uint256 tokenId = uint256(bytes32(fname));
+
+        // Mint checks that to != address(0) and that the tokenId wasn't previously issued
         _mint(to, tokenId);
 
         // Clearing unnecessary storage reduces gas consumption
@@ -538,6 +541,8 @@ contract NameRegistry is
      * @param to the address that will claim the fname
      * @param fname the fname to register
      * @param recovery address which can recovery the fname if the custody address is lost
+     * @param inviter the fid of the user who invited the new user to get an fname
+     * @param invitee the fid of the user who was invited to get an fname
      */
     function trustedRegister(
         bytes16 fname,
@@ -574,7 +579,7 @@ contract NameRegistry is
     /**
      * @notice Renew a name for another year while it is in the renewable period (Jan 1 - Jan 30)
      *
-     * @param tokenId the tokenId of the name to renew
+     * @param tokenId The uint256 representation of the fname to renew
      */
     function renew(uint256 tokenId) external payable whenNotPaused {
         uint256 _fee = fee;
@@ -617,7 +622,7 @@ contract NameRegistry is
      *         exponentially until it reaches 0 at the end of Dec 31st.
      *
      * @param to       The address where the fname should be transferred
-     * @param tokenId  The tokenId of the fname to bid on
+     * @param tokenId  The uint256 representation of the fname to bid on
      * @param recovery The address which can recovery the fname if the custody address is lost
      */
     function bid(
@@ -721,6 +726,8 @@ contract NameRegistry is
 
     /**
      * @notice Override the ownerOf implementation to throw if an fname is renewable or biddable.
+     *
+     * @param tokenId The uint256 representation of the fname to check
      */
     function ownerOf(uint256 tokenId) public view override returns (address) {
         uint256 expiryTs = expiryOf[tokenId];
@@ -737,6 +744,10 @@ contract NameRegistry is
 
     /**
      * @notice Override the transferFrom implementation to throw if the name is renewable or biddable.
+     *
+     * @param from The address which currently holds the fname
+     * @param to   The address to transfer the fname to
+     * @param id   The uint256 representation of the fname to transfer
      */
     function transferFrom(
         address from,
@@ -752,6 +763,8 @@ contract NameRegistry is
     /**
      * @notice Return a distinct Uniform Resource Identifier (URI) for a given tokenId and throws
      *         if tokenId is not a valid token ID.
+     *
+     * @param tokenId The uint256 representation of the fname
      */
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
         uint256 lastCharIdx = 0;
@@ -831,6 +844,7 @@ contract NameRegistry is
      * @notice Change the recovery address of the fname and reset any active recovery requests.
      *         Supports ERC 2771 meta-transactions and can be called by a relayer.
      *
+     * @param tokenId  The uint256 representation of the fname
      * @param recovery The address which can recover the fname (set to 0x0 to disable recovery)
      */
     function changeRecoveryAddress(uint256 tokenId, address recovery) external payable whenNotPaused {
@@ -851,7 +865,7 @@ contract NameRegistry is
      *         overwritten by making another request, and can be made if the fname is in
      *         renewable or biddable state.
      *
-     * @param tokenId The tokenId of the fname being transferred.
+     * @param tokenId The uint256 representation of the fname
      * @param to      The address to transfer the fname to, which cannot be address(0)
      */
     function requestRecovery(uint256 tokenId, address to) external payable whenNotPaused {
@@ -872,12 +886,11 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Completes a recovery request and transfers the name if the escrow is complete and
-     *         the fname is still registered.
+     * @notice Complete a recovery request and transfer the fname if the caller is the recovery
+     *         address and the escrow period has passed. Supports ERC 2771 meta-transactions and
+     *         can be called by a relayer. Cannot be called when paused because _transfer reverts.
      *
-     * @dev The completeRecovery function cannot be called when the contract is paused because _transfer will revert.
-     *
-     * @param tokenId the uint256 representation of the fname.
+     * @param tokenId The uint256 representation of the fname
      */
     function completeRecovery(uint256 tokenId) external payable {
         if (block.timestamp >= expiryOf[tokenId]) revert Expired();
@@ -898,12 +911,11 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Cancels a transfer request if the caller is the recovery or the custodyAddress
+     * @notice Cancel an active recovery request if the caller is the recovery address or the
+     *         custody address. Supports ERC 2771 meta-transactions and can be called by a relayer.
+     *         Can be called even if the contract is paused to avoid griefing before a known pause.
      *
-     * @dev cancelRecovery is allowed even when the contract is paused to prevent the state where a user might be
-     *      unable to cancel a recovery request because the contract was paused for the escrow duration.
-     *
-     * @param tokenId the uint256 representation of the fname.
+     * @param tokenId The uint256 representation of the fname
      */
     function cancelRecovery(uint256 tokenId) external payable {
         address sender = _msgSender();
@@ -969,6 +981,8 @@ contract NameRegistry is
 
     /**
      * @notice Changes the address from which registerTrusted calls can be made
+     *
+     * @param _trustedCaller The address of the new trusted caller
      */
     function changeTrustedCaller(address _trustedCaller) external payable {
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
@@ -991,6 +1005,8 @@ contract NameRegistry is
 
     /**
      * @notice Changes the address to which funds can be withdrawn
+     *
+     * @param _vault The address of the new vault
      */
     function changeVault(address _vault) external payable {
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
@@ -1002,6 +1018,8 @@ contract NameRegistry is
 
     /**
      * @notice Changes the address to which names are reclaimed
+     *
+     * @param _pool The address of the new pool
      */
     function changePool(address _pool) external payable {
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
@@ -1016,7 +1034,9 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the yearly fee
+     * @notice Change the fee charged to register an fname for a full year
+     *
+     * @param _fee The new yearly fee
      */
     function changeFee(uint256 _fee) external payable {
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
@@ -1030,6 +1050,8 @@ contract NameRegistry is
 
     /**
      * @notice Withdraw a specified amount of ether to the vault
+     *
+     * @param amount The amount of ether to withdraw
      */
     function withdraw(uint256 amount) external payable {
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
@@ -1105,8 +1127,8 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Returns the fee (in ETH) required to register a name for the rest of the year,
-     *         prorated by the seconds left in the year.
+     * @dev Returns the fee (in ETH) required to register a name for the rest of the year, prorated
+     *      by the seconds left in the year.
      *
      */
     function currYearFee() public returns (uint256) {
