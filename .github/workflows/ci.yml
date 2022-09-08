@@ -41,6 +41,9 @@ jobs:
       - name: Run linter
         run: yarn lint
 
+      - name: Run audit
+        run: yarn audit
+
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:

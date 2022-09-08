@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.16;
+pragma solidity 0.8.16;
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
 import {IDRegistry} from "../src/IDRegistry.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.16;
+pragma solidity 0.8.16;
 
 import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/ContextUpgradeable.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -116,8 +116,8 @@ contract NameRegistryV2 is
     mapping(uint256 => uint256) public expiryOf;
     address public vault;
     address public pool;
-    uint256[] internal _yearTimestamps;
-    uint256 internal _nextYearIdx;
+    uint256[] internal yearTimestamps;
+    uint256 internal nextYearIdx;
     mapping(uint256 => address) public recoveryOf;
     mapping(uint256 => uint256) public recoveryClockOf;
     mapping(uint256 => address) public recoveryDestinationOf;
@@ -152,7 +152,7 @@ contract NameRegistryV2 is
 
         pool = _pool;
 
-        _yearTimestamps = [
+        yearTimestamps = [
             3250454400, // 2073
             3281990400, // 2074
             3313526400 // 2075
@@ -187,21 +187,21 @@ contract NameRegistryV2 is
     // Reimplementing currYear with new logic
     function currYear() public returns (uint256 year) {
         unchecked {
-            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
-            if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
-                return _nextYearIdx + 2072;
+            // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 2021
+            if (block.timestamp < yearTimestamps[nextYearIdx]) {
+                return nextYearIdx + 2072;
             }
 
-            uint256 length = _yearTimestamps.length;
+            uint256 length = yearTimestamps.length;
 
-            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 1
-            for (uint256 i = _nextYearIdx + 1; i < length; ) {
-                if (_yearTimestamps[i] > block.timestamp) {
+            // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 1
+            for (uint256 i = nextYearIdx + 1; i < length; ) {
+                if (yearTimestamps[i] > block.timestamp) {
                     // Slither false positive: https://github.com/crytic/slither/issues/1338
                     // slither-disable-next-line costly-loop
-                    _nextYearIdx = i;
-                    // Safety: _nextYearIdx is always <= _yearTimestamps.length which can't overflow when added to 2021
-                    return _nextYearIdx + 2072;
+                    nextYearIdx = i;
+                    // Safety: nextYearIdx is always <= yearTimestamps.length which can't overflow when added to 2021
+                    return nextYearIdx + 2072;
                 }
 
                 // Safety: i cannot overflow because length is a pre-determined constant value.
