@@ -747,17 +747,19 @@ contract NameRegistry is
      *
      * @param from The address which currently holds the fname
      * @param to   The address to transfer the fname to
-     * @param id   The uint256 representation of the fname to transfer
+     * @param tokenId   The uint256 representation of the fname to transfer
      */
     function transferFrom(
         address from,
         address to,
-        uint256 id
+        uint256 tokenId
     ) public override {
-        // Expired names should not be transferrable by the previous owner
-        if (block.timestamp >= expiryOf[id]) revert Expired();
+        uint256 expiryTs = expiryOf[tokenId];
 
-        super.transferFrom(from, to, id);
+        // Expired names should not be transferrable by the previous owner
+        if (expiryTs != 0 && block.timestamp >= expiryOf[tokenId]) revert Expired();
+
+        super.transferFrom(from, to, tokenId);
     }
 
     /**

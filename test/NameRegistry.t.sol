@@ -1475,96 +1475,124 @@ contract NameRegistryTest is Test {
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
-    function testTransferFrom(address alice, address bob) public {
+    function testTransferFromOwner(
+        address alice,
+        address bob,
+        address recovery
+    ) public {
         _assumeClean(alice);
-        _assumeClean(bob);
+        _assumeClean(recovery);
+        vm.assume(bob != address(0));
         vm.assume(alice != bob);
         _register(alice);
 
+        _requestRecovery(alice, recovery);
+
+        // alice transfers @alice to bob
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, ALICE_TOKEN_ID);
         nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
+        // assert that @alice is owned by bob and that the recovery request was reset
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-    }
-
-    function testTransferFromResetsRecovery(
-        address alice,
-        address bob,
-        address charlie,
-        address recovery
-    ) public {
-        // 1. Register alice and set up a recovery address.
-        _assumeClean(alice);
-        _assumeClean(recovery);
-        vm.assume(alice != charlie);
-        vm.assume(alice != recovery);
-        vm.assume(charlie != address(0));
-        vm.assume(bob != address(0));
-        _register(alice);
-
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-
-        // 2. Bob requests a recovery of @alice to Charlie
-        vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
-
-        // 3. Alice transfers then name to charlie
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, charlie, ALICE_TOKEN_ID);
-        nameRegistry.transferFrom(alice, charlie, ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
-        assertEq(nameRegistry.balanceOf(charlie), 1);
-        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testTransferFromCannotTransferExpiredName(address alice, address bob) public {
-        // 1. Register alice and set up a recovery address.
+    function testTransferFromApprover(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
         _assumeClean(alice);
-        _assumeClean(bob);
+        _assumeClean(recovery);
+        vm.assume(bob != address(0));
         vm.assume(alice != bob);
         _register(alice);
 
-        // 2. Fast forward to name in renewable state
-        vm.startPrank(alice);
+        _requestRecovery(alice, recovery);
+
+        // alice sets charlie as her approver
+        vm.prank(alice);
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        // alice transfers @alice to bob
+        vm.prank(approver);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, ALICE_TOKEN_ID);
+        nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        // assert that @alice is owned by bob and that the recovery request was reset
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    function testCannotTransferFromIfFnameExpired(
+        address alice,
+        address bob,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        vm.assume(alice != bob);
+        vm.assume(bob != address(0));
+        _register(alice);
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // Warp to renewable state and attempt a transfer
         vm.warp(JAN1_2023_TS);
+        vm.startPrank(alice);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
 
-        vm.expectRevert(NameRegistry.Expired.selector);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
 
-        // 3. Fast forward to name in expired state
+        // Warp to biddable state and attempt a transfer
         vm.warp(FEB1_2023_TS);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
         vm.stopPrank();
 
-        vm.expectRevert(NameRegistry.Expired.selector);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotTransferFromIfPaused(address alice, address bob) public {
+    function testCannotTransferFromIfPaused(
+        address alice,
+        address bob,
+        address recovery
+    ) public {
         _assumeClean(alice);
-        _assumeClean(bob);
+        _assumeClean(recovery);
+        vm.assume(bob != address(0));
         vm.assume(alice != bob);
         _register(alice);
-        _grant(OPERATOR_ROLE, ADMIN);
 
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // Pause the contract
+        _grant(OPERATOR_ROLE, ADMIN);
         vm.prank(ADMIN);
         nameRegistry.pause();
 
@@ -1572,9 +1600,81 @@ contract NameRegistryTest is Test {
         vm.expectRevert("Pausable: paused");
         nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+    }
+
+    function testCannotTransferFromIfNotMinted(address alice, address bob) public {
+        _assumeClean(alice);
+        vm.assume(bob != address(0));
+        vm.assume(alice != bob);
+        vm.warp(DEC1_2022_TS);
+
+        vm.prank(alice);
+        vm.expectRevert("ERC721: invalid token ID");
+        nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    function testCannotTransferFromIfNotOwner(
+        address alice,
+        address bob,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        vm.assume(bob != address(0));
+        vm.assume(alice != bob);
+        _register(alice);
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        vm.prank(bob);
+        vm.expectRevert("ERC721: caller is not token owner nor approved");
+        nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+    }
+
+    function testCannotTransferFromToZeroAddress(
+        address alice,
+        address bob,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        vm.assume(bob != address(0));
+        vm.assume(alice != bob);
+        _register(alice);
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        vm.prank(alice);
+        vm.expectRevert("ERC721: transfer to the zero address");
+        nameRegistry.transferFrom(alice, address(0), ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testTokenUri() public {
@@ -1593,6 +1693,18 @@ contract NameRegistryTest is Test {
     function testCannotGetTokenUriForInvalidName() public {
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.tokenURI(uint256(bytes32("alicenWonderland")));
+    }
+
+    /// @dev Helper that assigns the recovery address and then requests a recovery
+    function _requestRecovery(address alice, address recovery) internal returns (uint256 requestTs) {
+        vm.prank(alice);
+        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
+
+        vm.prank(recovery);
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, recovery);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+        return block.timestamp;
     }
 
     /*//////////////////////////////////////////////////////////////
