@@ -65,6 +65,9 @@ contract NameRegistry is
     /// @dev Revert when the commit hash is not found
     error InvalidCommit();
 
+    /// @dev Revert when a commit is re-submitted before it has expired
+    error CommitReplay();
+
     /// @dev Revert if the fname has invalid characters during registration
     error InvalidName();
 
@@ -279,6 +282,12 @@ contract NameRegistry is
 
     string internal constant BASE_URI = "http://www.farcaster.xyz/u/";
 
+    /// @dev enforced delay between makeCommit() and register() to prevent front-running
+    uint256 internal constant REVEAL_DELAY = 60 seconds;
+
+    /// @dev enforced delay in makeCommit() to prevent griefing by replaying the commit
+    uint256 internal constant COMMIT_REPLAY_DELAY = 10 minutes;
+
     uint256 internal constant GRACE_PERIOD = 31 days;
 
     uint256 internal constant ESCROW_PERIOD = 3 days;
@@ -453,6 +462,15 @@ contract NameRegistry is
     function makeCommit(bytes32 commit) external payable {
         if (trustedOnly == 1) revert Invitable();
 
+        unchecked {
+            // Safety: timestampOf is always set to block.timestamp and cannot overflow here
+
+            // Commits cannot be re-submitted immediately to prevent griefing by re-submitting commits
+            // to reset the REVEAL_DELAY clock
+            if (block.timestamp <= timestampOf[commit] + COMMIT_REPLAY_DELAY) revert CommitReplay();
+        }
+
+        // Save the commit and start the REVEAL_DELAY clock
         timestampOf[commit] = block.timestamp;
     }
 
@@ -485,7 +503,7 @@ contract NameRegistry is
         unchecked {
             // Audit: verify that 60s is the right duration to use
             // Safety: makeCommit() sets commitTs to block.timestamp which cannot overflow
-            if (commitTs + 60 > block.timestamp) revert InvalidCommit();
+            if (block.timestamp < commitTs + REVEAL_DELAY) revert InvalidCommit();
         }
 
         // Mint checks that to != address(0) and that the tokenId wasn't previously issued

@@ -56,7 +56,10 @@ contract NameRegistryTest is Test {
     address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
     uint256 constant ESCROW_PERIOD = 3 days;
-    uint256 constant COMMIT_PERIOD = 60 seconds;
+    uint256 constant REVEAL_DELAY = 60 seconds;
+    uint256 constant COMMIT_REPLAY_DELAY = 10 minutes;
+    uint256 public constant FEE = 0.01 ether;
+    uint256 public constant BID_START = 1_000 ether;
 
     uint256 constant DEC1_2022_TS = 1669881600; // Dec 1, 2022 00:00:00 GMT
     uint256 constant JAN1_2022_TS = 1640995200; // Jan 1, 2022 0:00:00 GMT
@@ -71,8 +74,6 @@ contract NameRegistryTest is Test {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
     bytes32 public constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
-    uint256 public constant FEE = 0.01 ether;
-    uint256 public constant BID_START = 1_000 ether;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -158,19 +159,61 @@ contract NameRegistryTest is Test {
 
     function testMakeCommit(address alice, bytes32 secret) public {
         _disableTrusted();
+        vm.warp(JAN1_2022_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
 
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
+    }
 
-        // If the commit is made again it replaces the previous one
-        vm.warp(block.timestamp + 1 days);
+    function testMakeCommitAfterReplayDelay(
+        address alice,
+        bytes32 secret,
+        uint256 delay
+    ) public {
+        _disableTrusted();
+        vm.assume(delay > COMMIT_REPLAY_DELAY);
+        vm.warp(JAN1_2022_TS);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
+
+        // Make the first commit
+        vm.prank(alice);
+        nameRegistry.makeCommit(commitHash);
+        assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
+
+        // Make the second commit after the replay delay
+        vm.warp(block.timestamp + COMMIT_REPLAY_DELAY + 1);
+        vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
     }
 
+    function testCannotMakeCommitBeforeReplayDelay(
+        address alice,
+        bytes32 secret,
+        uint256 delay
+    ) public {
+        _disableTrusted();
+        delay = delay % COMMIT_REPLAY_DELAY; // fuzz between 0 and (COMMIT_REPLAY_DELAY - 1)
+        vm.warp(JAN1_2022_TS);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
+
+        // Make the first commit
+        vm.prank(alice);
+        nameRegistry.makeCommit(commitHash);
+        uint256 firstCommitTs = block.timestamp;
+        assertEq(nameRegistry.timestampOf(commitHash), firstCommitTs);
+
+        // Make the second commit before the replay delay
+        vm.warp(block.timestamp + delay);
+        vm.expectRevert(NameRegistry.CommitReplay.selector);
+        nameRegistry.makeCommit(commitHash);
+        assertEq(nameRegistry.timestampOf(commitHash), firstCommitTs);
+    }
+
     function testCannotMakeCommitDuringTrustedRegister(address alice, bytes32 secret) public {
+        vm.warp(JAN1_2022_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.Invitable.selector);
@@ -202,7 +245,7 @@ contract NameRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("bob", bob, secret);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(0), bob, BOB_TOKEN_ID);
         vm.prank(alice);
@@ -230,13 +273,13 @@ contract NameRegistryTest is Test {
         vm.startPrank(alice);
         bytes32 commitHashAlice = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(commitHashAlice);
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         nameRegistry.register{value: nameRegistry.fee()}("alice", alice, secret, recovery);
 
         // Register @bob to alice
         bytes32 commitHashBob = nameRegistry.generateCommit("bob", alice, secret);
         nameRegistry.makeCommit(commitHashBob);
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         nameRegistry.register{value: 0.01 ether}("bob", alice, secret, recovery);
         vm.stopPrank();
 
@@ -271,7 +314,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         // 2. Fast forward past the register delay and pause and unpause the contract
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.prank(ADMIN);
         nameRegistry.pause();
         vm.prank(ADMIN);
@@ -304,7 +347,7 @@ contract NameRegistryTest is Test {
         // Register @alice to alice
         bytes32 aliceCommitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(aliceCommitHash);
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.prank(alice);
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
         assertEq(nameRegistry.timestampOf(aliceCommitHash), 0);
@@ -314,7 +357,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(bobCommitHash);
         vm.expectRevert("ERC721: token already minted");
         uint256 commitTs = block.timestamp;
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.prank(bob);
         nameRegistry.register{value: 0.01 ether}("alice", bob, secret, recovery);
 
@@ -324,6 +367,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
 
         // Fast forward to renewable and register @alice to bob which should fail
+        vm.warp(block.timestamp + COMMIT_REPLAY_DELAY);
         nameRegistry.makeCommit(bobCommitHash);
         vm.expectRevert("ERC721: token already minted");
         commitTs = block.timestamp;
@@ -411,7 +455,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         vm.prank(alice);
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}(username, bob, incorrectSecret, recovery);
 
@@ -445,7 +489,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}(username, incorrectOwner, secret, recovery);
@@ -480,7 +524,7 @@ contract NameRegistryTest is Test {
 
         bytes16 incorrectUsername = "alice";
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.prank(alice);
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, bob, secret, recovery);
 
@@ -511,7 +555,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + COMMIT_PERIOD - 1);
+        vm.warp(block.timestamp + REVEAL_DELAY - 1);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
@@ -533,12 +577,13 @@ contract NameRegistryTest is Test {
         _disableTrusted();
         bytes16 incorrectUsername = "al{ce";
         uint256 incorrectTokenId = uint256(bytes32(incorrectUsername));
+        vm.warp(JAN1_2022_TS);
 
         uint256 commitTs = block.timestamp;
         bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, alice, secret));
         nameRegistry.makeCommit(invalidCommit);
 
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.register{value: 0.01 ether}(incorrectUsername, alice, secret, recovery);
 
@@ -568,7 +613,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         // 2. Pause the contract and try to register the name alice
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.prank(ADMIN);
         nameRegistry.pause();
         vm.prank(alice);
@@ -596,7 +641,7 @@ contract NameRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.expectRevert(NameRegistry.CallFailed.selector);
         // call register() from address(this) which is non-payable
         nameRegistry.register{value: 0.01 ether}("alice", alice, secret, recovery);
@@ -623,7 +668,7 @@ contract NameRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("alice", address(0), secret);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
         vm.expectRevert("ERC721: mint to the zero address");
         vm.prank(alice);
         nameRegistry.register{value: 0.01 ether}("alice", address(0), secret, recovery);
@@ -2666,7 +2711,7 @@ contract NameRegistryTest is Test {
         vm.startPrank(alice);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + COMMIT_PERIOD);
+        vm.warp(block.timestamp + REVEAL_DELAY);
 
         nameRegistry.register{value: nameRegistry.fee()}("alice", alice, "secret", address(0));
         vm.stopPrank();
