@@ -1,18 +1,12 @@
 {
   "name": "@farcasterxyz/contracts",
-  "version": "0.1.0",
-  "main": "index.js",
+  "version": "2.0.0",
   "files": [
     "src/**/*.sol"
   ],
   "repository": "git@github.com:farcasterxyz/contracts.git",
   "author": "Varun Srinivasan <varunsrin@gmail.com>",
   "license": "None",
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-conventional-changelog"
-    }
-  },
   "devDependencies": {
     "husky": "^8.0.1",
     "lint-staged": "^13.0.2",
