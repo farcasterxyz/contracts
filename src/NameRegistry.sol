@@ -190,42 +190,81 @@ contract NameRegistry is
     // Audit: These variables are kept public to make it easier to test the contract, since using the same inherit
     // and extend trick that we used for IDRegistry is harder to pull off here due to the UUPS structure.
 
-    /// @notice The fee to renew a name for a full calendar year
+    /**
+     * @notice The fee to renew a name for a full calendar year
+     * @dev    Occupies slot 0.
+     */
     uint256 public fee;
 
-    /// @notice The address controlled by the Farcaster Invite service that is allowed to call trustedRegister
+    /**
+     * @notice The address controlled by the Farcaster Invite service that is allowed to call
+     *         trustedRegister
+     * @dev    Occupies slot 1
+     */
     address public trustedCaller;
 
-    /// @notice Flag that determines if registration can occur through trustedRegister or register
-    /// @dev This value is initialized to 1 can only be changed to zero
+    /**
+     * @notice Flag that determines if registration can occur through trustedRegister or register
+     * @dev    Occupies slot 2, initialized to 1 and can only be changed to zero
+     */
     uint256 public trustedOnly;
 
-    /// @notice Returns the block.timestamp of a commit
+    /**
+     * @notice Maps each commit to the timestamp at which it was created.
+     * @dev    Occupies slot 3
+     */
     mapping(bytes32 => uint256) public timestampOf;
 
-    /// @notice Returns the expiration timestamp of a farcaster name
+    /**
+     * @notice Maps each the keccak256 hash of an fname to the time at which it expires
+     * @dev    Occupies slot 4
+     */
     mapping(uint256 => uint256) public expiryOf;
 
-    /// @notice The address that funds can be withdrawn to
+    /**
+     * @notice The address that funds can be withdrawn to
+     * @dev    Occupies slot 5
+     */
     address public vault;
 
-    /// @notice The address that names can be reclaimed to
+    /**
+     * @notice The address that names can be reclaimed to
+     * @dev    Occupies slot 6
+     */
     address public pool;
 
-    /// @notice Contains the timestamps of Jan 1, 0:00:00 GMT for each year from 2022 to 2072
+    /**
+     * @notice Chronological array of timestamps of Jan 1, 0:00:00 GMT from 2022 to 2072
+     * @dev    Occupies slot 7
+     */
     uint256[] internal _yearTimestamps;
 
-    /// @notice The index of _yearTimestamps which will return the timestamp of Jan 1st of the next calendar year
+    /**
+     * @notice The index of _yearTimestamps[] which returns the timestamp of Jan 1st of the next
+     *         calendar year
+     * @dev    Occupies slot 8
+     */
     uint256 internal _nextYearIdx;
 
-    /// @notice Returns the recovery address for a farcaster name
+    /**
+     * @notice Maps each keccak256 hash of an fname to the address that can recover it
+     * @dev    Occupies slot 9
+     */
     mapping(uint256 => address) public recoveryOf;
 
-    /// @notice Returns the block timestamp if there is an active recovery for a farcaster name, or 0 if none
+    /**
+     * @notice Maps each keccak256 hash of an fname to the timestamp of the recovery attempt or
+     *         zero if there is no active recovery.
+     * @dev    Occupies slot 10
+     */
     mapping(uint256 => uint256) public recoveryClockOf;
 
-    /// @notice Returns the destination address for the most recent recovery attempt for a farcaster id
-    /// @dev This value is left dirty to save gas and should not be used to determine the state of a recovery
+    /**
+     * @notice Maps each keccak256 hash of an fname to the destination address of the most recent
+     *         recovery attempt.
+     * @dev    Occupies slot 11, and the value is left dirty after a recovery to save gas and should
+     *         not be relied upon to check if there is an active recovery.
+     */
     mapping(uint256 => address) public recoveryDestinationOf;
 
     /*//////////////////////////////////////////////////////////////
