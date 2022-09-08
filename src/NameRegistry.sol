@@ -983,7 +983,7 @@ contract NameRegistry is
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
         // and it reduces our attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
-        trustedOnly = 0;
+        delete trustedOnly;
         emit DisableTrustedOnly();
     }
 
