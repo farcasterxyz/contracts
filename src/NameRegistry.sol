@@ -692,7 +692,7 @@ contract NameRegistry is
             // Safety/Audit: the below cannot intuitively underflow or overflow given the ranges,
             // but needs proof
             price =
-                uint256(BID_START_PRICE).mulWadDown(
+                BID_START_PRICE.mulWadDown(
                     uint256(FixedPointMathLib.powWad(int256(BID_PERIOD_DECREASE_UD60X18), periodsSD59x18))
                 ) +
                 currYearFee();
