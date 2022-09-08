@@ -336,8 +336,8 @@ contract NameRegistry is
      * @param _pool        The address that fnames can be reclaimed to
      */
     function initialize(
-        string memory _tokenName,
-        string memory _tokenSymbol,
+        string calldata _tokenName,
+        string calldata _tokenSymbol,
         address _vault,
         address _pool
     ) external initializer {
