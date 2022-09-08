@@ -362,15 +362,17 @@ contract IDRegistry is ERC2771Context, Ownable {
 
         if (_msgSender() != recoveryOf[id]) revert Unauthorized();
 
-        if (recoveryClockOf[id] == 0) revert NoRecovery();
+        uint256 _recoveryClock = recoveryClockOf[id];
+
+        if (_recoveryClock == 0) revert NoRecovery();
 
         // Assumption: we don't need to check that the id still lives in the address because any
         // transfer would have reset this clock to zero causing a revert
 
         // Revert if the recovery is still in its escrow period
         unchecked {
-            // Safety: rhs cannot overflow because recoveryClockOf[id] is a block.timestamp
-            if (block.timestamp < recoveryClockOf[id] + ESCROW_PERIOD) revert Escrow();
+            // Safety: rhs cannot overflow because _recoveryClock is a block.timestamp
+            if (block.timestamp < _recoveryClock + ESCROW_PERIOD) revert Escrow();
         }
 
         address to = recoveryDestinationOf[id];
