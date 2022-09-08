@@ -267,6 +267,12 @@ contract NameRegistry is
      */
     mapping(uint256 => address) public recoveryDestinationOf;
 
+    /**
+     * @dev Added to allow future versions to add new variables in case this contract becomes
+     *      inherited. See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+    uint256[38] private __gap;
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
