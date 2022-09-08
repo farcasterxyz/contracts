@@ -240,14 +240,14 @@ contract NameRegistry is
      * @notice Chronological array of timestamps of Jan 1, 0:00:00 GMT from 2022 to 2072
      * @dev    Occupies slot 7
      */
-    uint256[] internal _yearTimestamps;
+    uint256[] internal yearTimestamps;
 
     /**
-     * @notice The index of _yearTimestamps[] which returns the timestamp of Jan 1st of the next
+     * @notice The index of yearTimestamps[] which returns the timestamp of Jan 1st of the next
      *         calendar year
      * @dev    Occupies slot 8
      */
-    uint256 internal _nextYearIdx;
+    uint256 internal nextYearIdx;
 
     /**
      * @notice Maps each keccak256 hash of an fname to the address that can recover it
@@ -364,7 +364,7 @@ contract NameRegistry is
         trustedOnly = 1;
 
         // Audit: verify these timestamps using a calculator other than epochconverter.com
-        _yearTimestamps = [
+        yearTimestamps = [
             1640995200, // 2022
             1672531200,
             1704067200,
@@ -577,7 +577,8 @@ contract NameRegistry is
      * @param tokenId the tokenId of the name to renew
      */
     function renew(uint256 tokenId) external payable whenNotPaused {
-        if (msg.value < fee) revert InsufficientFunds();
+        uint256 _fee = fee;
+        if (msg.value < _fee) revert InsufficientFunds();
 
         // Check that the tokenID was previously registered
         uint256 expiryTs = expiryOf[tokenId];
@@ -601,11 +602,11 @@ contract NameRegistry is
         emit Renew(tokenId, expiryOf[tokenId]);
 
         unchecked {
-            // Safety: msg.value >= fee by check above, so this cannot overflow
+            // Safety: msg.value >= _fee by check above, so this cannot overflow
 
             // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
             // solhint-disable-next-line avoid-low-level-calls
-            (bool success, ) = msg.sender.call{value: msg.value - fee}("");
+            (bool success, ) = msg.sender.call{value: msg.value - _fee}("");
             if (!success) revert CallFailed();
         }
     }
@@ -884,11 +885,12 @@ contract NameRegistry is
         // Invariant 3 ensures that a request cannot be completed after ownership change without consent
         if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
 
-        if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
+        uint256 _recoveryClock = recoveryClockOf[tokenId];
+        if (_recoveryClock == 0) revert NoRecovery();
 
         unchecked {
-            // Safety: recoveryClockOf is always set to block.timestamp and cannot realistically overflow
-            if (block.timestamp < recoveryClockOf[tokenId] + ESCROW_PERIOD) revert Escrow();
+            // Safety: _recoveryClock is always set to block.timestamp and cannot realistically overflow
+            if (block.timestamp < _recoveryClock + ESCROW_PERIOD) revert Escrow();
         }
 
         // Assumption: Invariant 4 prevents this from going to address(0).
@@ -1058,10 +1060,12 @@ contract NameRegistry is
         // believes itself to be in the prior year, but it is expected to cause no issues since
         // the rest of the contract relies on currYear() which never moves backward chronologically.
 
+        uint256 _nextYearIdx = nextYearIdx;
+
         // Implies that year has not changed since the last call, so return cached value
-        if (block.timestamp < _yearTimestamps[_nextYearIdx]) {
+        if (block.timestamp < yearTimestamps[_nextYearIdx]) {
             unchecked {
-                // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 2021
+                // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 2021
                 return _nextYearIdx + 2021;
             }
         }
@@ -1070,23 +1074,23 @@ contract NameRegistry is
         // Iterate through the array of year timestamps starting from the last known year until
         // the first one is found that is higher than the block timestamp. Set the current year to
         // the year that precedes that year.
-        uint256 length = _yearTimestamps.length;
+        uint256 length = yearTimestamps.length;
 
         uint256 idx;
         unchecked {
-            // Safety: _nextYearIdx is always < _yearTimestamps.length which can't overflow when added to 1
+            // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 1
             idx = _nextYearIdx + 1;
         }
 
         for (uint256 i = idx; i < length; ) {
-            if (_yearTimestamps[i] > block.timestamp) {
+            if (yearTimestamps[i] > block.timestamp) {
                 // Slither false positive: https://github.com/crytic/slither/issues/1338
                 // slither-disable-next-line costly-loop
-                _nextYearIdx = i;
+                nextYearIdx = i;
 
                 unchecked {
-                    // Safety: _nextYearIdx is always <= _yearTimestamps.length which can't overflow when added to 2021
-                    return _nextYearIdx + 2021;
+                    // Safety: nextYearIdx is always <= yearTimestamps.length which can't overflow when added to 2021
+                    return i + 2021;
                 }
             }
 
@@ -1220,7 +1224,7 @@ contract NameRegistry is
             // Safety: The array index will not go below zero, since year is always set to at least currYear(),
             // which must be >= 2022. The array index will not go above array.length(51) until the year 2072, since
             // year is always set to at most currYear() + 1, which must be <= 2072 in the year 2071
-            return _yearTimestamps[year - 2022];
+            return yearTimestamps[year - 2022];
         }
     }
 }
