@@ -2199,7 +2199,6 @@ contract NameRegistryTest is Test {
         address bob,
         address recovery
     ) public {
-        // 1. alice registers @alice and sets recovery as her recovery address
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2209,26 +2208,19 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
 
-        // 2. recovery requests a recovery of @alice to bob
         vm.prank(recovery);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
-        // 3. alice cancels the recovery
         vm.prank(alice);
-        vm.expectEmit(true, false, false, false);
+        vm.expectEmit(true, true, false, false);
         emit CancelRecovery(alice, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-
-        // 4. after escrow period, recovery tries to recover to bob and fails
-        vm.warp(block.timestamp + ESCROW_PERIOD);
-        vm.expectRevert(NameRegistry.NoRecovery.selector);
-        vm.prank(recovery);
-        nameRegistry.completeRecovery(ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
     }
 
     function testCancelRecoveryFromRecoveryAddress(
@@ -2236,7 +2228,6 @@ contract NameRegistryTest is Test {
         address bob,
         address recovery
     ) public {
-        // 1. alice registers @alice and sets recovery as her recovery address
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2246,74 +2237,106 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
 
-        // 2. recovery requests a recovery of @alice to bob
-        vm.startPrank(recovery);
+        vm.prank(recovery);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
-        // 3. recovery cancels the recovery
-        vm.expectEmit(true, false, false, false);
+        vm.prank(recovery);
+        vm.expectEmit(true, true, false, false);
         emit CancelRecovery(recovery, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-
-        // 4. after escrow period, recovery tries to recover to bob and fails
-        vm.warp(block.timestamp + ESCROW_PERIOD);
-        vm.expectRevert(NameRegistry.NoRecovery.selector);
-        nameRegistry.completeRecovery(ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        vm.stopPrank();
     }
 
-    function testCancelRecoveryIfPaused(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
-        // 1. alice registers @alice and sets recovery as her recovery address and @recovery requests a recovery,
-        // after which the ADMIN pauses the contract
+    function testCancelRecoveryIfPaused(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
-        vm.assume(bob != address(0));
         _register(alice);
-        _grant(OPERATOR_ROLE, ADMIN);
 
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-        vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
+        _requestRecovery(alice, recovery);
+
+        // pause the contract
+        _grant(OPERATOR_ROLE, ADMIN);
         vm.prank(ADMIN);
         nameRegistry.pause();
 
-        // 2. alice cancels the recovery, which succeeds
         vm.prank(alice);
-        vm.expectEmit(true, false, false, false);
+        vm.expectEmit(true, true, false, false);
         emit CancelRecovery(alice, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(recovery), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+    }
+
+    function testCancelRecoveryIfRenewable(address alice, address recovery) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        vm.assume(alice != recovery);
+        _register(alice);
+
+        _requestRecovery(alice, recovery);
+
+        vm.warp(JAN1_2023_TS);
+        vm.prank(alice);
+        vm.expectEmit(true, true, false, false);
+        emit CancelRecovery(alice, ALICE_TOKEN_ID);
+        nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(recovery), 0);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+    }
+
+    function testCancelRecoveryIfBiddable(address alice, address recovery) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        vm.assume(alice != recovery);
+        _register(alice);
+
+        _requestRecovery(alice, recovery);
+
+        vm.warp(FEB1_2023_TS);
+        vm.prank(alice);
+        vm.expectEmit(true, true, false, false);
+        emit CancelRecovery(alice, ALICE_TOKEN_ID);
+        nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(recovery), 0);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
     function testCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
-        // 1. alice registers @alice and sets recovery as her recovery address
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         _register(alice);
 
-        vm.startPrank(alice);
+        vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
 
-        // 2. alice cancels the recovery which fails
+        vm.prank(alice);
         vm.expectRevert(NameRegistry.NoRecovery.selector);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
-        vm.stopPrank();
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
@@ -2322,7 +2345,6 @@ contract NameRegistryTest is Test {
         address recovery,
         address bob
     ) public {
-        // 1. alice registers @alice and sets recovery as her recovery address
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2331,19 +2353,16 @@ contract NameRegistryTest is Test {
         vm.assume(bob != alice);
         _register(alice);
 
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
+        _requestRecovery(alice, recovery);
 
-        // 2. recovery requests a recovery of @alice to bob
-        vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-
-        // 3. bob cancels the recovery which fails
         vm.prank(bob);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
     }
 
