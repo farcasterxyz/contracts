@@ -2347,6 +2347,54 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                           DEFAULT ADMIN TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testGrantAdminRole(address alice) public {
+        _assumeClean(alice);
+        vm.assume(alice != address(0));
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), false);
+
+        vm.prank(defaultAdmin);
+        nameRegistry.grantRole(ADMIN_ROLE, alice);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), true);
+    }
+
+    function testRevokeAdminRole(address alice) public {
+        _assumeClean(alice);
+        vm.assume(alice != address(0));
+
+        vm.prank(defaultAdmin);
+        nameRegistry.grantRole(ADMIN_ROLE, alice);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), true);
+
+        vm.prank(defaultAdmin);
+        nameRegistry.revokeRole(ADMIN_ROLE, alice);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), false);
+    }
+
+    function testCannotGrantAdminRoleUnlessDefaultAdmin(address alice, address bob) public {
+        _assumeClean(alice);
+        _assumeClean(bob);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, bob), false);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account ",
+                Strings.toHexString(uint160(alice), 20),
+                " is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
+            )
+        );
+        nameRegistry.grantRole(ADMIN_ROLE, bob);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
+        assertEq(nameRegistry.hasRole(ADMIN_ROLE, bob), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                              MODERATOR TESTS
     //////////////////////////////////////////////////////////////*/
 
@@ -2494,18 +2542,21 @@ contract NameRegistryTest is Test {
         vm.expectEmit(true, true, true, true);
         emit ChangeTrustedCaller(alice);
         nameRegistry.changeTrustedCaller(alice);
+
         assertEq(nameRegistry.trustedCaller(), alice);
     }
 
     function testCannotChangeTrustedCallerUnlessAdmin(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(alice != ADMIN);
-        assertEq(nameRegistry.trustedCaller(), address(0));
+        address trustedCaller = nameRegistry.trustedCaller();
+        vm.assume(bob != trustedCaller);
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
         nameRegistry.changeTrustedCaller(bob);
-        assertEq(nameRegistry.trustedCaller(), address(0));
+
+        assertEq(nameRegistry.trustedCaller(), trustedCaller);
     }
 
     function testDisableTrustedCaller() public {
@@ -2524,6 +2575,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
         nameRegistry.disableTrustedOnly();
+
         assertEq(nameRegistry.trustedOnly(), 1);
     }
 
@@ -2536,6 +2588,7 @@ contract NameRegistryTest is Test {
         vm.expectEmit(true, false, false, true);
         emit ChangeVault(bob);
         nameRegistry.changeVault(bob);
+
         assertEq(nameRegistry.vault(), bob);
     }
 
@@ -2546,6 +2599,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
         nameRegistry.changeVault(bob);
+
         assertEq(nameRegistry.vault(), VAULT);
     }
 
@@ -2558,6 +2612,7 @@ contract NameRegistryTest is Test {
         vm.expectEmit(true, false, false, true);
         emit ChangePool(bob);
         nameRegistry.changePool(bob);
+
         assertEq(nameRegistry.pool(), bob);
     }
 
@@ -2568,55 +2623,8 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
         nameRegistry.changePool(bob);
+
         assertEq(nameRegistry.pool(), POOL);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                           DEFAULT ADMIN TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testGrantAdminRole(address alice) public {
-        _assumeClean(alice);
-        vm.assume(alice != address(0));
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), false);
-
-        vm.prank(defaultAdmin);
-        nameRegistry.grantRole(ADMIN_ROLE, alice);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), true);
-    }
-
-    function testRevokeAdminRole(address alice) public {
-        _assumeClean(alice);
-        vm.assume(alice != address(0));
-
-        vm.prank(defaultAdmin);
-        nameRegistry.grantRole(ADMIN_ROLE, alice);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), true);
-
-        vm.prank(defaultAdmin);
-        nameRegistry.revokeRole(ADMIN_ROLE, alice);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), false);
-    }
-
-    function testCannotGrantAdminRoleUnlessDefaultAdmin(address alice, address bob) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, bob), false);
-
-        vm.prank(alice);
-        vm.expectRevert(
-            abi.encodePacked(
-                "AccessControl: account ",
-                Strings.toHexString(uint160(alice), 20),
-                " is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
-            )
-        );
-        nameRegistry.grantRole(ADMIN_ROLE, bob);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
-        assertEq(nameRegistry.hasRole(ADMIN_ROLE, bob), false);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2704,6 +2712,9 @@ contract NameRegistryTest is Test {
     /*//////////////////////////////////////////////////////////////
                              OPERATOR TESTS
     //////////////////////////////////////////////////////////////*/
+
+    // Tests that cover pausing and its implications on other functions live alongside unit tests
+    // for the functions
 
     function testCannotPauseUnlessOperator(address alice) public {
         vm.assume(alice != FORWARDER);

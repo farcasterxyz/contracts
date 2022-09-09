@@ -931,7 +931,7 @@ contract NameRegistry is
     }
 
     /*//////////////////////////////////////////////////////////////
-                              OWNER ACTIONS
+                            MODERATOR ACTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -956,25 +956,9 @@ contract NameRegistry is
         }
     }
 
-    /**
-     * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
-     */
-    function pause() external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
-        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
-        _pause();
-    }
-
-    /**
-     * @notice unpause the contract and resume registrations, renewals, recoveries and transfers of names.
-     */
-    function unpause() external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
-        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
-        _unpause();
-    }
+    /*//////////////////////////////////////////////////////////////
+                              ADMIN ACTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Changes the address from which registerTrusted calls can be made
@@ -982,8 +966,7 @@ contract NameRegistry is
      * @param _trustedCaller The address of the new trusted caller
      */
     function changeTrustedCaller(address _trustedCaller) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         trustedCaller = _trustedCaller;
         emit ChangeTrustedCaller(_trustedCaller);
@@ -993,8 +976,7 @@ contract NameRegistry is
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedOnly() external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         delete trustedOnly;
         emit DisableTrustedOnly();
@@ -1006,8 +988,7 @@ contract NameRegistry is
      * @param _vault The address of the new vault
      */
     function changeVault(address _vault) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         vault = _vault;
         emit ChangeVault(_vault);
@@ -1019,8 +1000,7 @@ contract NameRegistry is
      * @param _pool The address of the new pool
      */
     function changePool(address _pool) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         pool = _pool;
         emit ChangePool(_pool);
@@ -1036,8 +1016,7 @@ contract NameRegistry is
      * @param _fee The new yearly fee
      */
     function changeFee(uint256 _fee) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
         // Audit does fee == 0 cause any problems with other logic?
@@ -1051,8 +1030,7 @@ contract NameRegistry is
      * @param amount The amount of ether to withdraw
      */
     function withdraw(uint256 amount) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
         // Audit: this will not revert if the requested amount is zero, will that cause problems?
@@ -1061,6 +1039,28 @@ contract NameRegistry is
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = vault.call{value: amount}("");
         if (!success) revert CallFailed();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            OPERATOR ACTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
+     */
+    function pause() external payable {
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
+        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
+        _pause();
+    }
+
+    /**
+     * @notice unpause the contract and resume registrations, renewals, recoveries and transfers of names.
+     */
+    function unpause() external payable {
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
+        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
+        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////
