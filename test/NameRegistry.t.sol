@@ -2716,71 +2716,70 @@ contract NameRegistryTest is Test {
     // currYear() must be tested in a single test fn chronologically to reach all code paths
     function testCurrYear() public {
         // Date before 2021 incorrectly returns 2021
-        vm.warp(1607558400); // GMT Dec 10, 2020 0:00:00
+        vm.warp(1607558400); // Dec 10, 2020 0:00:00 GMT
         assertEq(nameRegistry.currYear(), 2021);
 
         // Date in known year range
-        vm.warp(1640095200); // GMT Dec 21, 2021 14:00:00
+        vm.warp(1640095200); // Dec 21, 2021 14:00:00 GMT
         assertEq(nameRegistry.currYear(), 2021);
 
         // Date in the same year as previous
-        vm.warp(1640390400); // GMT Dec 25, 2021 14:00:00
+        vm.warp(1640390400); // Dec 25, 2021 14:00:00 GMT
         assertEq(nameRegistry.currYear(), 2021);
 
         // Date which is the last second of a calendar year
-        vm.warp(1672531199); // GMT Dec 31, 2022 11:59:59
+        vm.warp(1672531199); // Dec 31, 2022 23:59:59 GMT
         assertEq(nameRegistry.currYear(), 2022);
 
         // Date which is the first second of the following year
-        vm.warp(1672531200); // GMT Jan 1, 2023 00:00:00
+        vm.warp(1672531200); // Jan 1, 2023 00:00:00 GMT
         assertEq(nameRegistry.currYear(), 2023);
 
         // Date which skips a year from the previous call
-        vm.warp(1738368000); // GMT Feb 1, 2025 00:00:00
+        vm.warp(1738368000); // Feb 1, 2025 00:00:00 GMT
         assertEq(nameRegistry.currYear(), 2025);
 
         // Date after 2072 which reverts
-        vm.warp(3250454400); // GMT Jan 1, 2073 0:00:00
+        vm.warp(3250454400); // Jan 1, 2073 0:00:00 GMT
         vm.expectRevert(NameRegistry.InvalidTime.selector);
         assertEq(nameRegistry.currYear(), 0);
     }
 
     function testCurrYearFee() public {
         _grant(TREASURER_ROLE, ADMIN);
-        // fee = 0.1 ether
-        vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
+
+        // fee is initialized to 0.01 ether
+        vm.warp(1672531200); // Jan 1, 2023 0:00:00 GMT
         assertEq(nameRegistry.currYearFee(), 0.01 ether);
 
-        vm.warp(1688256000); // GMT Sunday, July 2, 2023 0:00:00
+        vm.warp(1688256000); // Jul 2, 2023 0:00:00 GMT
         assertEq(nameRegistry.currYearFee(), 0.005013698630136986 ether);
 
-        vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
-        assertEq(nameRegistry.currYearFee(), 0.000013698947234906 ether);
+        vm.warp(1704067199); // Dec 31, 2023 23:59:59 GMT
+        assertEq(nameRegistry.currYearFee(), 0.000000000317097919 ether);
 
-        // fee = 0.2 ether
         vm.prank(ADMIN);
         nameRegistry.changeFee(0.02 ether);
 
-        vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
+        vm.warp(1672531200); // Jan 1, 2023 0:00:00 GMT
         assertEq(nameRegistry.currYearFee(), 0.02 ether);
 
-        vm.warp(1688256000); // GMT Sunday, July 2, 2023 0:00:00
+        vm.warp(1688256000); // Jul 2, 2023 0:00:00 GMT
         assertEq(nameRegistry.currYearFee(), 0.010027397260273972 ether);
 
-        vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
-        assertEq(nameRegistry.currYearFee(), 0.000027397894469812 ether);
+        vm.warp(1704067199); // Dec 31, 2023 23:59:59 GMT
+        assertEq(nameRegistry.currYearFee(), 0.000000000634195839 ether);
 
-        // fee = 0 ether
         vm.prank(ADMIN);
         nameRegistry.changeFee(0 ether);
 
-        vm.warp(1672531200); // GMT Friday, January 1, 2023 0:00:00
+        vm.warp(1672531200); // Jan 1, 2023 0:00:00 GMT
         assertEq(nameRegistry.currYearFee(), 0);
 
-        vm.warp(1688256000); // GMT Sunday, July 2, 2023 0:00:00
+        vm.warp(1688256000); // Jul 2, 2023 0:00:00 GMT
         assertEq(nameRegistry.currYearFee(), 0);
 
-        vm.warp(1704023999); // GMT Friday, Dec 31, 2023 11:59:59
+        vm.warp(1704067199); // Dec 31, 2023 23:59:59 GMT
         assertEq(nameRegistry.currYearFee(), 0);
     }
 
@@ -2788,7 +2787,7 @@ contract NameRegistryTest is Test {
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    // Given an address, funds it with ETH, warps to a registration period and registers the username @alice
+    /// @dev Register the username @alice to the address on Dec 1, 2022
     function _register(address alice) internal {
         _disableTrusted();
 
@@ -2804,7 +2803,7 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
-    // Ensures that a given fuzzed address does not match known contracts
+    /// @dev vm.assume that the address does not match known contracts
     function _assumeClean(address a) internal {
         for (uint256 i = 0; i < knownContracts.length; i++) {
             vm.assume(a != knownContracts[i]);

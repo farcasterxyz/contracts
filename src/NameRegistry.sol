@@ -1140,7 +1140,7 @@ contract NameRegistry is
             uint256 nextYearTimestamp = _timestampOfYear(_currYear + 1);
 
             // Safety: nextYearTimestamp > block.timestamp >= _timestampOfYear(_currYear) so this
-            // cannot underflow
+            // cannot underflow.  Division rounds to zero causing fees to be 1 wei lower sometimes
             return ((nextYearTimestamp - block.timestamp) * fee) / (nextYearTimestamp - _timestampOfYear(_currYear));
         }
     }
