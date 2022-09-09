@@ -1526,6 +1526,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
+        vm.assume(approver != alice);
         _register(alice);
 
         _requestRecovery(alice, recovery);
@@ -1646,6 +1647,7 @@ contract NameRegistryTest is Test {
         address recovery
     ) public {
         _assumeClean(alice);
+        _assumeClean(bob);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
@@ -2621,11 +2623,12 @@ contract NameRegistryTest is Test {
                              TREASURER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeFee(uint256 fee) public {
-        _grant(TREASURER_ROLE, ADMIN);
+    function testChangeFee(address alice, uint256 fee) public {
+        vm.assume(alice != FORWARDER);
+        _grant(TREASURER_ROLE, alice);
         assertEq(nameRegistry.fee(), 0.01 ether);
 
-        vm.prank(ADMIN);
+        vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit ChangeFee(fee);
         nameRegistry.changeFee(fee);
@@ -2644,49 +2647,58 @@ contract NameRegistryTest is Test {
     function testWithdrawFunds(address alice, uint256 amount) public {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
-        vm.assume(amount <= 1 ether);
         vm.deal(address(nameRegistry), 1 ether);
+        amount = amount % 1 ether;
 
         vm.prank(alice);
         nameRegistry.withdraw(amount);
+
         assertEq(address(nameRegistry).balance, 1 ether - amount);
         assertEq(VAULT.balance, amount);
     }
 
-    function testCannotWithdrawUnlessTreasurer(address alice) public {
+    function testCannotWithdrawUnlessTreasurer(address alice, uint256 amount) public {
         _assumeClean(alice);
         vm.deal(address(nameRegistry), 1 ether);
+        amount = amount % 1 ether;
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotTreasurer.selector);
-        nameRegistry.withdraw(0.01 ether);
+        nameRegistry.withdraw(amount);
+
         assertEq(address(nameRegistry).balance, 1 ether);
+        assertEq(VAULT.balance, 0);
     }
 
     function testCannotWithdrawInvalidAmount(address alice, uint256 amount) public {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
-        vm.deal(address(nameRegistry), 1 ether);
-        vm.assume(amount > 1 ether);
+        amount = amount % 1_000_000_000 ether;
+        vm.deal(address(nameRegistry), amount);
 
         vm.prank(alice);
-        vm.expectRevert(NameRegistry.WithdrawTooMuch.selector);
-        nameRegistry.withdraw(amount);
-        assertEq(address(nameRegistry).balance, 1 ether);
+        vm.expectRevert(NameRegistry.InsufficientFunds.selector);
+        nameRegistry.withdraw(amount + 1 wei);
+
+        assertEq(address(nameRegistry).balance, amount);
+        assertEq(VAULT.balance, 0);
     }
 
-    function testCannotWithdrawToNonPayableAddress(address alice) public {
+    function testCannotWithdrawToNonPayableAddress(address alice, uint256 amount) public {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
         vm.deal(address(nameRegistry), 1 ether);
+        amount = amount % 1 ether;
 
         vm.prank(ADMIN);
         nameRegistry.changeVault(address(this));
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.CallFailed.selector);
-        nameRegistry.withdraw(1 ether);
+        nameRegistry.withdraw(amount);
+
         assertEq(address(nameRegistry).balance, 1 ether);
+        assertEq(VAULT.balance, 0);
     }
 
     /*//////////////////////////////////////////////////////////////

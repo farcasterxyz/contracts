@@ -38,7 +38,7 @@ contract NameRegistry is
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Revert when msg.value does not fully cover the cost of the operation
+    /// @dev Revert when there are not enough funds to complete the transaction
     error InsufficientFunds();
 
     /// @dev Revert when the caller does not have the authority to perform the action
@@ -55,10 +55,6 @@ contract NameRegistry is
 
     /// @dev Revert if the caller does not have TREASURER_ROLE
     error NotTreasurer();
-
-    /// @dev Revert if withdraw() is called with an amount greater than the balance
-    error WithdrawTooMuch(); // Could not withdraw the requested amount
-
     /// @dev Revert when excess funds could not be sent back to the caller
     error CallFailed();
 
@@ -1060,7 +1056,7 @@ contract NameRegistry is
         if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
         // Audit: this will not revert if the requested amount is zero, will that cause problems?
-        if (address(this).balance < amount) revert WithdrawTooMuch();
+        if (address(this).balance < amount) revert InsufficientFunds();
 
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = vault.call{value: amount}("");
