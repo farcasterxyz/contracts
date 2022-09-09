@@ -864,8 +864,7 @@ contract NameRegistry is
     /**
      * @notice Request a recovery of an fid to a new address if the caller is the recovery address.
      *         Supports ERC 2771 meta-transactions and can be called by a relayer. Requests can be
-     *         overwritten by making another request, and can be made if the fname is in
-     *         renewable or biddable state.
+     *         overwritten by making another request.
      *
      * @param tokenId The uint256 representation of the fname
      * @param to      The address to transfer the fname to, which cannot be address(0)
@@ -875,6 +874,9 @@ contract NameRegistry is
 
         // Invariant 3 ensures that a request cannot be made after ownership change without consent
         if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
+
+        // Perf: don't check if in renewable or biddable state since it saves gas and
+        // completeRecovery will revert when it runs
 
         // Track when the escrow period started
         recoveryClockOf[tokenId] = block.timestamp;

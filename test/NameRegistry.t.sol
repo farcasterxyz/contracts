@@ -1831,31 +1831,29 @@ contract NameRegistryTest is Test {
         address charlie,
         address recovery
     ) public {
-        // 1. alice registers id 1 and sets recovery as her recovery address
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(alice != charlie);
-        vm.assume(alice != recovery);
-        vm.assume(charlie != address(0));
         vm.assume(bob != address(0));
+        vm.assume(charlie != address(0));
         _register(alice);
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
 
-        // 2. recovery requests a recovery of alice's id to bob
+        // Request a recovery from alice to bob
         vm.prank(recovery);
         vm.expectEmit(true, true, true, true);
         emit RequestRecovery(alice, bob, ALICE_TOKEN_ID);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), bob);
 
-        // 3. recovery then requests another recovery to charlie
+        // Request another recovery from alice to charlie after some time has elapsed
+        vm.warp(block.timestamp + 10 minutes);
         vm.prank(recovery);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
-
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), charlie);
     }
@@ -1863,85 +1861,63 @@ contract NameRegistryTest is Test {
     function testCannotRequestRecoveryToZeroAddr(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(alice != recovery);
         _register(alice);
 
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
+        // Start a recovery to set recoveryClockOf and recoveryDestinationOf to non-zero values
+        uint256 requestTs = _requestRecovery(alice, recovery);
 
-        // 1. recovery requests a recovery of alice's id to 0x0
+        // recovery requests a recovery of alice's id to 0x0
+        vm.warp(block.timestamp + 10 minutes);
         vm.prank(recovery);
         vm.expectRevert(NameRegistry.InvalidRecovery.selector);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, address(0));
 
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRequestRecoveryUnlessAuthorized(
-        address alice,
-        address bob,
-        address charlie
-    ) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        vm.assume(charlie != address(0));
-        _register(alice);
-
-        // 1. bob requests a recovery from alice to charlie, which fails
-        vm.prank(bob);
-        vm.expectRevert(NameRegistry.Unauthorized.selector);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
-
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testCannotRequestRecoveryIfRegistrable(
-        address alice,
-        address bob,
-        address charlie
-    ) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        vm.assume(charlie != address(0));
-
-        // 1. bob requests a recovery from alice to charlie, which fails
-        vm.prank(bob);
-        vm.expectRevert(NameRegistry.Unauthorized.selector);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
-
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testCannotRequestRecoveryIfPaused(
+    function testCannotRequestRecoveryUnlessRecoveryAddress(
         address alice,
         address bob,
         address recovery
     ) public {
-        // 1. alice registers @alice, sets recovery as her recovery address and the contract is paused
         _assumeClean(alice);
-        _assumeClean(recovery);
-        vm.assume(alice != recovery);
-        vm.assume(bob != address(0));
+        _assumeClean(bob);
+        vm.assume(bob != recovery);
         _register(alice);
-        _grant(OPERATOR_ROLE, ADMIN);
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-        vm.prank(ADMIN);
-        nameRegistry.pause();
 
-        // 2. recovery requests a recovery which fails
-        vm.prank(recovery);
-        vm.expectRevert("Pausable: paused");
+        // bob requests a recovery of @alice to bob, which fails
+        vm.prank(bob);
+        vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
+    }
+
+    function testCannotRequestRecoveryIfPaused(address alice, address recovery) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        vm.assume(alice != recovery);
+        _register(alice);
+
+        // Set and request a recovery so that recoveryClockOf is non-zero
+        _requestRecovery(alice, recovery);
+
+        // pause the contract
+        _grant(OPERATOR_ROLE, ADMIN);
+        vm.prank(ADMIN);
+        nameRegistry.pause();
+
+        // recovery requests a recovery which fails
+        vm.prank(recovery);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.requestRecovery(ALICE_TOKEN_ID, recovery);
+
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
