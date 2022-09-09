@@ -38,7 +38,7 @@ contract NameRegistry is
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Revert when msg.value does not fully cover the cost of the operation
+    /// @dev Revert when there are not enough funds to complete the transaction
     error InsufficientFunds();
 
     /// @dev Revert when the caller does not have the authority to perform the action
@@ -55,10 +55,6 @@ contract NameRegistry is
 
     /// @dev Revert if the caller does not have TREASURER_ROLE
     error NotTreasurer();
-
-    /// @dev Revert if withdraw() is called with an amount greater than the balance
-    error WithdrawTooMuch(); // Could not withdraw the requested amount
-
     /// @dev Revert when excess funds could not be sent back to the caller
     error CallFailed();
 
@@ -747,52 +743,51 @@ contract NameRegistry is
      *
      * @param from The address which currently holds the fname
      * @param to   The address to transfer the fname to
-     * @param id   The uint256 representation of the fname to transfer
+     * @param tokenId   The uint256 representation of the fname to transfer
      */
     function transferFrom(
         address from,
         address to,
-        uint256 id
+        uint256 tokenId
     ) public override {
-        // Expired names should not be transferrable by the previous owner
-        if (block.timestamp >= expiryOf[id]) revert Expired();
+        uint256 expiryTs = expiryOf[tokenId];
 
-        super.transferFrom(from, to, id);
+        // Expired names should not be transferrable by the previous owner
+        if (expiryTs != 0 && block.timestamp >= expiryOf[tokenId]) revert Expired();
+
+        super.transferFrom(from, to, tokenId);
     }
 
     /**
-     * @notice Return a distinct Uniform Resource Identifier (URI) for a given tokenId and throws
-     *         if tokenId is not a valid token ID.
+     * @notice Return a distinct Uniform Resource Identifier (URI) for a given tokenId even if it
+     *         is not registered. Throws if the tokenId cannot be converted to a valid fname.
      *
      * @param tokenId The uint256 representation of the fname
      */
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
-        uint256 lastCharIdx = 0;
+        uint256 lastCharIdx;
 
-        // Safety: fnames are specified as 16 bytes and then converted to uint256, so the reverse
-        // can be performed safely to obtain the fname
-        bytes16 tokenIdBytes16 = bytes16(bytes32(tokenId));
+        // Safety: fnames are byte16's that are cast to uint256 tokenIds, so inverting this is safe
+        bytes16 fname = bytes16(bytes32(tokenId));
 
-        _validateName(tokenIdBytes16);
+        _validateName(fname);
 
-        // Iterate backwards from the last byte until we find the first non-zero byte which marks
-        // the end of the fname, which is guaranteed to be <= 16 bytes / chars.
+        // Step back from the last byte to find the first non-zero byte
         for (uint256 i = 15; ; --i) {
-            // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
-            if (uint8(tokenIdBytes16[i]) != 0) {
+            if (uint8(fname[i]) != 0) {
                 lastCharIdx = i;
                 break;
             }
         }
 
-        // Safety: we can assume that lastCharIndex is always > 0 since registering a fname with
-        // all empty bytes is not permitted by _validateName.
+        // Safety: this non-zero byte must exist at some position because of _validateName and
+        // therefore lastCharIdx must be > 1
 
         // Construct a new bytes[] with the valid fname characters.
         bytes memory fnameBytes = new bytes(lastCharIdx + 1);
 
         for (uint256 j = 0; j <= lastCharIdx; ++j) {
-            fnameBytes[j] = tokenIdBytes16[j];
+            fnameBytes[j] = fname[j];
         }
 
         return string(abi.encodePacked(BASE_URI, string(fnameBytes), ".json"));
@@ -862,8 +857,7 @@ contract NameRegistry is
     /**
      * @notice Request a recovery of an fid to a new address if the caller is the recovery address.
      *         Supports ERC 2771 meta-transactions and can be called by a relayer. Requests can be
-     *         overwritten by making another request, and can be made if the fname is in
-     *         renewable or biddable state.
+     *         overwritten by making another request.
      *
      * @param tokenId The uint256 representation of the fname
      * @param to      The address to transfer the fname to, which cannot be address(0)
@@ -873,6 +867,9 @@ contract NameRegistry is
 
         // Invariant 3 ensures that a request cannot be made after ownership change without consent
         if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
+
+        // Perf: don't check if in renewable or biddable state since it saves gas and
+        // completeRecovery will revert when it runs
 
         // Track when the escrow period started
         recoveryClockOf[tokenId] = block.timestamp;
@@ -934,7 +931,7 @@ contract NameRegistry is
     }
 
     /*//////////////////////////////////////////////////////////////
-                              OWNER ACTIONS
+                            MODERATOR ACTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -959,25 +956,9 @@ contract NameRegistry is
         }
     }
 
-    /**
-     * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
-     */
-    function pause() external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
-        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
-        _pause();
-    }
-
-    /**
-     * @notice unpause the contract and resume registrations, renewals, recoveries and transfers of names.
-     */
-    function unpause() external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
-        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
-        _unpause();
-    }
+    /*//////////////////////////////////////////////////////////////
+                              ADMIN ACTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Changes the address from which registerTrusted calls can be made
@@ -985,8 +966,7 @@ contract NameRegistry is
      * @param _trustedCaller The address of the new trusted caller
      */
     function changeTrustedCaller(address _trustedCaller) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         trustedCaller = _trustedCaller;
         emit ChangeTrustedCaller(_trustedCaller);
@@ -996,8 +976,7 @@ contract NameRegistry is
      * @notice Disables registerTrusted and enables register calls from any address.
      */
     function disableTrustedOnly() external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         delete trustedOnly;
         emit DisableTrustedOnly();
@@ -1009,8 +988,7 @@ contract NameRegistry is
      * @param _vault The address of the new vault
      */
     function changeVault(address _vault) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         vault = _vault;
         emit ChangeVault(_vault);
@@ -1022,8 +1000,7 @@ contract NameRegistry is
      * @param _pool The address of the new pool
      */
     function changePool(address _pool) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         pool = _pool;
         emit ChangePool(_pool);
@@ -1039,8 +1016,7 @@ contract NameRegistry is
      * @param _fee The new yearly fee
      */
     function changeFee(uint256 _fee) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
         // Audit does fee == 0 cause any problems with other logic?
@@ -1054,16 +1030,37 @@ contract NameRegistry is
      * @param amount The amount of ether to withdraw
      */
     function withdraw(uint256 amount) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
         // Audit: this will not revert if the requested amount is zero, will that cause problems?
-        if (address(this).balance < amount) revert WithdrawTooMuch();
+        if (address(this).balance < amount) revert InsufficientFunds();
 
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = vault.call{value: amount}("");
         if (!success) revert CallFailed();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            OPERATOR ACTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
+     */
+    function pause() external payable {
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
+        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
+        _pause();
+    }
+
+    /**
+     * @notice unpause the contract and resume registrations, renewals, recoveries and transfers of names.
+     */
+    function unpause() external payable {
+        // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
+        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
+        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1139,7 +1136,7 @@ contract NameRegistry is
             uint256 nextYearTimestamp = _timestampOfYear(_currYear + 1);
 
             // Safety: nextYearTimestamp > block.timestamp >= _timestampOfYear(_currYear) so this
-            // cannot underflow
+            // cannot underflow.  Division rounds to zero causing fees to be 1 wei lower sometimes
             return ((nextYearTimestamp - block.timestamp) * fee) / (nextYearTimestamp - _timestampOfYear(_currYear));
         }
     }
