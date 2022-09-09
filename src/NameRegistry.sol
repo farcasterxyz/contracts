@@ -763,38 +763,35 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Return a distinct Uniform Resource Identifier (URI) for a given tokenId and throws
-     *         if tokenId is not a valid token ID.
+     * @notice Return a distinct Uniform Resource Identifier (URI) for a given tokenId even if it
+     *         is not registered. Throws if the tokenId cannot be converted to a valid fname.
      *
      * @param tokenId The uint256 representation of the fname
      */
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
-        uint256 lastCharIdx = 0;
+        uint256 lastCharIdx;
 
-        // Safety: fnames are specified as 16 bytes and then converted to uint256, so the reverse
-        // can be performed safely to obtain the fname
-        bytes16 tokenIdBytes16 = bytes16(bytes32(tokenId));
+        // Safety: fnames are byte16's that are cast to uint256 tokenIds, so inverting this is safe
+        bytes16 fname = bytes16(bytes32(tokenId));
 
-        _validateName(tokenIdBytes16);
+        _validateName(fname);
 
-        // Iterate backwards from the last byte until we find the first non-zero byte which marks
-        // the end of the fname, which is guaranteed to be <= 16 bytes / chars.
+        // Step back from the last byte to find the first non-zero byte
         for (uint256 i = 15; ; --i) {
-            // Coverage: false negative, see: https://github.com/foundry-rs/foundry/issues/2993
-            if (uint8(tokenIdBytes16[i]) != 0) {
+            if (uint8(fname[i]) != 0) {
                 lastCharIdx = i;
                 break;
             }
         }
 
-        // Safety: we can assume that lastCharIndex is always > 0 since registering a fname with
-        // all empty bytes is not permitted by _validateName.
+        // Safety: this non-zero byte must exist at some position because of _validateName and
+        // therefore lastCharIdx must be > 1
 
         // Construct a new bytes[] with the valid fname characters.
         bytes memory fnameBytes = new bytes(lastCharIdx + 1);
 
         for (uint256 j = 0; j <= lastCharIdx; ++j) {
-            fnameBytes[j] = tokenIdBytes16[j];
+            fnameBytes[j] = fname[j];
         }
 
         return string(abi.encodePacked(BASE_URI, string(fnameBytes), ".json"));
