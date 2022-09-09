@@ -1918,7 +1918,7 @@ contract NameRegistryTest is Test {
         _register(alice);
 
         // Set and request a recovery so that recoveryClockOf is non-zero
-        _requestRecovery(alice, recovery);
+        uint256 requestTs = _requestRecovery(alice, recovery);
 
         // pause the contract
         _grant(OPERATOR_ROLE, ADMIN);
@@ -1926,11 +1926,12 @@ contract NameRegistryTest is Test {
         nameRegistry.pause();
 
         // recovery requests a recovery which fails
+        vm.warp(block.timestamp + 10 minutes);
         vm.prank(recovery);
         vm.expectRevert("Pausable: paused");
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, recovery);
 
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
     }
 
     /*//////////////////////////////////////////////////////////////
