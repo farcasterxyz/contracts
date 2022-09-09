@@ -1461,11 +1461,24 @@ contract NameRegistryTest is Test {
                               ERC-721 TESTS
     //////////////////////////////////////////////////////////////*/
 
+    function testOwnerOf(address alice) public {
+        _assumeClean(alice);
+        _register(alice);
+
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+    }
+
     function testOwnerOfRevertsIfExpired(address alice) public {
         _assumeClean(alice);
         _register(alice);
 
+        // Warp until the name is renewable
         vm.warp(JAN1_2023_TS);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        nameRegistry.ownerOf(ALICE_TOKEN_ID);
+
+        // Warp until the name is biddable
+        vm.warp(FEB1_2023_TS);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
