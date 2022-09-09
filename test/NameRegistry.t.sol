@@ -1524,6 +1524,7 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _assumeClean(recovery);
+        _assumeClean(approver);
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
         vm.assume(approver != alice);
@@ -2398,64 +2399,94 @@ contract NameRegistryTest is Test {
                              MODERATOR TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testReclaimRegisteredNames(address alice) public {
+    function testReclaimRegisteredNames(
+        address alice,
+        address mod,
+        address recovery
+    ) public {
         _assumeClean(alice);
-        _register(alice);
+        _assumeClean(mod);
+        _assumeClean(recovery);
         vm.assume(alice != POOL);
-        _grant(MODERATOR_ROLE, ADMIN);
 
-        vm.expectEmit(true, true, true, false);
+        _register(alice);
+        _grant(MODERATOR_ROLE, mod);
+        _requestRecovery(alice, recovery);
+
+        vm.expectEmit(true, true, true, true);
         emit Transfer(alice, POOL, ALICE_TOKEN_ID);
-        vm.prank(ADMIN);
+        vm.prank(mod);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testReclaimRenewableNames(address alice) public {
+    function testReclaimExpiredNames(
+        address alice,
+        address mod,
+        address recovery
+    ) public {
         _assumeClean(alice);
-        _register(alice);
+        _assumeClean(mod);
+        _assumeClean(recovery);
         vm.assume(alice != POOL);
-        _grant(MODERATOR_ROLE, ADMIN);
+
+        _register(alice);
+        _grant(MODERATOR_ROLE, mod);
+        _requestRecovery(alice, recovery);
 
         vm.warp(JAN1_2023_TS);
-        vm.expectEmit(true, true, true, false);
+        vm.expectEmit(true, true, true, true);
         emit Transfer(alice, POOL, ALICE_TOKEN_ID);
-        vm.prank(ADMIN);
+        vm.prank(mod);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testReclaimBiddableNames(address alice) public {
+    function testReclaimBiddableNames(
+        address alice,
+        address mod,
+        address recovery
+    ) public {
         _assumeClean(alice);
-        _register(alice);
+        _assumeClean(mod);
+        _assumeClean(recovery);
         vm.assume(alice != POOL);
+
+        _register(alice);
         _grant(MODERATOR_ROLE, ADMIN);
+        _requestRecovery(alice, recovery);
 
         vm.warp(FEB1_2023_TS);
-        vm.expectEmit(true, true, true, false);
+        vm.expectEmit(true, true, true, true);
         emit Transfer(alice, POOL, ALICE_TOKEN_ID);
         vm.prank(ADMIN);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
     function testReclaimResetsERC721Approvals(address alice, address bob) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
+
         _register(alice);
         _grant(MODERATOR_ROLE, ADMIN);
 
@@ -2466,40 +2497,6 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testCannotReclaimUnlessMinted() public {
-        _grant(MODERATOR_ROLE, ADMIN);
-        vm.expectRevert(NameRegistry.Registrable.selector);
-        vm.prank(ADMIN);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
-    }
-
-    function testReclaimResetsRecoveryState(
-        address alice,
-        address bob,
-        address charlie
-    ) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-        vm.assume(charlie != address(0));
-        _register(alice);
-        _grant(MODERATOR_ROLE, ADMIN);
-
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, bob);
-
-        vm.prank(bob);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
-
-        vm.prank(ADMIN);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
     function testReclaimWhenPaused(address alice) public {
@@ -2519,16 +2516,47 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
     }
 
-    function testCannotReclaimUnlessModerator(address alice) public {
-        _assumeClean(alice);
-        _register(alice);
+    function testCannotReclaimIfRegistrable(address mod) public {
+        _assumeClean(mod);
+        _grant(MODERATOR_ROLE, mod);
 
-        vm.prank(ADMIN);
+        vm.prank(mod);
+        vm.expectRevert(NameRegistry.Registrable.selector);
+        nameRegistry.reclaim(ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(POOL), 0);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+    }
+
+    function testCannotReclaimUnlessModerator(
+        address alice,
+        address notModerator,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(notModerator);
+        _assumeClean(recovery);
+
+        _register(alice);
+        uint256 recoveryTs = _requestRecovery(alice, recovery);
+
+        vm.prank(notModerator);
         vm.expectRevert(NameRegistry.NotModerator.selector);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(POOL), 0);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), recoveryTs);
     }
 
     /*//////////////////////////////////////////////////////////////
