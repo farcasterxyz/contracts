@@ -1946,122 +1946,86 @@ contract NameRegistryTest is Test {
         address bob,
         address recovery
     ) public {
-        // 1. alice registers @alice and sets recovery as her recovery address
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         vm.assume(bob != address(0));
         _register(alice);
 
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-
-        // 2. recovery requests a recovery of alice's id to bob
-        vm.startPrank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-
-        // 3. after escrow period, recovery completes the recovery to bob
-        vm.warp(block.timestamp + ESCROW_PERIOD);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, bob, ALICE_TOKEN_ID);
-        nameRegistry.completeRecovery(ALICE_TOKEN_ID);
-        vm.stopPrank();
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-    }
-
-    function testRecoveryCompletionResetsERC721Approvals(
-        address alice,
-        address charlie,
-        address recovery
-    ) public {
-        _assumeClean(alice);
-        // 1. alice registers @alice and sets recovery as her recovery address and approver
-        vm.assume(alice != recovery);
-        _assumeClean(recovery);
-        vm.assume(charlie != address(0));
-        _register(alice);
-
-        vm.startPrank(alice);
-        nameRegistry.approve(recovery, ALICE_TOKEN_ID);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-        vm.stopPrank();
-
-        vm.startPrank(recovery);
-        // 2. recovery requests and completes a recovery to charlie
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
-        vm.warp(block.timestamp + ESCROW_PERIOD);
-        nameRegistry.completeRecovery(ALICE_TOKEN_ID);
-        vm.stopPrank();
-
-        assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testCannotCompleteRecoveryIfUnauthorized(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
-        _assumeClean(alice);
-        _assumeClean(recovery);
-        vm.assume(alice != recovery);
-        vm.assume(recovery != bob);
-        vm.assume(bob != address(0));
-        _register(alice);
-
-        // warp to ensure that block.timestamp is not zero so we can assert the reset of the recovery clock
-        vm.warp(100);
+        // set recovery as the recovery address and request a recovery of @alice from alice to bob
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
 
         vm.prank(recovery);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
-        vm.prank(bob);
+        // after escrow period, complete the recovery to bob
+        vm.prank(recovery);
+        vm.warp(block.timestamp + ESCROW_PERIOD);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, ALICE_TOKEN_ID);
+        nameRegistry.completeRecovery(ALICE_TOKEN_ID);
+
+        if (alice != bob) assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(bob), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), bob);
+    }
+
+    function testRecoveryCompletionResetsERC721Approvals(address alice, address recovery) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        vm.assume(alice != recovery);
+        _register(alice);
+        _requestRecovery(alice, recovery);
+
+        // set recovery as the approver address for the ERC-721 token
+        vm.prank(alice);
+        nameRegistry.approve(recovery, ALICE_TOKEN_ID);
+
+        // after escrow period, complete the recovery to bob
+        vm.warp(block.timestamp + ESCROW_PERIOD);
+        vm.prank(recovery);
+        nameRegistry.completeRecovery(ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(recovery), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
+    }
+
+    function testCannotCompleteRecoveryUnlessRecovery(
+        address alice,
+        address recovery,
+        address notRecovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        vm.assume(recovery != notRecovery);
+        vm.assume(notRecovery != address(0));
+        _register(alice);
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // notRecovery tries and fails to complete the recovery
+        vm.warp(block.timestamp + ESCROW_PERIOD);
+        vm.prank(notRecovery);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        if (alice != notRecovery) assertEq(nameRegistry.balanceOf(notRecovery), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
-    }
-
-    function testCannotCompleteRecoveryIfStartedByPrevious(
-        address alice,
-        address bob,
-        address recovery1,
-        address recovery2
-    ) public {
-        _assumeClean(alice);
-        _assumeClean(recovery1);
-        _assumeClean(recovery2);
-        vm.assume(alice != recovery1);
-        vm.assume(alice != bob);
-        vm.assume(bob != address(0));
-        _register(alice);
-
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery1);
-
-        // 1. recovery1 requests a recovery of @alice to bob and then alice changes the recovery to recovery2
-        vm.prank(recovery1);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
-
-        // 2. after escrow period, recovery2 attempts to complete recovery which fails
-        vm.warp(block.timestamp + ESCROW_PERIOD);
-        vm.prank(recovery2);
-        vm.expectRevert(NameRegistry.NoRecovery.selector);
-        nameRegistry.completeRecovery(ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testCannotCompleteRecoveryIfNotStarted(address alice, address recovery) public {
@@ -2073,7 +2037,6 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
 
-        // 1. recovery calls recovery complete on alice's id, which fails
         vm.prank(recovery);
         vm.warp(block.number + ESCROW_PERIOD);
         vm.expectRevert(NameRegistry.NoRecovery.selector);
@@ -2082,35 +2045,40 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(recovery), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testCannotCompleteRecoveryWhenInEscrow(
         address alice,
-        address bob,
-        address recovery
+        address recovery,
+        uint256 waitPeriod
     ) public {
-        // 1. alice registers @alice and sets recovery as her recovery address
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
-        vm.assume(bob != address(0));
         _register(alice);
+        uint256 requestTs = _requestRecovery(alice, recovery);
+        waitPeriod = waitPeriod % ESCROW_PERIOD;
 
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-
-        // 2. recovery requests a recovery of @alice to bob
-        vm.startPrank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-
-        // 3. before escrow period, recovery completes the recovery to bob
+        vm.warp(block.timestamp + waitPeriod);
+        vm.prank(recovery);
         vm.expectRevert(NameRegistry.Escrow.selector);
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(recovery), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
-        vm.stopPrank();
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testCannotCompleteRecoveryIfExpired(
@@ -2118,67 +2086,58 @@ contract NameRegistryTest is Test {
         address bob,
         address recovery
     ) public {
-        // 1. alice registers @alice and sets recovery as her recovery address
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         vm.assume(bob != address(0));
         _register(alice);
+        uint256 requestTs = _requestRecovery(alice, recovery);
 
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-
-        // 2. recovery requests a recovery of @alice to bob
-        uint256 requestTs = block.timestamp;
-        vm.startPrank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-
-        // 3. during the renewal period, recovery attempts to recover to bob
+        // Fast forward to renewal and attempt to recover
         vm.warp(JAN1_2023_TS);
+        vm.prank(recovery);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(recovery), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
 
-        // 3. during expiry, recovery attempts to recover to bob
+        // Fast forward to biddable and attempt to recover
         vm.warp(FEB1_2023_TS);
+        vm.prank(recovery);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(recovery), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
-        vm.stopPrank();
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotCompleteRecoveryIfPaused(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
-        // 1. alice registers @alice and sets recovery as her recovery address, and @recovery requests a recovery to
-        // recovery.
+    function testCannotCompleteRecoveryIfPaused(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
-        vm.assume(bob != address(0));
         _register(alice);
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // ADMIN pauses the contract
         _grant(OPERATOR_ROLE, ADMIN);
-
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-        vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-        uint256 recoveryTs = block.timestamp;
-
-        // 2. the contract is then paused by the ADMIN and we warp past the escrow period
         vm.prank(ADMIN);
         nameRegistry.pause();
-        vm.warp(recoveryTs + ESCROW_PERIOD);
+
+        // Fast forward to when the escrow period is completed
+        vm.warp(requestTs + ESCROW_PERIOD);
 
         // 3. recovery attempts to complete the recovery, which fails
         vm.prank(recovery);
@@ -2187,7 +2146,15 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), recoveryTs);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(recovery), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
