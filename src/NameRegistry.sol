@@ -1182,7 +1182,7 @@ contract NameRegistry is
     // solhint-disable-next-line code-complexity
     function _validateName(bytes16 fname) internal pure {
         uint256 length = fname.length;
-        bool nameEnded = false;
+        bool nameEnded;
 
         /**
          * Iterate over the bytes16 fname one char at a time, ensuring that:
@@ -1197,6 +1197,11 @@ contract NameRegistry is
         for (uint256 i = 0; i < length; ) {
             uint8 charInt = uint8(fname[i]);
 
+            unchecked {
+                // Safety: i can never overflow because length is guaranteed to be <= 16
+                i++;
+            }
+
             if (nameEnded) {
                 // Only NULL characters are allowed after a name has ended
                 if (charInt != 0) {
@@ -1204,33 +1209,32 @@ contract NameRegistry is
                 }
             } else {
                 // Only valid ASCII characters [45, 48-57, 97-122] are allowed before the name ends
-                if ((charInt >= 1 && charInt <= 44)) {
-                    revert InvalidName();
+
+                // Check if the character is a-z
+                if ((charInt >= 97 && charInt <= 122)) {
+                    continue;
                 }
 
-                if ((charInt >= 46 && charInt <= 47)) {
-                    revert InvalidName();
+                // Check if the character is 0-9
+                if ((charInt >= 48 && charInt <= 57)) {
+                    continue;
                 }
 
-                if ((charInt >= 58 && charInt <= 96)) {
-                    revert InvalidName();
-                }
-
-                if (charInt >= 123) {
-                    revert InvalidName();
+                // Check if the character is a hyphen
+                if ((charInt == 45)) {
+                    continue;
                 }
 
                 // On seeing the first NULL char in the name, revert if is the first char in the
                 // name, otherwise mark the name as ended
                 if (charInt == 0) {
-                    if (i == 0) revert InvalidName();
+                    // We check i==1 instead of i==0 because i is incremented before the check
+                    if (i == 1) revert InvalidName();
                     nameEnded = true;
+                    continue;
                 }
-            }
 
-            unchecked {
-                // Safety: i can never overflow because length is guaranteed to be <= 16
-                i++;
+                revert InvalidName();
             }
         }
     }
