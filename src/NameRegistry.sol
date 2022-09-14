@@ -692,10 +692,7 @@ contract NameRegistry is
         // call super.ownerOf instead of ownerOf, because the latter reverts if name is expired
         _transfer(super.ownerOf(tokenId), to, tokenId);
 
-        unchecked {
-            // Safety: _currYear is guaranteed to be a known calendar year and cannot overflow
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
-        }
+        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
 
         recoveryOf[tokenId] = recovery;
 

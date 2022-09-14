@@ -1125,7 +1125,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(charlie), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2025_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
         assertEq(bob.balance, amount - (winningBid));
     }
@@ -1192,7 +1192,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2025_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -1233,7 +1233,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2025_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -1274,7 +1274,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2025_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -1315,7 +1315,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2025_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -1351,7 +1351,7 @@ contract NameRegistryTest is Test {
         nameRegistry.bid{value: 1001 ether}(charlie, ALICE_TOKEN_ID, recovery2);
 
         assertEq(nameRegistry.balanceOf(charlie), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2025_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
