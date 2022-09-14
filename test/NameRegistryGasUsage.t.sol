@@ -87,7 +87,7 @@ contract NameRegistryGasUsageTest is Test {
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(nameRegistry.expiryOf(nameTokenId), JAN1_2023_TS);
-            assertEq(alice.balance, balance - nameRegistry.currYearFee());
+            assertEq(alice.balance, balance - nameRegistry.fee());
             assertEq(nameRegistry.recoveryOf(nameTokenId), RECOVERY);
         }
 

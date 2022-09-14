@@ -78,7 +78,7 @@ contract BundleRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
-        vm.assume(amount >= 0.01 ether); // the amount must be at least 0.01 ETH
+        vm.assume(amount >= nameRegistry.fee()); // the amount must be at least equal to the fee
         _assumeClean(relayer); // relayer must be able to receive funds
         vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
 
@@ -99,7 +99,7 @@ contract BundleRegistryTest is Test {
         _assertSuccessfulRegistration(alice, recovery);
 
         // At most 0.0009 ETH of was consumed for gas + registration fees
-        assertEq(relayer.balance > amount - 0.0009 ether, true);
+        assertEq(relayer.balance, amount - nameRegistry.fee());
         assertEq(address(bundleRegistry).balance, 0 ether);
     }
 

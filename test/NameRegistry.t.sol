@@ -236,8 +236,7 @@ contract NameRegistryTest is Test {
         _disableTrusted();
         vm.warp(DEC1_2022_TS);
 
-        // Choose an amount that is at least equal to currYearFee()
-        uint256 fee = nameRegistry.currYearFee();
+        uint256 fee = nameRegistry.fee();
         vm.assume(amount >= fee);
         vm.deal(alice, amount);
 
@@ -256,7 +255,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(bob), 1);
         assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), JAN1_2023_TS);
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), recovery);
-        assertEq(alice.balance, amount - nameRegistry.currYearFee());
+        assertEq(alice.balance, amount - nameRegistry.fee());
     }
 
     function testRegisterWorksWhenAlreadyOwningAName(
@@ -1061,7 +1060,7 @@ contract NameRegistryTest is Test {
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery1);
 
         vm.warp(FEB1_2023_TS);
-        uint256 winningBid = BID_START + nameRegistry.currYearFee();
+        uint256 winningBid = BID_START + nameRegistry.fee();
         vm.assume(amount >= (winningBid) && amount < (type(uint256).max - 3 wei));
         vm.deal(bob, amount);
 
@@ -1115,7 +1114,7 @@ contract NameRegistryTest is Test {
         // After 1 step, we expect the bid premium to be 900.000000000000606000 after errors
         vm.warp(FEB1_2023_TS + 8 hours);
         uint256 bidPremium = 900.000000000000606000 ether;
-        uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
+        uint256 bidPrice = bidPremium + nameRegistry.fee();
 
         // Bid below the price and fail
         vm.startPrank(bob);
@@ -1155,7 +1154,7 @@ contract NameRegistryTest is Test {
         // After 100 steps, we expect the bid premium to be 0.026561398887589000 after errors
         vm.warp(FEB1_2023_TS + (8 hours * 100));
         uint256 bidPremium = .026561398887589000 ether;
-        uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
+        uint256 bidPrice = bidPremium + nameRegistry.fee();
 
         // Bid below the price and fail
         vm.prank(bob);
@@ -1194,7 +1193,7 @@ contract NameRegistryTest is Test {
         // After 393 steps, we expect the bid premium to be 0.000000000000001000 after errors
         vm.warp(FEB1_2023_TS + (8 hours * 393));
         uint256 bidPremium = .000000000000001000 ether;
-        uint256 bidPrice = bidPremium + nameRegistry.currYearFee();
+        uint256 bidPrice = bidPremium + nameRegistry.fee();
 
         // Bid below the price and fail
         vm.prank(bob);
@@ -1232,7 +1231,7 @@ contract NameRegistryTest is Test {
 
         // After 393 steps, we expect the bid premium to be 0.0 after errors
         vm.warp(FEB1_2023_TS + (8 hours * 394));
-        uint256 bidPrice = nameRegistry.currYearFee();
+        uint256 bidPrice = nameRegistry.fee();
 
         // Bid slightly lower than the bidPrice which fails
         vm.prank(bob);
@@ -2780,44 +2779,6 @@ contract NameRegistryTest is Test {
         vm.warp(3250454400); // Jan 1, 2073 0:00:00 GMT
         vm.expectRevert(NameRegistry.InvalidTime.selector);
         assertEq(nameRegistry.currYear(), 0);
-    }
-
-    function testCurrYearFee() public {
-        _grant(TREASURER_ROLE, ADMIN);
-
-        // fee is initialized to 0.01 ether
-        vm.warp(1672531200); // Jan 1, 2023 0:00:00 GMT
-        assertEq(nameRegistry.currYearFee(), 0.01 ether);
-
-        vm.warp(1688256000); // Jul 2, 2023 0:00:00 GMT
-        assertEq(nameRegistry.currYearFee(), 0.005013698630136986 ether);
-
-        vm.warp(1704067199); // Dec 31, 2023 23:59:59 GMT
-        assertEq(nameRegistry.currYearFee(), 0.000000000317097919 ether);
-
-        vm.prank(ADMIN);
-        nameRegistry.changeFee(0.02 ether);
-
-        vm.warp(1672531200); // Jan 1, 2023 0:00:00 GMT
-        assertEq(nameRegistry.currYearFee(), 0.02 ether);
-
-        vm.warp(1688256000); // Jul 2, 2023 0:00:00 GMT
-        assertEq(nameRegistry.currYearFee(), 0.010027397260273972 ether);
-
-        vm.warp(1704067199); // Dec 31, 2023 23:59:59 GMT
-        assertEq(nameRegistry.currYearFee(), 0.000000000634195839 ether);
-
-        vm.prank(ADMIN);
-        nameRegistry.changeFee(0 ether);
-
-        vm.warp(1672531200); // Jan 1, 2023 0:00:00 GMT
-        assertEq(nameRegistry.currYearFee(), 0);
-
-        vm.warp(1688256000); // Jul 2, 2023 0:00:00 GMT
-        assertEq(nameRegistry.currYearFee(), 0);
-
-        vm.warp(1704067199); // Dec 31, 2023 23:59:59 GMT
-        assertEq(nameRegistry.currYearFee(), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

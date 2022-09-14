@@ -488,8 +488,8 @@ contract NameRegistry is
     ) external payable {
         bytes32 commit = generateCommit(fname, to, secret);
 
-        uint256 _currYearFee = currYearFee();
-        if (msg.value < _currYearFee) revert InsufficientFunds();
+        uint256 _fee = fee;
+        if (msg.value < _fee) revert InsufficientFunds();
 
         // Perf: do not check if trustedOnly = 1, because timestampOf[commit] will always be zero
         // while trustedOnly = 1 since makeCommit cannot be called.
@@ -520,11 +520,11 @@ contract NameRegistry is
         recoveryOf[tokenId] = recovery;
 
         unchecked {
-            // Safety: msg.value >= _currYearFee by check above, so this cannot overflow
+            // Safety: msg.value >= _fee by check above, so this cannot overflow
 
             // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
             // solhint-disable-next-line avoid-low-level-calls
-            (bool success, ) = msg.sender.call{value: msg.value - _currYearFee}("");
+            (bool success, ) = msg.sender.call{value: msg.value - _fee}("");
             if (!success) revert CallFailed();
         }
     }
@@ -691,7 +691,7 @@ contract NameRegistry is
                 BID_START_PRICE.mulWadDown(
                     uint256(FixedPointMathLib.powWad(int256(BID_PERIOD_DECREASE_UD60X18), periodsSD59x18))
                 ) +
-                currYearFee();
+                fee;
         }
 
         if (msg.value < price) revert InsufficientFunds();
@@ -1121,24 +1121,6 @@ contract NameRegistry is
 
         // Iterated through the array without finding a year, this should never happen until 2072
         revert InvalidTime();
-    }
-
-    /**
-     * @dev Returns the fee (in ETH) required to register a name for the rest of the year, prorated
-     *      by the seconds left in the year.
-     *
-     */
-    function currYearFee() public returns (uint256) {
-        uint256 _currYear = currYear();
-
-        unchecked {
-            // Safety: _currYear() returns a calendar year and cannot realistically overflow
-            uint256 nextYearTimestamp = _timestampOfYear(_currYear + 1);
-
-            // Safety: nextYearTimestamp > block.timestamp >= _timestampOfYear(_currYear) so this
-            // cannot underflow.  Division rounds to zero causing fees to be 1 wei lower sometimes
-            return ((nextYearTimestamp - block.timestamp) * fee) / (nextYearTimestamp - _timestampOfYear(_currYear));
-        }
     }
 
     /*//////////////////////////////////////////////////////////////
