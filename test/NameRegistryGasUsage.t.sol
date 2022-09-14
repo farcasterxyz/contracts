@@ -65,10 +65,11 @@ contract NameRegistryGasUsageTest is Test {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
+        // TODO: add more commentary on how these are calculated before merging
         uint256 commitTs = DEC1_2022_TS;
         uint256 registerTs = commitTs + COMMIT_REGISTER_DELAY;
         uint256 renewableTs = registerTs + 365 days;
-        uint256 biddableTs = JAN1_2024_TS + RENEWAL_PERIOD; // TODO: fix once biddable registers for a full year
+        uint256 biddableTs = renewableTs + RENEWAL_PERIOD + 365 days;
 
         // 1. During 2022, test making the commit and registering the name
         for (uint256 i = 0; i < names.length; i++) {
@@ -91,10 +92,10 @@ contract NameRegistryGasUsageTest is Test {
             vm.prank(alice);
             nameRegistry.register{value: 0.01 ether}(name, alice, "secret", RECOVERY);
 
-            assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(nameRegistry.expiryOf(nameTokenId), renewableTs);
-            assertEq(alice.balance, balance - nameRegistry.fee());
+            assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(nameRegistry.recoveryOf(nameTokenId), RECOVERY);
+            assertEq(alice.balance, balance - nameRegistry.fee());
         }
 
         // 2. During 2023, test renewing the name after it expires. This must not be done in the previous
@@ -108,8 +109,9 @@ contract NameRegistryGasUsageTest is Test {
 
             vm.prank(alice);
             nameRegistry.renew{value: 0.01 ether}(nameTokenId);
+
+            assertEq(nameRegistry.expiryOf(nameTokenId), renewableTs + 365 days);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.expiryOf(nameTokenId), JAN1_2024_TS);
         }
 
         // 3. During 2024, test bidding on the name after it expires and then transferring it. This is also
@@ -119,7 +121,7 @@ contract NameRegistryGasUsageTest is Test {
             address bob = address(uint160(i) + 100);
             bytes16 name = names[i];
             uint256 nameTokenId = uint256(bytes32(name));
-            vm.warp(biddableTs + 31 days);
+            vm.warp(biddableTs);
 
             vm.prank(alice);
             nameRegistry.bid{value: 1_000.01 ether}(alice, nameTokenId, RECOVERY);

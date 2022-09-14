@@ -933,23 +933,28 @@ contract NameRegistryTest is Test {
     function testRenew(
         address alice,
         address bob,
-        uint256 amount
+        uint256 amount,
+        uint256 timestamp
     ) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _register(alice);
         // TODO: Report foundry bug when setting the max to anything higher
         vm.assume(amount >= FEE && amount < (type(uint256).max - 3 wei));
-        vm.warp(block.timestamp + 365 days);
 
+        uint256 renewableTs = block.timestamp + 365 days;
+        timestamp = (timestamp % (RENEWAL_PERIOD)) + renewableTs;
+        uint256 expectedExpiryTs = timestamp + 365 days;
+
+        vm.warp(timestamp);
         vm.deal(bob, amount);
         vm.prank(bob);
         vm.expectEmit(true, true, true, true);
-        emit Renew(ALICE_TOKEN_ID, JAN1_2024_TS);
+        emit Renew(ALICE_TOKEN_ID, expectedExpiryTs);
         nameRegistry.renew{value: amount}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), expectedExpiryTs);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(bob.balance, amount - FEE);
@@ -968,10 +973,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InsufficientFunds.selector);
         nameRegistry.renew{value: amount}(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp);
-        assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(alice.balance, amount);
     }
@@ -985,10 +990,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Registrable.selector);
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
-        assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -1004,10 +1009,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Registrable.selector);
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
-        assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -1024,10 +1029,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.NotRenewable.selector);
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
-        assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -1043,9 +1048,9 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Registered.selector);
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + 365 days);
         assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + 365 days);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -1062,10 +1067,10 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp);
-        assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -1078,10 +1083,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.CallFailed.selector);
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
-        assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 

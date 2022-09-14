@@ -569,7 +569,7 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Renew a name for another year while it is in the renewable period (Jan 1 - Jan 30)
+     * @notice Renew a name for another year while it is in the renewable period.
      *
      * @param tokenId The uint256 representation of the fname to renew
      */
@@ -591,10 +591,7 @@ contract NameRegistry is
 
         if (block.timestamp < expiryTs) revert Registered();
 
-        unchecked {
-            // Safety: _currYear must return a known calendar year which cannot overflow
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
-        }
+        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
