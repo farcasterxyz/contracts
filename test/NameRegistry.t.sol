@@ -2483,9 +2483,9 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(mod);
         _assumeClean(recovery);
-        vm.assume(alice != POOL);
 
         _register(alice);
+        uint256 renewalTs = block.timestamp + 365 days;
         _grant(MODERATOR_ROLE, mod);
         _requestRecovery(alice, recovery);
 
@@ -2494,9 +2494,41 @@ contract NameRegistryTest is Test {
         vm.prank(mod);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.balanceOf(alice), 0);
+        if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewalTs);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+    }
+
+    function testReclaimRegisteredNameCloseToExpiryShouldExtend(
+        address alice,
+        address mod,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(mod);
+        _assumeClean(recovery);
+
+        _register(alice);
+        uint256 renewalTs = block.timestamp + 365 days;
+        _grant(MODERATOR_ROLE, mod);
+        _requestRecovery(alice, recovery);
+
+        // Fast forward to just before the renewal expires
+        vm.warp(renewalTs - 1);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, POOL, ALICE_TOKEN_ID);
+        vm.prank(mod);
+        nameRegistry.reclaim(ALICE_TOKEN_ID);
+
+        // reclaim should extend the expiry ahead of the current timestamp
+        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+
+        if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(POOL), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), expectedExpiryTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
@@ -2510,7 +2542,6 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(mod);
         _assumeClean(recovery);
-        vm.assume(alice != POOL);
 
         _register(alice);
         uint256 renewableTs = block.timestamp + 365 days;
@@ -2523,10 +2554,13 @@ contract NameRegistryTest is Test {
         vm.prank(mod);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.balanceOf(alice), 0);
+        // reclaim should extend the expiry ahead of the current timestamp
+        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+
+        if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2024_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), expectedExpiryTs);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
@@ -2539,7 +2573,6 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(mod);
         _assumeClean(recovery);
-        vm.assume(alice != POOL);
 
         _register(alice);
         uint256 biddableTs = block.timestamp + 365 days + RENEWAL_PERIOD;
@@ -2552,10 +2585,13 @@ contract NameRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
-        assertEq(nameRegistry.balanceOf(alice), 0);
+        // reclaim should extend the expiry ahead of the current timestamp
+        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+
+        if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2025_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), expectedExpiryTs);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
@@ -2630,7 +2666,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(POOL), 0);
+        if (alice != POOL) assertEq(nameRegistry.balanceOf(POOL), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);

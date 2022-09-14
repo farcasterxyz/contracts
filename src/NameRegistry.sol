@@ -934,7 +934,8 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Move the fname from the current owner to the pool and renew it for another year
+     * @notice Move the fname from the current owner to the pool and renew it for another year.
+     *         Does not work when paused because it calls _transfer.
      *
      * @param tokenId the uint256 representation of the fname.
      */
@@ -943,15 +944,18 @@ contract NameRegistry is
         // and it reduces our attack surface area
         if (!hasRole(MODERATOR_ROLE, msg.sender)) revert NotModerator();
 
-        if (expiryOf[tokenId] == 0) revert Registrable();
+        uint256 _expiry = expiryOf[tokenId];
+
+        // If an fname hasn't been minted, it should be minted instead of reclaimed
+        if (_expiry == 0) revert Registrable();
 
         // Call super.ownerOf instead of ownerOf because we want the admin to transfer the name
         // even if is expired and there is no current owner.
         _transfer(super.ownerOf(tokenId), pool, tokenId);
 
-        unchecked {
-            // Safety: _currYear() returns a calendar year and cannot realistically overflow
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
+        // If an fname expires in the near future, extend its registration by the renewal period
+        if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
+            expiryOf[tokenId] = block.timestamp + RENEWAL_PERIOD;
         }
     }
 
