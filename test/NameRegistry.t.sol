@@ -2184,7 +2184,7 @@ contract NameRegistryTest is Test {
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
+        if (alice != bob) assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
@@ -2213,7 +2213,7 @@ contract NameRegistryTest is Test {
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
+        if (alice != bob) assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
