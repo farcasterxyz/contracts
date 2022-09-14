@@ -2880,42 +2880,6 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          YEARLY PAYMENTS TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    // currYear() must be tested in a single test fn chronologically to reach all code paths
-    function testCurrYear() public {
-        // Date before 2021 incorrectly returns 2021
-        vm.warp(1607558400); // Dec 10, 2020 0:00:00 GMT
-        assertEq(nameRegistry.currYear(), 2021);
-
-        // Date in known year range
-        vm.warp(1640095200); // Dec 21, 2021 14:00:00 GMT
-        assertEq(nameRegistry.currYear(), 2021);
-
-        // Date in the same year as previous
-        vm.warp(1640390400); // Dec 25, 2021 14:00:00 GMT
-        assertEq(nameRegistry.currYear(), 2021);
-
-        // Date which is the last second of a calendar year
-        vm.warp(1672531199); // Dec 31, 2022 23:59:59 GMT
-        assertEq(nameRegistry.currYear(), 2022);
-
-        // Date which is the first second of the following year
-        vm.warp(1672531200); // Jan 1, 2023 00:00:00 GMT
-        assertEq(nameRegistry.currYear(), 2023);
-
-        // Date which skips a year from the previous call
-        vm.warp(1738368000); // Feb 1, 2025 00:00:00 GMT
-        assertEq(nameRegistry.currYear(), 2025);
-
-        // Date after 2072 which reverts
-        vm.warp(3250454400); // Jan 1, 2073 0:00:00 GMT
-        vm.expectRevert(NameRegistry.InvalidTime.selector);
-        assertEq(nameRegistry.currYear(), 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 

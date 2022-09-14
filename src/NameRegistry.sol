@@ -67,9 +67,6 @@ contract NameRegistry is
     /// @dev Revert if the fname has invalid characters during registration
     error InvalidName();
 
-    /// @dev Revert if currYear() is after the year 2172, which is not supported
-    error InvalidTime();
-
     /// @dev Revert if renew() is called on a registered name.
     error Registered();
 
@@ -233,35 +230,22 @@ contract NameRegistry is
     address public pool;
 
     /**
-     * @notice Chronological array of timestamps of Jan 1, 0:00:00 GMT from 2022 to 2072
-     * @dev    Occupies slot 7
-     */
-    uint256[] internal yearTimestamps;
-
-    /**
-     * @notice The index of yearTimestamps[] which returns the timestamp of Jan 1st of the next
-     *         calendar year
-     * @dev    Occupies slot 8
-     */
-    uint256 internal nextYearIdx;
-
-    /**
      * @notice Maps each uint256 representation of an fname to the address that can recover it
-     * @dev    Occupies slot 9
+     * @dev    Occupies slot 7
      */
     mapping(uint256 => address) public recoveryOf;
 
     /**
      * @notice Maps each uint256 representation of an fname to the timestamp of the recovery
      *         attempt or zero if there is no active recovery.
-     * @dev    Occupies slot 10
+     * @dev    Occupies slot 8
      */
     mapping(uint256 => uint256) public recoveryClockOf;
 
     /**
      * @notice Maps each uint256 representation of an fname to the destination address of the most
      *         recent recovery attempt.
-     * @dev    Occupies slot 11, and the value is left dirty after a recovery to save gas and should
+     * @dev    Occupies slot 9, and the value is left dirty after a recovery to save gas and should
      *         not be relied upon to check if there is an active recovery.
      */
     mapping(uint256 => address) public recoveryDestinationOf;
@@ -270,7 +254,7 @@ contract NameRegistry is
      * @dev Added to allow future versions to add new variables in case this contract becomes
      *      inherited. See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[38] private __gap;
+    uint256[40] private __gap;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -360,61 +344,6 @@ contract NameRegistry is
         emit ChangeFee(INITIAL_FEE);
 
         trustedOnly = 1;
-
-        // Audit: verify these timestamps using a calculator other than epochconverter.com
-        yearTimestamps = [
-            1640995200, // 2022
-            1672531200,
-            1704067200,
-            1735689600,
-            1767225600,
-            1798761600,
-            1830297600,
-            1861920000,
-            1893456000,
-            1924992000,
-            1956528000, // 2032
-            1988150400,
-            2019686400,
-            2051222400,
-            2082758400,
-            2114380800,
-            2145916800,
-            2177452800,
-            2208988800,
-            2240611200,
-            2272147200, // 2042
-            2303683200,
-            2335219200,
-            2366841600,
-            2398377600,
-            2429913600,
-            2461449600,
-            2493072000,
-            2524608000,
-            2556144000,
-            2587680000, // 2052
-            2619302400,
-            2650838400,
-            2682374400,
-            2713910400,
-            2745532800,
-            2777068800,
-            2808604800,
-            2840140800,
-            2871763200,
-            2903299200, // 2062
-            2934835200,
-            2966371200,
-            2997993600,
-            3029529600,
-            3061065600,
-            3092601600,
-            3124224000,
-            3155760000,
-            3187296000,
-            3218832000 // 2072
-        ];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1058,66 +987,6 @@ contract NameRegistry is
     }
 
     /*//////////////////////////////////////////////////////////////
-                          YEARLY PAYMENTS LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Returns the current year for any year between 2021 and 2072. The year is determined by
-     *      comparing the current timestamp against an array of known timestamps for Jan 1 of each
-     *      year. The array contains timestamps up to 2072 after which the contract will start
-     *      failing. This can be resolved by deploying a new contract with updated timestamps.
-     */
-    function currYear() public returns (uint256 year) {
-        // Audit: block.timestamp could "roll back" to a prior year for a block in specific
-        // circumstances and this function would return the future year even though the block
-        // believes itself to be in the prior year, but it is expected to cause no issues since
-        // the rest of the contract relies on currYear() which never moves backward chronologically.
-
-        uint256 _nextYearIdx = nextYearIdx;
-
-        // Implies that year has not changed since the last call, so return cached value
-        if (block.timestamp < yearTimestamps[_nextYearIdx]) {
-            unchecked {
-                // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 2021
-                return _nextYearIdx + 2021;
-            }
-        }
-
-        // The year has changed and it may have changed by more than one year since the last call.
-        // Iterate through the array of year timestamps starting from the last known year until
-        // the first one is found that is higher than the block timestamp. Set the current year to
-        // the year that precedes that year.
-        uint256 length = yearTimestamps.length;
-
-        uint256 idx;
-        unchecked {
-            // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 1
-            idx = _nextYearIdx + 1;
-        }
-
-        for (uint256 i = idx; i < length; ) {
-            if (yearTimestamps[i] > block.timestamp) {
-                // Slither false positive: https://github.com/crytic/slither/issues/1338
-                // slither-disable-next-line costly-loop
-                nextYearIdx = i;
-
-                unchecked {
-                    // Safety: nextYearIdx is always <= yearTimestamps.length which can't overflow when added to 2021
-                    return i + 2021;
-                }
-            }
-
-            unchecked {
-                // Safety: i cannot overflow because length is a pre-determined constant value.
-                i++;
-            }
-        }
-
-        // Iterated through the array without finding a year, this should never happen until 2072
-        revert InvalidTime();
-    }
-
-    /*//////////////////////////////////////////////////////////////
                          OPEN ZEPPELIN OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
@@ -1212,18 +1081,6 @@ contract NameRegistry is
 
                 revert InvalidName();
             }
-        }
-    }
-
-    /**
-     * @dev Returns the timestamp of Jan 1, 0:00:00 for the given year between 2022 and 2072
-     */
-    function _timestampOfYear(uint256 year) internal view returns (uint256) {
-        unchecked {
-            // Safety: The array index will not go below zero, since year is always set to at least currYear(),
-            // which must be >= 2022. The array index will not go above array.length(51) until the year 2072, since
-            // year is always set to at most currYear() + 1, which must be <= 2072 in the year 2071
-            return yearTimestamps[year - 2022];
         }
     }
 }
