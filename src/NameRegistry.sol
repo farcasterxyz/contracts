@@ -307,6 +307,8 @@ contract NameRegistry is
 
     uint256 internal constant INITIAL_FEE = 0.01 ether;
 
+    uint256 internal constant YEAR_IN_SECONDS = 365 days;
+
     /*//////////////////////////////////////////////////////////////
                       CONSTRUCTORS AND INITIALIZERS
     //////////////////////////////////////////////////////////////*/
@@ -512,10 +514,7 @@ contract NameRegistry is
         // Clearing unnecessary storage reduces gas consumption
         delete timestampOf[commit];
 
-        unchecked {
-            // Safety: _currYear must be a known calendar year and cannot overflow
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
-        }
+        expiryOf[tokenId] = block.timestamp + YEAR_IN_SECONDS;
 
         recoveryOf[tokenId] = recovery;
 

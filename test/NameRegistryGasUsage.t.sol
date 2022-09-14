@@ -26,6 +26,7 @@ contract NameRegistryGasUsageTest is Test {
     uint256 constant COMMIT_REGISTER_DELAY = 60;
     address constant RECOVERY = address(0x8Ca9aB5b1756B7020a299ff4dc79b5E854a5cac5);
     address constant TRUSTED_SENDER = address(0x4E29ad5578668e2f82A921FFd5fA7720eDD59D47);
+    uint256 constant GRACE_PERIOD = 31 days;
 
     uint256 constant DEC1_2022_TS = 1669881600; // Dec 1, 2022 00:00:00 GMT
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
@@ -64,6 +65,11 @@ contract NameRegistryGasUsageTest is Test {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
+        uint256 commitTs = DEC1_2022_TS;
+        uint256 registerTs = commitTs + COMMIT_REGISTER_DELAY;
+        uint256 renewableTs = registerTs + 365 days;
+        uint256 biddableTs = JAN1_2024_TS + GRACE_PERIOD; // TODO: fix once biddable registers for a full year
+
         // 1. During 2022, test making the commit and registering the name
         for (uint256 i = 0; i < names.length; i++) {
             address alice = address(uint160(i) + 10); // start after the precompiles
@@ -73,20 +79,20 @@ contract NameRegistryGasUsageTest is Test {
             bytes32 commitHash = nameRegistry.generateCommit(name, alice, "secret");
 
             vm.deal(alice, 10_000 ether);
-            vm.warp(DEC1_2022_TS);
+            vm.warp(commitTs);
 
             vm.prank(alice);
             nameRegistry.makeCommit(commitHash);
             assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
 
             // 3. Register the name alice
-            vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
+            vm.warp(registerTs);
             uint256 balance = alice.balance;
             vm.prank(alice);
             nameRegistry.register{value: 0.01 ether}(name, alice, "secret", RECOVERY);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.expiryOf(nameTokenId), JAN1_2023_TS);
+            assertEq(nameRegistry.expiryOf(nameTokenId), renewableTs);
             assertEq(alice.balance, balance - nameRegistry.fee());
             assertEq(nameRegistry.recoveryOf(nameTokenId), RECOVERY);
         }
@@ -98,7 +104,7 @@ contract NameRegistryGasUsageTest is Test {
             address alice = address(uint160(i) + 10); // start after the precompiles
             bytes16 name = names[i];
             uint256 nameTokenId = uint256(bytes32(name));
-            vm.warp(JAN1_2023_TS);
+            vm.warp(renewableTs);
 
             vm.prank(alice);
             nameRegistry.renew{value: 0.01 ether}(nameTokenId);
@@ -113,7 +119,7 @@ contract NameRegistryGasUsageTest is Test {
             address bob = address(uint160(i) + 100);
             bytes16 name = names[i];
             uint256 nameTokenId = uint256(bytes32(name));
-            vm.warp(FEB1_2024_TS);
+            vm.warp(biddableTs + 31 days);
 
             vm.prank(alice);
             nameRegistry.bid{value: 1_000.01 ether}(alice, nameTokenId, RECOVERY);

@@ -96,7 +96,15 @@ contract BundleRegistryTest is Test {
         vm.prank(relayer);
         bundleRegistry.register{value: amount}(alice, recovery, url, "alice", secret);
 
-        _assertSuccessfulRegistration(alice, recovery);
+        // TODO: Refactor to use _assertSuccessfulRegistration once this refactor is complete...
+
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
 
         // At most 0.0009 ETH of was consumed for gas + registration fees
         assertEq(relayer.balance, amount - nameRegistry.fee());
