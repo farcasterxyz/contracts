@@ -61,7 +61,7 @@ contract NameRegistryGasUsageTest is Test {
         nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
     }
 
-    function testGasRegisterUsage() public {
+    function testGasRegister() public {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
@@ -138,7 +138,7 @@ contract NameRegistryGasUsageTest is Test {
         }
     }
 
-    function testGasTrustedRegisterUsage() public {
+    function testGasTrustedRegister() public {
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(TRUSTED_SENDER);
 
@@ -157,7 +157,7 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.trustedRegister(name, alice, RECOVERY, inviterId, inviteeId);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.expiryOf(nameTokenId), JAN1_2023_TS);
+            assertEq(nameRegistry.expiryOf(nameTokenId), block.timestamp + 365 days);
             assertEq(nameRegistry.recoveryOf(nameTokenId), RECOVERY);
         }
     }

@@ -115,7 +115,7 @@ contract BundleRegistryGasUsageTest is Test {
             bundleRegistry.trustedRegister(alice, RECOVERY, URL, name, 1);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.expiryOf(nameTokenId), JAN1_2023_TS);
+            assertEq(nameRegistry.expiryOf(nameTokenId), block.timestamp + 365 days);
             assertEq(nameRegistry.recoveryOf(nameTokenId), RECOVERY);
         }
     }

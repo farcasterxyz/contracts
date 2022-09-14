@@ -742,7 +742,7 @@ contract NameRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
         assertEq(nameRegistry.trustedOnly(), 1);
 
         vm.prank(ADMIN);
@@ -755,9 +755,9 @@ contract NameRegistryTest is Test {
         emit Invite(inviter, invitee, "alice");
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -770,7 +770,7 @@ contract NameRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
 
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(trustedCaller);
@@ -782,10 +782,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.NotInvitable.selector);
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
-        vm.expectRevert("ERC721: invalid token ID");
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -800,7 +800,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
         vm.assume(recovery != recovery2);
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
 
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(trustedCaller);
@@ -813,9 +813,9 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.trustedRegister("alice", alice, recovery2, inviter, invitee);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -831,7 +831,7 @@ contract NameRegistryTest is Test {
         vm.assume(trustedCaller != FORWARDER);
         vm.assume(arbitrarySender != trustedCaller);
         assertEq(nameRegistry.trustedOnly(), 1);
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
 
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(trustedCaller);
@@ -840,10 +840,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
-        vm.expectRevert("ERC721: invalid token ID");
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -856,7 +856,7 @@ contract NameRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
 
         assertEq(nameRegistry.trustedOnly(), 1);
         vm.prank(ADMIN);
@@ -870,10 +870,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert("Pausable: paused");
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
-        vm.expectRevert("ERC721: invalid token ID");
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -884,7 +884,7 @@ contract NameRegistryTest is Test {
         uint256 invitee
     ) public {
         vm.assume(trustedCaller != FORWARDER);
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
 
         assertEq(nameRegistry.trustedOnly(), 1);
         vm.prank(ADMIN);
@@ -894,9 +894,9 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: mint to the zero address");
         nameRegistry.trustedRegister("alice", address(0), recovery, inviter, invitee);
 
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -909,7 +909,7 @@ contract NameRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
 
         assertEq(nameRegistry.trustedOnly(), 1);
         vm.prank(ADMIN);
@@ -919,10 +919,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.trustedRegister("al}ce", alice, recovery, inviter, invitee);
 
-        vm.expectRevert("ERC721: invalid token ID");
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 

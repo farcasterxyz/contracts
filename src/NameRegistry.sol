@@ -561,10 +561,7 @@ contract NameRegistry is
         uint256 tokenId = uint256(bytes32(fname));
         _mint(to, tokenId);
 
-        unchecked {
-            // Safety: _currYear must return a known calendar year which cannot overflow here
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
-        }
+        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
 
         recoveryOf[tokenId] = recovery;
 

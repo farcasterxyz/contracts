@@ -236,7 +236,14 @@ contract BundleRegistryTest is Test {
         emit Invite(inviter, 1, "alice");
         bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
 
-        _assertSuccessfulRegistration(alice, recovery);
+        // TODO: replace with _assertSuccessfulRegistration before merge
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testCannotTrustedRegisterFromUntrustedCaller(
@@ -349,7 +356,14 @@ contract BundleRegistryTest is Test {
         emit Invite(inviter, 1, "alice");
         bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
 
-        _assertSuccessfulRegistration(alice, recovery);
+        // TODO: replace with _assertSuccessfulRegistration before merge
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testCannotPartialTrustedRegisterIfBothEnabled(
@@ -482,9 +496,9 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -493,10 +507,10 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
-        vm.expectRevert("ERC721: invalid token ID");
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 }
