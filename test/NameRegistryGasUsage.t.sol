@@ -26,7 +26,7 @@ contract NameRegistryGasUsageTest is Test {
     uint256 constant COMMIT_REGISTER_DELAY = 60;
     address constant RECOVERY = address(0x8Ca9aB5b1756B7020a299ff4dc79b5E854a5cac5);
     address constant TRUSTED_SENDER = address(0x4E29ad5578668e2f82A921FFd5fA7720eDD59D47);
-    uint256 constant GRACE_PERIOD = 31 days;
+    uint256 constant RENEWAL_PERIOD = 31 days;
 
     uint256 constant DEC1_2022_TS = 1669881600; // Dec 1, 2022 00:00:00 GMT
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
@@ -68,7 +68,7 @@ contract NameRegistryGasUsageTest is Test {
         uint256 commitTs = DEC1_2022_TS;
         uint256 registerTs = commitTs + COMMIT_REGISTER_DELAY;
         uint256 renewableTs = registerTs + 365 days;
-        uint256 biddableTs = JAN1_2024_TS + GRACE_PERIOD; // TODO: fix once biddable registers for a full year
+        uint256 biddableTs = JAN1_2024_TS + RENEWAL_PERIOD; // TODO: fix once biddable registers for a full year
 
         // 1. During 2022, test making the commit and registering the name
         for (uint256 i = 0; i < names.length; i++) {

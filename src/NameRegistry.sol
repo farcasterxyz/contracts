@@ -284,7 +284,9 @@ contract NameRegistry is
     /// @dev enforced delay in makeCommit() to prevent griefing by replaying the commit
     uint256 internal constant COMMIT_REPLAY_DELAY = 10 minutes;
 
-    uint256 internal constant GRACE_PERIOD = 31 days;
+    uint256 internal constant REGISTRATION_PERIOD = 365 days;
+
+    uint256 internal constant RENEWAL_PERIOD = 31 days;
 
     uint256 internal constant ESCROW_PERIOD = 3 days;
 
@@ -306,8 +308,6 @@ contract NameRegistry is
     bytes32 internal constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
     uint256 internal constant INITIAL_FEE = 0.01 ether;
-
-    uint256 internal constant YEAR_IN_SECONDS = 365 days;
 
     /*//////////////////////////////////////////////////////////////
                       CONSTRUCTORS AND INITIALIZERS
@@ -514,7 +514,7 @@ contract NameRegistry is
         // Clearing unnecessary storage reduces gas consumption
         delete timestampOf[commit];
 
-        expiryOf[tokenId] = block.timestamp + YEAR_IN_SECONDS;
+        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
 
         recoveryOf[tokenId] = recovery;
 
@@ -589,7 +589,7 @@ contract NameRegistry is
         // Check that we are still in the renewable period, and have not passed into biddable
         unchecked {
             // Safety: expiryTs is a timestamp of a known calendar year and cannot overflow
-            if (block.timestamp >= expiryTs + GRACE_PERIOD) revert NotRenewable();
+            if (block.timestamp >= expiryTs + RENEWAL_PERIOD) revert NotRenewable();
         }
 
         if (block.timestamp < expiryTs) revert Registered();
@@ -633,8 +633,8 @@ contract NameRegistry is
 
         unchecked {
             // Safety: expiryTs is a timestamp of a known calendar year and adding it to
-            // GRACE_PERIOD cannot overflow
-            auctionStartTimestamp = expiryTs + GRACE_PERIOD;
+            // RENEWAL_PERIOD cannot overflow
+            auctionStartTimestamp = expiryTs + RENEWAL_PERIOD;
         }
 
         if (block.timestamp < auctionStartTimestamp) revert NotBiddable();
