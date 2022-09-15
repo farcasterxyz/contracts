@@ -675,7 +675,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterFromNonPayable(
+    function testCannotRegisterFromNonPayableIfOverpaying(
         address alice,
         address recovery,
         bytes32 secret
@@ -689,9 +689,11 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
-        vm.expectRevert(NameRegistry.CallFailed.selector);
+
         // call register() from address(this) which is non-payable
-        nameRegistry.register{value: FEE}("alice", alice, secret, recovery);
+        // overpay by 1 wei to return funds which causes the revert
+        vm.expectRevert(NameRegistry.CallFailed.selector);
+        nameRegistry.register{value: FEE + 1 wei}("alice", alice, secret, recovery);
 
         assertEq(nameRegistry.timestampOf(commitHash), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
@@ -1073,14 +1075,16 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRenewFromNonPayable(address alice) public {
+    function testCannotRenewFromNonPayableIfOverpaying(address alice) public {
         _assumeClean(alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         vm.warp(renewableTs);
 
         vm.expectRevert(NameRegistry.CallFailed.selector);
-        nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
+        // call register() from address(this) which is non-payable
+        // overpay by 1 wei to return funds which causes the revert
+        nameRegistry.renew{value: FEE + 1 wei}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
@@ -1503,7 +1507,7 @@ contract NameRegistryTest is Test {
         assertEq(bob.balance, 1001 ether);
     }
 
-    function testCannotBidFromNonPayable(address alice, address charlie) public {
+    function testCannotBidFromNonPayableIfOverpaying(address alice, address charlie) public {
         _assumeClean(alice);
         _register(alice);
         address nonPayable = address(this);
@@ -1514,7 +1518,9 @@ contract NameRegistryTest is Test {
         vm.warp(biddableTs);
         vm.prank(nonPayable);
         vm.expectRevert(NameRegistry.CallFailed.selector);
-        nameRegistry.bid{value: (BID_START + FEE)}(nonPayable, ALICE_TOKEN_ID, charlie);
+        // call register() from address(this) which is non-payable
+        // overpay by 1 wei to return funds which causes the revert
+        nameRegistry.bid{value: (BID_START + FEE + 1 wei)}(nonPayable, ALICE_TOKEN_ID, charlie);
 
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
