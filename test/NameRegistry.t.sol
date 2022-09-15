@@ -1570,6 +1570,7 @@ contract NameRegistryTest is Test {
         address recovery
     ) public {
         _assumeClean(alice);
+        _assumeClean(bob);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
