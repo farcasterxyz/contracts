@@ -17,11 +17,11 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
  * @custom:version 2.0.0
  *
  * @notice NameRegistry enables any ETH address to claim a Farcaster Name (fname). A name is a
- *         rentable ERC-721 that can be registered until the end of the calendar year by paying a
- *         fee. On expiry, the owner has 30 to renew the name by paying a fee, or it is places in
- *         a dutch auction. The NameRegistry starts in a trusted mode where only a trusted caller
- *         can register an fname and can move to an untrusted mode where any address can register
- *         an fname. The Registry implements a recovery system which allows the custody address to
+ *         rentable ERC-721 that can be registered for one year by paying a fee. On expiry, the
+ *         owner has 30 days to renew the name by paying a fee, or it is placed in a dutch
+ *         auction. The NameRegistry starts in a trusted mode where only a trusted caller can
+ *         register an fname and can move to an untrusted mode where any address can register an
+ *         fname. The Registry implements a recovery system which allows the custody address to
  *         nominate a recovery address that can transfer the fname to a new address after a delay.
  */
 contract NameRegistry is
@@ -181,10 +181,11 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /// WARNING - DO NOT CHANGE THE ORDER OF THESE VARIABLES ONCE DEPLOYED
-    /// Any changes before deployment should be replicated to NameRegistryV2 in NameRegistryUpdate.t.sol
+    /// Changes should be replicated to NameRegistryV2 in NameRegistryUpdate.t.sol
 
-    // Audit: These variables are kept public to make it easier to test the contract, since using the same inherit
-    // and extend trick that we used for IDRegistry is harder to pull off here due to the UUPS structure.
+    // Audit: These variables are kept public to make it easier to test the contract, since using
+    // the same inherit and extend trick that we used for IDRegistry is harder to pull off here
+    //  due to the UUPS structure.
 
     /**
      * @notice The fee to renew a name for a full calendar year
@@ -565,10 +566,9 @@ contract NameRegistry is
         uint256 price;
 
         /**
-         * The price to win a bid is calculated with formula price = dutch_premium + renewal_fee
-         *
-         * dutch_premium: 1000 ETH, decreases exponentially by 10% every 8 hours since Jan 31
-         * renewal_fee  : 0.01 ETH, decreases linearly by 1/31536000 every second since Jan 1
+         * The price to win a bid is calculated with formula price = dutch_premium + renewal_fee,
+         * where the dutch_premium starts at 1,000 ETH and decreases exponentially by 10% every
+         * 8 hours after bidding starts.
          *
          * dutch_premium = 1000 ether * (0.9)^(periods), where:
          * periods = (block.timestamp - auctionStartTimestamp) / 28_800
