@@ -448,12 +448,17 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
+        uint256 overpayment;
+
         unchecked {
             // Safety: msg.value >= _fee by check above, so this cannot overflow
+            overpayment = msg.value - _fee;
+        }
 
+        if (overpayment > 0) {
             // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
             // solhint-disable-next-line avoid-low-level-calls
-            (bool success, ) = msg.sender.call{value: msg.value - _fee}("");
+            (bool success, ) = msg.sender.call{value: overpayment}("");
             if (!success) revert CallFailed();
         }
     }
@@ -525,12 +530,17 @@ contract NameRegistry is
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
+        uint256 overpayment;
+
         unchecked {
             // Safety: msg.value >= _fee by check above, so this cannot overflow
+            overpayment = msg.value - _fee;
+        }
 
+        if (overpayment > 0) {
             // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
             // solhint-disable-next-line avoid-low-level-calls
-            (bool success, ) = msg.sender.call{value: msg.value - _fee}("");
+            (bool success, ) = msg.sender.call{value: overpayment}("");
             if (!success) revert CallFailed();
         }
     }
@@ -625,12 +635,17 @@ contract NameRegistry is
 
         recoveryOf[tokenId] = recovery;
 
+        uint256 overpayment;
+
         unchecked {
             // Safety: msg.value >= price by check above, so this cannot underflow
+            overpayment = msg.value - price;
+        }
 
+        if (overpayment > 0) {
             // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
             // solhint-disable-next-line avoid-low-level-calls
-            (bool success, ) = msg.sender.call{value: msg.value - price}("");
+            (bool success, ) = msg.sender.call{value: overpayment}("");
             if (!success) revert CallFailed();
         }
     }
