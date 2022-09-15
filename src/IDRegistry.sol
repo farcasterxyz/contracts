@@ -230,8 +230,6 @@ contract IDRegistry is ERC2771Context, Ownable {
         if (idOf[to] != 0) revert HasId();
 
         unchecked {
-            // Audit: Could you cause an overflow or grief by registering a lot of ids with a
-            // specially crafted contract?
             idCounter++;
         }
 

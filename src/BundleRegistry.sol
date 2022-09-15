@@ -61,11 +61,8 @@ contract BundleRegistry is Ownable {
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.register(to, recovery, url);
 
-        // Audit: is there a more sane way to forward the entire balance?
-        // Forward along any funds send for registration
         nameRegistry.register{value: msg.value}(username, to, secret, recovery);
 
-        // Audit: is there a more sane way to return the entire balance?
         // Return any funds returned by the NameRegistry back to the caller
         if (address(this).balance > 0) {
             // solhint-disable-next-line avoid-low-level-calls
