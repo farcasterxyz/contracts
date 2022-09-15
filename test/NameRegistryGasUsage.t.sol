@@ -81,7 +81,7 @@ contract NameRegistryGasUsageTest is Test {
 
             // Make the first commit on Jan 1, 2023
             vm.warp(JAN1_2023_TS);
-            bytes32 commitHash = nameRegistry.generateCommit(name, alice, "secret");
+            bytes32 commitHash = nameRegistry.generateCommit(name, alice, "secret", RECOVERY);
 
             vm.prank(alice);
             nameRegistry.makeCommit(commitHash);

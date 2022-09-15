@@ -76,7 +76,7 @@ contract BundleRegistryGasUsageTest is Test {
             bytes16 name = names[i];
             uint256 nameTokenId = uint256(bytes32(name));
 
-            bytes32 commitHash = nameRegistry.generateCommit(name, alice, "secret");
+            bytes32 commitHash = nameRegistry.generateCommit(name, alice, "secret", RECOVERY);
 
             vm.deal(alice, 10_000 ether);
             vm.warp(commitTs);

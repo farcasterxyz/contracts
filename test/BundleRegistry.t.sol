@@ -108,7 +108,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
-        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
 
@@ -141,7 +141,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
-        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
 
@@ -175,7 +175,7 @@ contract BundleRegistryTest is Test {
         idRegistry.disableTrustedOnly();
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
-        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         vm.expectRevert(NameRegistry.Invitable.selector);
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
@@ -209,7 +209,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
-        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         vm.expectRevert(NameRegistry.Invitable.selector);
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);

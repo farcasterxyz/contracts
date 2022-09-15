@@ -126,7 +126,7 @@ contract MetaTxTest is Test {
         address alice = vm.addr(alicePrivateKey);
 
         // Register the name alice
-        bytes32 commitHash = nameRegistry.generateCommit(bytes16("alice"), alice, "secret");
+        bytes32 commitHash = nameRegistry.generateCommit(bytes16("alice"), alice, "secret", recovery);
 
         vm.deal(relayer, 1 ether);
         vm.warp(DEC1_2022_TS);
