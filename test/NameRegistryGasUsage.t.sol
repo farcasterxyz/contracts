@@ -31,7 +31,7 @@ contract NameRegistryGasUsageTest is Test {
     address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
     uint256 constant COMMIT_REGISTER_DELAY = 60;
-    uint256 constant RENEWAL_PERIOD = 31 days;
+    uint256 constant RENEWAL_PERIOD = 30 days;
     uint256 constant REGISTRATION_PERIOD = 365 days;
 
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT

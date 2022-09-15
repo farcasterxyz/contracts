@@ -270,7 +270,7 @@ contract NameRegistry is
 
     uint256 internal constant REGISTRATION_PERIOD = 365 days;
 
-    uint256 internal constant RENEWAL_PERIOD = 31 days;
+    uint256 internal constant RENEWAL_PERIOD = 30 days;
 
     uint256 internal constant ESCROW_PERIOD = 3 days;
 

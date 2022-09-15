@@ -61,7 +61,7 @@ contract NameRegistryTest is Test {
     uint256 constant COMMIT_REPLAY_DELAY = 10 minutes;
     uint256 constant ESCROW_PERIOD = 3 days;
     uint256 constant REGISTRATION_PERIOD = 365 days;
-    uint256 constant RENEWAL_PERIOD = 31 days;
+    uint256 constant RENEWAL_PERIOD = 30 days;
 
     uint256 constant BID_START = 1_000 ether;
     uint256 constant FEE = 0.01 ether;
