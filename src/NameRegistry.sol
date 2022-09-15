@@ -371,13 +371,14 @@ contract NameRegistry is
     function generateCommit(
         bytes16 fname,
         address to,
-        bytes32 secret
+        bytes32 secret,
+        address recovery
     ) public pure returns (bytes32 commit) {
         // Perf: Do not validate to != address(0) because it happens during register/mint
 
         _validateName(fname);
 
-        commit = keccak256(abi.encode(fname, to, secret));
+        commit = keccak256(abi.encode(fname, to, recovery, secret));
     }
 
     /**
@@ -418,7 +419,7 @@ contract NameRegistry is
         bytes32 secret,
         address recovery
     ) external payable {
-        bytes32 commit = generateCommit(fname, to, secret);
+        bytes32 commit = generateCommit(fname, to, secret, recovery);
 
         uint256 _fee = fee;
         if (msg.value < _fee) revert InsufficientFunds();
