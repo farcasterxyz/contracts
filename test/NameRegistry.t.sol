@@ -48,34 +48,33 @@ contract NameRegistryTest is Test {
         address(0x185a4dc360CE69bDCceE33b3784B0282f7961aea), // ???
         address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D) // ???
     ];
-    address constant PRECOMPILE_CONTRACTS = address(9); // some addresses up to 0x9 are precompiled contracts
+
+    // Address of the last precompile contract
+    address constant MAX_PRECOMPILE = address(9);
 
     address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
     address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
     address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
-    uint256 constant ESCROW_PERIOD = 3 days;
-    uint256 constant REVEAL_DELAY = 60 seconds;
+    uint256 constant COMMIT_REVEAL_DELAY = 60 seconds;
     uint256 constant COMMIT_REPLAY_DELAY = 10 minutes;
-    uint256 public constant FEE = 0.01 ether;
-    uint256 public constant BID_START = 1_000 ether;
-    uint256 public constant RENEWAL_PERIOD = 31 days;
+    uint256 constant ESCROW_PERIOD = 3 days;
+    uint256 constant REGISTRATION_PERIOD = 365 days;
+    uint256 constant RENEWAL_PERIOD = 31 days;
 
-    uint256 constant DEC1_2022_TS = 1669881600; // Dec 1, 2022 00:00:00 GMT
-    uint256 constant JAN1_2022_TS = 1640995200; // Jan 1, 2022 0:00:00 GMT
+    uint256 constant BID_START = 1_000 ether;
+    uint256 constant FEE = 0.01 ether;
+
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
-    uint256 constant FEB1_2023_TS = 1675209600; // Feb 1, 2023 0:00:00 GMT
-    uint256 constant JAN1_2024_TS = 1704067200; // Jan 1, 2024 0:00:00 GMT
-    uint256 constant JAN1_2025_TS = 1735689600; // Jan 1, 2024 0:00:00 GMT
 
     uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
     uint256 constant BOB_TOKEN_ID = uint256(bytes32("bob"));
 
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
-    bytes32 public constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
-    bytes32 public constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
+    bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
+    bytes32 constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -161,7 +160,7 @@ contract NameRegistryTest is Test {
 
     function testMakeCommit(address alice, bytes32 secret) public {
         _disableTrusted();
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
 
         vm.prank(alice);
@@ -176,7 +175,7 @@ contract NameRegistryTest is Test {
     ) public {
         _disableTrusted();
         vm.assume(delay > COMMIT_REPLAY_DELAY);
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
 
         // Make the first commit
@@ -198,7 +197,7 @@ contract NameRegistryTest is Test {
     ) public {
         _disableTrusted();
         delay = delay % COMMIT_REPLAY_DELAY; // fuzz between 0 and (COMMIT_REPLAY_DELAY - 1)
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
 
         // Make the first commit
@@ -215,7 +214,7 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotMakeCommitDuringTrustedRegister(address alice, bytes32 secret) public {
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.Invitable.selector);
@@ -236,7 +235,7 @@ contract NameRegistryTest is Test {
         vm.assume(bob != address(0));
         _assumeClean(alice);
         _disableTrusted();
-        vm.warp(JAN1_2022_TS);
+        vm.warp(JAN1_2023_TS);
 
         vm.assume(amount >= FEE);
         vm.deal(alice, amount);
@@ -245,7 +244,7 @@ contract NameRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("bob", bob, secret);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(0), bob, BOB_TOKEN_ID);
         vm.prank(alice);
@@ -254,7 +253,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), 0);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), recovery);
         assertEq(alice.balance, amount - nameRegistry.fee());
     }
@@ -273,26 +272,26 @@ contract NameRegistryTest is Test {
         vm.startPrank(alice);
         bytes32 commitHashAlice = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(commitHashAlice);
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         uint256 aliceRegister = block.timestamp;
         nameRegistry.register{value: nameRegistry.fee()}("alice", alice, secret, recovery);
 
         // Register @bob to alice
         bytes32 commitHashBob = nameRegistry.generateCommit("bob", alice, secret);
         nameRegistry.makeCommit(commitHashBob);
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         uint256 bobRegister = block.timestamp;
         nameRegistry.register{value: FEE}("bob", alice, secret, recovery);
         vm.stopPrank();
 
         assertEq(nameRegistry.timestampOf(commitHashAlice), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), aliceRegister + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), aliceRegister + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
 
         assertEq(nameRegistry.timestampOf(commitHashBob), 0);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), bobRegister + 365 days);
+        assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), bobRegister + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 2);
@@ -317,7 +316,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         // 2. Fast forward past the register delay and pause and unpause the contract
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.prank(ADMIN);
         nameRegistry.pause();
         vm.prank(ADMIN);
@@ -330,7 +329,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -350,7 +349,7 @@ contract NameRegistryTest is Test {
         // Register @alice to alice
         bytes32 aliceCommitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(aliceCommitHash);
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
 
         vm.prank(alice);
         nameRegistry.register{value: FEE}("alice", alice, secret, recovery);
@@ -362,14 +361,14 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(bobCommitHash);
         uint256 commitTs = block.timestamp;
 
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.prank(bob);
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.register{value: FEE}("alice", bob, secret, recovery);
 
         assertEq(nameRegistry.timestampOf(bobCommitHash), commitTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -389,7 +388,7 @@ contract NameRegistryTest is Test {
         // Register @alice to alice
         bytes32 aliceCommitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(aliceCommitHash);
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
 
         vm.prank(alice);
         nameRegistry.register{value: FEE}("alice", alice, secret, recovery);
@@ -397,17 +396,17 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(aliceCommitHash), 0);
 
         // Fast forward to when @alice is renewable and register @alice to bob
-        vm.warp(registerTs + 365 days);
+        vm.warp(registerTs + REGISTRATION_PERIOD);
         bytes32 bobCommitHash = nameRegistry.generateCommit("alice", bob, secret);
         nameRegistry.makeCommit(bobCommitHash);
         uint256 commitTs = block.timestamp;
 
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.prank(bob);
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.register{value: FEE}("alice", bob, secret, recovery);
 
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
@@ -418,12 +417,12 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(bobCommitHash);
         commitTs = block.timestamp;
 
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.prank(bob);
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.register{value: FEE}("alice", bob, secret, recovery);
 
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
@@ -503,7 +502,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         vm.prank(alice);
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: FEE}(username, bob, incorrectSecret, recovery);
 
@@ -537,7 +536,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: FEE}(username, incorrectOwner, secret, recovery);
@@ -572,7 +571,7 @@ contract NameRegistryTest is Test {
 
         bytes16 incorrectUsername = "alice";
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.prank(alice);
         nameRegistry.register{value: FEE}(incorrectUsername, bob, secret, recovery);
 
@@ -603,7 +602,7 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + REVEAL_DELAY - 1);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY - 1);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.InvalidCommit.selector);
         nameRegistry.register{value: FEE}("alice", alice, secret, recovery);
@@ -631,7 +630,7 @@ contract NameRegistryTest is Test {
         bytes32 invalidCommit = keccak256(abi.encode(incorrectUsername, alice, secret));
         nameRegistry.makeCommit(invalidCommit);
 
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.register{value: FEE}(incorrectUsername, alice, secret, recovery);
 
@@ -661,7 +660,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         // 2. Pause the contract and try to register the name alice
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.prank(ADMIN);
         nameRegistry.pause();
         vm.prank(alice);
@@ -689,7 +688,7 @@ contract NameRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.expectRevert(NameRegistry.CallFailed.selector);
         // call register() from address(this) which is non-payable
         nameRegistry.register{value: FEE}("alice", alice, secret, recovery);
@@ -716,7 +715,7 @@ contract NameRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("alice", address(0), secret);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
         vm.expectRevert("ERC721: mint to the zero address");
         vm.prank(alice);
         nameRegistry.register{value: FEE}("alice", address(0), secret, recovery);
@@ -756,7 +755,7 @@ contract NameRegistryTest is Test {
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
@@ -813,7 +812,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.trustedRegister("alice", alice, recovery2, inviter, invitee);
 
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
@@ -942,9 +941,9 @@ contract NameRegistryTest is Test {
         // TODO: Report foundry bug when setting the max to anything higher
         vm.assume(amount >= FEE && amount < (type(uint256).max - 3 wei));
 
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         timestamp = (timestamp % (RENEWAL_PERIOD)) + renewableTs;
-        uint256 expectedExpiryTs = timestamp + 365 days;
+        uint256 expectedExpiryTs = timestamp + REGISTRATION_PERIOD;
 
         vm.warp(timestamp);
         vm.deal(bob, amount);
@@ -963,7 +962,7 @@ contract NameRegistryTest is Test {
     function testCannotRenewWithoutPayment(address alice, uint256 amount) public {
         _assumeClean(alice);
         _register(alice);
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + REGISTRATION_PERIOD);
 
         // Ensure that amount is always less than the fee
         amount = (amount % FEE);
@@ -1020,7 +1019,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _register(alice);
         uint256 registerTs = block.timestamp;
-        uint256 renewableTs = registerTs + 365 days;
+        uint256 renewableTs = registerTs + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         vm.warp(biddableTs);
@@ -1042,14 +1041,14 @@ contract NameRegistryTest is Test {
         uint256 registerTs = block.timestamp;
 
         // Fast forward to the last second of 2022 when the registration is still valid
-        vm.warp(registerTs + 365 days - 1);
+        vm.warp(registerTs + REGISTRATION_PERIOD - 1);
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.Registered.selector);
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
@@ -1057,7 +1056,7 @@ contract NameRegistryTest is Test {
     function testCannotRenewIfPaused(address alice) public {
         _assumeClean(alice);
         _register(alice);
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + REGISTRATION_PERIOD);
 
         _grant(OPERATOR_ROLE, ADMIN);
         vm.prank(ADMIN);
@@ -1077,7 +1076,7 @@ contract NameRegistryTest is Test {
     function testCannotRenewFromNonPayable(address alice) public {
         _assumeClean(alice);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         vm.warp(renewableTs);
 
         vm.expectRevert(NameRegistry.CallFailed.selector);
@@ -1107,7 +1106,7 @@ contract NameRegistryTest is Test {
         _register(alice);
         vm.assume(alice != charlie);
         vm.assume(charlie != address(0));
-        uint256 biddableTs = block.timestamp + 365 days + RENEWAL_PERIOD;
+        uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery1);
@@ -1125,7 +1124,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(charlie), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
         assertEq(bob.balance, amount - (winningBid));
     }
@@ -1139,7 +1138,7 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
-        uint256 biddableTs = block.timestamp + 365 days + RENEWAL_PERIOD;
+        uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
 
         // 1. Set bob as the approver of alice's token
         vm.prank(alice);
@@ -1164,7 +1163,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         _register(alice);
         vm.deal(bob, 1000 ether);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         // After 1 step, we expect the bid premium to be 900.000000000000606000 after errors
@@ -1192,7 +1191,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -1206,7 +1205,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         _register(alice);
         vm.deal(bob, 1 ether);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         // After 100 steps, we expect the bid premium to be 0.026561398887589000 after errors
@@ -1233,7 +1232,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -1247,7 +1246,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         _register(alice);
         vm.deal(bob, 1 ether);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         // After 393 steps, we expect the bid premium to be 0.000000000000001000 after errors
@@ -1274,7 +1273,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -1288,7 +1287,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         _register(alice);
         vm.deal(bob, 1 ether);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         // After 393 steps, we expect the bid premium to be 0.0 after errors
@@ -1315,7 +1314,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -1333,7 +1332,7 @@ contract NameRegistryTest is Test {
         vm.assume(bob != address(0));
         vm.assume(charlie != address(0));
         _register(alice);
-        uint256 biddableTs = block.timestamp + 365 days + RENEWAL_PERIOD;
+        uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery1);
@@ -1351,7 +1350,7 @@ contract NameRegistryTest is Test {
         nameRegistry.bid{value: 1001 ether}(charlie, ALICE_TOKEN_ID, recovery2);
 
         assertEq(nameRegistry.balanceOf(charlie), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
@@ -1367,7 +1366,7 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         // Ensure that amount is always less than the bid + fee
@@ -1401,14 +1400,14 @@ contract NameRegistryTest is Test {
 
         vm.prank(bob);
         // Register alice and fast-forward to one second before the name expires
-        vm.warp(registerTs + 365 days - 1);
+        vm.warp(registerTs + REGISTRATION_PERIOD - 1);
         vm.expectRevert(NameRegistry.NotBiddable.selector);
         nameRegistry.bid(bob, ALICE_TOKEN_ID, recovery);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + 365 days);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
@@ -1421,7 +1420,7 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         vm.assume(alice != bob);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         vm.warp(renewableTs);
         vm.prank(bob);
@@ -1482,7 +1481,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         _register(alice);
         vm.deal(bob, 1001 ether);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         vm.warp(biddableTs);
@@ -1509,7 +1508,7 @@ contract NameRegistryTest is Test {
         _register(alice);
         address nonPayable = address(this);
         vm.deal(nonPayable, 1001 ether);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         vm.warp(biddableTs);
@@ -1540,7 +1539,7 @@ contract NameRegistryTest is Test {
     function testOwnerOfRevertsIfExpired(address alice) public {
         _assumeClean(alice);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         // Warp until the name is renewable
@@ -1569,7 +1568,7 @@ contract NameRegistryTest is Test {
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         _requestRecovery(alice, recovery);
 
@@ -1601,7 +1600,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         vm.assume(approver != alice);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         _requestRecovery(alice, recovery);
 
@@ -1634,7 +1633,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != bob);
         vm.assume(bob != address(0));
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         uint256 requestTs = _requestRecovery(alice, recovery);
@@ -1678,7 +1677,7 @@ contract NameRegistryTest is Test {
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
@@ -1729,7 +1728,7 @@ contract NameRegistryTest is Test {
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
@@ -1755,7 +1754,7 @@ contract NameRegistryTest is Test {
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
@@ -1850,7 +1849,7 @@ contract NameRegistryTest is Test {
         vm.assume(recovery1 != address(0));
         vm.assume(recovery2 != address(0));
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         // alice sets recovery1 as her recovery address and requests a recovery
@@ -2031,7 +2030,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != recovery);
         vm.assume(bob != address(0));
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         // set recovery as the recovery address and request a recovery of @alice from alice to bob
         vm.prank(alice);
@@ -2061,7 +2060,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         _requestRecovery(alice, recovery);
 
@@ -2094,7 +2093,7 @@ contract NameRegistryTest is Test {
         vm.assume(recovery != notRecovery);
         vm.assume(notRecovery != address(0));
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
@@ -2118,7 +2117,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
@@ -2150,7 +2149,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         uint256 requestTs = _requestRecovery(alice, recovery);
         waitPeriod = waitPeriod % ESCROW_PERIOD;
@@ -2179,7 +2178,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != recovery);
         vm.assume(bob != address(0));
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         uint256 requestTs = _requestRecovery(alice, recovery);
@@ -2220,7 +2219,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
@@ -2342,7 +2341,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         _requestRecovery(alice, recovery);
 
@@ -2365,7 +2364,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         vm.assume(alice != recovery);
         _register(alice);
-        uint256 biddableTs = block.timestamp + 365 days + RENEWAL_PERIOD;
+        uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
 
         _requestRecovery(alice, recovery);
 
@@ -2490,7 +2489,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
 
         _register(alice);
-        uint256 renewalTs = block.timestamp + 365 days;
+        uint256 renewalTs = block.timestamp + REGISTRATION_PERIOD;
         _grant(MODERATOR_ROLE, mod);
         _requestRecovery(alice, recovery);
 
@@ -2517,7 +2516,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
 
         _register(alice);
-        uint256 renewalTs = block.timestamp + 365 days;
+        uint256 renewalTs = block.timestamp + REGISTRATION_PERIOD;
         _grant(MODERATOR_ROLE, mod);
         _requestRecovery(alice, recovery);
 
@@ -2549,7 +2548,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
 
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         _grant(MODERATOR_ROLE, mod);
         _requestRecovery(alice, recovery);
 
@@ -2580,7 +2579,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
 
         _register(alice);
-        uint256 biddableTs = block.timestamp + 365 days + RENEWAL_PERIOD;
+        uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
         _grant(MODERATOR_ROLE, ADMIN);
         _requestRecovery(alice, recovery);
 
@@ -2621,7 +2620,7 @@ contract NameRegistryTest is Test {
     function testReclaimWhenPaused(address alice) public {
         _assumeClean(alice);
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         _grant(MODERATOR_ROLE, ADMIN);
         _grant(OPERATOR_ROLE, ADMIN);
@@ -2663,7 +2662,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
 
         _register(alice);
-        uint256 renewableTs = block.timestamp + 365 days;
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 recoveryTs = _requestRecovery(alice, recovery);
 
         vm.prank(notModerator);
@@ -2883,17 +2882,17 @@ contract NameRegistryTest is Test {
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Register the username @alice to the address on Dec 1, 2022
+    /// @dev Register the username @alice to the address on Jan 1, 2023
     function _register(address alice) internal {
         _disableTrusted();
 
         vm.deal(alice, 10_000 ether);
-        vm.warp(DEC1_2022_TS);
+        vm.warp(JAN1_2023_TS);
 
         vm.startPrank(alice);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret");
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + REVEAL_DELAY);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
 
         nameRegistry.register{value: nameRegistry.fee()}("alice", alice, "secret", address(0));
         vm.stopPrank();
@@ -2905,7 +2904,7 @@ contract NameRegistryTest is Test {
             vm.assume(a != knownContracts[i]);
         }
 
-        vm.assume(a > PRECOMPILE_CONTRACTS);
+        vm.assume(a > MAX_PRECOMPILE);
         vm.assume(a != ADMIN);
     }
 
