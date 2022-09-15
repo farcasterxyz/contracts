@@ -673,11 +673,11 @@ contract NameRegistry is
      */
 
     /**
-     * @notice Override the transferFrom implementation to throw if the name is renewable or biddable.
+     * @notice Override transferFrom to throw if the name is renewable or biddable.
      *
-     * @param from The address which currently holds the fname
-     * @param to   The address to transfer the fname to
-     * @param tokenId   The uint256 representation of the fname to transfer
+     * @param from    The address which currently holds the fname
+     * @param to      The address to transfer the fname to
+     * @param tokenId The uint256 representation of the fname to transfer
      */
     function transferFrom(
         address from,
@@ -690,6 +690,28 @@ contract NameRegistry is
         if (expiryTs != 0 && block.timestamp >= expiryOf[tokenId]) revert Expired();
 
         super.transferFrom(from, to, tokenId);
+    }
+
+    /**
+     * @notice Override safeTransferFrom to throw if the name is renewable or biddable.
+     *
+     * @param from     The address which currently holds the fname
+     * @param to       The address to transfer the fname to
+     * @param tokenId  The uint256 representation of the fname to transfer
+     * @param data     Additional data with no specified format, sent in call to `to`
+     */
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
+    ) public override {
+        uint256 expiryTs = expiryOf[tokenId];
+
+        // Expired names should not be transferrable by the previous owner
+        if (expiryTs != 0 && block.timestamp >= expiryOf[tokenId]) revert Expired();
+
+        super.safeTransferFrom(from, to, tokenId, data);
     }
 
     /**
