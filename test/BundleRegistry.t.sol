@@ -14,19 +14,34 @@ import {NameRegistry} from "../src/NameRegistry.sol";
 /* solhint-disable state-visibility */
 
 contract BundleRegistryTest is Test {
-    IDRegistryTestable idRegistry;
-    NameRegistry nameRegistry;
-    BundleRegistryTestable bundleRegistry;
+    /// Instance of the NameRegistry implementation
     NameRegistry nameRegistryImpl;
+
+    // Instance of the NameRegistry proxy contract
     ERC1967Proxy nameRegistryProxy;
 
+    // Instance of the NameRegistry proxy contract cast as the implementation contract
+    NameRegistry nameRegistry;
+
+    // Instance of the IDRegistry contract wrapped in its test wrapper
+    IDRegistryTestable idRegistry;
+
+    // Instance of the BundleRegistry contract wrapped in its test wrapper
+    BundleRegistryTestable bundleRegistry;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
     event ChangeTrustedCaller(address indexed trustedCaller, address indexed owner);
+
     event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    // Address of known contracts
     address[] knownContracts = [
         address(0xCe71065D4017F316EC606Fe4422e11eB2c47c246), // FuzzerDict
         address(0x4e59b44847b379578588920cA78FbF26c0B4956C), // CREATE2 Factory
@@ -36,18 +51,23 @@ contract BundleRegistryTest is Test {
         address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D) // ???
     ];
 
-    address constant PRECOMPILE_CONTRACTS = address(9); // some addresses up to 0x9 are precompiled contracts
+    // Address of the test contract
+    address owner = address(this);
 
+    // Address of the last precompile contract
+    address constant MAX_PRECOMPILE = address(9);
+
+    address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
     address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
     address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
-    address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
-    address owner = address(this);
 
-    uint256 constant DEC1_2022_TS = 1669881600; // Dec 1, 2022 00:00:00 GMT
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
     uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+
+    uint256 constant COMMIT_REGISTER_DELAY = 60;
+    uint256 constant REGISTRATION_PERIOD = 365 days;
 
     function setUp() public {
         // Set up the IDRegistry
@@ -78,9 +98,9 @@ contract BundleRegistryTest is Test {
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
-        vm.assume(amount >= 0.01 ether); // the amount must be at least 0.01 ETH
+        vm.assume(amount >= nameRegistry.fee()); // the amount must be at least equal to the fee
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted Registration is disabled in both registries, and trusted caller is not set
         idRegistry.disableTrustedOnly();
@@ -90,7 +110,7 @@ contract BundleRegistryTest is Test {
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + 60 seconds);
+        vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
 
         vm.deal(relayer, amount);
         vm.prank(relayer);
@@ -98,8 +118,7 @@ contract BundleRegistryTest is Test {
 
         _assertSuccessfulRegistration(alice, recovery);
 
-        // At most 0.0009 ETH of was consumed for gas + registration fees
-        assertEq(relayer.balance > amount - 0.0009 ether, true);
+        assertEq(relayer.balance, amount - nameRegistry.fee());
         assertEq(address(bundleRegistry).balance, 0 ether);
     }
 
@@ -113,7 +132,7 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in IDRegistry, but disabled in NameRegistry and
         // trusted caller is set in IDRegistry
@@ -124,7 +143,7 @@ contract BundleRegistryTest is Test {
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + 60 seconds);
+        vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
 
         vm.deal(relayer, 1 ether);
         vm.prank(relayer);
@@ -147,7 +166,7 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
@@ -159,7 +178,7 @@ contract BundleRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         vm.expectRevert(NameRegistry.Invitable.selector);
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + 60 seconds);
+        vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
 
         vm.deal(relayer, 1 ether);
         vm.prank(relayer);
@@ -182,7 +201,7 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
         idRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -193,7 +212,7 @@ contract BundleRegistryTest is Test {
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret);
         vm.expectRevert(NameRegistry.Invitable.selector);
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + 60 seconds);
+        vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
 
         vm.deal(relayer, 1 ether);
         vm.prank(relayer);
@@ -217,7 +236,7 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
         idRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -239,7 +258,7 @@ contract BundleRegistryTest is Test {
         address untrustedCaller
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
         vm.assume(untrustedCaller != address(this)); // guarantees call from untrusted caller
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
@@ -247,7 +266,7 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
-        // Call is made from an address that is not address(this), since addres(this) is the deployer
+        // Call is made from an address that is not address(this), since address(this) is the deployer
         // and therefore the trusted caller for BundleRegistry
         vm.prank(untrustedCaller);
         vm.expectRevert(BundleRegistry.Unauthorized.selector);
@@ -263,7 +282,7 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
@@ -284,7 +303,7 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in IDRegistry, but disabled in NameRegistry and
         // trusted caller is set in IDRegistry
@@ -305,7 +324,7 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in both registries
         idRegistry.disableTrustedOnly();
@@ -329,7 +348,7 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
@@ -351,7 +370,7 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in both registries and trusted caller is set
         idRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -371,7 +390,7 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in IDRegistry, but disabled in NameRegistry and
         // trusted caller is set in IDRegistry
@@ -392,7 +411,7 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in both registries and trusted caller is not sset
         idRegistry.disableTrustedOnly();
@@ -413,7 +432,7 @@ contract BundleRegistryTest is Test {
         address untrustedCaller
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(DEC1_2022_TS); // Block timestamp must be >= 2022 to call the NameRegistry
+        vm.warp(JAN1_2023_TS);
         vm.assume(untrustedCaller != bundleRegistry.getTrustedCaller());
 
         // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
@@ -465,7 +484,7 @@ contract BundleRegistryTest is Test {
             vm.assume(a != knownContracts[i]);
         }
 
-        vm.assume(a > PRECOMPILE_CONTRACTS);
+        vm.assume(a > MAX_PRECOMPILE);
         vm.assume(a != ADMIN);
     }
 
@@ -474,9 +493,9 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), JAN1_2023_TS);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
@@ -485,10 +504,10 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
-        vm.expectRevert("ERC721: invalid token ID");
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        vm.expectRevert("ERC721: invalid token ID");
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 }

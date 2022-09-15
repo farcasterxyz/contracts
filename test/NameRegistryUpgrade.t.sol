@@ -17,77 +17,88 @@ import "../src/NameRegistry.sol";
 
 contract NameRegistryUpgradeTest is Test {
     ERC1967Proxy proxy;
-    NameRegistry nameRegistry;
-    NameRegistry proxiedNameRegistry;
-    NameRegistryV2 nameRegistryV2;
-    NameRegistryV2 proxiedNameRegistryV2;
+    NameRegistry nameRegistryImpl;
+    NameRegistry nameRegistryProxy;
+    NameRegistryV2 nameRegistryV2Impl;
 
     address defaultAdmin = address(this);
 
     address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
     address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
     address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
-    address private constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+    bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     function setUp() public {
-        nameRegistry = new NameRegistry(FORWARDER);
-        nameRegistryV2 = new NameRegistryV2(FORWARDER);
-        proxy = new ERC1967Proxy(address(nameRegistry), "");
+        nameRegistryImpl = new NameRegistry(FORWARDER);
+        nameRegistryV2Impl = new NameRegistryV2(FORWARDER);
+        proxy = new ERC1967Proxy(address(nameRegistryImpl), "");
 
-        proxiedNameRegistry = NameRegistry(address(proxy));
-        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
-        proxiedNameRegistry.grantRole(ADMIN_ROLE, ADMIN);
+        nameRegistryProxy = NameRegistry(address(proxy));
+        nameRegistryProxy.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
+        nameRegistryProxy.grantRole(ADMIN_ROLE, ADMIN);
     }
 
-    function testInitializeSetters() public {
-        // Check that values set in the initializer are persisted correctly
-        assertEq(proxiedNameRegistry.vault(), VAULT);
+    function testProxyRead() public {
+        // Check that values set in the initializer can be read from the proxy
+        assertEq(nameRegistryProxy.vault(), VAULT);
     }
 
-    function testUpgrade() public {
-        // 1. Calling a v2-only function on the proxy should revert before the upgrade is performed
+    function testV2Initializer(address newVault) public {
+        // Check that upgrading and initializing changes storage values correctly
+        assertEq(nameRegistryProxy.vault(), VAULT);
+
+        NameRegistryV2 nameRegistryV2Proxy = _upgradeToV2();
+
+        vm.prank(ADMIN);
+        nameRegistryV2Proxy.initializeV2("Farcaster NameRegistry", "FCN", newVault, POOL);
+
+        // Calling nameRegistryProxy and nameRegistryV2Proxy is equivalent on-chain, they're just
+        // different solidity classes with the same address
+        assertEq(nameRegistryProxy.vault(), newVault);
+    }
+
+    function testV2NewFunction() public {
+        // Check that a new function added in V2 can be called
+        NameRegistryV2 nameRegistryV2Proxy = _upgradeToV2();
+
+        vm.prank(ADMIN);
+        nameRegistryV2Proxy.initializeV2("Farcaster NameRegistry", "FCN", VAULT, POOL);
+
+        assertEq(nameRegistryV2Proxy.number(), 0);
+
+        nameRegistryV2Proxy.setNumber(42);
+        assertEq(nameRegistryV2Proxy.number(), 42);
+    }
+
+    function testModifiedFnAfterUpgrade() public {
+        // TODO: If we decide to stick with UUPS, assert that a function can be redefined and will
+        // execute its new logic when the proxy is called
+    }
+
+    function testStorage() public {
+        // TODO: If we decide to stick with UUPS, assert that all storage slots are preserved
+        // on upgrade
+    }
+
+    function testCannotCallV2FunctionBeforeUpgrade() public {
         vm.expectRevert();
-        (bool s1, ) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2.setNumber.selector, 1));
+        (bool s1, ) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2Impl.setNumber.selector, 1));
         assertEq(s1, true);
-
-        // 2. Call upgrade on the proxy, which swaps the v1 implementation for the v2 implementation, and then recast
-        // the proxy as a NameRegistryV2
-        vm.prank(ADMIN);
-        proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
-        proxiedNameRegistryV2 = NameRegistryV2(address(proxy));
-
-        // 3. Re-initialize the v2 contract
-        vm.prank(ADMIN);
-        proxiedNameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", VAULT, POOL);
-
-        // 4. Assert that data stored when proxy was connected to v1 is present after being connected to v2
-        assertEq(proxiedNameRegistryV2.vault(), VAULT);
-
-        // 5. Assert that data can be retrieved and stored correctly using v2-only functions
-        assertEq(proxiedNameRegistryV2.number(), 0);
-        proxiedNameRegistryV2.setNumber(42);
-        assertEq(proxiedNameRegistryV2.number(), 42);
-
-        // 6. Assert that the new currYear() implementation works with the upgraded timestamps
-        vm.warp(3158524800); // Sunday, February 2, 2070 0:00:00 GMT
-        assertEq(proxiedNameRegistryV2.currYear(), 2072);
-
-        // Works correctly for known year range [2073 - 2074]
-        vm.warp(3284755200); // Tuesday, February 2, 2074 0:00:00 GMT
-        assertEq(proxiedNameRegistryV2.currYear(), 2074);
-
-        // Does not work after 2076
-        vm.warp(3347827200); // Sunday, February 2, 2076 0:00:00 GMT
-        vm.expectRevert(NameRegistryV2.InvalidTime.selector);
-        assertEq(proxiedNameRegistryV2.currYear(), 0);
     }
 
     function testCannotUpgradeUnlessOwner(address alice) public {
         vm.assume(alice != defaultAdmin && alice != ADMIN);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
-        proxiedNameRegistry.upgradeTo(address(nameRegistryV2));
+        nameRegistryProxy.upgradeTo(address(nameRegistryV2Impl));
+    }
+
+    /// @dev Upgrade the proxy to the V2 implementation and return the proxy as a V2 contract instance
+    function _upgradeToV2() public returns (NameRegistryV2) {
+        vm.prank(ADMIN);
+        nameRegistryProxy.upgradeTo(address(nameRegistryV2Impl));
+        return NameRegistryV2(address(proxy));
     }
 }
 
@@ -116,8 +127,6 @@ contract NameRegistryV2 is
     mapping(uint256 => uint256) public expiryOf;
     address public vault;
     address public pool;
-    uint256[] internal yearTimestamps;
-    uint256 internal nextYearIdx;
     mapping(uint256 => address) public recoveryOf;
     mapping(uint256 => uint256) public recoveryClockOf;
     mapping(uint256 => address) public recoveryDestinationOf;
@@ -151,12 +160,6 @@ contract NameRegistryV2 is
         vault = _vault;
 
         pool = _pool;
-
-        yearTimestamps = [
-            3250454400, // 2073
-            3281990400, // 2074
-            3313526400 // 2075
-        ];
     }
 
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
@@ -182,33 +185,5 @@ contract NameRegistryV2 is
     // New function added for testing
     function setNumber(uint256 _number) public {
         number = _number;
-    }
-
-    // Reimplementing currYear with new logic
-    function currYear() public returns (uint256 year) {
-        unchecked {
-            // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 2021
-            if (block.timestamp < yearTimestamps[nextYearIdx]) {
-                return nextYearIdx + 2072;
-            }
-
-            uint256 length = yearTimestamps.length;
-
-            // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 1
-            for (uint256 i = nextYearIdx + 1; i < length; ) {
-                if (yearTimestamps[i] > block.timestamp) {
-                    // Slither false positive: https://github.com/crytic/slither/issues/1338
-                    // slither-disable-next-line costly-loop
-                    nextYearIdx = i;
-                    // Safety: nextYearIdx is always <= yearTimestamps.length which can't overflow when added to 2021
-                    return nextYearIdx + 2072;
-                }
-
-                // Safety: i cannot overflow because length is a pre-determined constant value.
-                i++;
-            }
-
-            revert InvalidTime();
-        }
     }
 }

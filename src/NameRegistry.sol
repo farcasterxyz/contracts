@@ -17,11 +17,11 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
  * @custom:version 2.0.0
  *
  * @notice NameRegistry enables any ETH address to claim a Farcaster Name (fname). A name is a
- *         rentable ERC-721 that can be registered until the end of the calendar year by paying a
- *         fee. On expiry, the owner has 30 to renew the name by paying a fee, or it is places in
- *         a dutch auction. The NameRegistry starts in a trusted mode where only a trusted caller
- *         can register an fname and can move to an untrusted mode where any address can register
- *         an fname. The Registry implements a recovery system which allows the custody address to
+ *         rentable ERC-721 that can be registered for one year by paying a fee. On expiry, the
+ *         owner has 30 days to renew the name by paying a fee, or it is placed in a dutch
+ *         auction. The NameRegistry starts in a trusted mode where only a trusted caller can
+ *         register an fname and can move to an untrusted mode where any address can register an
+ *         fname. The Registry implements a recovery system which allows the custody address to
  *         nominate a recovery address that can transfer the fname to a new address after a delay.
  */
 contract NameRegistry is
@@ -66,9 +66,6 @@ contract NameRegistry is
 
     /// @dev Revert if the fname has invalid characters during registration
     error InvalidName();
-
-    /// @dev Revert if currYear() is after the year 2172, which is not supported
-    error InvalidTime();
 
     /// @dev Revert if renew() is called on a registered name.
     error Registered();
@@ -184,10 +181,11 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /// WARNING - DO NOT CHANGE THE ORDER OF THESE VARIABLES ONCE DEPLOYED
-    /// Any changes before deployment should be replicated to NameRegistryV2 in NameRegistryUpdate.t.sol
+    /// Changes should be replicated to NameRegistryV2 in NameRegistryUpdate.t.sol
 
-    // Audit: These variables are kept public to make it easier to test the contract, since using the same inherit
-    // and extend trick that we used for IDRegistry is harder to pull off here due to the UUPS structure.
+    // Audit: These variables are kept public to make it easier to test the contract, since using
+    // the same inherit and extend trick that we used for IDRegistry is harder to pull off here
+    //  due to the UUPS structure.
 
     /**
      * @notice The fee to renew a name for a full calendar year
@@ -233,35 +231,22 @@ contract NameRegistry is
     address public pool;
 
     /**
-     * @notice Chronological array of timestamps of Jan 1, 0:00:00 GMT from 2022 to 2072
-     * @dev    Occupies slot 7
-     */
-    uint256[] internal yearTimestamps;
-
-    /**
-     * @notice The index of yearTimestamps[] which returns the timestamp of Jan 1st of the next
-     *         calendar year
-     * @dev    Occupies slot 8
-     */
-    uint256 internal nextYearIdx;
-
-    /**
      * @notice Maps each uint256 representation of an fname to the address that can recover it
-     * @dev    Occupies slot 9
+     * @dev    Occupies slot 7
      */
     mapping(uint256 => address) public recoveryOf;
 
     /**
      * @notice Maps each uint256 representation of an fname to the timestamp of the recovery
      *         attempt or zero if there is no active recovery.
-     * @dev    Occupies slot 10
+     * @dev    Occupies slot 8
      */
     mapping(uint256 => uint256) public recoveryClockOf;
 
     /**
      * @notice Maps each uint256 representation of an fname to the destination address of the most
      *         recent recovery attempt.
-     * @dev    Occupies slot 11, and the value is left dirty after a recovery to save gas and should
+     * @dev    Occupies slot 9, and the value is left dirty after a recovery to save gas and should
      *         not be relied upon to check if there is an active recovery.
      */
     mapping(uint256 => address) public recoveryDestinationOf;
@@ -270,7 +255,7 @@ contract NameRegistry is
      * @dev Added to allow future versions to add new variables in case this contract becomes
      *      inherited. See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[38] private __gap;
+    uint256[40] private __gap;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -284,7 +269,9 @@ contract NameRegistry is
     /// @dev enforced delay in makeCommit() to prevent griefing by replaying the commit
     uint256 internal constant COMMIT_REPLAY_DELAY = 10 minutes;
 
-    uint256 internal constant GRACE_PERIOD = 31 days;
+    uint256 internal constant REGISTRATION_PERIOD = 365 days;
+
+    uint256 internal constant RENEWAL_PERIOD = 30 days;
 
     uint256 internal constant ESCROW_PERIOD = 3 days;
 
@@ -358,61 +345,6 @@ contract NameRegistry is
         emit ChangeFee(INITIAL_FEE);
 
         trustedOnly = 1;
-
-        // Audit: verify these timestamps using a calculator other than epochconverter.com
-        yearTimestamps = [
-            1640995200, // 2022
-            1672531200,
-            1704067200,
-            1735689600,
-            1767225600,
-            1798761600,
-            1830297600,
-            1861920000,
-            1893456000,
-            1924992000,
-            1956528000, // 2032
-            1988150400,
-            2019686400,
-            2051222400,
-            2082758400,
-            2114380800,
-            2145916800,
-            2177452800,
-            2208988800,
-            2240611200,
-            2272147200, // 2042
-            2303683200,
-            2335219200,
-            2366841600,
-            2398377600,
-            2429913600,
-            2461449600,
-            2493072000,
-            2524608000,
-            2556144000,
-            2587680000, // 2052
-            2619302400,
-            2650838400,
-            2682374400,
-            2713910400,
-            2745532800,
-            2777068800,
-            2808604800,
-            2840140800,
-            2871763200,
-            2903299200, // 2062
-            2934835200,
-            2966371200,
-            2997993600,
-            3029529600,
-            3061065600,
-            3092601600,
-            3124224000,
-            3155760000,
-            3187296000,
-            3218832000 // 2072
-        ];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -488,8 +420,8 @@ contract NameRegistry is
     ) external payable {
         bytes32 commit = generateCommit(fname, to, secret);
 
-        uint256 _currYearFee = currYearFee();
-        if (msg.value < _currYearFee) revert InsufficientFunds();
+        uint256 _fee = fee;
+        if (msg.value < _fee) revert InsufficientFunds();
 
         // Perf: do not check if trustedOnly = 1, because timestampOf[commit] will always be zero
         // while trustedOnly = 1 since makeCommit cannot be called.
@@ -512,19 +444,16 @@ contract NameRegistry is
         // Clearing unnecessary storage reduces gas consumption
         delete timestampOf[commit];
 
-        unchecked {
-            // Safety: _currYear must be a known calendar year and cannot overflow
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
-        }
+        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
 
         recoveryOf[tokenId] = recovery;
 
         unchecked {
-            // Safety: msg.value >= _currYearFee by check above, so this cannot overflow
+            // Safety: msg.value >= _fee by check above, so this cannot overflow
 
             // Perf: Call msg.sender instead of _msgSender() to save ~100 gas b/c we don't need meta-tx
             // solhint-disable-next-line avoid-low-level-calls
-            (bool success, ) = msg.sender.call{value: msg.value - _currYearFee}("");
+            (bool success, ) = msg.sender.call{value: msg.value - _fee}("");
             if (!success) revert CallFailed();
         }
     }
@@ -562,10 +491,7 @@ contract NameRegistry is
         uint256 tokenId = uint256(bytes32(fname));
         _mint(to, tokenId);
 
-        unchecked {
-            // Safety: _currYear must return a known calendar year which cannot overflow here
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
-        }
+        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
 
         recoveryOf[tokenId] = recovery;
 
@@ -573,7 +499,7 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Renew a name for another year while it is in the renewable period (Jan 1 - Jan 30)
+     * @notice Renew a name for another year while it is in the renewable period.
      *
      * @param tokenId The uint256 representation of the fname to renew
      */
@@ -590,15 +516,12 @@ contract NameRegistry is
         // Check that we are still in the renewable period, and have not passed into biddable
         unchecked {
             // Safety: expiryTs is a timestamp of a known calendar year and cannot overflow
-            if (block.timestamp >= expiryTs + GRACE_PERIOD) revert NotRenewable();
+            if (block.timestamp >= expiryTs + RENEWAL_PERIOD) revert NotRenewable();
         }
 
         if (block.timestamp < expiryTs) revert Registered();
 
-        unchecked {
-            // Safety: _currYear must return a known calendar year which cannot overflow
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
-        }
+        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
 
         emit Renew(tokenId, expiryOf[tokenId]);
 
@@ -634,8 +557,8 @@ contract NameRegistry is
 
         unchecked {
             // Safety: expiryTs is a timestamp of a known calendar year and adding it to
-            // GRACE_PERIOD cannot overflow
-            auctionStartTimestamp = expiryTs + GRACE_PERIOD;
+            // RENEWAL_PERIOD cannot overflow
+            auctionStartTimestamp = expiryTs + RENEWAL_PERIOD;
         }
 
         if (block.timestamp < auctionStartTimestamp) revert NotBiddable();
@@ -643,10 +566,9 @@ contract NameRegistry is
         uint256 price;
 
         /**
-         * The price to win a bid is calculated with formula price = dutch_premium + renewal_fee
-         *
-         * dutch_premium: 1000 ETH, decreases exponentially by 10% every 8 hours since Jan 31
-         * renewal_fee  : 0.01 ETH, decreases linearly by 1/31536000 every second since Jan 1
+         * The price to win a bid is calculated with formula price = dutch_premium + renewal_fee,
+         * where the dutch_premium starts at 1,000 ETH and decreases exponentially by 10% every
+         * 8 hours after bidding starts.
          *
          * dutch_premium = 1000 ether * (0.9)^(periods), where:
          * periods = (block.timestamp - auctionStartTimestamp) / 28_800
@@ -691,7 +613,7 @@ contract NameRegistry is
                 BID_START_PRICE.mulWadDown(
                     uint256(FixedPointMathLib.powWad(int256(BID_PERIOD_DECREASE_UD60X18), periodsSD59x18))
                 ) +
-                currYearFee();
+                fee;
         }
 
         if (msg.value < price) revert InsufficientFunds();
@@ -699,10 +621,7 @@ contract NameRegistry is
         // call super.ownerOf instead of ownerOf, because the latter reverts if name is expired
         _transfer(super.ownerOf(tokenId), to, tokenId);
 
-        unchecked {
-            // Safety: _currYear is guaranteed to be a known calendar year and cannot overflow
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
-        }
+        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
 
         recoveryOf[tokenId] = recovery;
 
@@ -935,7 +854,8 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Move the fname from the current owner to the pool and renew it for another year
+     * @notice Move the fname from the current owner to the pool and renew it for another year.
+     *         Does not work when paused because it calls _transfer.
      *
      * @param tokenId the uint256 representation of the fname.
      */
@@ -944,15 +864,18 @@ contract NameRegistry is
         // and it reduces our attack surface area
         if (!hasRole(MODERATOR_ROLE, msg.sender)) revert NotModerator();
 
-        if (expiryOf[tokenId] == 0) revert Registrable();
+        uint256 _expiry = expiryOf[tokenId];
+
+        // If an fname hasn't been minted, it should be minted instead of reclaimed
+        if (_expiry == 0) revert Registrable();
 
         // Call super.ownerOf instead of ownerOf because we want the admin to transfer the name
         // even if is expired and there is no current owner.
         _transfer(super.ownerOf(tokenId), pool, tokenId);
 
-        unchecked {
-            // Safety: _currYear() returns a calendar year and cannot realistically overflow
-            expiryOf[tokenId] = _timestampOfYear(currYear() + 1);
+        // If an fname expires in the near future, extend its registration by the renewal period
+        if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
+            expiryOf[tokenId] = block.timestamp + RENEWAL_PERIOD;
         }
     }
 
@@ -1064,84 +987,6 @@ contract NameRegistry is
     }
 
     /*//////////////////////////////////////////////////////////////
-                          YEARLY PAYMENTS LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Returns the current year for any year between 2021 and 2072. The year is determined by
-     *      comparing the current timestamp against an array of known timestamps for Jan 1 of each
-     *      year. The array contains timestamps up to 2072 after which the contract will start
-     *      failing. This can be resolved by deploying a new contract with updated timestamps.
-     */
-    function currYear() public returns (uint256 year) {
-        // Audit: block.timestamp could "roll back" to a prior year for a block in specific
-        // circumstances and this function would return the future year even though the block
-        // believes itself to be in the prior year, but it is expected to cause no issues since
-        // the rest of the contract relies on currYear() which never moves backward chronologically.
-
-        uint256 _nextYearIdx = nextYearIdx;
-
-        // Implies that year has not changed since the last call, so return cached value
-        if (block.timestamp < yearTimestamps[_nextYearIdx]) {
-            unchecked {
-                // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 2021
-                return _nextYearIdx + 2021;
-            }
-        }
-
-        // The year has changed and it may have changed by more than one year since the last call.
-        // Iterate through the array of year timestamps starting from the last known year until
-        // the first one is found that is higher than the block timestamp. Set the current year to
-        // the year that precedes that year.
-        uint256 length = yearTimestamps.length;
-
-        uint256 idx;
-        unchecked {
-            // Safety: nextYearIdx is always < yearTimestamps.length which can't overflow when added to 1
-            idx = _nextYearIdx + 1;
-        }
-
-        for (uint256 i = idx; i < length; ) {
-            if (yearTimestamps[i] > block.timestamp) {
-                // Slither false positive: https://github.com/crytic/slither/issues/1338
-                // slither-disable-next-line costly-loop
-                nextYearIdx = i;
-
-                unchecked {
-                    // Safety: nextYearIdx is always <= yearTimestamps.length which can't overflow when added to 2021
-                    return i + 2021;
-                }
-            }
-
-            unchecked {
-                // Safety: i cannot overflow because length is a pre-determined constant value.
-                i++;
-            }
-        }
-
-        // Iterated through the array without finding a year, this should never happen until 2072
-        revert InvalidTime();
-    }
-
-    /**
-     * @dev Returns the fee (in ETH) required to register a name for the rest of the year, prorated
-     *      by the seconds left in the year.
-     *
-     */
-    function currYearFee() public returns (uint256) {
-        uint256 _currYear = currYear();
-
-        unchecked {
-            // Safety: _currYear() returns a calendar year and cannot realistically overflow
-            uint256 nextYearTimestamp = _timestampOfYear(_currYear + 1);
-
-            // Safety: nextYearTimestamp > block.timestamp >= _timestampOfYear(_currYear) so this
-            // cannot underflow.  Division rounds to zero causing fees to be 1 wei lower sometimes
-            return ((nextYearTimestamp - block.timestamp) * fee) / (nextYearTimestamp - _timestampOfYear(_currYear));
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////
                          OPEN ZEPPELIN OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
@@ -1236,18 +1081,6 @@ contract NameRegistry is
 
                 revert InvalidName();
             }
-        }
-    }
-
-    /**
-     * @dev Returns the timestamp of Jan 1, 0:00:00 for the given year between 2022 and 2072
-     */
-    function _timestampOfYear(uint256 year) internal view returns (uint256) {
-        unchecked {
-            // Safety: The array index will not go below zero, since year is always set to at least currYear(),
-            // which must be >= 2022. The array index will not go above array.length(51) until the year 2072, since
-            // year is always set to at most currYear() + 1, which must be <= 2072 in the year 2071
-            return yearTimestamps[year - 2022];
         }
     }
 }

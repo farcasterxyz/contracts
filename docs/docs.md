@@ -59,13 +59,13 @@ The Name Registry contract issues Farcaster names (fnames) for the Farcaster net
 
 An `fname` is an ERC-721 token that represents a unique name like @alice. An fname can have up to 16 characters that include lowercase letters, numbers or hyphens. It should that match the regular expression `^[a-zA-Z0-9-]{1,16}$`. The address that owns an fname is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address. Similar to IDs, Farcaster Names also begin in the invitable state, where they can only be registered by a pre-determined address. The owner can disable trusted registration which then allows anyone to register an fname.
 
-Fnames can be registered for up to a year by paying the registration fee, similar to domain names. Unlike most ERC-721 tokens, minting the token does not imply permanent ownership. Registration uses a two-phase commit reveal system to prevent frontrunning.
+Fnames can be registered for one year by paying the registration fee, similar to domain names. Unlike most ERC-721 tokens, minting the token does not imply permanent ownership. Registration uses a two-phase commit reveal system to prevent frontrunning.
 
-1. When a new fname is registered, the user must pay the yearly fee, and the token enters the `registered` state and remains there until the end of the calendar year. The fee pair is pro-rated by the amount of time left until the year's end.
+1. When a new fname is registered, the user must pay the yearly fee, and the token enters the `registered` state. and remains for one year, or more specifically after .
 
-2. All fnames move from `registered` to `renewable` on Jan 1st 0:00:00 GMT every year. Owners have until Feb 1st 0:00:00 GMT to renew the fname by paying a full year's fee to the contract.
+2. After `365 days`, the fname moves from `registered` to `renewable`. Owners have `30 days` to renew the fname by paying a full year's fee to the contract.
 
-3. All fnames that have not been renewed become `biddable` on Feb 1st and move into a [dutch auction](https://en.wikipedia.org/wiki/Dutch_auction). The initial bid is set to a premium of 1,000 ETH plus the pro-rated fee for the remainder of the year. The premium is reduced by ~10% every hour until it reaches zero. An fname can remain indefinitely in this state until it is bid on and becomes `registered`.
+3. If the fname is not renewed within this 30 day window, it becomes `biddable` and moves into a [dutch auction](https://en.wikipedia.org/wiki/Dutch_auction). The initial bid is set to a premium of 1,000 ETH plus the fee for the remainder of the year. The premium is reduced by ~10% every hour until it reaches zero. An fname can remain indefinitely in this state until it is bid on and becomes `registered`.
 
 4. If an fname is expired (`renewable` or `biddable`) the `ownerOf` function will return the zero address, while the `balanceOf` function will include expired names in its count.
 
@@ -74,7 +74,7 @@ Fnames can be registered for up to a year by paying the registration fee, simila
 An fname can exist in these states:
 
 - `invitable` - the name has never been minted, and can only be minted by the trusted caller
-- `registerable` - the name has never been minted and can be minted by anone
+- `registerable` - the name has never been minted and can be minted by anyone
 - `registered` - the name is registered to an address
 - `renewable` - the name's registration has expired and it can only be renewed by the owner
 - `biddable` - the name's registration has expired and it can be bid on by anyone
@@ -87,15 +87,15 @@ An fname can exist in these states:
         invitable --> registerable: disable trusted register
         invitable --> registered: trusted register
         registerable --> registered: register
-        registered --> renewable: end(year)
+        registered --> renewable: end(registration)
         renewable --> biddable: end(renewal)
         biddable --> registered: bid
         registered --> registered: transfer
         registered --> escrow: request recovery
         escrow --> recoverable: end(escrow)
-        escrow --> renewable: end(year)
+        escrow --> renewable: end(registration)
         recoverable --> registered: transfer, cancel <br>  or complete recovery
-        recoverable --> renewable: end(year)
+        recoverable --> renewable: end(registration)
         renewable --> registered: renew
         escrow --> registered: transfer <br> cancel recovery
 ```
@@ -116,9 +116,9 @@ The fname state transitions when users take certain actions:
 
 The fname state can automatically transition when certain periods of time pass:
 
-- `end(year)` - the end of the calendar year in GMT
-- `end(renewal)` - 31 days from the expiration at the year's end (Feb 1st)
-- `end(escrow)` - 3 days from the `request recovery` action
+- `end(registration)` - 365 days after `register` is called
+- `end(renewal)` - 30 days after end(registration)
+- `end(escrow)` - 3 days after calling `request recovery` is called
 
 ### Permissions
 
