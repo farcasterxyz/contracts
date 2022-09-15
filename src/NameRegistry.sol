@@ -692,10 +692,15 @@ contract NameRegistry is
         _validateName(fname);
 
         // Step back from the last byte to find the first non-zero byte
-        for (uint256 i = 15; ; --i) {
+        for (uint256 i = 15; ; ) {
             if (uint8(fname[i]) != 0) {
                 lastCharIdx = i;
                 break;
+            }
+
+            unchecked {
+                // Safety: i cannot underflow because the loop terminates when i == 0
+                --i;
             }
         }
 
@@ -705,8 +710,13 @@ contract NameRegistry is
         // Construct a new bytes[] with the valid fname characters.
         bytes memory fnameBytes = new bytes(lastCharIdx + 1);
 
-        for (uint256 j = 0; j <= lastCharIdx; ++j) {
+        for (uint256 j = 0; j <= lastCharIdx; ) {
             fnameBytes[j] = fname[j];
+
+            unchecked {
+                // Safety: j cannot overflow because the loop terminates when j > lastCharIdx
+                ++j;
+            }
         }
 
         return string(abi.encodePacked(BASE_URI, string(fnameBytes), ".json"));
