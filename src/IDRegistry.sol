@@ -122,11 +122,6 @@ contract IDRegistry is ERC2771Context, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Maps each address to a fid, or zero if it does not own a fid.
-     */
-    mapping(address => uint256) public idOf;
-
-    /**
      * @dev The last farcaster id that was issued.
      */
     uint256 internal idCounter;
@@ -147,6 +142,11 @@ contract IDRegistry is ERC2771Context, Ownable {
      *      set to 1 and can be changed to 0, but never back to 1.
      */
     uint256 internal trustedOnly = 1;
+
+    /**
+     * @notice Maps each address to a fid, or zero if it does not own a fid.
+     */
+    mapping(address => uint256) public idOf;
 
     /**
      * @dev Maps each fid to an address that can initiate a recovery.
