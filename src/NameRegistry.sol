@@ -213,7 +213,7 @@ contract NameRegistry is
     mapping(bytes32 => uint256) public timestampOf;
 
     /**
-     * @notice Maps each the uint256 representation of an fname to the time at which it expires
+     * @notice Maps each uint256 representation of an fname to the time at which it expires
      * @dev    Occupies slot 4
      */
     mapping(uint256 => uint256) public expiryOf;

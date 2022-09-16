@@ -23,6 +23,7 @@ contract IDRegistryTest is Test {
     event CancelRecovery(address indexed by, uint256 indexed id);
     event ChangeTrustedCaller(address indexed trustedCaller);
     event DisableTrustedOnly();
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -717,12 +718,12 @@ contract IDRegistryTest is Test {
 
     function testDisableTrustedCaller() public {
         assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getTrustedCallerOnly(), 1);
+        assertEq(idRegistry.getTrustedOnly(), 1);
 
         vm.expectEmit(true, true, true, true);
         idRegistry.disableTrustedOnly();
         emit DisableTrustedOnly();
-        assertEq(idRegistry.getTrustedCallerOnly(), 0);
+        assertEq(idRegistry.getTrustedOnly(), 0);
     }
 
     function testCannotDisableTrustedCallerUnlessOwner(address alice) public {
@@ -732,26 +733,73 @@ contract IDRegistryTest is Test {
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
         idRegistry.disableTrustedOnly();
-        assertEq(idRegistry.getTrustedCallerOnly(), 1);
+        assertEq(idRegistry.getTrustedOnly(), 1);
     }
 
-    function testTransferOwnership(address alice) public {
-        vm.assume(alice != FORWARDER && alice != address(0));
+    function testCannotTransferOwnership(address newOwner) public {
         assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.getPendingOwner(), address(0));
 
-        idRegistry.transferOwnership(alice);
-        assertEq(idRegistry.owner(), alice);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
+        idRegistry.transferOwnership(newOwner);
+
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.getPendingOwner(), address(0));
     }
 
-    function testCannotTransferOwnershipUnlessOwner(address alice, address bob) public {
-        vm.assume(alice != FORWARDER && alice != address(0) && bob != address(0));
-        vm.assume(alice != owner);
+    function testRequestTransferOwnership(address newOwner, address newOwner2) public {
         assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.getPendingOwner(), address(0));
+
+        idRegistry.requestTransferOwnership(newOwner);
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.getPendingOwner(), newOwner);
+
+        idRegistry.requestTransferOwnership(newOwner2);
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.getPendingOwner(), newOwner2);
+    }
+
+    function testCannotRequestTransferOwnershipUnlessOwner(address alice, address newOwner) public {
+        vm.assume(alice != FORWARDER && alice != owner);
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.getPendingOwner(), address(0));
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.transferOwnership(bob);
+        idRegistry.requestTransferOwnership(newOwner);
+
         assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.getPendingOwner(), address(0));
+    }
+
+    function testCompleteTransferOwnership(address newOwner) public {
+        vm.assume(newOwner != FORWARDER && newOwner != owner);
+        vm.prank(owner);
+        idRegistry.requestTransferOwnership(newOwner);
+
+        vm.expectEmit(true, true, true, true);
+        emit OwnershipTransferred(owner, newOwner);
+        vm.prank(newOwner);
+        idRegistry.completeTransferOwnership();
+
+        assertEq(idRegistry.owner(), newOwner);
+        assertEq(idRegistry.getPendingOwner(), address(0));
+    }
+
+    function testCannotCompleteTransferOwnershipUnlessPendingOwner(address alice, address newOwner) public {
+        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        vm.assume(newOwner != alice);
+
+        vm.prank(owner);
+        idRegistry.requestTransferOwnership(newOwner);
+
+        vm.prank(alice);
+        vm.expectRevert(IDRegistry.Unauthorized.selector);
+        idRegistry.completeTransferOwnership();
+
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.getPendingOwner(), newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////

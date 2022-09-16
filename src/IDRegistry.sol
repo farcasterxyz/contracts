@@ -121,29 +121,53 @@ contract IDRegistry is ERC2771Context, Ownable {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Tracks the last farcaster id that was issued
+    /**
+     * @dev The last farcaster id that was issued.
+     */
     uint256 internal idCounter;
 
-    /// @notice The address controlled by the Farcaster Invite service that is allowed to call
-    ///          trustedRegister
+    /**
+     * @dev The Farcaster Invite service address that is allowed to call trustedRegister.
+     */
     address internal trustedCaller;
 
-    /// @notice A flag that allows calling trustedRegister when set 0, and register when set to 1
-    /// @dev This value can only be changed to 0 and never back to 1
+    /**
+     * @dev The address is allowed to call _completeTransferOwnership() and become the owner. Set to
+     *      address(0) when no ownership transfer is pending.
+     */
+    address internal pendingOwner;
+
+    /**
+     * @dev Allows calling trustedRegister() when set 0, and register() when set to 1. The value is
+     *      set to 1 and can be changed to 0, but never back to 1.
+     */
     uint256 internal trustedOnly = 1;
 
-    /// @notice Returns the farcaster id for an address
+    /**
+     * @notice Maps each address to a fid, or zero if it does not own a fid.
+     */
     mapping(address => uint256) public idOf;
 
-    /// @notice Returns the recovery address for a farcaster id
+    /**
+     * @dev Maps each fid to an address that can initiate a recovery.
+     */
     mapping(uint256 => address) internal recoveryOf;
 
-    /// @notice Returns block.timestamp if there is an active recovery for an fid, or 0 if none
+    /**
+     * @dev Maps each fid to the timestamp at which the recovery request was started. This is set
+     *      to zero when there is no active recovery.
+     */
     mapping(uint256 => uint256) internal recoveryClockOf;
 
-    /// @notice Returns the destination address for the last recovery request for an fid
-    /// @dev This value is left dirty to save gas and does not mean that a recovery is in progress
+    /**
+     * @dev Maps each fid to the destination for the last recovery attempted. This value is left
+     *      dirty to save gas and a non-zero value does not indicate an active recovery.
+     */
     mapping(uint256 => address) internal recoveryDestinationOf;
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Set the owner of the contract to the deployer and configure the trusted forwarder.
@@ -430,6 +454,37 @@ contract IDRegistry is ERC2771Context, Ownable {
     function disableTrustedOnly() external payable onlyOwner {
         delete trustedOnly;
         emit DisableTrustedOnly();
+    }
+
+    /**
+     * @notice Override to prevent a single-step transfer of ownership
+     */
+    function transferOwnership(
+        address /*newOwner*/
+    ) public view override onlyOwner {
+        revert Unauthorized();
+    }
+
+    /**
+     * @notice Begin a request to transfer ownership to a new address ("pendingOwner"). This must
+     *         be called by the contract's owner. A transfer request can be cancelled by calling
+     *         this again with address(0).
+     */
+    function requestTransferOwnership(address newOwner) public onlyOwner {
+        pendingOwner = newOwner;
+    }
+
+    /**
+     * @notice Complete a request to transfer ownership. This must be called by the pendingOwner
+     */
+    function completeTransferOwnership() external {
+        // Safety: burning ownership is not possible since this can never be called by address(0)
+
+        // msg.sender is used instead of _msgSender() to keep surface area for attacks low
+        if (msg.sender != pendingOwner) revert Unauthorized();
+
+        _transferOwnership(msg.sender);
+        delete pendingOwner;
     }
 
     /*//////////////////////////////////////////////////////////////

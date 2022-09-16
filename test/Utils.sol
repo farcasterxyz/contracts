@@ -36,8 +36,12 @@ contract IDRegistryTestable is IDRegistry {
         return trustedCaller;
     }
 
-    function getTrustedCallerOnly() public view returns (uint256) {
+    function getTrustedOnly() public view returns (uint256) {
         return trustedOnly;
+    }
+
+    function getPendingOwner() public view returns (address) {
+        return pendingOwner;
     }
 }
 
