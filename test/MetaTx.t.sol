@@ -6,14 +6,14 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 
 import "forge-std/Test.sol";
 
-import {IDRegistryTestable} from "./Utils.sol";
+import {IdRegistryTestable} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable avoid-low-level-calls */
 
 contract MetaTxTest is Test {
-    IDRegistryTestable idRegistry;
+    IdRegistryTestable idRegistry;
     ERC1967Proxy nameRegistryProxy;
     NameRegistry nameRegistryImpl;
     NameRegistry nameRegistry;
@@ -66,7 +66,7 @@ contract MetaTxTest is Test {
         forwarder = new MinimalForwarder();
 
         // Set up the idRegistry and move to a state where it is no longer in trusted registration
-        idRegistry = new IDRegistryTestable(address(forwarder));
+        idRegistry = new IdRegistryTestable(address(forwarder));
         idRegistry.disableTrustedOnly();
 
         // Set up the nameRegistry and proxy, and move to a state where it is no longer in trusted registration
@@ -82,7 +82,7 @@ contract MetaTxTest is Test {
                                METATX TEST
     //////////////////////////////////////////////////////////////*/
 
-    function testIDRegistryRegister(
+    function testIdRegistryRegister(
         address relayer,
         address recovery,
         uint256 alicePrivateKey

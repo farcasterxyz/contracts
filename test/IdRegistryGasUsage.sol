@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.16;
 
-import {IDRegistryTestable} from "./Utils.sol";
+import {IdRegistryTestable} from "./Utils.sol";
 
 import "forge-std/Test.sol";
 
 /* solhint-disable state-visibility */
 
-contract IDRegistryGasUsageTest is Test {
-    IDRegistryTestable idRegistry;
+contract IdRegistryGasUsageTest is Test {
+    IdRegistryTestable idRegistry;
 
     address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     address constant TRUSTED_SENDER = address(0x123);
@@ -16,7 +16,7 @@ contract IDRegistryGasUsageTest is Test {
     string url = "https://farcaster.xyz";
 
     function setUp() public {
-        idRegistry = new IDRegistryTestable(FORWARDER);
+        idRegistry = new IdRegistryTestable(FORWARDER);
     }
 
     function testGasRegisterAndRecover() public {

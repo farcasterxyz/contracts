@@ -6,18 +6,18 @@ import {ERC2771Context} from "../lib/openzeppelin-contracts/contracts/metatx/ERC
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title IDRegistry
+ * @title IdRegistry
  * @author @v
  * @custom:version 2.0.0
  *
- * @notice IDRegistry enables any ETH address to claim a unique Farcaster ID (fid). An address
+ * @notice IdRegistry enables any ETH address to claim a unique Farcaster ID (fid). An address
  *         can only custody one fid at a time and may transfer it to another address. The Registry
  *         starts in a trusted mode where only a trusted caller can register an fid and can move
  *         to an untrusted mode where any address can register an fid. The Registry implements
  *         a recovery system which allows the custody address to nominate a recovery address that
  *         can transfer the fid to a new address after a delay.
  */
-contract IDRegistry is ERC2771Context, Ownable {
+contract IdRegistry is ERC2771Context, Ownable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/

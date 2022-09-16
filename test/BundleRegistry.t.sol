@@ -7,8 +7,8 @@ import "forge-std/Test.sol";
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
 import {BundleRegistryTestable} from "./Utils.sol";
-import {IDRegistry} from "../src/IDRegistry.sol";
-import {IDRegistryTestable} from "./Utils.sol";
+import {IdRegistry} from "../src/IdRegistry.sol";
+import {IdRegistryTestable} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
@@ -23,8 +23,8 @@ contract BundleRegistryTest is Test {
     // Instance of the NameRegistry proxy contract cast as the implementation contract
     NameRegistry nameRegistry;
 
-    // Instance of the IDRegistry contract wrapped in its test wrapper
-    IDRegistryTestable idRegistry;
+    // Instance of the IdRegistry contract wrapped in its test wrapper
+    IdRegistryTestable idRegistry;
 
     // Instance of the BundleRegistry contract wrapped in its test wrapper
     BundleRegistryTestable bundleRegistry;
@@ -70,8 +70,8 @@ contract BundleRegistryTest is Test {
     uint256 constant REGISTRATION_PERIOD = 365 days;
 
     function setUp() public {
-        // Set up the IDRegistry
-        idRegistry = new IDRegistryTestable(FORWARDER);
+        // Set up the IdRegistry
+        idRegistry = new IdRegistryTestable(FORWARDER);
 
         // Set up the NameRegistry with UUPS Proxy and configure the admin role
         nameRegistryImpl = new NameRegistry(FORWARDER);
@@ -122,7 +122,7 @@ contract BundleRegistryTest is Test {
         assertEq(address(bundleRegistry).balance, 0 ether);
     }
 
-    function testCannotRegisterIfIDRegistryEnabledNameRegistryDisabled(
+    function testCannotRegisterIfIdRegistryEnabledNameRegistryDisabled(
         address alice,
         address relayer,
         address recovery,
@@ -134,8 +134,8 @@ contract BundleRegistryTest is Test {
         _assumeClean(relayer); // relayer must be able to receive funds
         vm.warp(JAN1_2023_TS);
 
-        // State: Trusted registration is enabled in IDRegistry, but disabled in NameRegistry and
-        // trusted caller is set in IDRegistry
+        // State: Trusted registration is enabled in IdRegistry, but disabled in NameRegistry and
+        // trusted caller is set in IdRegistry
         idRegistry.changeTrustedCaller(address(bundleRegistry));
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
@@ -147,7 +147,7 @@ contract BundleRegistryTest is Test {
 
         vm.deal(relayer, 1 ether);
         vm.prank(relayer);
-        vm.expectRevert(IDRegistry.Invitable.selector);
+        vm.expectRevert(IdRegistry.Invitable.selector);
         bundleRegistry.register{value: 0.01 ether}(alice, recovery, url, "alice", secret);
 
         _assertUnsuccessfulRegistration(alice);
@@ -156,7 +156,7 @@ contract BundleRegistryTest is Test {
         assertEq(address(bundleRegistry).balance, 0 ether);
     }
 
-    function testCannotRegisterIfIDRegistryDisabledNameRegistryEnabled(
+    function testCannotRegisterIfIdRegistryDisabledNameRegistryEnabled(
         address alice,
         address relayer,
         address recovery,
@@ -168,7 +168,7 @@ contract BundleRegistryTest is Test {
         _assumeClean(relayer); // relayer must be able to receive funds
         vm.warp(JAN1_2023_TS);
 
-        // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
+        // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -216,7 +216,7 @@ contract BundleRegistryTest is Test {
 
         vm.deal(relayer, 1 ether);
         vm.prank(relayer);
-        vm.expectRevert(IDRegistry.Invitable.selector);
+        vm.expectRevert(IdRegistry.Invitable.selector);
         bundleRegistry.register{value: 1 ether}(alice, recovery, url, "alice", secret);
 
         _assertUnsuccessfulRegistration(alice);
@@ -275,7 +275,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testTrustedRegisterIfIDRegistryDisabledNameRegistryEnabled(
+    function testTrustedRegisterIfIdRegistryDisabledNameRegistryEnabled(
         address alice,
         address recovery,
         string calldata url,
@@ -284,7 +284,7 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(JAN1_2023_TS);
 
-        // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
+        // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -296,7 +296,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testTrustedRegisterIfIDRegistryEnabledNameRegistryDisabled(
+    function testTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(
         address alice,
         address recovery,
         string calldata url,
@@ -305,8 +305,8 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(JAN1_2023_TS);
 
-        // State: Trusted registration is enabled in IDRegistry, but disabled in NameRegistry and
-        // trusted caller is set in IDRegistry
+        // State: Trusted registration is enabled in IdRegistry, but disabled in NameRegistry and
+        // trusted caller is set in IdRegistry
         idRegistry.changeTrustedCaller(address(bundleRegistry));
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
@@ -350,7 +350,7 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(JAN1_2023_TS);
 
-        // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
+        // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -377,13 +377,13 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
-        vm.expectRevert(IDRegistry.Invitable.selector);
+        vm.expectRevert(IdRegistry.Invitable.selector);
         bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testCannotPartialTrustedRegisterIfIDRegistryEnabledNameRegistryDisabled(
+    function testCannotPartialTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(
         address alice,
         address recovery,
         string calldata url,
@@ -392,13 +392,13 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.warp(JAN1_2023_TS);
 
-        // State: Trusted registration is enabled in IDRegistry, but disabled in NameRegistry and
-        // trusted caller is set in IDRegistry
+        // State: Trusted registration is enabled in IdRegistry, but disabled in NameRegistry and
+        // trusted caller is set in IdRegistry
         idRegistry.changeTrustedCaller(address(bundleRegistry));
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
-        vm.expectRevert(IDRegistry.Invitable.selector);
+        vm.expectRevert(IdRegistry.Invitable.selector);
         bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
 
         _assertUnsuccessfulRegistration(alice);
@@ -435,7 +435,7 @@ contract BundleRegistryTest is Test {
         vm.warp(JAN1_2023_TS);
         vm.assume(untrustedCaller != bundleRegistry.getTrustedCaller());
 
-        // State: Trusted registration is disabled in IDRegistry, but enabled in NameRegistry and
+        // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));

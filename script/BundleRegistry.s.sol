@@ -6,7 +6,7 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 import "forge-std/Script.sol";
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
-import {IDRegistry} from "../src/IDRegistry.sol";
+import {IdRegistry} from "../src/IdRegistry.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility*/
@@ -19,7 +19,7 @@ contract BundleRegistryScript is Script {
     NameRegistry nameRegistryImpl;
     NameRegistry nameRegistry;
     ERC1967Proxy proxy;
-    IDRegistry idRegistry;
+    IdRegistry idRegistry;
 
     // TODO: Fix the vault and pool address
     address constant VAULT = ADMIN;
@@ -27,7 +27,7 @@ contract BundleRegistryScript is Script {
 
     function run() public {
         vm.broadcast();
-        idRegistry = new IDRegistry(GOERLI_FORWARDER);
+        idRegistry = new IdRegistry(GOERLI_FORWARDER);
 
         vm.broadcast();
         nameRegistryImpl = new NameRegistry(GOERLI_FORWARDER);
