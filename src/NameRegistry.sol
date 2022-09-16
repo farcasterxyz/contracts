@@ -445,7 +445,10 @@ contract NameRegistry is
         // Clearing unnecessary storage reduces gas consumption
         delete timestampOf[commit];
 
-        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+        unchecked {
+            // Safety: expiryOf will not overflow given the expected sizes of block.timestamp
+            expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+        }
 
         recoveryOf[tokenId] = recovery;
 
@@ -497,7 +500,10 @@ contract NameRegistry is
         uint256 tokenId = uint256(bytes32(fname));
         _mint(to, tokenId);
 
-        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+        unchecked {
+            // Safety: expiryOf will not overflow given the expected sizes of block.timestamp
+            expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+        }
 
         recoveryOf[tokenId] = recovery;
 
@@ -632,7 +638,10 @@ contract NameRegistry is
         // call super.ownerOf instead of ownerOf, because the latter reverts if name is expired
         _transfer(super.ownerOf(tokenId), to, tokenId);
 
-        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+        unchecked {
+            // Safety: expiryOf will not overflow given the expected sizes of block.timestamp
+            expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+        }
 
         recoveryOf[tokenId] = recovery;
 
