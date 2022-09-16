@@ -3,14 +3,14 @@ pragma solidity 0.8.16;
 
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
 
-import {IDRegistry} from "./IDRegistry.sol";
+import {IdRegistry} from "./IdRegistry.sol";
 import {NameRegistry} from "./NameRegistry.sol";
 
 /**
  * @title BundleRegistry
  * @author varunsrin (@v)
  * @notice BundleRegistry allows user to register a Farcaster Name and Farcaster ID in a single
- *         transaction by wrapping around the IDRegistry and NameRegistry contracts, saving gas and
+ *         transaction by wrapping around the IdRegistry and NameRegistry contracts, saving gas and
  *         reducing complexity for the caller.
  */
 contract BundleRegistry is Ownable {
@@ -23,8 +23,8 @@ contract BundleRegistry is Ownable {
     /// @dev The only address that can call trustedRegister and partialTrustedRegister
     address internal trustedCaller;
 
-    /// @dev The address of the IDRegistry contract
-    IDRegistry internal immutable idRegistry;
+    /// @dev The address of the IdRegistry contract
+    IdRegistry internal immutable idRegistry;
 
     /// @dev The address of the NameRegistry UUPS Proxy contract
     NameRegistry internal immutable nameRegistry;
@@ -33,7 +33,7 @@ contract BundleRegistry is Ownable {
      * @notice Configure the addresses of the Registry contracts and the trusted caller which is
      *        allowed to register during the invitation phase.
      *
-     * @param _idRegistry The address of the IDRegistry contract
+     * @param _idRegistry The address of the IdRegistry contract
      * @param _nameRegistry The address of the NameRegistry UUPS Proxy contract
      * @param _trustedCaller The address that can call trustedRegister and partialTrustedRegister
      */
@@ -42,7 +42,7 @@ contract BundleRegistry is Ownable {
         address _nameRegistry,
         address _trustedCaller
     ) Ownable() {
-        idRegistry = IDRegistry(_idRegistry);
+        idRegistry = IdRegistry(_idRegistry);
         nameRegistry = NameRegistry(_nameRegistry);
         trustedCaller = _trustedCaller;
     }

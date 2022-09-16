@@ -184,7 +184,7 @@ contract NameRegistry is
     /// Changes should be replicated to NameRegistryV2 in NameRegistryUpdate.t.sol
 
     // Audit: These variables are kept public to make it easier to test the contract, since using
-    // the same inherit and extend trick that we used for IDRegistry is harder to pull off here
+    // the same inherit and extend trick that we used for IdRegistry is harder to pull off here
     //  due to the UUPS structure.
 
     /**
@@ -854,7 +854,7 @@ contract NameRegistry is
         recoveryDestinationOf[tokenId] = to;
 
         // Perf: Gas costs can be reduced by omitting the from param, at the cost of breaking
-        // compatibility with the IDRegistry's RequestRecovery event
+        // compatibility with the IdRegistry's RequestRecovery event
         emit RequestRecovery(ownerOf(tokenId), to, tokenId);
     }
 

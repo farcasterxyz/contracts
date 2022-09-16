@@ -7,12 +7,12 @@ import {NameRegistry} from "../src/NameRegistry.sol";
 import "forge-std/Test.sol";
 
 import {BundleRegistryTestable} from "./Utils.sol";
-import {IDRegistryTestable} from "./Utils.sol";
+import {IdRegistryTestable} from "./Utils.sol";
 
 /* solhint-disable state-visibility */
 
 contract BundleRegistryGasUsageTest is Test {
-    IDRegistryTestable idRegistry;
+    IdRegistryTestable idRegistry;
     NameRegistry nameRegistry;
     BundleRegistryTestable bundleRegistry;
     NameRegistry nameRegistryImpl;
@@ -48,8 +48,8 @@ contract BundleRegistryGasUsageTest is Test {
     ]; // padded to all be length 5
 
     function setUp() public {
-        // Set up the IDRegistry
-        idRegistry = new IDRegistryTestable(FORWARDER);
+        // Set up the IdRegistry
+        idRegistry = new IdRegistryTestable(FORWARDER);
 
         // Set up the NameRegistry with UUPS Proxy and configure the admin role
         nameRegistryImpl = new NameRegistry(FORWARDER);

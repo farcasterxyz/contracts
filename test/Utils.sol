@@ -2,15 +2,15 @@
 pragma solidity 0.8.16;
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
-import {IDRegistry} from "../src/IDRegistry.sol";
+import {IdRegistry} from "../src/IdRegistry.sol";
 
 /* solhint-disable no-empty-blocks */
 
 /**
- * @dev IDRegistryTestable exposes IDRegistry's private methods for test assertions.
+ * @dev IdRegistryTestable exposes IdRegistry's private methods for test assertions.
  */
-contract IDRegistryTestable is IDRegistry {
-    constructor(address forwarder) IDRegistry(forwarder) {}
+contract IdRegistryTestable is IdRegistry {
+    constructor(address forwarder) IdRegistry(forwarder) {}
 
     function getIdCounter() public view returns (uint256) {
         return idCounter;
@@ -46,7 +46,7 @@ contract IDRegistryTestable is IDRegistry {
 }
 
 /**
- * @dev BundleRegistryTestable exposes IDRegistry's private methods for test assertions.
+ * @dev BundleRegistryTestable exposes IdRegistry's private methods for test assertions.
  */
 contract BundleRegistryTestable is BundleRegistry {
     constructor(
