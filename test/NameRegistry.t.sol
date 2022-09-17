@@ -71,6 +71,7 @@ contract NameRegistryTest is Test {
     uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
     uint256 constant BOB_TOKEN_ID = uint256(bytes32("bob"));
 
+    bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
     bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
@@ -2707,6 +2708,77 @@ contract NameRegistryTest is Test {
         nameRegistry.grantRole(ADMIN_ROLE, bob);
         assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
         assertEq(nameRegistry.hasRole(ADMIN_ROLE, bob), false);
+    }
+
+    function testGrantDefaultAdminRole(address newDefaultAdmin) public {
+        vm.assume(defaultAdmin != newDefaultAdmin);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), false);
+
+        vm.prank(defaultAdmin);
+        nameRegistry.grantRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin);
+
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), true);
+    }
+
+    function testCannotGrantDefaultAdminRoleUnlessDefaultAdmin(address newDefaultAdmin, address alice) public {
+        _assumeClean(alice);
+        vm.assume(alice != defaultAdmin);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), false);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account ",
+                Strings.toHexString(uint160(alice), 20),
+                " is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
+            )
+        );
+        nameRegistry.grantRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin);
+
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), false);
+    }
+
+    function testRevokeDefaultAdminRole(address newDefaultAdmin) public {
+        vm.prank(defaultAdmin);
+        nameRegistry.grantRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), true);
+
+        vm.prank(newDefaultAdmin);
+        nameRegistry.revokeRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), false);
+        if (defaultAdmin != newDefaultAdmin) {
+            assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), true);
+        }
+    }
+
+    function testCannotRevokeDefaultAdminRoleUnlessDefaultAdmin(address newDefaultAdmin, address alice) public {
+        _assumeClean(alice);
+        vm.assume(defaultAdmin != newDefaultAdmin);
+        vm.assume(alice != defaultAdmin && alice != newDefaultAdmin);
+
+        vm.prank(defaultAdmin);
+        nameRegistry.grantRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), true);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account ",
+                Strings.toHexString(uint160(alice), 20),
+                " is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
+            )
+        );
+        nameRegistry.revokeRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
+        assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), true);
     }
 
     /*//////////////////////////////////////////////////////////////
