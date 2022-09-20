@@ -2730,6 +2730,7 @@ contract NameRegistryTest is Test {
     function testCannotGrantDefaultAdminRoleUnlessDefaultAdmin(address newDefaultAdmin, address alice) public {
         _assumeClean(alice);
         vm.assume(alice != defaultAdmin);
+        vm.assume(newDefaultAdmin != defaultAdmin);
         assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
         assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), false);
 
