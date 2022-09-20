@@ -8,12 +8,11 @@ import "forge-std/Script.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility*/
-/* solhint-disable avoid-low-level-calls */
 
 contract NameRegistryScript is Script {
-    address gorliTrustedForwarder = address(0x7A95fA73250dc53556d264522150A940d4C50238);
-    NameRegistry nameRegistry;
-    NameRegistry proxiedNameRegistry;
+    address goerliTrustedForwarder = address(0x7A95fA73250dc53556d264522150A940d4C50238);
+    NameRegistry nameRegistryImpl;
+    NameRegistry nameRegistryProxy;
     ERC1967Proxy proxy;
 
     // TODO: Fix the vault and pool address
@@ -22,13 +21,13 @@ contract NameRegistryScript is Script {
 
     function run() public {
         vm.broadcast();
-        nameRegistry = new NameRegistry(gorliTrustedForwarder);
+        nameRegistryImpl = new NameRegistry(goerliTrustedForwarder);
 
         vm.broadcast();
-        proxy = new ERC1967Proxy(address(nameRegistry), "");
-        proxiedNameRegistry = NameRegistry(address(proxy));
+        proxy = new ERC1967Proxy(address(nameRegistryImpl), "");
+        nameRegistryProxy = NameRegistry(address(proxy));
 
         vm.broadcast();
-        proxiedNameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
+        nameRegistryProxy.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
     }
 }
