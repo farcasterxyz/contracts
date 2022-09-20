@@ -10,7 +10,6 @@ import {IdRegistry} from "../src/IdRegistry.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility*/
-/* solhint-disable avoid-low-level-calls */
 
 contract BundleRegistryScript is Script {
     address constant GOERLI_FORWARDER = address(0x7A95fA73250dc53556d264522150A940d4C50238);
