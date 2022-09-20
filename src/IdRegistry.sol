@@ -194,7 +194,7 @@ contract IdRegistry is ERC2771Context, Ownable {
         address to,
         address recovery,
         string calldata url
-    ) external payable {
+    ) external {
         // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
 
         if (trustedOnly == 1) revert Invitable();
@@ -217,7 +217,7 @@ contract IdRegistry is ERC2771Context, Ownable {
         address to,
         address recovery,
         string calldata url
-    ) external payable {
+    ) external {
         // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
 
         if (trustedOnly == 0) revert Registrable();
@@ -238,7 +238,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      *
      * @param url The new home url for the fid
      */
-    function changeHome(string calldata url) external payable {
+    function changeHome(string calldata url) external {
         uint256 id = idOf[_msgSender()];
         if (id == 0) revert HasNoId();
 
@@ -272,7 +272,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      *
      * @param to The address to transfer the fid to.
      */
-    function transfer(address to) external payable {
+    function transfer(address to) external {
         address sender = _msgSender();
         uint256 id = idOf[sender];
 
@@ -342,7 +342,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      *
      * @param recovery The address which can recover the fid (set to 0x0 to disable recovery)
      */
-    function changeRecoveryAddress(address recovery) external payable {
+    function changeRecoveryAddress(address recovery) external {
         uint256 id = idOf[_msgSender()];
         if (id == 0) revert HasNoId();
 
@@ -362,7 +362,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param from The address that owns the fid
      * @param to   The address where the fid should be sent
      */
-    function requestRecovery(address from, address to) external payable {
+    function requestRecovery(address from, address to) external {
         uint256 id = idOf[from];
         if (_msgSender() != recoveryOf[id]) revert Unauthorized();
 
@@ -384,7 +384,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      *
      * @param from The address that owns the id.
      */
-    function completeRecovery(address from) external payable {
+    function completeRecovery(address from) external {
         uint256 id = idOf[from];
 
         if (_msgSender() != recoveryOf[id]) revert Unauthorized();
@@ -415,7 +415,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      *
      * @param from The address that owns the id.
      */
-    function cancelRecovery(address from) external payable {
+    function cancelRecovery(address from) external {
         uint256 id = idOf[from];
         address sender = _msgSender();
 
@@ -442,7 +442,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      *
      * @param _trustedCaller The address of the new trusted caller
      */
-    function changeTrustedCaller(address _trustedCaller) external payable onlyOwner {
+    function changeTrustedCaller(address _trustedCaller) external onlyOwner {
         trustedCaller = _trustedCaller;
         emit ChangeTrustedCaller(_trustedCaller);
     }
@@ -451,7 +451,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @notice Disable trustedRegister() and let anyone get an fid by calling register(). This must
      *         be called by the contract's owner.
      */
-    function disableTrustedOnly() external payable onlyOwner {
+    function disableTrustedOnly() external onlyOwner {
         delete trustedOnly;
         emit DisableTrustedOnly();
     }
