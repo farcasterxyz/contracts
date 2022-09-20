@@ -66,6 +66,9 @@ contract NameRegistryTest is Test {
     uint256 constant BID_START = 1_000 ether;
     uint256 constant FEE = 0.01 ether;
 
+    // Max value to use when fuzzing msg.value amounts, to prevent impractical overflow failures
+    uint256 AMOUNT_FUZZ_MAX = 1_000_000_000_000 ether;
+
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
 
     uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
@@ -957,7 +960,8 @@ contract NameRegistryTest is Test {
         _assumeClean(bob);
         _register(alice);
         // TODO: Report foundry bug when setting the max to anything higher
-        vm.assume(amount >= FEE && amount < (type(uint256).max - 3 wei));
+        // vm.assume(amount >= FEE && amount < (type(uint256).max - 3 wei));
+        amount = (amount % AMOUNT_FUZZ_MAX) + FEE;
 
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         timestamp = (timestamp % (RENEWAL_PERIOD)) + renewableTs;
@@ -1126,6 +1130,7 @@ contract NameRegistryTest is Test {
         _register(alice);
         vm.assume(alice != charlie);
         vm.assume(charlie != address(0));
+        amount = amount % AMOUNT_FUZZ_MAX;
         uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
 
         vm.prank(alice);
@@ -3133,7 +3138,7 @@ contract NameRegistryTest is Test {
     function testCannotWithdrawInvalidAmount(address alice, uint256 amount) public {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
-        amount = amount % 1_000_000_000 ether;
+        amount = amount % AMOUNT_FUZZ_MAX;
         vm.deal(address(nameRegistry), amount);
 
         vm.prank(alice);
