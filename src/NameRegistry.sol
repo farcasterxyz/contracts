@@ -388,7 +388,7 @@ contract NameRegistry is
      *
      * @param commit The commitment hash to be persisted on-chain
      */
-    function makeCommit(bytes32 commit) external payable {
+    function makeCommit(bytes32 commit) external {
         if (trustedOnly == 1) revert Invitable();
 
         unchecked {
@@ -818,7 +818,7 @@ contract NameRegistry is
      * @param tokenId  The uint256 representation of the fname
      * @param recovery The address which can recover the fname (set to 0x0 to disable recovery)
      */
-    function changeRecoveryAddress(uint256 tokenId, address recovery) external payable whenNotPaused {
+    function changeRecoveryAddress(uint256 tokenId, address recovery) external whenNotPaused {
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
         recoveryOf[tokenId] = recovery;
@@ -838,7 +838,7 @@ contract NameRegistry is
      * @param tokenId The uint256 representation of the fname
      * @param to      The address to transfer the fname to, which cannot be address(0)
      */
-    function requestRecovery(uint256 tokenId, address to) external payable whenNotPaused {
+    function requestRecovery(uint256 tokenId, address to) external whenNotPaused {
         if (to == address(0)) revert InvalidRecovery();
 
         // Invariant 3 ensures that a request cannot be made after ownership change without consent
@@ -865,7 +865,7 @@ contract NameRegistry is
      *
      * @param tokenId The uint256 representation of the fname
      */
-    function completeRecovery(uint256 tokenId) external payable {
+    function completeRecovery(uint256 tokenId) external {
         if (block.timestamp >= expiryOf[tokenId]) revert Expired();
 
         // Invariant 3 ensures that a request cannot be completed after ownership change without consent
@@ -890,7 +890,7 @@ contract NameRegistry is
      *
      * @param tokenId The uint256 representation of the fname
      */
-    function cancelRecovery(uint256 tokenId) external payable {
+    function cancelRecovery(uint256 tokenId) external {
         address sender = _msgSender();
 
         // Perf: super.ownerOf is called instead of ownerOf since cancellation has no undesirable
@@ -945,7 +945,7 @@ contract NameRegistry is
      *
      * @param _trustedCaller The address of the new trusted caller
      */
-    function changeTrustedCaller(address _trustedCaller) external payable {
+    function changeTrustedCaller(address _trustedCaller) external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         trustedCaller = _trustedCaller;
@@ -955,7 +955,7 @@ contract NameRegistry is
     /**
      * @notice Disables registerTrusted and enables register calls from any address.
      */
-    function disableTrustedOnly() external payable {
+    function disableTrustedOnly() external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         delete trustedOnly;
@@ -967,7 +967,7 @@ contract NameRegistry is
      *
      * @param _vault The address of the new vault
      */
-    function changeVault(address _vault) external payable {
+    function changeVault(address _vault) external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         vault = _vault;
@@ -979,7 +979,7 @@ contract NameRegistry is
      *
      * @param _pool The address of the new pool
      */
-    function changePool(address _pool) external payable {
+    function changePool(address _pool) external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
         pool = _pool;
@@ -995,7 +995,7 @@ contract NameRegistry is
      *
      * @param _fee The new yearly fee
      */
-    function changeFee(uint256 _fee) external payable {
+    function changeFee(uint256 _fee) external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
@@ -1009,7 +1009,7 @@ contract NameRegistry is
      *
      * @param amount The amount of ether to withdraw
      */
-    function withdraw(uint256 amount) external payable {
+    function withdraw(uint256 amount) external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
 
@@ -1028,7 +1028,7 @@ contract NameRegistry is
     /**
      * @notice pause the contract and prevent registrations, renewals, recoveries and transfers of names.
      */
-    function pause() external payable {
+    function pause() external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
         _pause();
@@ -1037,7 +1037,7 @@ contract NameRegistry is
     /**
      * @notice unpause the contract and resume registrations, renewals, recoveries and transfers of names.
      */
-    function unpause() external payable {
+    function unpause() external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
         _unpause();
