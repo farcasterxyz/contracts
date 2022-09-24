@@ -15,8 +15,8 @@ contract BundleRegistryScript is Script {
     address constant GOERLI_FORWARDER = address(0x7A95fA73250dc53556d264522150A940d4C50238);
     bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
-    // TODO: Always update this to the address of the private key used to deploy the contracts
-    address constant DEPLOYER = address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
+    // TODO: Always update this to the address of the private key used to deploy the contracts on the network
+    address constant DEPLOYER = address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266); // anvil deployer
 
     // TODO: Update the vault and pool addresses every time
     address constant VAULT = DEPLOYER;
