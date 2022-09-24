@@ -9,6 +9,8 @@ import {NameRegistry} from "./NameRegistry.sol";
 /**
  * @title BundleRegistry
  * @author varunsrin (@v)
+ * @custom:version 2.0.0
+ *
  * @notice BundleRegistry allows user to register a Farcaster Name and Farcaster ID in a single
  *         transaction by wrapping around the IdRegistry and NameRegistry contracts, saving gas and
  *         reducing complexity for the caller.
