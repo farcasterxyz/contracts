@@ -64,14 +64,13 @@ contract BundleRegistryTest is Test {
     address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
     address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
-    uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
     uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
+    bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     uint256 constant BOB_TOKEN_ID = uint256(bytes32("bob"));
     uint256 constant CHARLIE_TOKEN_ID = uint256(bytes32("charlie"));
     string internal constant DEFAULT_URL = "https://www.farcaster.xyz/";
 
-    bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-
+    uint256 constant COMMIT_REPLAY_DELAY = 10 minutes;
     uint256 constant COMMIT_REGISTER_DELAY = 60;
     uint256 constant REGISTRATION_PERIOD = 365 days;
 
@@ -106,7 +105,7 @@ contract BundleRegistryTest is Test {
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         vm.assume(amount >= nameRegistry.fee()); // the amount must be at least equal to the fee
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(JAN1_2023_TS);
+        vm.warp(COMMIT_REPLAY_DELAY + 1); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted Registration is disabled in both registries, and trusted caller is not set
         idRegistry.disableTrustedOnly();
@@ -138,7 +137,7 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(JAN1_2023_TS);
+        vm.warp(COMMIT_REPLAY_DELAY + 1); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted registration is enabled in IdRegistry, but disabled in NameRegistry and
         // trusted caller is set in IdRegistry
@@ -172,7 +171,7 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(JAN1_2023_TS);
+        vm.warp(COMMIT_REPLAY_DELAY + 1); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
@@ -207,7 +206,7 @@ contract BundleRegistryTest is Test {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(JAN1_2023_TS);
+        vm.warp(COMMIT_REPLAY_DELAY + 1); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
         idRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -242,7 +241,6 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
@@ -264,7 +262,6 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in both registries and trusted caller is set
         idRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -284,7 +281,6 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in IdRegistry, but disabled in NameRegistry and
         // trusted caller is set in IdRegistry
@@ -305,7 +301,6 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in both registries and trusted caller is not sset
         idRegistry.disableTrustedOnly();
@@ -326,7 +321,6 @@ contract BundleRegistryTest is Test {
         address untrustedCaller
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
         vm.assume(untrustedCaller != bundleRegistry.getTrustedCaller());
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
@@ -355,7 +349,6 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
         idRegistry.changeTrustedCaller(address(bundleRegistry));
@@ -377,7 +370,6 @@ contract BundleRegistryTest is Test {
         address untrustedCaller
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
         vm.assume(untrustedCaller != address(this)); // guarantees call from untrusted caller
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
@@ -401,7 +393,6 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
         // trusted caller is set in NameRegistry
@@ -422,7 +413,6 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is enabled in IdRegistry, but disabled in NameRegistry and
         // trusted caller is set in IdRegistry
@@ -443,7 +433,6 @@ contract BundleRegistryTest is Test {
         uint256 inviter
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.warp(JAN1_2023_TS);
 
         // State: Trusted registration is disabled in both registries
         idRegistry.disableTrustedOnly();
