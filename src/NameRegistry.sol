@@ -55,6 +55,7 @@ contract NameRegistry is
 
     /// @dev Revert if the caller does not have TREASURER_ROLE
     error NotTreasurer();
+
     /// @dev Revert when excess funds could not be sent back to the caller
     error CallFailed();
 

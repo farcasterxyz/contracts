@@ -14,11 +14,32 @@ import {NameRegistry} from "./NameRegistry.sol";
  *         reducing complexity for the caller.
  */
 contract BundleRegistry is Ownable {
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Revert when the caller does not have the authority to perform the action
     error Unauthorized();
+
+    /// @dev Revert when excess funds could not be sent back to the caller
     error CallFailed();
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     /// @dev Emit when the trustedCaller is changed by the owner after the contract is deployed
     event ChangeTrustedCaller(address indexed trustedCaller, address indexed owner);
+
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The data required to trustedBatchRegister a single user
+    struct BatchUser {
+        address to;
+        bytes16 username;
+    }
 
     /// @dev The only address that can call trustedRegister and partialTrustedRegister
     address internal trustedCaller;
@@ -28,6 +49,13 @@ contract BundleRegistry is Ownable {
 
     /// @dev The address of the NameRegistry UUPS Proxy contract
     NameRegistry internal immutable nameRegistry;
+
+    /*//////////////////////////////////////////////////////////////
+                                CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev The default homeUrl value for the IdRegistry call, to be used until Hubs are launched
+    string internal constant DEFAULT_URL = "https://www.farcaster.xyz/";
 
     /**
      * @notice Configure the addresses of the Registry contracts and the trusted caller which is
@@ -72,6 +100,26 @@ contract BundleRegistry is Ownable {
     }
 
     /**
+     * @notice Register an fid and an fname during the first Mainnet phase, where registration of
+     *         the fid is available to all, but registration of the fname can only be performed by
+     *         the Farcaster Invite Server (trustedCaller)
+     */
+    function partialTrustedRegister(
+        address to,
+        address recovery,
+        string calldata url,
+        bytes16 username,
+        uint256 inviter
+    ) external payable {
+        // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
+        if (msg.sender != trustedCaller) revert Unauthorized();
+
+        // Audit: is it possible to end up in a state where one passes but the other fails?
+        idRegistry.register(to, recovery, url);
+        nameRegistry.trustedRegister(username, to, recovery, inviter, idRegistry.idOf(to));
+    }
+
+    /**
      * @notice Register an fid and an fname during the Goerli phase, where registration can only be
      *         performed by the Farcaster Invite Server (trustedCaller)
      */
@@ -91,23 +139,19 @@ contract BundleRegistry is Ownable {
     }
 
     /**
-     * @notice Register an fid and an fname during the first Mainnet phase, where registration of
-     *         the fid is available to all, but registration of the fname can only be performed by
-     *         the Farcaster Invite Server (trustedCaller)
+     * @notice Register multiple fids and fname during a migration to a new network, where
+     *         registration can only be performed by the Farcaster Invite Server (trustedCaller).
+     *         Recovery address, inviter, invitee and homeUrl are initialized to default values
+     *         during this migration.
      */
-    function partialTrustedRegister(
-        address to,
-        address recovery,
-        string calldata url,
-        bytes16 username,
-        uint256 inviter
-    ) external payable {
+    function trustedBatchRegister(BatchUser[] calldata users) external {
         // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
-        // Audit: is it possible to end up in a state where one passes but the other fails?
-        idRegistry.register(to, recovery, url);
-        nameRegistry.trustedRegister(username, to, recovery, inviter, idRegistry.idOf(to));
+        for (uint256 i = 0; i < users.length; i++) {
+            idRegistry.trustedRegister(users[i].to, address(0), DEFAULT_URL);
+            nameRegistry.trustedRegister(users[i].username, users[i].to, address(0), 0, 0);
+        }
     }
 
     /**
