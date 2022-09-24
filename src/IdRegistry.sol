@@ -138,7 +138,7 @@ contract IdRegistry is ERC2771Context, Ownable {
     address internal pendingOwner;
 
     /**
-     * @dev Allows calling trustedRegister() when set 0, and register() when set to 1. The value is
+     * @dev Allows calling trustedRegister() when set 1, and register() when set to 0. The value is
      *      set to 1 and can be changed to 0, but never back to 1.
      */
     uint256 internal trustedOnly = 1;
