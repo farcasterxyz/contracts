@@ -71,11 +71,13 @@ contract NameRegistryUpgradeTest is Test {
         assertEq(nameRegistryV2Proxy.number(), 42);
     }
 
+    // solhint-disable-next-line no-empty-blocks
     function testModifiedFnAfterUpgrade() public {
         // TODO: If we decide to stick with UUPS, assert that a function can be redefined and will
         // execute its new logic when the proxy is called
     }
 
+    // solhint-disable-next-line no-empty-blocks
     function testStorage() public {
         // TODO: If we decide to stick with UUPS, assert that all storage slots are preserved
         // on upgrade
