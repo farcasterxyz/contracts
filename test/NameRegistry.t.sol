@@ -67,7 +67,7 @@ contract NameRegistryTest is Test {
     uint256 constant FEE = 0.01 ether;
 
     // Max value to use when fuzzing msg.value amounts, to prevent impractical overflow failures
-    uint256 AMOUNT_FUZZ_MAX = 1_000_000_000_000 ether;
+    uint256 constant AMOUNT_FUZZ_MAX = 1_000_000_000_000 ether;
 
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
 
