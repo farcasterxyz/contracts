@@ -253,13 +253,15 @@ contract IdRegistry is ERC2771Context, Ownable {
         // Perf: inlining this can save ~ 20-40 gas per call at the expense of readability
         if (idOf[to] != 0) revert HasId();
 
+        // Use local variable to cache storage variable
+        uint256 _idCounter;
         unchecked {
-            idCounter++;
+            _idCounter = ++idCounter;
         }
 
         // Incrementing before assigning ensures that 0 is never issued as a valid ID.
-        idOf[to] = idCounter;
-        recoveryOf[idCounter] = recovery;
+        idOf[to] = _idCounter;
+        recoveryOf[_idCounter] = recovery;
     }
 
     /*//////////////////////////////////////////////////////////////

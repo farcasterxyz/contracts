@@ -150,9 +150,12 @@ contract BundleRegistry is Ownable {
         // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
-        for (uint256 i = 0; i < users.length; i++) {
+        for (uint256 i; i < users.length; ) {
             idRegistry.trustedRegister(users[i].to, address(0), DEFAULT_URL);
             nameRegistry.trustedRegister(users[i].username, users[i].to, address(0), 0, 0);
+            unchecked {
+                ++i;
+            }
         }
     }
 

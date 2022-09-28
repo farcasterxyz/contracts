@@ -758,7 +758,7 @@ contract NameRegistry is
         // Construct a new bytes[] with the valid fname characters.
         bytes memory fnameBytes = new bytes(lastCharIdx + 1);
 
-        for (uint256 j = 0; j <= lastCharIdx; ) {
+        for (uint256 j; j <= lastCharIdx; ) {
             fnameBytes[j] = fname[j];
 
             unchecked {
@@ -1097,12 +1097,12 @@ contract NameRegistry is
         // If the name begins with a hyphen, reject it
         if (uint8(fname[0]) == 45) revert InvalidName();
 
-        for (uint256 i = 0; i < length; ) {
+        for (uint256 i; i < length; ) {
             uint8 charInt = uint8(fname[i]);
 
             unchecked {
                 // Safety: i can never overflow because length is guaranteed to be <= 16
-                i++;
+                ++i;
             }
 
             if (nameEnded) {
