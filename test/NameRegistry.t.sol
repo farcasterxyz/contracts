@@ -3009,14 +3009,17 @@ contract NameRegistryTest is Test {
 
     function testReclaimMultipleResetsERC721Approvals(
         address[4] calldata users,
-        address[4] calldata approveUsers
+        address[4] calldata approveUsers,
+        address[4] calldata destinations
     ) public {
-        address[] memory addresses = new address[](8);
+        address[] memory addresses = new address[](12);
         for (uint256 i = 0; i < users.length; i++) {
             _assumeClean(users[i]);
             _assumeClean(approveUsers[i]);
+            _assumeClean(destinations[i]);
             addresses[i] = users[i];
             addresses[i + 4] = approveUsers[i];
+            addresses[i + 8] = destinations[i];
         }
         _assumeUnique(addresses);
 
@@ -3046,7 +3049,7 @@ contract NameRegistryTest is Test {
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
         for (uint256 i = 0; i < users.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], POOL);
+            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
         }
         vm.prank(ADMIN);
         nameRegistry.reclaim(reclaimActions);
@@ -3073,6 +3076,54 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
+    }
+
+    function testReclaimMultipleWhenPaused(address[4] calldata users, address[4] calldata destinations) public {
+        address[] memory addresses = new address[](8);
+        for (uint256 i = 0; i < users.length; i++) {
+            addresses[i] = users[i];
+            addresses[i + 4] = destinations[i];
+            _assumeClean(users[i]);
+            _assumeClean(destinations[i]);
+        }
+        _assumeUnique(addresses);
+
+        bytes16[] memory fnames = new bytes16[](4);
+        fnames[0] = "alice";
+        fnames[1] = "bob";
+        fnames[2] = "carol";
+        fnames[3] = "dan";
+
+        uint256[] memory tokenIds = new uint256[](4);
+        tokenIds[0] = ALICE_TOKEN_ID;
+        tokenIds[1] = BOB_TOKEN_ID;
+        tokenIds[2] = CAROL_TOKEN_ID;
+        tokenIds[3] = DAN_TOKEN_ID;
+
+        for (uint256 i = 0; i < fnames.length; i++) {
+            _register(users[i], fnames[i]);
+        }
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
+
+        _grant(MODERATOR_ROLE, ADMIN);
+        _grant(OPERATOR_ROLE, ADMIN);
+
+        vm.prank(ADMIN);
+        nameRegistry.pause();
+
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
+
+        for (uint256 i = 0; i < users.length; i++) {
+            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+        }
+        vm.prank(ADMIN);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.reclaim(reclaimActions);
+
+        for (uint256 i = 0; i < users.length; i++) {
+            assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
+            assertEq(nameRegistry.expiryOf(tokenIds[i]), renewableTs);
+        }
     }
 
     function testCannotReclaimIfRegistrable(address mod) public {
