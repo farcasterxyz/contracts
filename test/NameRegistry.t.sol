@@ -2651,20 +2651,20 @@ contract NameRegistryTest is Test {
     function testReclaimMultipleRegisteredNames(
         address[4] calldata users,
         address mod,
-        address recovery,
+        address[4] calldata recoveryAddresses,
         address[4] calldata destinations
     ) public {
         _assumeClean(mod);
-        _assumeClean(recovery);
-        address[] memory addresses = new address[](10);
+        address[] memory addresses = new address[](13);
         for (uint256 i = 0; i < users.length; i++) {
             _assumeClean(users[i]);
             _assumeClean(destinations[i]);
+            _assumeClean(recoveryAddresses[i]);
             addresses[i] = users[i];
             addresses[i + 4] = destinations[i];
+            addresses[i + 8] = recoveryAddresses[i];
         }
-        addresses[8] = mod;
-        addresses[9] = recovery;
+        addresses[12] = mod;
         _assumeUnique(addresses);
 
         bytes16[] memory fnames = new bytes16[](4);
@@ -2687,7 +2687,7 @@ contract NameRegistryTest is Test {
         _grant(MODERATOR_ROLE, mod);
 
         for (uint256 i = 0; i < fnames.length; i++) {
-            _requestRecovery(users[i], tokenIds[i], recovery);
+            _requestRecovery(users[i], tokenIds[i], recoveryAddresses[i]);
         }
 
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
@@ -3146,11 +3146,12 @@ contract NameRegistryTest is Test {
 
     function testCannotReclaimMultipleIfRegistrable(address mod, address[4] calldata destinations) public {
         _assumeClean(mod);
-        address[] memory addresses = new address[](4);
+        address[] memory addresses = new address[](5);
         for (uint256 i = 0; i < destinations.length; i++) {
             _assumeClean(destinations[i]);
             addresses[i] = destinations[i];
         }
+        addresses[4] = mod;
         _assumeUnique(addresses);
         _grant(MODERATOR_ROLE, mod);
 
@@ -3199,6 +3200,67 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), recoveryTs);
+    }
+
+    function testCannotReclaimMultipleUnlessModerator(
+        address[4] calldata users,
+        address[4] calldata destinations,
+        address notModerator,
+        address[4] calldata recoveryAddresses
+    ) public {
+        _assumeClean(notModerator);
+        address[] memory addresses = new address[](13);
+        for (uint256 i = 0; i < users.length; i++) {
+            _assumeClean(users[i]);
+            _assumeClean(destinations[i]);
+            _assumeClean(recoveryAddresses[i]);
+            addresses[i] = users[i];
+            addresses[i + 4] = destinations[i];
+            addresses[i + 8] = recoveryAddresses[i];
+        }
+        addresses[12] = notModerator;
+        _assumeUnique(addresses);
+
+        bytes16[] memory fnames = new bytes16[](4);
+        fnames[0] = "alice";
+        fnames[1] = "bob";
+        fnames[2] = "carol";
+        fnames[3] = "dan";
+
+        uint256[] memory tokenIds = new uint256[](4);
+        tokenIds[0] = ALICE_TOKEN_ID;
+        tokenIds[1] = BOB_TOKEN_ID;
+        tokenIds[2] = CAROL_TOKEN_ID;
+        tokenIds[3] = DAN_TOKEN_ID;
+
+        for (uint256 i = 0; i < fnames.length; i++) {
+            _register(users[i], fnames[i]);
+        }
+
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
+        uint256 recoveryTs;
+        for (uint256 i = 0; i < fnames.length; i++) {
+            recoveryTs = _requestRecovery(users[i], tokenIds[i], recoveryAddresses[i]);
+        }
+
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+        }
+
+        vm.prank(notModerator);
+        vm.expectRevert(NameRegistry.NotModerator.selector);
+        nameRegistry.reclaim(reclaimActions);
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            assertEq(nameRegistry.balanceOf(users[i]), 1);
+            assertEq(nameRegistry.balanceOf(destinations[i]), 0);
+            assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
+            assertEq(nameRegistry.expiryOf(tokenIds[i]), renewableTs);
+            assertEq(nameRegistry.recoveryOf(tokenIds[i]), recoveryAddresses[i]);
+            assertEq(nameRegistry.recoveryClockOf(tokenIds[i]), recoveryTs);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
