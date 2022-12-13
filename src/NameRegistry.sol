@@ -894,32 +894,6 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Move the fname from the current owner to the pool and renew it for another year.
-     *         Does not work when paused because it calls _transfer.
-     *
-     * @param tokenId the uint256 representation of the fname.
-     */
-    function reclaim(uint256 tokenId) external payable {
-        // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
-        // and it reduces our attack surface area
-        if (!hasRole(MODERATOR_ROLE, msg.sender)) revert NotModerator();
-
-        uint256 _expiry = expiryOf[tokenId];
-
-        // If an fname hasn't been minted, it should be minted instead of reclaimed
-        if (_expiry == 0) revert Registrable();
-
-        // Call super.ownerOf instead of ownerOf because we want the admin to transfer the name
-        // even if is expired and there is no current owner.
-        _transfer(super.ownerOf(tokenId), pool, tokenId);
-
-        // If an fname expires in the near future, extend its registration by the renewal period
-        if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
-            expiryOf[tokenId] = block.timestamp + RENEWAL_PERIOD;
-        }
-    }
-
-    /**
      * @notice Move the fnames froms the current owners to desired destinations and renew them for another week.
      *         Does not work when paused because it calls _transfer.
      *

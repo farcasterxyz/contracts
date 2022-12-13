@@ -2637,8 +2637,10 @@ contract NameRegistryTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, POOL, ALICE_TOKEN_ID);
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
         vm.prank(mod);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
+        nameRegistry.reclaim(reclaimActions);
 
         if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
@@ -2725,8 +2727,10 @@ contract NameRegistryTest is Test {
         vm.warp(renewalTs - 1);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, POOL, ALICE_TOKEN_ID);
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
         vm.prank(mod);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
+        nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
         uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
@@ -2819,8 +2823,10 @@ contract NameRegistryTest is Test {
         vm.warp(renewableTs);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, POOL, ALICE_TOKEN_ID);
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
         vm.prank(mod);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
+        nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
         uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
@@ -2912,8 +2918,10 @@ contract NameRegistryTest is Test {
         vm.warp(biddableTs);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, POOL, ALICE_TOKEN_ID);
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
         vm.prank(ADMIN);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
+        nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
         uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
@@ -3003,8 +3011,10 @@ contract NameRegistryTest is Test {
         vm.prank(alice);
         nameRegistry.approve(bob, ALICE_TOKEN_ID);
 
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
         vm.prank(ADMIN);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
+        nameRegistry.reclaim(reclaimActions);
 
         assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
     }
@@ -3072,9 +3082,11 @@ contract NameRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.pause();
 
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
         vm.prank(ADMIN);
         vm.expectRevert("Pausable: paused");
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
+        nameRegistry.reclaim(reclaimActions);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
@@ -3132,9 +3144,11 @@ contract NameRegistryTest is Test {
         _assumeClean(mod);
         _grant(MODERATOR_ROLE, mod);
 
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
         vm.prank(mod);
         vm.expectRevert(NameRegistry.Registrable.selector);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
+        nameRegistry.reclaim(reclaimActions);
 
         assertEq(nameRegistry.balanceOf(POOL), 0);
         vm.expectRevert("ERC721: invalid token ID");
@@ -3190,9 +3204,11 @@ contract NameRegistryTest is Test {
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 recoveryTs = _requestRecovery(alice, recovery);
 
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
         vm.prank(notModerator);
         vm.expectRevert(NameRegistry.NotModerator.selector);
-        nameRegistry.reclaim(ALICE_TOKEN_ID);
+        nameRegistry.reclaim(reclaimActions);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         if (alice != POOL) assertEq(nameRegistry.balanceOf(POOL), 0);
