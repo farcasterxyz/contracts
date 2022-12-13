@@ -930,11 +930,17 @@ contract NameRegistry is
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
         // and it reduces our attack surface area
         if (!hasRole(MODERATOR_ROLE, msg.sender)) revert NotModerator();
+        uint256 reclaimActionsLength = reclaimActions.length;
 
-        for (uint256 i = 0; i < reclaimActions.length; i++) {
+        for (uint256 i = 0; i < reclaimActionsLength;) {
             uint256 tokenId = reclaimActions[i].tokenId;
 
             address destination = reclaimActions[i].destination;
+
+            unchecked {
+                // Safety: i can never overflow because length is guaranteed to be <= reclaimActions.length
+                i++;
+            }
 
             uint256 _expiry = expiryOf[tokenId];
 
