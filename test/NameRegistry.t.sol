@@ -2196,7 +2196,9 @@ contract NameRegistryTest is Test {
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        if (alice != notRecovery) assertEq(nameRegistry.balanceOf(notRecovery), 0);
+        if (alice != notRecovery) {
+            assertEq(nameRegistry.balanceOf(notRecovery), 0);
+        }
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
@@ -3140,6 +3142,42 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+    }
+
+    function testCannotReclaimMultipleIfRegistrable(address mod, address[4] calldata destinations) public {
+        _assumeClean(mod);
+        address[] memory addresses = new address[](4);
+        for (uint256 i = 0; i < destinations.length; i++) {
+            _assumeClean(destinations[i]);
+            addresses[i] = destinations[i];
+        }
+        _assumeUnique(addresses);
+        _grant(MODERATOR_ROLE, mod);
+
+        uint256[] memory tokenIds = new uint256[](4);
+        tokenIds[0] = ALICE_TOKEN_ID;
+        tokenIds[1] = BOB_TOKEN_ID;
+        tokenIds[2] = CAROL_TOKEN_ID;
+        tokenIds[3] = DAN_TOKEN_ID;
+
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+        }
+
+        vm.prank(mod);
+        vm.expectRevert(NameRegistry.Registrable.selector);
+        nameRegistry.reclaim(reclaimActions);
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            assertEq(nameRegistry.balanceOf(destinations[i]), 0);
+            vm.expectRevert("ERC721: invalid token ID");
+            assertEq(nameRegistry.ownerOf(tokenIds[i]), address(0));
+            assertEq(nameRegistry.expiryOf(tokenIds[i]), 0);
+            assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
+            assertEq(nameRegistry.recoveryClockOf(tokenIds[i]), 0);
+        }
     }
 
     function testCannotReclaimUnlessModerator(address alice, address notModerator, address recovery) public {
