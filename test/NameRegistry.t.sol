@@ -2924,6 +2924,72 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
+    function testReclaimMultipleBiddableNames(
+        address[4] calldata users,
+        address mod,
+        address recovery,
+        address[4] calldata destinations
+    ) public {
+        _assumeClean(mod);
+        _assumeClean(recovery);
+        address[] memory addresses = new address[](10);
+        for (uint256 i = 0; i < users.length; i++) {
+            _assumeClean(users[i]);
+            _assumeClean(destinations[i]);
+            addresses[i] = users[i];
+            addresses[i + 4] = destinations[i];
+        }
+        addresses[8] = mod;
+        addresses[9] = recovery;
+        _assumeUnique(addresses);
+
+        bytes16[] memory fnames = new bytes16[](4);
+        fnames[0] = "alice";
+        fnames[1] = "bob";
+        fnames[2] = "carol";
+        fnames[3] = "dan";
+
+        uint256[] memory tokenIds = new uint256[](4);
+        tokenIds[0] = ALICE_TOKEN_ID;
+        tokenIds[1] = BOB_TOKEN_ID;
+        tokenIds[2] = CAROL_TOKEN_ID;
+        tokenIds[3] = DAN_TOKEN_ID;
+
+        for (uint256 i = 0; i < fnames.length; i++) {
+            _register(users[i], fnames[i]);
+        }
+
+        uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
+        _grant(MODERATOR_ROLE, ADMIN);
+
+        for (uint256 i = 0; i < fnames.length; i++) {
+            _requestRecovery(users[i], tokenIds[i], recovery);
+        }
+
+        vm.warp(biddableTs);
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
+
+        for (uint256 i = 0; i < users.length; i++) {
+            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+            vm.expectEmit(true, true, true, true);
+            emit Transfer(users[i], destinations[i], tokenIds[i]);
+        }
+        vm.prank(ADMIN);
+        nameRegistry.reclaim(reclaimActions);
+
+        // reclaim should extend the expiry ahead of the current timestamp
+        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+
+        for (uint256 i = 0; i < users.length; i++) {
+            assertEq(nameRegistry.balanceOf(users[i]), 0);
+            assertEq(nameRegistry.balanceOf(destinations[i]), 1);
+            assertEq(nameRegistry.expiryOf(tokenIds[i]), expectedExpiryTs);
+            assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
+            assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
+            assertEq(nameRegistry.recoveryClockOf(tokenIds[i]), 0);
+        }
+    }
+
     function testReclaimResetsERC721Approvals(address alice, address bob) public {
         _assumeClean(alice);
         _assumeClean(bob);
