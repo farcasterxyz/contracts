@@ -2647,94 +2647,66 @@ contract NameRegistryTest is Test {
     }
 
     function testReclaimMultipleRegisteredName(
-        address alice,
-        address bob,
-        address carol,
-        address dan,
+        address[4] calldata users,
         address mod,
         address recovery,
-        address destination1,
-        address destination2,
-        address destination3,
-        address destination4
+        address[4] calldata destinations
     ) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        _assumeClean(carol);
-        _assumeClean(dan);
         _assumeClean(mod);
         _assumeClean(recovery);
-        _assumeClean(destination1);
-        _assumeClean(destination2);
-        _assumeClean(destination3);
-        _assumeClean(destination4);
         address[] memory addresses = new address[](10);
-        addresses[0] = alice;
-        addresses[1] = bob;
-        addresses[2] = carol;
-        addresses[3] = dan;
-        addresses[4] = mod;
-        addresses[5] = recovery;
-        addresses[6] = destination1;
-        addresses[7] = destination2;
-        addresses[8] = destination3;
-        addresses[9] = destination4;
+        for (uint256 i = 0; i < users.length; i++) {
+            _assumeClean(users[i]);
+            _assumeClean(destinations[i]);
+            addresses[i] = users[i];
+            addresses[i + 4] = destinations[i];
+        }
+        addresses[8] = mod;
+        addresses[9] = recovery;
         _assumeUnique(addresses);
 
-        _register(alice);
-        _register(bob, "bob");
-        _register(carol, "carol");
-        _register(dan, "dan");
+        bytes16[] memory fnames = new bytes16[](4);
+        fnames[0] = "alice";
+        fnames[1] = "bob";
+        fnames[2] = "carol";
+        fnames[3] = "dan";
+
+        uint256[] memory tokenIds = new uint256[](4);
+        tokenIds[0] = ALICE_TOKEN_ID;
+        tokenIds[1] = BOB_TOKEN_ID;
+        tokenIds[2] = CAROL_TOKEN_ID;
+        tokenIds[3] = DAN_TOKEN_ID;
+
+        for (uint256 i = 0; i < fnames.length; i++) {
+            _register(users[i], fnames[i]);
+        }
+
         uint256 renewalTs = block.timestamp + REGISTRATION_PERIOD;
         _grant(MODERATOR_ROLE, mod);
-        _requestRecovery(alice, recovery);
-        _requestRecovery(bob, BOB_TOKEN_ID, recovery);
-        _requestRecovery(carol, CAROL_TOKEN_ID, recovery);
-        _requestRecovery(dan, DAN_TOKEN_ID, recovery);
 
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, destination1, ALICE_TOKEN_ID);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(bob, destination2, BOB_TOKEN_ID);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(carol, destination3, CAROL_TOKEN_ID);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(dan, destination4, DAN_TOKEN_ID);
-        vm.prank(mod);
+        for (uint256 i = 0; i < fnames.length; i++) {
+            _requestRecovery(users[i], tokenIds[i], recovery);
+        }
+
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, destination1);
-        reclaimActions[1] = NameRegistry.ReclaimAction(BOB_TOKEN_ID, destination2);
-        reclaimActions[2] = NameRegistry.ReclaimAction(CAROL_TOKEN_ID, destination3);
-        reclaimActions[3] = NameRegistry.ReclaimAction(DAN_TOKEN_ID, destination4);
+
+        for (uint256 i = 0; i < users.length; i++) {
+            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+            vm.expectEmit(true, true, true, true);
+            emit Transfer(users[i], destinations[i], tokenIds[i]);
+        }
+
+        vm.prank(mod);
         nameRegistry.reclaim(reclaimActions);
 
-        assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(nameRegistry.balanceOf(destination1), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewalTs);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), destination1);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-
-        assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(nameRegistry.balanceOf(destination2), 1);
-        assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), renewalTs);
-        assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), destination2);
-        assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(BOB_TOKEN_ID), 0);
-
-        assertEq(nameRegistry.balanceOf(carol), 0);
-        assertEq(nameRegistry.balanceOf(destination3), 1);
-        assertEq(nameRegistry.expiryOf(CAROL_TOKEN_ID), renewalTs);
-        assertEq(nameRegistry.ownerOf(CAROL_TOKEN_ID), destination3);
-        assertEq(nameRegistry.recoveryOf(CAROL_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(CAROL_TOKEN_ID), 0);
-
-        assertEq(nameRegistry.balanceOf(dan), 0);
-        assertEq(nameRegistry.balanceOf(destination4), 1);
-        assertEq(nameRegistry.expiryOf(DAN_TOKEN_ID), renewalTs);
-        assertEq(nameRegistry.ownerOf(DAN_TOKEN_ID), destination4);
-        assertEq(nameRegistry.recoveryOf(DAN_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(DAN_TOKEN_ID), 0);
+        for (uint256 i = 0; i < users.length; i++) {
+            assertEq(nameRegistry.balanceOf(users[i]), 0);
+            assertEq(nameRegistry.balanceOf(destinations[i]), 1);
+            assertEq(nameRegistry.expiryOf(tokenIds[i]), renewalTs);
+            assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
+            assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
+            assertEq(nameRegistry.recoveryClockOf(tokenIds[i]), 0);
+        }
     }
 
     function testReclaimRegisteredNameCloseToExpiryShouldExtend(address alice, address mod, address recovery) public {
