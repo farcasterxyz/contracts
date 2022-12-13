@@ -3007,6 +3007,55 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
     }
 
+    function testReclaimMultipleResetsERC721Approvals(
+        address[4] calldata users,
+        address[4] calldata approveUsers
+    ) public {
+        address[] memory addresses = new address[](8);
+        for (uint256 i = 0; i < users.length; i++) {
+            _assumeClean(users[i]);
+            _assumeClean(approveUsers[i]);
+            addresses[i] = users[i];
+            addresses[i + 4] = approveUsers[i];
+        }
+        _assumeUnique(addresses);
+
+        bytes16[] memory fnames = new bytes16[](4);
+        fnames[0] = "alice";
+        fnames[1] = "bob";
+        fnames[2] = "carol";
+        fnames[3] = "dan";
+
+        uint256[] memory tokenIds = new uint256[](4);
+        tokenIds[0] = ALICE_TOKEN_ID;
+        tokenIds[1] = BOB_TOKEN_ID;
+        tokenIds[2] = CAROL_TOKEN_ID;
+        tokenIds[3] = DAN_TOKEN_ID;
+
+        for (uint256 i = 0; i < fnames.length; i++) {
+            _register(users[i], fnames[i]);
+        }
+
+        _grant(MODERATOR_ROLE, ADMIN);
+
+        for (uint256 i = 0; i < users.length; i++) {
+            vm.prank(users[i]);
+            nameRegistry.approve(approveUsers[i], tokenIds[i]);
+        }
+
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
+
+        for (uint256 i = 0; i < users.length; i++) {
+            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], POOL);
+        }
+        vm.prank(ADMIN);
+        nameRegistry.reclaim(reclaimActions);
+
+        for (uint256 i = 0; i < users.length; i++) {
+            assertEq(nameRegistry.getApproved(tokenIds[i]), address(0));
+        }
+    }
+
     function testReclaimWhenPaused(address alice) public {
         _assumeClean(alice);
         _register(alice);
