@@ -34,6 +34,16 @@ contract NameRegistry is
 {
     using FixedPointMathLib for uint256;
 
+    /**
+     * @dev ReclaimAction struct represents the necessary information for a moderator to reclaim an fname.
+     * @param tokenId The uint256 representation of the fname.
+     * @param destination The address that the fname can be reclaimed to.
+     */
+    struct ReclaimAction {
+        uint256 tokenId;
+        address destination;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
