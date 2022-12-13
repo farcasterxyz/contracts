@@ -485,7 +485,7 @@ contract NameRegistry is
         address recovery,
         uint256 inviter,
         uint256 invitee
-    ) external payable {
+    ) external {
         // Trusted Register can only be called during the invite period (when trustedOnly = 1)
         if (trustedOnly == 0) revert NotInvitable();
 
@@ -917,7 +917,7 @@ contract NameRegistry is
      *
      * @param tokenId the uint256 representation of the fname.
      */
-    function reclaim(uint256 tokenId) external payable {
+    function reclaim(uint256 tokenId) external {
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
         // and it reduces our attack surface area
         if (!hasRole(MODERATOR_ROLE, msg.sender)) revert NotModerator();
