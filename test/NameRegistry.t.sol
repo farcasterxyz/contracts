@@ -78,6 +78,8 @@ contract NameRegistryTest is Test {
 
     uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
     uint256 constant BOB_TOKEN_ID = uint256(bytes32("bob"));
+    uint256 constant CAROL_TOKEN_ID = uint256(bytes32("carol"));
+    uint256 constant DAN_TOKEN_ID = uint256(bytes32("dan"));
 
     bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
     bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -2644,6 +2646,97 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
+    function testReclaimMultipleRegisteredName(
+        address alice,
+        address bob,
+        address carol,
+        address dan,
+        address mod,
+        address recovery,
+        address destination1,
+        address destination2,
+        address destination3,
+        address destination4
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(bob);
+        _assumeClean(carol);
+        _assumeClean(dan);
+        _assumeClean(mod);
+        _assumeClean(recovery);
+        _assumeClean(destination1);
+        _assumeClean(destination2);
+        _assumeClean(destination3);
+        _assumeClean(destination4);
+        address[] memory addresses = new address[](10);
+        addresses[0] = alice;
+        addresses[1] = bob;
+        addresses[2] = carol;
+        addresses[3] = dan;
+        addresses[4] = mod;
+        addresses[5] = recovery;
+        addresses[6] = destination1;
+        addresses[7] = destination2;
+        addresses[8] = destination3;
+        addresses[9] = destination4;
+        _assumeUnique(addresses);
+
+        _register(alice);
+        _register(bob, "bob");
+        _register(carol, "carol");
+        _register(dan, "dan");
+        uint256 renewalTs = block.timestamp + REGISTRATION_PERIOD;
+        _grant(MODERATOR_ROLE, mod);
+        _requestRecovery(alice, recovery);
+        _requestRecovery(bob, BOB_TOKEN_ID, recovery);
+        _requestRecovery(carol, CAROL_TOKEN_ID, recovery);
+        _requestRecovery(dan, DAN_TOKEN_ID, recovery);
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, destination1, ALICE_TOKEN_ID);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(bob, destination2, BOB_TOKEN_ID);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(carol, destination3, CAROL_TOKEN_ID);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(dan, destination4, DAN_TOKEN_ID);
+        vm.prank(mod);
+        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
+        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, destination1);
+        reclaimActions[1] = NameRegistry.ReclaimAction(BOB_TOKEN_ID, destination2);
+        reclaimActions[2] = NameRegistry.ReclaimAction(CAROL_TOKEN_ID, destination3);
+        reclaimActions[3] = NameRegistry.ReclaimAction(DAN_TOKEN_ID, destination4);
+        nameRegistry.reclaim(reclaimActions);
+
+        assertEq(nameRegistry.balanceOf(alice), 0);
+        assertEq(nameRegistry.balanceOf(destination1), 1);
+        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewalTs);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), destination1);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
+
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.balanceOf(destination2), 1);
+        assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), renewalTs);
+        assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), destination2);
+        assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(BOB_TOKEN_ID), 0);
+
+        assertEq(nameRegistry.balanceOf(carol), 0);
+        assertEq(nameRegistry.balanceOf(destination3), 1);
+        assertEq(nameRegistry.expiryOf(CAROL_TOKEN_ID), renewalTs);
+        assertEq(nameRegistry.ownerOf(CAROL_TOKEN_ID), destination3);
+        assertEq(nameRegistry.recoveryOf(CAROL_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(CAROL_TOKEN_ID), 0);
+
+        assertEq(nameRegistry.balanceOf(dan), 0);
+        assertEq(nameRegistry.balanceOf(destination4), 1);
+        assertEq(nameRegistry.expiryOf(DAN_TOKEN_ID), renewalTs);
+        assertEq(nameRegistry.ownerOf(DAN_TOKEN_ID), destination4);
+        assertEq(nameRegistry.recoveryOf(DAN_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryClockOf(DAN_TOKEN_ID), 0);
+    }
+
     function testReclaimRegisteredNameCloseToExpiryShouldExtend(address alice, address mod, address recovery) public {
         _assumeClean(alice);
         _assumeClean(mod);
@@ -3020,6 +3113,22 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
     }
 
+    /// @dev Register the username to the user address on Jan 1, 2023
+    function _register(address user, bytes16 username) internal {
+        _disableTrusted();
+
+        vm.deal(user, 10_000 ether);
+        vm.warp(JAN1_2023_TS);
+
+        vm.startPrank(user);
+        bytes32 commitHash = nameRegistry.generateCommit(username, user, "secret", address(0));
+        nameRegistry.makeCommit(commitHash);
+        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
+
+        nameRegistry.register{value: nameRegistry.fee()}(username, user, "secret", address(0));
+        vm.stopPrank();
+    }
+
     /// @dev vm.assume that the address does not match known contracts
     function _assumeClean(address a) internal {
         for (uint256 i = 0; i < knownContracts.length; i++) {
@@ -3028,6 +3137,15 @@ contract NameRegistryTest is Test {
 
         vm.assume(a > MAX_PRECOMPILE);
         vm.assume(a != ADMIN);
+    }
+
+    /// @dev vm.assume that the address are unique
+    function _assumeUnique(address[] memory addresses) internal {
+        for (uint256 i = 0; i < addresses.length - 1; i++) {
+            for (uint256 j = i + 1; j < addresses.length; j++) {
+                vm.assume(addresses[i] != addresses[j]);
+            }
+        }
     }
 
     /// @dev Helper that assigns the recovery address and then requests a recovery
@@ -3041,6 +3159,20 @@ contract NameRegistryTest is Test {
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, recovery);
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+        return block.timestamp;
+    }
+
+    /// @dev Helper that assigns the recovery address and then requests a recovery
+    function _requestRecovery(address user, uint256 tokenId, address recovery) internal returns (uint256 requestTs) {
+        vm.prank(user);
+        nameRegistry.changeRecoveryAddress(tokenId, recovery);
+        assertEq(nameRegistry.recoveryOf(tokenId), recovery);
+        assertEq(nameRegistry.recoveryClockOf(tokenId), 0);
+
+        vm.prank(recovery);
+        nameRegistry.requestRecovery(tokenId, recovery);
+        assertEq(nameRegistry.recoveryClockOf(tokenId), block.timestamp);
+        assertEq(nameRegistry.recoveryOf(tokenId), recovery);
         return block.timestamp;
     }
 

@@ -926,7 +926,7 @@ contract NameRegistry is
      * @param reclaimActions an array of ReclaimAction structs representing the fnames and their corresponding
      *           destination addresses.
      */
-    function recl(ReclaimAction[] calldata reclaimActions) external payable {
+    function reclaim(ReclaimAction[] calldata reclaimActions) external payable {
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
         // and it reduces our attack surface area
         if (!hasRole(MODERATOR_ROLE, msg.sender)) revert NotModerator();
