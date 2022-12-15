@@ -85,7 +85,7 @@ contract NameRegistryUpgradeTest is Test {
 
     function testCannotCallV2FunctionBeforeUpgrade() public {
         vm.expectRevert();
-        (bool s1, ) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2Impl.setNumber.selector, 1));
+        (bool s1,) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2Impl.setNumber.selector, 1));
         assertEq(s1, true);
     }
 
@@ -171,13 +171,18 @@ contract NameRegistryV2 is
     function _msgSender()
         internal
         view
-        override(ContextUpgradeable, ERC2771ContextUpgradeable)
+        override (ContextUpgradeable, ERC2771ContextUpgradeable)
         returns (address sender)
     {
         sender = ERC2771ContextUpgradeable._msgSender();
     }
 
-    function _msgData() internal view override(ContextUpgradeable, ERC2771ContextUpgradeable) returns (bytes calldata) {
+    function _msgData()
+        internal
+        view
+        override (ContextUpgradeable, ERC2771ContextUpgradeable)
+        returns (bytes calldata)
+    {
         return ERC2771ContextUpgradeable._msgData();
     }
 

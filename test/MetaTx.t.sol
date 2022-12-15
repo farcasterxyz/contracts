@@ -82,11 +82,7 @@ contract MetaTxTest is Test {
                                METATX TEST
     //////////////////////////////////////////////////////////////*/
 
-    function testIdRegistryRegister(
-        address relayer,
-        address recovery,
-        uint256 alicePrivateKey
-    ) public {
+    function testIdRegistryRegister(address relayer, address recovery, uint256 alicePrivateKey) public {
         vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);
 
@@ -116,11 +112,7 @@ contract MetaTxTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
     }
 
-    function testNameRegistryTransfer(
-        address relayer,
-        address recovery,
-        uint256 alicePrivateKey
-    ) public {
+    function testNameRegistryTransfer(address relayer, address recovery, uint256 alicePrivateKey) public {
         _assumeClean(relayer);
         vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);
@@ -174,16 +166,15 @@ contract MetaTxTest is Test {
 
     // Returns the EIP712 domain separator
     function _domainSeparator() private view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    _TYPEHASH_EIP712_DS,
-                    keccak256("MinimalForwarder"),
-                    keccak256("0.0.1"),
-                    block.chainid,
-                    address(forwarder)
-                )
-            );
+        return keccak256(
+            abi.encode(
+                _TYPEHASH_EIP712_DS,
+                keccak256("MinimalForwarder"),
+                keccak256("0.0.1"),
+                block.chainid,
+                address(forwarder)
+            )
+        );
     }
 
     function _assumeClean(address a) internal {

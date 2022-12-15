@@ -34,18 +34,8 @@ contract BundleRegistryGasUsageTest is Test {
 
     string constant URL = "https://farcaster.xyz";
 
-    bytes16[10] names = [
-        bytes16("alice"),
-        "bob11",
-        "carol",
-        "dave1",
-        "eve11",
-        "frank",
-        "georg",
-        "harry",
-        "ian11",
-        "jane1"
-    ]; // padded to all be length 5
+    bytes16[10] names =
+        [bytes16("alice"), "bob11", "carol", "dave1", "eve11", "frank", "georg", "harry", "ian11", "jane1"]; // padded to all be length 5
 
     function setUp() public {
         // Set up the IdRegistry
