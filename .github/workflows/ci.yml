@@ -38,9 +38,6 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Run linter
-        run: yarn lint
-
       - name: Run audit
         run: yarn audit
 
@@ -53,6 +50,9 @@ jobs:
         run: |
           forge --version
           forge build --sizes
+
+      - name: Run forge formatter
+        run: forge fmt
 
       - name: Run forge tests
         run: forge test -vvv
