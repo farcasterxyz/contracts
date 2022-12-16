@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 forge snapshot --check --match-contract Gas
-forge fmt --check
+npx lint-staged
