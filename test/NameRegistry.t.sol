@@ -121,11 +121,7 @@ contract NameRegistryTest is Test {
         assertEq(commit5, 0x8c66607f500ae32d56494a3415cd1e630d35ac72da15cda0e33a869dd7b747dc);
     }
 
-    function testCannotGenerateCommitWithInvalidName(
-        address alice,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testCannotGenerateCommitWithInvalidName(address alice, bytes32 secret, address recovery) public {
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit("Alice", alice, secret, recovery);
 
@@ -167,11 +163,7 @@ contract NameRegistryTest is Test {
         nameRegistry.generateCommit(nameWithStartingEmptyByte, alice, secret, recovery);
     }
 
-    function testMakeCommit(
-        address alice,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testMakeCommit(address alice, bytes32 secret, address recovery) public {
         _disableTrusted();
         vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
@@ -181,12 +173,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
     }
 
-    function testMakeCommitAfterReplayDelay(
-        address alice,
-        bytes32 secret,
-        address recovery,
-        uint256 delay
-    ) public {
+    function testMakeCommitAfterReplayDelay(address alice, bytes32 secret, address recovery, uint256 delay) public {
         _disableTrusted();
         vm.assume(delay > COMMIT_REPLAY_DELAY);
         vm.warp(JAN1_2023_TS);
@@ -228,11 +215,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), firstCommitTs);
     }
 
-    function testCannotMakeCommitDuringTrustedRegister(
-        address alice,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testCannotMakeCommitDuringTrustedRegister(address alice, bytes32 secret, address recovery) public {
         vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         vm.prank(alice);
@@ -244,13 +227,7 @@ contract NameRegistryTest is Test {
                            REGISTRATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRegister(
-        address alice,
-        address bob,
-        address recovery,
-        bytes32 secret,
-        uint256 amount
-    ) public {
+    function testRegister(address alice, address bob, address recovery, bytes32 secret, uint256 amount) public {
         vm.assume(bob != address(0));
         _assumeClean(alice);
         _disableTrusted();
@@ -277,11 +254,7 @@ contract NameRegistryTest is Test {
         assertEq(alice.balance, amount - nameRegistry.fee());
     }
 
-    function testRegisterWorksWhenAlreadyOwningAName(
-        address alice,
-        address recovery,
-        bytes32 secret
-    ) public {
+    function testRegisterWorksWhenAlreadyOwningAName(address alice, address recovery, bytes32 secret) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 1 ether);
@@ -317,11 +290,7 @@ contract NameRegistryTest is Test {
     }
 
     // TODO: this is an integration test, and should be moved out to a separate file
-    function testRegisterAfterUnpausing(
-        address alice,
-        address recovery,
-        bytes32 secret
-    ) public {
+    function testRegisterAfterUnpausing(address alice, address recovery, bytes32 secret) public {
         _assumeClean(alice);
         // _assumeClean(recovery);
         _disableTrusted();
@@ -352,12 +321,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRegisterTheSameNameAgain(
-        address alice,
-        address bob,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testCannotRegisterTheSameNameAgain(address alice, address bob, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _disableTrusted();
@@ -391,12 +355,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRegisterExpiredName(
-        address alice,
-        address bob,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testCannotRegisterExpiredName(address alice, address bob, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _disableTrusted();
@@ -448,11 +407,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(bobCommitHash), commitTs);
     }
 
-    function testCannotRegisterWithoutPayment(
-        address alice,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testCannotRegisterWithoutPayment(address alice, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 1 ether);
@@ -475,12 +430,7 @@ contract NameRegistryTest is Test {
         assertEq(alice.balance, balance);
     }
 
-    function testCannotRegisterWithoutCommit(
-        address alice,
-        address bob,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testCannotRegisterWithoutCommit(address alice, address bob, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.assume(bob != address(0));
@@ -606,11 +556,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterBeforeDelay(
-        address alice,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testCannotRegisterBeforeDelay(address alice, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 10_000 ether);
@@ -634,11 +580,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterWithInvalidName(
-        address alice,
-        bytes32 secret,
-        address recovery
-    ) public {
+    function testCannotRegisterWithInvalidName(address alice, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _disableTrusted();
         bytes16 incorrectUsername = "al{ce";
@@ -661,11 +603,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(incorrectTokenId), address(0));
     }
 
-    function testCannotRegisterWhenPaused(
-        address alice,
-        address recovery,
-        bytes32 secret
-    ) public {
+    function testCannotRegisterWhenPaused(address alice, address recovery, bytes32 secret) public {
         _assumeClean(alice);
         _disableTrusted();
         _grant(OPERATOR_ROLE, ADMIN);
@@ -694,11 +632,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterFromNonPayableIfOverpaying(
-        address alice,
-        address recovery,
-        bytes32 secret
-    ) public {
+    function testCannotRegisterFromNonPayableIfOverpaying(address alice, address recovery, bytes32 secret) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.warp(JAN1_2023_TS);
@@ -722,11 +656,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterToZeroAddress(
-        address alice,
-        address recovery,
-        bytes32 secret
-    ) public {
+    function testCannotRegisterToZeroAddress(address alice, address recovery, bytes32 secret) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 1 ether);
@@ -950,12 +880,7 @@ contract NameRegistryTest is Test {
                                RENEW TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRenew(
-        address alice,
-        address bob,
-        uint256 amount,
-        uint256 timestamp
-    ) public {
+    function testRenew(address alice, address bob, uint256 amount, uint256 timestamp) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _register(alice);
@@ -1154,11 +1079,7 @@ contract NameRegistryTest is Test {
         assertEq(bob.balance, amount - (winningBid));
     }
 
-    function testBidResetsERC721Approvals(
-        address alice,
-        address bob,
-        address charlie
-    ) public {
+    function testBidResetsERC721Approvals(address alice, address bob, address charlie) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1178,11 +1099,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
     }
 
-    function testBidAfterOneStep(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testBidAfterOneStep(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1193,7 +1110,7 @@ contract NameRegistryTest is Test {
 
         // After 1 step, we expect the bid premium to be 900.000000000000606000 after errors
         vm.warp(biddableTs + 8 hours);
-        uint256 bidPremium = 900.000000000000606000 ether;
+        uint256 bidPremium = 900.000000000000606 ether;
         uint256 bidPrice = bidPremium + nameRegistry.fee();
 
         // Bid below the price and fail
@@ -1220,11 +1137,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidOnHundredthStep(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testBidOnHundredthStep(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1235,7 +1148,7 @@ contract NameRegistryTest is Test {
 
         // After 100 steps, we expect the bid premium to be 0.026561398887589000 after errors
         vm.warp(biddableTs + (8 hours * 100));
-        uint256 bidPremium = .026561398887589000 ether;
+        uint256 bidPremium = 0.026561398887589 ether;
         uint256 bidPrice = bidPremium + nameRegistry.fee();
 
         // Bid below the price and fail
@@ -1261,11 +1174,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidOnLastStep(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testBidOnLastStep(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1276,7 +1185,7 @@ contract NameRegistryTest is Test {
 
         // After 393 steps, we expect the bid premium to be 0.000000000000001000 after errors
         vm.warp(biddableTs + (8 hours * 393));
-        uint256 bidPremium = .000000000000001000 ether;
+        uint256 bidPremium = 0.000000000000001 ether;
         uint256 bidPrice = bidPremium + nameRegistry.fee();
 
         // Bid below the price and fail
@@ -1302,11 +1211,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidAfterLastStep(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testBidAfterLastStep(address alice, address bob, address recovery) public {
         _assumeClean(bob);
         _assumeClean(alice);
         vm.assume(alice != bob);
@@ -1381,12 +1286,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
     }
 
-    function testCannotBidWithUnderpayment(
-        address alice,
-        address bob,
-        address recovery,
-        uint256 amount
-    ) public {
+    function testCannotBidWithUnderpayment(address alice, address bob, address recovery, uint256 amount) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1412,11 +1312,7 @@ contract NameRegistryTest is Test {
         assertEq(bob.balance, amount);
     }
 
-    function testCannotBidWhenRegistered(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotBidWhenRegistered(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1436,11 +1332,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotBidIfRenewable(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotBidIfRenewable(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1496,11 +1388,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotBidIfPaused(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotBidIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1585,11 +1473,7 @@ contract NameRegistryTest is Test {
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
-    function testSafeTransferFromOwner(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testSafeTransferFromOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
@@ -1615,12 +1499,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testSafeTransferFromApprover(
-        address alice,
-        address bob,
-        address approver,
-        address recovery
-    ) public {
+    function testSafeTransferFromApprover(address alice, address bob, address approver, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
@@ -1652,11 +1531,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotSafeTransferIfFnameExpired(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotSafeTransferIfFnameExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != bob);
@@ -1696,11 +1571,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotSafeTransferFromIfPaused(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotSafeTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1746,11 +1617,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotSafeTransferFromIfNotOwner(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotSafeTransferFromIfNotOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
@@ -1773,11 +1640,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotSafeTransferFromToZeroAddress(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotSafeTransferFromToZeroAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1799,11 +1662,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testTransferFromOwner(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testTransferFromOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1828,12 +1687,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testTransferFromApprover(
-        address alice,
-        address bob,
-        address approver,
-        address recovery
-    ) public {
+    function testTransferFromApprover(address alice, address bob, address approver, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         _assumeClean(approver);
@@ -1864,11 +1718,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTransferFromIfFnameExpired(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotTransferFromIfFnameExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != bob);
@@ -1908,11 +1758,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotTransferFromIfPaused(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1958,11 +1804,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTransferFromIfNotOwner(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotTransferFromIfNotOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
@@ -1985,11 +1827,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotTransferFromToZeroAddress(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotTransferFromToZeroAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -2033,11 +1871,7 @@ contract NameRegistryTest is Test {
                           CHANGE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeRecoveryAddress(
-        address alice,
-        address recovery1,
-        address recovery2
-    ) public {
+    function testChangeRecoveryAddress(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
         vm.assume(alice != recovery1);
         vm.assume(recovery1 != address(0));
@@ -2080,11 +1914,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
     }
 
-    function testCannotChangeRecoveryAddressIfExpired(
-        address alice,
-        address recovery1,
-        address recovery2
-    ) public {
+    function testCannotChangeRecoveryAddressIfExpired(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
         _assumeClean(recovery1);
         vm.assume(recovery1 != address(0));
@@ -2128,11 +1958,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCannotChangeRecoveryAddressIfPaused(
-        address alice,
-        address recovery1,
-        address recovery2
-    ) public {
+    function testCannotChangeRecoveryAddressIfPaused(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
         _assumeClean(recovery1);
         vm.assume(alice != recovery1);
@@ -2161,12 +1987,7 @@ contract NameRegistryTest is Test {
                          REQUEST RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRequestRecovery(
-        address alice,
-        address bob,
-        address charlie,
-        address recovery
-    ) public {
+    function testRequestRecovery(address alice, address bob, address charlie, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -2212,11 +2033,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRequestRecoveryUnlessRecoveryAddress(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotRequestRecoveryUnlessRecoveryAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(bob != recovery);
@@ -2261,11 +2078,7 @@ contract NameRegistryTest is Test {
                          COMPLETE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCompleteRecovery(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCompleteRecovery(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2324,11 +2137,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotCompleteRecoveryUnlessRecovery(
-        address alice,
-        address recovery,
-        address notRecovery
-    ) public {
+    function testCannotCompleteRecoveryUnlessRecovery(address alice, address recovery, address notRecovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(recovery != notRecovery);
@@ -2381,11 +2190,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotCompleteRecoveryWhenInEscrow(
-        address alice,
-        address recovery,
-        uint256 waitPeriod
-    ) public {
+    function testCannotCompleteRecoveryWhenInEscrow(address alice, address recovery, uint256 waitPeriod) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2409,11 +2214,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotCompleteRecoveryIfExpired(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCannotCompleteRecoveryIfExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2494,11 +2295,7 @@ contract NameRegistryTest is Test {
                           CANCEL RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCancelRecoveryFromCustodyAddress(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCancelRecoveryFromCustodyAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2523,11 +2320,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCancelRecoveryFromRecoveryAddress(
-        address alice,
-        address bob,
-        address recovery
-    ) public {
+    function testCancelRecoveryFromRecoveryAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2642,11 +2435,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCannotCancelRecoveryIfUnauthorized(
-        address alice,
-        address recovery,
-        address bob
-    ) public {
+    function testCannotCancelRecoveryIfUnauthorized(address alice, address recovery, address bob) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2792,11 +2581,7 @@ contract NameRegistryTest is Test {
                              MODERATOR TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testReclaimRegisteredNames(
-        address alice,
-        address mod,
-        address recovery
-    ) public {
+    function testReclaimRegisteredNames(address alice, address mod, address recovery) public {
         _assumeClean(alice);
         _assumeClean(mod);
         _assumeClean(recovery);
@@ -2819,11 +2604,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testReclaimRegisteredNameCloseToExpiryShouldExtend(
-        address alice,
-        address mod,
-        address recovery
-    ) public {
+    function testReclaimRegisteredNameCloseToExpiryShouldExtend(address alice, address mod, address recovery) public {
         _assumeClean(alice);
         _assumeClean(mod);
         _assumeClean(recovery);
@@ -2851,11 +2632,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testReclaimExpiredNames(
-        address alice,
-        address mod,
-        address recovery
-    ) public {
+    function testReclaimExpiredNames(address alice, address mod, address recovery) public {
         _assumeClean(alice);
         _assumeClean(mod);
         _assumeClean(recovery);
@@ -2882,11 +2659,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testReclaimBiddableNames(
-        address alice,
-        address mod,
-        address recovery
-    ) public {
+    function testReclaimBiddableNames(address alice, address mod, address recovery) public {
         _assumeClean(alice);
         _assumeClean(mod);
         _assumeClean(recovery);
@@ -2965,11 +2738,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCannotReclaimUnlessModerator(
-        address alice,
-        address notModerator,
-        address recovery
-    ) public {
+    function testCannotReclaimUnlessModerator(address alice, address notModerator, address recovery) public {
         _assumeClean(alice);
         _assumeClean(notModerator);
         _assumeClean(recovery);

@@ -67,11 +67,7 @@ contract BundleRegistry is Ownable {
      * @param _nameRegistry The address of the NameRegistry UUPS Proxy contract
      * @param _trustedCaller The address that can call trustedRegister and partialTrustedRegister
      */
-    constructor(
-        address _idRegistry,
-        address _nameRegistry,
-        address _trustedCaller
-    ) Ownable() {
+    constructor(address _idRegistry, address _nameRegistry, address _trustedCaller) Ownable() {
         idRegistry = IdRegistry(_idRegistry);
         nameRegistry = NameRegistry(_nameRegistry);
         trustedCaller = _trustedCaller;
@@ -96,7 +92,7 @@ contract BundleRegistry is Ownable {
         // Return any funds returned by the NameRegistry back to the caller
         if (address(this).balance > 0) {
             // solhint-disable-next-line avoid-low-level-calls
-            (bool success, ) = msg.sender.call{value: address(this).balance}("");
+            (bool success,) = msg.sender.call{value: address(this).balance}("");
             if (!success) revert CallFailed();
         }
     }

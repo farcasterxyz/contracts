@@ -234,12 +234,7 @@ contract BundleRegistryTest is Test {
                      PARTIAL TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testPartialTrustedRegister(
-        address alice,
-        address recovery,
-        string calldata url,
-        uint256 inviter
-    ) public {
+    function testPartialTrustedRegister(address alice, address recovery, string calldata url, uint256 inviter) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
@@ -342,12 +337,7 @@ contract BundleRegistryTest is Test {
                          TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTrustedRegister(
-        address alice,
-        address recovery,
-        string calldata url,
-        uint256 inviter
-    ) public {
+    function testTrustedRegister(address alice, address recovery, string calldata url, uint256 inviter) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
@@ -449,11 +439,7 @@ contract BundleRegistryTest is Test {
                       TRUSTED BATCH REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTrustedBatchRegister(
-        address alice,
-        address bob,
-        address charlie
-    ) public {
+    function testTrustedBatchRegister(address alice, address bob, address charlie) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(bob != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(charlie != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
