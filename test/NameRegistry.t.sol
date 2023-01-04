@@ -46,7 +46,10 @@ contract NameRegistryTest is Test {
         address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84), // address(this)
         address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A), // FORWARDER
         address(0x185a4dc360CE69bDCceE33b3784B0282f7961aea), // ???
-        address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D) // ???
+        address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D), // ???
+        address(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f), // ???
+        address(0x2e234DAe75C793f67A35089C9d99245E1C58470b), // ???
+        address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496) // ???
     ];
 
     // Address of the last precompile contract
