@@ -7,3 +7,11 @@ verbosity = 3
 
 [fuzz]
 runs = 512
+
+[fmt]
+line_length = 120
+tab_width = 4
+quote_style = "double"
+bracket_spacing = false
+int_types = "long"
+multiline_func_header = "params_first"

@@ -36,18 +36,8 @@ contract NameRegistryGasUsageTest is Test {
 
     uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
 
-    bytes16[10] names = [
-        bytes16("alice"),
-        "bob11",
-        "carol",
-        "dave1",
-        "eve11",
-        "frank",
-        "georg",
-        "harry",
-        "ian11",
-        "jane1"
-    ]; // padded to be length 5
+    bytes16[10] names =
+        [bytes16("alice"), "bob11", "carol", "dave1", "eve11", "frank", "georg", "harry", "ian11", "jane1"]; // padded to be length 5
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 

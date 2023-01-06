@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
-
-yarn lint-staged
 forge snapshot --check --match-contract Gas
+npx lint-staged

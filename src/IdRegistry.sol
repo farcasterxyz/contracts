@@ -190,11 +190,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param recovery The address which can recover the fid
      * @param url      The home url for the fid's off-chain data
      */
-    function register(
-        address to,
-        address recovery,
-        string calldata url
-    ) external {
+    function register(address to, address recovery, string calldata url) external {
         // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
 
         if (trustedOnly == 1) revert Invitable();
@@ -213,11 +209,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param recovery The address which can recover the fid
      * @param url      The home url for the fid's off-chain data
      */
-    function trustedRegister(
-        address to,
-        address recovery,
-        string calldata url
-    ) external {
+    function trustedRegister(address to, address recovery, string calldata url) external {
         // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
 
         if (trustedOnly == 0) revert Registrable();
@@ -287,11 +279,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @dev Transfer the fid to another address, clear the recovery address and reset active
      *      recovery requests, without checking any invariants.
      */
-    function _unsafeTransfer(
-        uint256 id,
-        address from,
-        address to
-    ) internal {
+    function _unsafeTransfer(uint256 id, address from, address to) internal {
         idOf[to] = id;
         delete idOf[from];
 
@@ -321,7 +309,8 @@ contract IdRegistry is ERC2771Context, Ownable {
      *    changeRecoveryAddress(), which requires idOf[addr] != 0
      * 4. idOf[addr] becomes 0 only in transfer() and completeRecovery(), which requires
      *    recoveryOf[addr] == address(0)
-     **/
+     *
+     */
 
     /**
      * INVARIANT 2: If an address has a non-zero recoveryClock, it must also have an fid
@@ -459,9 +448,7 @@ contract IdRegistry is ERC2771Context, Ownable {
     /**
      * @notice Override to prevent a single-step transfer of ownership
      */
-    function transferOwnership(
-        address /*newOwner*/
-    ) public view override onlyOwner {
+    function transferOwnership(address /*newOwner*/ ) public view override onlyOwner {
         revert Unauthorized();
     }
 
@@ -491,11 +478,11 @@ contract IdRegistry is ERC2771Context, Ownable {
                          OPEN ZEPPELIN OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
-    function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
+    function _msgSender() internal view override (Context, ERC2771Context) returns (address) {
         return ERC2771Context._msgSender();
     }
 
-    function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
+    function _msgData() internal view override (Context, ERC2771Context) returns (bytes calldata) {
         return ERC2771Context._msgData();
     }
 }
