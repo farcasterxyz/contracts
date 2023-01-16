@@ -108,7 +108,7 @@ contract BundleRegistry is Ownable {
         string calldata url,
         bytes16 username,
         uint256 inviter
-    ) external payable {
+    ) external {
         // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
@@ -127,7 +127,7 @@ contract BundleRegistry is Ownable {
         string calldata url,
         bytes16 username,
         uint256 inviter
-    ) external payable {
+    ) external {
         // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
