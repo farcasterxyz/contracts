@@ -1023,7 +1023,7 @@ contract NameRegistry is
     function _msgSender()
         internal
         view
-        override (ContextUpgradeable, ERC2771ContextUpgradeable)
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
         returns (address sender)
     {
         sender = ERC2771ContextUpgradeable._msgSender();
@@ -1032,7 +1032,7 @@ contract NameRegistry is
     function _msgData()
         internal
         view
-        override (ContextUpgradeable, ERC2771ContextUpgradeable)
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
         returns (bytes calldata)
     {
         return ERC2771ContextUpgradeable._msgData();
@@ -1041,7 +1041,7 @@ contract NameRegistry is
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override (AccessControlUpgradeable, ERC721Upgradeable)
+        override(AccessControlUpgradeable, ERC721Upgradeable)
         returns (bool)
     {
         return ERC721Upgradeable.supportsInterface(interfaceId);

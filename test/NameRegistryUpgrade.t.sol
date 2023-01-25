@@ -171,7 +171,7 @@ contract NameRegistryV2 is
     function _msgSender()
         internal
         view
-        override (ContextUpgradeable, ERC2771ContextUpgradeable)
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
         returns (address sender)
     {
         sender = ERC2771ContextUpgradeable._msgSender();
@@ -180,7 +180,7 @@ contract NameRegistryV2 is
     function _msgData()
         internal
         view
-        override (ContextUpgradeable, ERC2771ContextUpgradeable)
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
         returns (bytes calldata)
     {
         return ERC2771ContextUpgradeable._msgData();
