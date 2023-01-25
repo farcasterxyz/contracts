@@ -52,7 +52,7 @@ jobs:
           forge build --sizes
 
       - name: Run forge formatter
-        run: forge fmt
+        run: yarn format:check
 
       - name: Run forge tests
         run: forge test -vvv
