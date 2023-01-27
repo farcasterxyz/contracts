@@ -388,7 +388,9 @@ contract IdRegistry is ERC2771Context, Ownable {
         // Revert if the recovery is still in its escrow period
         unchecked {
             // Safety: rhs cannot overflow because _recoveryClock is a block.timestamp
-            if (block.timestamp < _recoveryClock + ESCROW_PERIOD) revert Escrow();
+            if (block.timestamp < _recoveryClock + ESCROW_PERIOD) {
+                revert Escrow();
+            }
         }
 
         address to = recoveryDestinationOf[id];
@@ -478,11 +480,11 @@ contract IdRegistry is ERC2771Context, Ownable {
                          OPEN ZEPPELIN OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
-    function _msgSender() internal view override (Context, ERC2771Context) returns (address) {
+    function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
         return ERC2771Context._msgSender();
     }
 
-    function _msgData() internal view override (Context, ERC2771Context) returns (bytes calldata) {
+    function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
         return ERC2771Context._msgData();
     }
 }

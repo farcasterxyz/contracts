@@ -73,9 +73,9 @@ max-cache-ttl 100000000
 
 ### 2.3 Style Guide
 
-- `yarn lint` uses [prettier solidity](https://github.com/prettier-solidity/prettier-plugin-solidity) to find and
-  auto-correct common problems.
-- `yarn lint:check` performs the same checks, but alerts on errors and does not fix them.
+- `yarn format` uses [forge fmt](https://github.com/foundry-rs/foundry/tree/master/forge) to find and
+  auto-correct formatting issues.
+- `yarn format:check` performs the same checks, but alerts on errors and does not fix them.
 
 Code follows the [Solidity style guide](https://docs.soliditylang.org/en/v0.8.16/style-guide.html) and documentation
 follows Ethereum [Natspec](https://docs.soliditylang.org/en/develop/natspec-format.html) unless otherwise specified. If
