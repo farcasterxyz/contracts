@@ -5,6 +5,8 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 
 import "forge-std/Test.sol";
 
+import "./TestConstants.sol";
+
 import {BundleRegistry} from "../src/BundleRegistry.sol";
 import {BundleRegistryTestable} from "./Utils.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
@@ -99,23 +101,30 @@ contract BundleRegistryTest is Test {
         address recovery,
         bytes32 secret,
         string calldata url,
-        uint256 amount
+        uint256 amount,
+        uint256 commit_delay,
+        uint256 register_delay
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         vm.assume(amount >= nameRegistry.fee()); // the amount must be at least equal to the fee
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(COMMIT_REPLAY_DELAY + 1); // block.timestamp must be at least greater than the replay delay
+        commit_delay = commit_delay % FUZZ_TIME_PERIOD;
+        vm.assume(commit_delay >= COMMIT_REPLAY_DELAY);
+        vm.warp(block.timestamp + commit_delay); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted Registration is disabled in both registries, and trusted caller is not set
         idRegistry.disableTrustedOnly();
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
+        register_delay = register_delay % FUZZ_TIME_PERIOD;
+        vm.assume(register_delay > COMMIT_REGISTER_DELAY);
+
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
+        vm.warp(block.timestamp + register_delay);
 
         vm.deal(relayer, amount);
         vm.prank(relayer);
@@ -132,12 +141,19 @@ contract BundleRegistryTest is Test {
         address relayer,
         address recovery,
         bytes32 secret,
-        string calldata url
+        string calldata url,
+        uint256 timestamp,
+        uint256 delay
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         _assumeClean(relayer); // relayer must be able to receive funds
-        vm.warp(COMMIT_REPLAY_DELAY + 1); // block.timestamp must be at least greater than the replay delay
+        timestamp = timestamp % FUZZ_TIME_PERIOD;
+        vm.assume(timestamp > COMMIT_REPLAY_DELAY);
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= COMMIT_REGISTER_DELAY);
+
+        vm.warp(timestamp); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted registration is enabled in IdRegistry, but disabled in NameRegistry and
         // trusted caller is set in IdRegistry
@@ -148,7 +164,7 @@ contract BundleRegistryTest is Test {
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
+        vm.warp(block.timestamp + delay);
 
         vm.deal(relayer, 1 ether);
         vm.prank(relayer);

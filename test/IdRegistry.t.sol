@@ -2,6 +2,7 @@
 pragma solidity ^0.8.16;
 
 import "forge-std/Test.sol";
+import "./TestConstants.sol";
 
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {IdRegistryTestable} from "./Utils.sol";
@@ -351,9 +352,11 @@ contract IdRegistryTest is Test {
         address alice,
         address bob,
         address charlie,
-        address recovery
+        address recovery,
+        uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
+        delay = delay % FUZZ_TIME_PERIOD;
         _register(alice, recovery);
         vm.prank(recovery);
         idRegistry.requestRecovery(alice, bob);
@@ -361,7 +364,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
 
         // Move forward in time and request another recovery
-        vm.warp(2);
+        vm.warp(delay);
         vm.prank(recovery);
         idRegistry.requestRecovery(alice, charlie);
 
@@ -407,10 +410,18 @@ contract IdRegistryTest is Test {
                          COMPLETE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCompleteRecovery(address alice, address bob, address recovery, uint256 timestamp) public {
+    function testCompleteRecovery(
+        address alice,
+        address bob,
+        address recovery,
+        uint256 timestamp,
+        uint256 delay
+    ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != bob);
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay > ESCROW_PERIOD);
         _register(alice, recovery);
 
         // Travel to an arbitrary time and then alice requests recovery of id 1 to bob
@@ -420,7 +431,7 @@ contract IdRegistryTest is Test {
 
         // Wait for the escrow period to complete and complete the recovery to bob
         vm.prank(recovery);
-        vm.warp(timestamp + ESCROW_PERIOD);
+        vm.warp(timestamp + delay);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, 1);
         idRegistry.completeRecovery(alice);
@@ -436,12 +447,15 @@ contract IdRegistryTest is Test {
         address bob,
         address recovery,
         address notRecovery,
-        uint256 timestamp
+        uint256 timestamp,
+        uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && notRecovery != FORWARDER);
         vm.assume(recovery != notRecovery && alice != notRecovery);
         vm.assume(alice != bob);
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob
@@ -450,7 +464,7 @@ contract IdRegistryTest is Test {
         idRegistry.requestRecovery(alice, bob);
 
         // reverts when notRecovery tries to complete the recovery request
-        vm.warp(timestamp + ESCROW_PERIOD);
+        vm.warp(timestamp + delay);
         vm.prank(notRecovery);
         vm.expectRevert(IdRegistry.Unauthorized.selector);
         idRegistry.completeRecovery(alice);
@@ -461,12 +475,14 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
     }
 
-    function testCannotCompleteRecoveryIfNotRequested(address alice, address recovery) public {
+    function testCannotCompleteRecoveryIfNotRequested(address alice, address recovery, uint256 delay) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != recovery);
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
 
-        vm.warp(block.timestamp + ESCROW_PERIOD);
+        vm.warp(block.timestamp + delay);
         vm.prank(recovery);
         vm.expectRevert(IdRegistry.NoRecovery.selector);
         idRegistry.completeRecovery(alice);
@@ -480,11 +496,13 @@ contract IdRegistryTest is Test {
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp
+        uint256 timestamp,
+        uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != bob);
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        delay = delay % ESCROW_PERIOD;
         _register(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob
@@ -492,8 +510,8 @@ contract IdRegistryTest is Test {
         vm.prank(recovery);
         idRegistry.requestRecovery(alice, bob);
 
-        // fast forward to just before the end of the escrow period and try to complete
-        vm.warp(timestamp + ESCROW_PERIOD - 1);
+        // fast forward to a time before the escrow period ends and try to complete
+        vm.warp(timestamp + delay);
         vm.prank(recovery);
         vm.expectRevert(IdRegistry.Escrow.selector);
         idRegistry.completeRecovery(alice);
@@ -508,11 +526,14 @@ contract IdRegistryTest is Test {
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp
+        uint256 timestamp,
+        uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
         _register(bob, recovery);
 
@@ -523,7 +544,7 @@ contract IdRegistryTest is Test {
 
         // fast forward past the escrow period and try to complete the recovery, which fails
         vm.startPrank(recovery);
-        vm.warp(timestamp + ESCROW_PERIOD);
+        vm.warp(timestamp + delay);
         vm.expectRevert(IdRegistry.HasId.selector);
         idRegistry.completeRecovery(alice);
         vm.stopPrank();
@@ -542,11 +563,14 @@ contract IdRegistryTest is Test {
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp
+        uint256 timestamp,
+        uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
 
         // 1. recovery requests a recovery of alice's id to bob
@@ -565,7 +589,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         // 3. after escrow period, recovery tries to recover to bob and fails
-        vm.warp(timestamp + ESCROW_PERIOD);
+        vm.warp(timestamp + delay);
         vm.expectRevert(IdRegistry.NoRecovery.selector);
         vm.prank(recovery);
         idRegistry.completeRecovery(alice);
@@ -580,11 +604,14 @@ contract IdRegistryTest is Test {
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp
+        uint256 timestamp,
+        uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
         vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
 
         // 1. recovery requests a recovery of alice's id to bob
@@ -603,7 +630,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         // 3. after escrow period, recovery tries to recover to bob and fails
-        vm.warp(timestamp + ESCROW_PERIOD);
+        vm.warp(timestamp + delay);
         vm.expectRevert(IdRegistry.NoRecovery.selector);
         vm.prank(recovery);
         idRegistry.completeRecovery(alice);

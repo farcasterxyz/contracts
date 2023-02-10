@@ -6,6 +6,8 @@ import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
 
 import "forge-std/Test.sol";
 
+import "./TestConstants.sol";
+
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
@@ -178,6 +180,7 @@ contract NameRegistryTest is Test {
 
     function testMakeCommitAfterReplayDelay(address alice, bytes32 secret, address recovery, uint256 delay) public {
         _disableTrusted();
+        delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay > COMMIT_REPLAY_DELAY);
         vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
@@ -188,7 +191,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
 
         // Make the second commit after the replay delay
-        vm.warp(block.timestamp + COMMIT_REPLAY_DELAY + 1);
+        vm.warp(block.timestamp + delay);
         vm.prank(alice);
         nameRegistry.makeCommit(commitHash);
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
@@ -230,7 +233,14 @@ contract NameRegistryTest is Test {
                            REGISTRATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRegister(address alice, address bob, address recovery, bytes32 secret, uint256 amount) public {
+    function testRegister(
+        address alice,
+        address bob,
+        address recovery,
+        bytes32 secret,
+        uint256 amount,
+        uint256 delay
+    ) public {
         vm.assume(bob != address(0));
         _assumeClean(alice);
         _disableTrusted();
@@ -239,11 +249,14 @@ contract NameRegistryTest is Test {
         vm.assume(amount >= FEE);
         vm.deal(alice, amount);
 
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= COMMIT_REPLAY_DELAY);
+
         vm.prank(alice);
         bytes32 commitHash = nameRegistry.generateCommit("bob", bob, secret, recovery);
         nameRegistry.makeCommit(commitHash);
 
-        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
+        vm.warp(block.timestamp + delay);
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(0), bob, BOB_TOKEN_ID);
         vm.prank(alice);
@@ -257,30 +270,43 @@ contract NameRegistryTest is Test {
         assertEq(alice.balance, amount - nameRegistry.fee());
     }
 
-    function testRegisterWorksWhenAlreadyOwningAName(address alice, address recovery, bytes32 secret) public {
+    function testRegisterWorksWhenAlreadyOwningAName(
+        address alice,
+        address recovery,
+        bytes32 secret,
+        uint256 delay_bob,
+        uint256 delay_alice
+    ) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 1 ether);
         vm.warp(JAN1_2023_TS);
 
+        delay_alice = delay_alice % FUZZ_TIME_PERIOD;
+        delay_bob = delay_bob % FUZZ_TIME_PERIOD;
+        vm.assume(delay_alice >= COMMIT_REPLAY_DELAY);
+        vm.assume(delay_bob >= COMMIT_REPLAY_DELAY);
+
         // Register @alice to alice
         vm.startPrank(alice);
         bytes32 commitHashAlice = nameRegistry.generateCommit("alice", alice, secret, recovery);
         nameRegistry.makeCommit(commitHashAlice);
-        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
+        vm.warp(block.timestamp + delay_alice);
         uint256 aliceRegister = block.timestamp;
         nameRegistry.register{value: nameRegistry.fee()}("alice", alice, secret, recovery);
+
+        // make this assertion before Alice's registration expires
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
 
         // Register @bob to alice
         bytes32 commitHashBob = nameRegistry.generateCommit("bob", alice, secret, recovery);
         nameRegistry.makeCommit(commitHashBob);
-        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
+        vm.warp(block.timestamp + delay_bob);
         uint256 bobRegister = block.timestamp;
         nameRegistry.register{value: FEE}("bob", alice, secret, recovery);
         vm.stopPrank();
 
         assertEq(nameRegistry.timestampOf(commitHashAlice), 0);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), aliceRegister + REGISTRATION_PERIOD);
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
 
@@ -293,9 +319,11 @@ contract NameRegistryTest is Test {
     }
 
     // TODO: this is an integration test, and should be moved out to a separate file
-    function testRegisterAfterUnpausing(address alice, address recovery, bytes32 secret) public {
+    function testRegisterAfterUnpausing(address alice, address recovery, bytes32 secret, uint256 delay) public {
         _assumeClean(alice);
         // _assumeClean(recovery);
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= COMMIT_REVEAL_DELAY);
         _disableTrusted();
         _grant(OPERATOR_ROLE, ADMIN);
 
@@ -307,7 +335,7 @@ contract NameRegistryTest is Test {
         nameRegistry.makeCommit(commitHash);
 
         // 2. Fast forward past the register delay and pause and unpause the contract
-        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
+        vm.warp(block.timestamp + delay);
         vm.prank(ADMIN);
         nameRegistry.pause();
         vm.prank(ADMIN);
@@ -324,7 +352,13 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRegisterTheSameNameAgain(address alice, address bob, bytes32 secret, address recovery) public {
+    function testCannotRegisterTheSameNameAgain(
+        address alice,
+        address bob,
+        bytes32 secret,
+        address recovery,
+        uint256 delay
+    ) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _disableTrusted();
@@ -332,10 +366,13 @@ contract NameRegistryTest is Test {
         vm.deal(bob, 1 ether);
         vm.warp(JAN1_2023_TS);
 
+        delay = delay % FUZZ_TIME_PERIOD;
+        vm.assume(delay >= COMMIT_REPLAY_DELAY);
+
         // Register @alice to alice
         bytes32 aliceCommitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         nameRegistry.makeCommit(aliceCommitHash);
-        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
+        vm.warp(block.timestamp + delay);
 
         vm.prank(alice);
         nameRegistry.register{value: FEE}("alice", alice, secret, recovery);
