@@ -1,5 +1,5 @@
 [profile.default]
-solc_version = "0.8.16"
+solc_version = "0.8.18"
 optimizer_runs = 10_000
 
 [profile.ci]
