@@ -910,13 +910,6 @@ contract NameRegistry is
         for (uint256 i = 0; i < reclaimActionsLength;) {
             uint256 tokenId = reclaimActions[i].tokenId;
 
-            address destination = reclaimActions[i].destination;
-
-            unchecked {
-                // Safety: i can never overflow because length is guaranteed to be <= reclaimActions.length
-                i++;
-            }
-
             uint256 _expiry = expiryOf[tokenId];
 
             // If an fname hasn't been minted, it should be minted instead of reclaimed
@@ -924,11 +917,15 @@ contract NameRegistry is
 
             // Call super.ownerOf instead of ownerOf because we want the admin to transfer the name
             // even if is expired and there is no current owner.
-            _transfer(super.ownerOf(tokenId), destination, tokenId);
+            _transfer(super.ownerOf(tokenId), reclaimActions[i].destination, tokenId);
 
             // If an fname expires in the near future, extend its registration by the renewal period
             if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
                 expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+            }
+            unchecked {
+                // Safety: i can never overflow because length is guaranteed to be <= reclaimActions.length
+                i++;
             }
         }
     }
