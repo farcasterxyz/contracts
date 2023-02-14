@@ -894,7 +894,8 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Move the fnames froms the current owners to desired destinations and renew them for another week.
+     * @notice Move the fnames from to their new destinations and renews them for a year if they expire within the next
+     *         30 days
      *         Does not work when paused because it calls _transfer.
      *
      * @param reclaimActions an array of ReclaimAction structs representing the fnames and their corresponding
@@ -927,7 +928,7 @@ contract NameRegistry is
 
             // If an fname expires in the near future, extend its registration by the renewal period
             if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
-                expiryOf[tokenId] = block.timestamp + RENEWAL_PERIOD;
+                expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
             }
         }
     }
