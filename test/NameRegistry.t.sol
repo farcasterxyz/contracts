@@ -2733,7 +2733,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
 
         if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
@@ -2798,7 +2798,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
 
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
@@ -2829,7 +2829,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
 
         if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
@@ -2893,7 +2893,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
 
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
@@ -2924,7 +2924,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
 
         if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(POOL), 1);
@@ -2988,7 +2988,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
 
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
