@@ -77,7 +77,7 @@ max-cache-ttl 100000000
   auto-correct formatting issues.
 - `yarn format:check` performs the same checks, but alerts on errors and does not fix them.
 
-Code follows the [Solidity style guide](https://docs.soliditylang.org/en/v0.8.16/style-guide.html) and documentation
+Code follows the [Solidity style guide](https://docs.soliditylang.org/en/v0.8.18/style-guide.html) and documentation
 follows Ethereum [Natspec](https://docs.soliditylang.org/en/develop/natspec-format.html) unless otherwise specified. If
 you use VS Code, you can lint-on-save by installing the [Solidity](https://marketplace.visualstudio.com/items?itemName=JuanBlanco.solidity)
 and [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) extensions.
@@ -120,7 +120,7 @@ https://github.com/foundry-rs/foundry/issues/2712
 
 ```bash
 Solc Error: dyld[35225]: Library not loaded: '/opt/homebrew/opt/z3/lib/libz3.dylib'
-  Referenced from: '/Users/<yourusername>/.svm/0.8.16/solc-0.8.16'
+  Referenced from: '/Users/<yourusername>/.svm/0.8.18/solc-0.8.18'
   Reason: tried: '/opt/homebrew/opt/z3/lib/libz3.dylib' (no such file), '/usr/local/lib/libz3.dylib' (no such file), '/usr/lib/libz3.dylib' (no such file)
 ```
 
