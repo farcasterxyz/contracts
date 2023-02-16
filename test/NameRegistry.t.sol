@@ -2688,7 +2688,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimRegisteredNameCloseToExpiryShouldExtend(
+    function testReclaimRegisteredNamesCloseToExpiryShouldExtend(
         address[4] calldata users,
         address mod,
         address recovery,
@@ -2743,7 +2743,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
 
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
@@ -2809,7 +2809,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
 
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
@@ -2875,7 +2875,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
+        uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
 
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
