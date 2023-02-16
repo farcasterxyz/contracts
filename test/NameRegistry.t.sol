@@ -3486,18 +3486,7 @@ contract NameRegistryTest is Test {
 
     /// @dev Register the username @alice to the address on Jan 1, 2023
     function _register(address alice) internal {
-        _disableTrusted();
-
-        vm.deal(alice, 10_000 ether);
-        vm.warp(JAN1_2023_TS);
-
-        vm.startPrank(alice);
-        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, "secret", address(0));
-        nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + COMMIT_REVEAL_DELAY);
-
-        nameRegistry.register{value: nameRegistry.fee()}("alice", alice, "secret", address(0));
-        vm.stopPrank();
+        _register(alice, "alice");
     }
 
     /// @dev Register the username to the user address on Jan 1, 2023
@@ -3537,16 +3526,7 @@ contract NameRegistryTest is Test {
 
     /// @dev Helper that assigns the recovery address and then requests a recovery
     function _requestRecovery(address alice, address recovery) internal returns (uint256 requestTs) {
-        vm.prank(alice);
-        nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-
-        vm.prank(recovery);
-        nameRegistry.requestRecovery(ALICE_TOKEN_ID, recovery);
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), block.timestamp);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
-        return block.timestamp;
+        return _requestRecovery(alice, ALICE_TOKEN_ID, recovery);
     }
 
     /// @dev Helper that assigns the recovery address and then requests a recovery
