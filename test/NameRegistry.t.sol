@@ -2625,32 +2625,7 @@ contract NameRegistryTest is Test {
                              MODERATOR TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testReclaimRegisteredNames(address alice, address mod, address recovery) public {
-        _assumeClean(alice);
-        _assumeClean(mod);
-        _assumeClean(recovery);
-
-        _register(alice);
-        uint256 renewalTs = block.timestamp + REGISTRATION_PERIOD;
-        _grant(MODERATOR_ROLE, mod);
-        _requestRecovery(alice, recovery);
-
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, POOL, ALICE_TOKEN_ID);
-        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
-        vm.prank(mod);
-        nameRegistry.reclaim(reclaimActions);
-
-        if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(nameRegistry.balanceOf(POOL), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewalTs);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-    }
-
-    function testReclaimMultipleRegisteredNames(
+    function testReclaimRegisteredNames(
         address[4] calldata users,
         address mod,
         address[4] calldata recoveryAddresses,
@@ -2713,37 +2688,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimRegisteredNameCloseToExpiryShouldExtend(address alice, address mod, address recovery) public {
-        _assumeClean(alice);
-        _assumeClean(mod);
-        _assumeClean(recovery);
-
-        _register(alice);
-        uint256 renewalTs = block.timestamp + REGISTRATION_PERIOD;
-        _grant(MODERATOR_ROLE, mod);
-        _requestRecovery(alice, recovery);
-
-        // Fast forward to just before the renewal expires
-        vm.warp(renewalTs - 1);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, POOL, ALICE_TOKEN_ID);
-        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
-        vm.prank(mod);
-        nameRegistry.reclaim(reclaimActions);
-
-        // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
-
-        if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(nameRegistry.balanceOf(POOL), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), expectedExpiryTs);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-    }
-
-    function testReclaimMultipleRegisteredNameCloseToExpiryShouldExtend(
+    function testReclaimRegisteredNameCloseToExpiryShouldExtend(
         address[4] calldata users,
         address mod,
         address recovery,
@@ -2810,36 +2755,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimExpiredNames(address alice, address mod, address recovery) public {
-        _assumeClean(alice);
-        _assumeClean(mod);
-        _assumeClean(recovery);
-
-        _register(alice);
-        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
-        _grant(MODERATOR_ROLE, mod);
-        _requestRecovery(alice, recovery);
-
-        vm.warp(renewableTs);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, POOL, ALICE_TOKEN_ID);
-        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
-        vm.prank(mod);
-        nameRegistry.reclaim(reclaimActions);
-
-        // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
-
-        if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(nameRegistry.balanceOf(POOL), 1);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), expectedExpiryTs);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-    }
-
-    function testReclaimMultipleExpiredNames(
+    function testReclaimExpiredNames(
         address[4] calldata users,
         address mod,
         address recovery,
@@ -2905,36 +2821,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimBiddableNames(address alice, address mod, address recovery) public {
-        _assumeClean(alice);
-        _assumeClean(mod);
-        _assumeClean(recovery);
-
-        _register(alice);
-        uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
-        _grant(MODERATOR_ROLE, ADMIN);
-        _requestRecovery(alice, recovery);
-
-        vm.warp(biddableTs);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, POOL, ALICE_TOKEN_ID);
-        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
-        vm.prank(ADMIN);
-        nameRegistry.reclaim(reclaimActions);
-
-        // reclaim should extend the expiry ahead of the current timestamp
-        uint256 expectedExpiryTs = block.timestamp + REGISTRATION_PERIOD;
-
-        if (alice != POOL) assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(nameRegistry.balanceOf(POOL), 1);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), POOL);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), expectedExpiryTs);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-    }
-
-    function testReclaimMultipleBiddableNames(
+    function testReclaimBiddableNames(
         address[4] calldata users,
         address mod,
         address recovery,
@@ -3000,26 +2887,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimResetsERC721Approvals(address alice, address bob) public {
-        _assumeClean(alice);
-        _assumeClean(bob);
-        vm.assume(alice != bob);
-
-        _register(alice);
-        _grant(MODERATOR_ROLE, ADMIN);
-
-        vm.prank(alice);
-        nameRegistry.approve(bob, ALICE_TOKEN_ID);
-
-        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
-        vm.prank(ADMIN);
-        nameRegistry.reclaim(reclaimActions);
-
-        assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
-    }
-
-    function testReclaimMultipleResetsERC721Approvals(
+    function testReclaimResetsERC721Approvals(
         address[4] calldata users,
         address[4] calldata approveUsers,
         address[4] calldata destinations
@@ -3071,28 +2939,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimWhenPaused(address alice) public {
-        _assumeClean(alice);
-        _register(alice);
-        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
-
-        _grant(MODERATOR_ROLE, ADMIN);
-        _grant(OPERATOR_ROLE, ADMIN);
-
-        vm.prank(ADMIN);
-        nameRegistry.pause();
-
-        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
-        vm.prank(ADMIN);
-        vm.expectRevert("Pausable: paused");
-        nameRegistry.reclaim(reclaimActions);
-
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
-    }
-
-    function testReclaimMultipleWhenPaused(address[4] calldata users, address[4] calldata destinations) public {
+    function testReclaimWhenPaused(address[4] calldata users, address[4] calldata destinations) public {
         address[] memory addresses = new address[](8);
         for (uint256 i = 0; i < users.length; i++) {
             addresses[i] = users[i];
@@ -3140,25 +2987,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testCannotReclaimIfRegistrable(address mod) public {
-        _assumeClean(mod);
-        _grant(MODERATOR_ROLE, mod);
-
-        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
-        vm.prank(mod);
-        vm.expectRevert(NameRegistry.Registrable.selector);
-        nameRegistry.reclaim(reclaimActions);
-
-        assertEq(nameRegistry.balanceOf(POOL), 0);
-        vm.expectRevert("ERC721: invalid token ID");
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
-    }
-
-    function testCannotReclaimMultipleIfRegistrable(address mod, address[4] calldata destinations) public {
+    function testCannotReclaimIfRegistrable(address mod, address[4] calldata destinations) public {
         _assumeClean(mod);
         address[] memory addresses = new address[](5);
         for (uint256 i = 0; i < destinations.length; i++) {
@@ -3195,30 +3024,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testCannotReclaimUnlessModerator(address alice, address notModerator, address recovery) public {
-        _assumeClean(alice);
-        _assumeClean(notModerator);
-        _assumeClean(recovery);
-
-        _register(alice);
-        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
-        uint256 recoveryTs = _requestRecovery(alice, recovery);
-
-        NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](1);
-        reclaimActions[0] = NameRegistry.ReclaimAction(ALICE_TOKEN_ID, POOL);
-        vm.prank(notModerator);
-        vm.expectRevert(NameRegistry.NotModerator.selector);
-        nameRegistry.reclaim(reclaimActions);
-
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        if (alice != POOL) assertEq(nameRegistry.balanceOf(POOL), 0);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), renewableTs);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
-        assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), recoveryTs);
-    }
-
-    function testCannotReclaimMultipleUnlessModerator(
+    function testCannotReclaimUnlessModerator(
         address[4] calldata users,
         address[4] calldata destinations,
         address notModerator,
