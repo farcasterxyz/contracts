@@ -2982,8 +2982,8 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         for (uint256 i = 0; i < users.length; i++) {
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
             assertEq(nameRegistry.expiryOf(tokenIds[i]), renewableTs);
+            assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
         }
     }
 
@@ -3016,9 +3016,9 @@ contract NameRegistryTest is Test {
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             assertEq(nameRegistry.balanceOf(destinations[i]), 0);
+            assertEq(nameRegistry.expiryOf(tokenIds[i]), 0);
             vm.expectRevert("ERC721: invalid token ID");
             assertEq(nameRegistry.ownerOf(tokenIds[i]), address(0));
-            assertEq(nameRegistry.expiryOf(tokenIds[i]), 0);
             assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
             assertEq(nameRegistry.recoveryClockOf(tokenIds[i]), 0);
         }
@@ -3078,8 +3078,8 @@ contract NameRegistryTest is Test {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 1);
             assertEq(nameRegistry.balanceOf(destinations[i]), 0);
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
             assertEq(nameRegistry.expiryOf(tokenIds[i]), renewableTs);
+            assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
             assertEq(nameRegistry.recoveryOf(tokenIds[i]), recoveryAddresses[i]);
             assertEq(nameRegistry.recoveryClockOf(tokenIds[i]), recoveryTs);
         }
