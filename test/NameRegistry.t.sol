@@ -2631,18 +2631,14 @@ contract NameRegistryTest is Test {
         address[4] calldata recoveryAddresses,
         address[4] calldata destinations
     ) public {
-        _assumeClean(mod);
         address[] memory addresses = new address[](13);
         for (uint256 i = 0; i < users.length; i++) {
-            _assumeClean(users[i]);
-            _assumeClean(destinations[i]);
-            _assumeClean(recoveryAddresses[i]);
             addresses[i] = users[i];
             addresses[i + 4] = destinations[i];
             addresses[i + 8] = recoveryAddresses[i];
         }
         addresses[12] = mod;
-        _assumeUnique(addresses);
+        _assumeUniqueAndClean(addresses);
 
         bytes16[] memory fnames = new bytes16[](4);
         fnames[0] = "alice";
@@ -2694,18 +2690,14 @@ contract NameRegistryTest is Test {
         address recovery,
         address[4] calldata destinations
     ) public {
-        _assumeClean(mod);
-        _assumeClean(recovery);
         address[] memory addresses = new address[](10);
         for (uint256 i = 0; i < users.length; i++) {
-            _assumeClean(users[i]);
-            _assumeClean(destinations[i]);
             addresses[i] = users[i];
             addresses[i + 4] = destinations[i];
         }
         addresses[8] = mod;
         addresses[9] = recovery;
-        _assumeUnique(addresses);
+        _assumeUniqueAndClean(addresses);
 
         bytes16[] memory fnames = new bytes16[](4);
         fnames[0] = "alice";
@@ -2761,18 +2753,14 @@ contract NameRegistryTest is Test {
         address recovery,
         address[4] calldata destinations
     ) public {
-        _assumeClean(mod);
-        _assumeClean(recovery);
         address[] memory addresses = new address[](10);
         for (uint256 i = 0; i < users.length; i++) {
-            _assumeClean(users[i]);
-            _assumeClean(destinations[i]);
             addresses[i] = users[i];
             addresses[i + 4] = destinations[i];
         }
         addresses[8] = mod;
         addresses[9] = recovery;
-        _assumeUnique(addresses);
+        _assumeUniqueAndClean(addresses);
 
         bytes16[] memory fnames = new bytes16[](4);
         fnames[0] = "alice";
@@ -2827,18 +2815,14 @@ contract NameRegistryTest is Test {
         address recovery,
         address[4] calldata destinations
     ) public {
-        _assumeClean(mod);
-        _assumeClean(recovery);
         address[] memory addresses = new address[](10);
         for (uint256 i = 0; i < users.length; i++) {
-            _assumeClean(users[i]);
-            _assumeClean(destinations[i]);
             addresses[i] = users[i];
             addresses[i + 4] = destinations[i];
         }
         addresses[8] = mod;
         addresses[9] = recovery;
-        _assumeUnique(addresses);
+        _assumeUniqueAndClean(addresses);
 
         bytes16[] memory fnames = new bytes16[](4);
         fnames[0] = "alice";
@@ -2894,14 +2878,11 @@ contract NameRegistryTest is Test {
     ) public {
         address[] memory addresses = new address[](12);
         for (uint256 i = 0; i < users.length; i++) {
-            _assumeClean(users[i]);
-            _assumeClean(approveUsers[i]);
-            _assumeClean(destinations[i]);
             addresses[i] = users[i];
             addresses[i + 4] = approveUsers[i];
             addresses[i + 8] = destinations[i];
         }
-        _assumeUnique(addresses);
+        _assumeUniqueAndClean(addresses);
 
         bytes16[] memory fnames = new bytes16[](4);
         fnames[0] = "alice";
@@ -2944,10 +2925,8 @@ contract NameRegistryTest is Test {
         for (uint256 i = 0; i < users.length; i++) {
             addresses[i] = users[i];
             addresses[i + 4] = destinations[i];
-            _assumeClean(users[i]);
-            _assumeClean(destinations[i]);
         }
-        _assumeUnique(addresses);
+        _assumeUniqueAndClean(addresses);
 
         bytes16[] memory fnames = new bytes16[](4);
         fnames[0] = "alice";
@@ -2988,14 +2967,12 @@ contract NameRegistryTest is Test {
     }
 
     function testCannotReclaimIfRegistrable(address mod, address[4] calldata destinations) public {
-        _assumeClean(mod);
         address[] memory addresses = new address[](5);
         for (uint256 i = 0; i < destinations.length; i++) {
-            _assumeClean(destinations[i]);
             addresses[i] = destinations[i];
         }
         addresses[4] = mod;
-        _assumeUnique(addresses);
+        _assumeUniqueAndClean(addresses);
         _grant(MODERATOR_ROLE, mod);
 
         uint256[] memory tokenIds = new uint256[](4);
@@ -3030,18 +3007,14 @@ contract NameRegistryTest is Test {
         address notModerator,
         address[4] calldata recoveryAddresses
     ) public {
-        _assumeClean(notModerator);
         address[] memory addresses = new address[](13);
         for (uint256 i = 0; i < users.length; i++) {
-            _assumeClean(users[i]);
-            _assumeClean(destinations[i]);
-            _assumeClean(recoveryAddresses[i]);
             addresses[i] = users[i];
             addresses[i + 4] = destinations[i];
             addresses[i + 8] = recoveryAddresses[i];
         }
         addresses[12] = notModerator;
-        _assumeUnique(addresses);
+        _assumeUniqueAndClean(addresses);
 
         bytes16[] memory fnames = new bytes16[](4);
         fnames[0] = "alice";
@@ -3322,12 +3295,14 @@ contract NameRegistryTest is Test {
     }
 
     /// @dev vm.assume that the address are unique
-    function _assumeUnique(address[] memory addresses) internal {
+    function _assumeUniqueAndClean(address[] memory addresses) internal {
         for (uint256 i = 0; i < addresses.length - 1; i++) {
             for (uint256 j = i + 1; j < addresses.length; j++) {
                 vm.assume(addresses[i] != addresses[j]);
             }
+            _assumeClean(addresses[i]);
         }
+        _assumeClean(addresses[addresses.length - 1]);
     }
 
     /// @dev Helper that assigns the recovery address and then requests a recovery
