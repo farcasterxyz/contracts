@@ -87,6 +87,10 @@ contract NameRegistryTest is Test {
     bytes32 constant MODERATOR_ROLE = keccak256("MODERATOR_ROLE");
     bytes32 constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
+    bytes16[] fnames = [bytes16("alice"), bytes16("bob"), bytes16("carol"), bytes16("dan")];
+
+    uint256[] tokenIds = [ALICE_TOKEN_ID, BOB_TOKEN_ID, CAROL_TOKEN_ID, DAN_TOKEN_ID];
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -2640,18 +2644,6 @@ contract NameRegistryTest is Test {
         addresses[12] = mod;
         _assumeUniqueAndClean(addresses);
 
-        bytes16[] memory fnames = new bytes16[](4);
-        fnames[0] = "alice";
-        fnames[1] = "bob";
-        fnames[2] = "carol";
-        fnames[3] = "dan";
-
-        uint256[] memory tokenIds = new uint256[](4);
-        tokenIds[0] = ALICE_TOKEN_ID;
-        tokenIds[1] = BOB_TOKEN_ID;
-        tokenIds[2] = CAROL_TOKEN_ID;
-        tokenIds[3] = DAN_TOKEN_ID;
-
         for (uint256 i = 0; i < fnames.length; i++) {
             _register(users[i], fnames[i]);
         }
@@ -2698,18 +2690,6 @@ contract NameRegistryTest is Test {
         addresses[8] = mod;
         addresses[9] = recovery;
         _assumeUniqueAndClean(addresses);
-
-        bytes16[] memory fnames = new bytes16[](4);
-        fnames[0] = "alice";
-        fnames[1] = "bob";
-        fnames[2] = "carol";
-        fnames[3] = "dan";
-
-        uint256[] memory tokenIds = new uint256[](4);
-        tokenIds[0] = ALICE_TOKEN_ID;
-        tokenIds[1] = BOB_TOKEN_ID;
-        tokenIds[2] = CAROL_TOKEN_ID;
-        tokenIds[3] = DAN_TOKEN_ID;
 
         for (uint256 i = 0; i < fnames.length; i++) {
             _register(users[i], fnames[i]);
@@ -2762,18 +2742,6 @@ contract NameRegistryTest is Test {
         addresses[9] = recovery;
         _assumeUniqueAndClean(addresses);
 
-        bytes16[] memory fnames = new bytes16[](4);
-        fnames[0] = "alice";
-        fnames[1] = "bob";
-        fnames[2] = "carol";
-        fnames[3] = "dan";
-
-        uint256[] memory tokenIds = new uint256[](4);
-        tokenIds[0] = ALICE_TOKEN_ID;
-        tokenIds[1] = BOB_TOKEN_ID;
-        tokenIds[2] = CAROL_TOKEN_ID;
-        tokenIds[3] = DAN_TOKEN_ID;
-
         for (uint256 i = 0; i < fnames.length; i++) {
             _register(users[i], fnames[i]);
         }
@@ -2824,18 +2792,6 @@ contract NameRegistryTest is Test {
         addresses[9] = recovery;
         _assumeUniqueAndClean(addresses);
 
-        bytes16[] memory fnames = new bytes16[](4);
-        fnames[0] = "alice";
-        fnames[1] = "bob";
-        fnames[2] = "carol";
-        fnames[3] = "dan";
-
-        uint256[] memory tokenIds = new uint256[](4);
-        tokenIds[0] = ALICE_TOKEN_ID;
-        tokenIds[1] = BOB_TOKEN_ID;
-        tokenIds[2] = CAROL_TOKEN_ID;
-        tokenIds[3] = DAN_TOKEN_ID;
-
         for (uint256 i = 0; i < fnames.length; i++) {
             _register(users[i], fnames[i]);
         }
@@ -2884,18 +2840,6 @@ contract NameRegistryTest is Test {
         }
         _assumeUniqueAndClean(addresses);
 
-        bytes16[] memory fnames = new bytes16[](4);
-        fnames[0] = "alice";
-        fnames[1] = "bob";
-        fnames[2] = "carol";
-        fnames[3] = "dan";
-
-        uint256[] memory tokenIds = new uint256[](4);
-        tokenIds[0] = ALICE_TOKEN_ID;
-        tokenIds[1] = BOB_TOKEN_ID;
-        tokenIds[2] = CAROL_TOKEN_ID;
-        tokenIds[3] = DAN_TOKEN_ID;
-
         for (uint256 i = 0; i < fnames.length; i++) {
             _register(users[i], fnames[i]);
         }
@@ -2927,18 +2871,6 @@ contract NameRegistryTest is Test {
             addresses[i + 4] = destinations[i];
         }
         _assumeUniqueAndClean(addresses);
-
-        bytes16[] memory fnames = new bytes16[](4);
-        fnames[0] = "alice";
-        fnames[1] = "bob";
-        fnames[2] = "carol";
-        fnames[3] = "dan";
-
-        uint256[] memory tokenIds = new uint256[](4);
-        tokenIds[0] = ALICE_TOKEN_ID;
-        tokenIds[1] = BOB_TOKEN_ID;
-        tokenIds[2] = CAROL_TOKEN_ID;
-        tokenIds[3] = DAN_TOKEN_ID;
 
         for (uint256 i = 0; i < fnames.length; i++) {
             _register(users[i], fnames[i]);
@@ -2975,12 +2907,6 @@ contract NameRegistryTest is Test {
         _assumeUniqueAndClean(addresses);
         _grant(MODERATOR_ROLE, mod);
 
-        uint256[] memory tokenIds = new uint256[](4);
-        tokenIds[0] = ALICE_TOKEN_ID;
-        tokenIds[1] = BOB_TOKEN_ID;
-        tokenIds[2] = CAROL_TOKEN_ID;
-        tokenIds[3] = DAN_TOKEN_ID;
-
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
@@ -3015,18 +2941,6 @@ contract NameRegistryTest is Test {
         }
         addresses[12] = notModerator;
         _assumeUniqueAndClean(addresses);
-
-        bytes16[] memory fnames = new bytes16[](4);
-        fnames[0] = "alice";
-        fnames[1] = "bob";
-        fnames[2] = "carol";
-        fnames[3] = "dan";
-
-        uint256[] memory tokenIds = new uint256[](4);
-        tokenIds[0] = ALICE_TOKEN_ID;
-        tokenIds[1] = BOB_TOKEN_ID;
-        tokenIds[2] = CAROL_TOKEN_ID;
-        tokenIds[3] = DAN_TOKEN_ID;
 
         for (uint256 i = 0; i < fnames.length; i++) {
             _register(users[i], fnames[i]);
