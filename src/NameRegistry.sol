@@ -34,6 +34,16 @@ contract NameRegistry is
 {
     using FixedPointMathLib for uint256;
 
+    /**
+     * @dev ReclaimAction struct represents the necessary information for a moderator to reclaim an fname.
+     * @param tokenId The uint256 representation of the fname.
+     * @param destination The address that the fname can be reclaimed to.
+     */
+    struct ReclaimAction {
+        uint256 tokenId;
+        address destination;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -884,28 +894,39 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Move the fname from the current owner to the pool and renew it for another year.
+     * @notice Move the fnames from their current owners to their new destinations and renew them for 30 days if they
+     *         expire within the next 30 days.
      *         Does not work when paused because it calls _transfer.
      *
-     * @param tokenId the uint256 representation of the fname.
+     * @param reclaimActions an array of ReclaimAction structs representing the fnames and their corresponding
+     *           destination addresses.
      */
-    function reclaim(uint256 tokenId) external payable {
+    function reclaim(ReclaimAction[] calldata reclaimActions) external payable {
         // call msg.sender instead of _msgSender() since we don't need meta-tx for admin actions
         // and it reduces our attack surface area
         if (!hasRole(MODERATOR_ROLE, msg.sender)) revert NotModerator();
+        uint256 reclaimActionsLength = reclaimActions.length;
 
-        uint256 _expiry = expiryOf[tokenId];
+        for (uint256 i = 0; i < reclaimActionsLength;) {
+            uint256 tokenId = reclaimActions[i].tokenId;
 
-        // If an fname hasn't been minted, it should be minted instead of reclaimed
-        if (_expiry == 0) revert Registrable();
+            uint256 _expiry = expiryOf[tokenId];
 
-        // Call super.ownerOf instead of ownerOf because we want the admin to transfer the name
-        // even if is expired and there is no current owner.
-        _transfer(super.ownerOf(tokenId), pool, tokenId);
+            // If an fname hasn't been minted, it should be minted instead of reclaimed
+            if (_expiry == 0) revert Registrable();
 
-        // If an fname expires in the near future, extend its registration by the renewal period
-        if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
-            expiryOf[tokenId] = block.timestamp + RENEWAL_PERIOD;
+            // Call super.ownerOf instead of ownerOf because we want the admin to transfer the name
+            // even if is expired and there is no current owner.
+            _transfer(super.ownerOf(tokenId), reclaimActions[i].destination, tokenId);
+
+            // If an fname expires in the near future, extend its registration by the renewal period
+            if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
+                expiryOf[tokenId] = block.timestamp + RENEWAL_PERIOD;
+            }
+            unchecked {
+                // Safety: i can never overflow because length is guaranteed to be <= reclaimActions.length
+                i++;
+            }
         }
     }
 
