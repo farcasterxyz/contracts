@@ -47,7 +47,7 @@ contract NameRegistry is
     /**
      * @dev RegistrationMetadata struct represents the fname registration data.
      * @param recoveryOf The address that can recover the fname.
-     * @param destination The time at which fname expires.
+     * @param expiryOf The time at which fname expires.
      */
     struct RegistrationMetadata {
         address recoveryOf;
@@ -57,7 +57,7 @@ contract NameRegistry is
     /**
      * @dev RecoveryMetadata struct represents the fname registration data.
      * @param recoveryDestinationOf The destination address of the most recent recovery attempt.
-     * @param destination Teh timestamp of the recovery attempt or zero if there is no active recovery.
+     * @param recoveryClockOf The timestamp of the recovery attempt or zero if there is no active recovery.
      */
     struct RecoveryMetadata {
         address recoveryDestinationOf;
@@ -923,7 +923,7 @@ contract NameRegistry is
      * @notice Get the recovery destination of a fname.
      *
      * @param tokenId The uint256 representation of the fname
-     * @return The address which the fname will be transferred to if the recovery is completed
+     * @return The destination address of the most recent recovery attempt.
      */
     function recoveryDestinationOf(uint256 tokenId) external view returns (address) {
         return recoveryInfo[tokenId].recoveryDestinationOf;
@@ -933,7 +933,7 @@ contract NameRegistry is
      * @notice Get the recovery clock of a fname.
      *
      * @param tokenId The uint256 representation of the fname
-     * @return The timestamp when the recovery request was made
+     * @return The timestamp of the recovery attempt or zero if there is no active recovery.
      */
     function recoveryClockOf(uint256 tokenId) external view returns (uint256) {
         return recoveryInfo[tokenId].recoveryClockOf;
