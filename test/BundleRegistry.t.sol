@@ -491,25 +491,25 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(nameRegistry.expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recovery(ALICE_TOKEN_ID), address(0));
 
         // Check that bob was set up correctly
         assertEq(idRegistry.idOf(bob), 2);
         assertEq(idRegistry.getRecoveryOf(2), address(0));
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(nameRegistry.expiryOf(BOB_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(nameRegistry.expiry(BOB_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), bob);
-        assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recovery(BOB_TOKEN_ID), address(0));
 
         // Check that charlie was set up correctly
         assertEq(idRegistry.idOf(charlie), 3);
         assertEq(idRegistry.getRecoveryOf(3), address(0));
         assertEq(nameRegistry.balanceOf(charlie), 1);
-        assertEq(nameRegistry.expiryOf(CHARLIE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(nameRegistry.expiry(CHARLIE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(CHARLIE_TOKEN_ID), charlie);
-        assertEq(nameRegistry.recoveryOf(CHARLIE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recovery(CHARLIE_TOKEN_ID), address(0));
     }
 
     function testCannotTrustedBatchRegisterFromUntrustedCaller(address alice, address untrustedCaller) public {
@@ -629,9 +629,9 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(nameRegistry.expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recovery(ALICE_TOKEN_ID), recovery);
     }
 
     // Assert that a given fname was not registered and the contracts have no registrations
@@ -640,9 +640,9 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(nameRegistry.expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(nameRegistry.expiry(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recovery(ALICE_TOKEN_ID), address(0));
     }
 }

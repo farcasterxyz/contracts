@@ -85,9 +85,9 @@ contract NameRegistryGasUsageTest is Test {
 
             uint256 firstExpiration = block.timestamp + REGISTRATION_PERIOD;
 
-            assertEq(nameRegistry.expiryOf(nameTokenId), firstExpiration);
+            assertEq(nameRegistry.expiry(nameTokenId), firstExpiration);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.recoveryOf(nameTokenId), RECOVERY);
+            assertEq(nameRegistry.recovery(nameTokenId), RECOVERY);
             assertEq(alice.balance, balance - nameRegistry.fee());
 
             // Wait until the registration expires, then renew the registration for a year
@@ -96,7 +96,7 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.renew{value: 0.01 ether}(nameTokenId);
 
             uint256 secondExpiration = block.timestamp + REGISTRATION_PERIOD;
-            assertEq(nameRegistry.expiryOf(nameTokenId), secondExpiration);
+            assertEq(nameRegistry.expiry(nameTokenId), secondExpiration);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
 
             // Wait until the second registration expires, then wait for the renewal period to pass
@@ -106,9 +106,9 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.bid{value: 1_000.01 ether}(alice, nameTokenId, RECOVERY);
 
             assertEq(nameRegistry.balanceOf(alice), 1);
-            assertEq(nameRegistry.expiryOf(nameTokenId), block.timestamp + REGISTRATION_PERIOD);
+            assertEq(nameRegistry.expiry(nameTokenId), block.timestamp + REGISTRATION_PERIOD);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.recoveryOf(nameTokenId), RECOVERY);
+            assertEq(nameRegistry.recovery(nameTokenId), RECOVERY);
 
             // Transfer the name to a new owner
             vm.prank(alice);
@@ -139,8 +139,8 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.trustedRegister(name, alice, RECOVERY, inviterId, inviteeId);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.expiryOf(nameTokenId), block.timestamp + REGISTRATION_PERIOD);
-            assertEq(nameRegistry.recoveryOf(nameTokenId), RECOVERY);
+            assertEq(nameRegistry.expiry(nameTokenId), block.timestamp + REGISTRATION_PERIOD);
+            assertEq(nameRegistry.recovery(nameTokenId), RECOVERY);
         }
     }
 }
