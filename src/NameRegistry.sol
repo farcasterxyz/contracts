@@ -369,7 +369,7 @@ contract NameRegistry is
 
     /**
      * INVARIANT 1A: If an id is not minted, registrationMetadataOf[id].expiryTs must be 0 and ownerOf(id) and
-     *               recovery[id] must also be address(0).
+     *               registrationMetadataOf[id].recovery[id] must also be address(0).
      *
      * INVARIANT 1B: If an id is minted, registrationMetadataOf[id].expiryTs and ownerOf(id) must be non-zero.
      *
@@ -388,13 +388,13 @@ contract NameRegistry is
         bytes16 fname,
         address to,
         bytes32 secret,
-        address _recovery
+        address recovery
     ) public pure returns (bytes32 commit) {
         // Perf: Do not validate to != address(0) because it happens during register/mint
 
         _validateName(fname);
 
-        commit = keccak256(abi.encode(fname, to, _recovery, secret));
+        commit = keccak256(abi.encode(fname, to, recovery, secret));
     }
 
     /**
@@ -427,10 +427,10 @@ contract NameRegistry is
      * @param fname    The fname to register
      * @param to       The address that will own the fname
      * @param secret   The secret value in the commitment
-     * @param _recovery The address which can recovery the fname if the custody address is lost
+     * @param recovery The address which can recovery the fname if the custody address is lost
      */
-    function register(bytes16 fname, address to, bytes32 secret, address _recovery) external payable {
-        bytes32 commit = generateCommit(fname, to, secret, _recovery);
+    function register(bytes16 fname, address to, bytes32 secret, address recovery) external payable {
+        bytes32 commit = generateCommit(fname, to, secret, recovery);
 
         uint256 _fee = fee;
         if (msg.value < _fee) revert InsufficientFunds();
@@ -457,11 +457,11 @@ contract NameRegistry is
         delete timestampOf[commit];
 
         unchecked {
-            // Safety: expiry will not overflow given the expected sizes of block.timestamp
+            // Safety: expiryTs will not overflow given the expected sizes of block.timestamp
             registrationMetadataOf[tokenId].expiryTs = uint40(block.timestamp + REGISTRATION_PERIOD);
         }
 
-        registrationMetadataOf[tokenId].recovery = _recovery;
+        registrationMetadataOf[tokenId].recovery = recovery;
 
         uint256 overpayment;
 
@@ -485,14 +485,14 @@ contract NameRegistry is
      *
      * @param to the address that will claim the fname
      * @param fname the fname to register
-     * @param _recovery address which can recovery the fname if the custody address is lost
+     * @param recovery address which can recovery the fname if the custody address is lost
      * @param inviter the fid of the user who invited the new user to get an fname
      * @param invitee the fid of the user who was invited to get an fname
      */
     function trustedRegister(
         bytes16 fname,
         address to,
-        address _recovery,
+        address recovery,
         uint256 inviter,
         uint256 invitee
     ) external payable {
@@ -516,7 +516,7 @@ contract NameRegistry is
             registrationMetadataOf[tokenId].expiryTs = uint40(block.timestamp + REGISTRATION_PERIOD);
         }
 
-        registrationMetadataOf[tokenId].recovery = _recovery;
+        registrationMetadataOf[tokenId].recovery = recovery;
 
         emit Invite(inviter, invitee, fname);
     }
@@ -570,9 +570,9 @@ contract NameRegistry is
      *
      * @param to       The address where the fname should be transferred
      * @param tokenId  The uint256 representation of the fname to bid on
-     * @param _recovery The address which can recovery the fname if the custody address is lost
+     * @param recovery The address which can recovery the fname if the custody address is lost
      */
-    function bid(address to, uint256 tokenId, address _recovery) external payable {
+    function bid(address to, uint256 tokenId, address recovery) external payable {
         // Check that the tokenID was previously registered
         uint256 expiryTs = uint256(registrationMetadataOf[tokenId].expiryTs);
         if (expiryTs == 0) revert Registrable();
@@ -648,7 +648,7 @@ contract NameRegistry is
             registrationMetadataOf[tokenId].expiryTs = uint40(block.timestamp + REGISTRATION_PERIOD);
         }
 
-        registrationMetadataOf[tokenId].recovery = _recovery;
+        registrationMetadataOf[tokenId].recovery = recovery;
 
         uint256 overpayment;
 
@@ -804,18 +804,18 @@ contract NameRegistry is
      *         Supports ERC 2771 meta-transactions and can be called by a relayer.
      *
      * @param tokenId  The uint256 representation of the fname
-     * @param _recovery The address which can recover the fname (set to 0x0 to disable recovery)
+     * @param recovery The address which can recover the fname (set to 0x0 to disable recovery)
      */
-    function changeRecoveryAddress(uint256 tokenId, address _recovery) external whenNotPaused {
+    function changeRecoveryAddress(uint256 tokenId, address recovery) external whenNotPaused {
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
-        registrationMetadataOf[tokenId].recovery = _recovery;
+        registrationMetadataOf[tokenId].recovery = recovery;
 
         // Perf: clear any active recovery requests, but check if they exist before deleting
         // because this usually already zero
         if (recoveryMetadataOf[tokenId].recoveryTs != 0) delete recoveryMetadataOf[tokenId].recoveryTs;
 
-        emit ChangeRecoveryAddress(tokenId, _recovery);
+        emit ChangeRecoveryAddress(tokenId, recovery);
     }
 
     /**
@@ -894,51 +894,6 @@ contract NameRegistry is
         delete recoveryMetadataOf[tokenId].recoveryTs;
 
         emit CancelRecovery(sender, tokenId);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Get the recovery address of a fname.
-     *
-     * @param tokenId The uint256 representation of the fname
-     * @return The address which can recover the fname
-     */
-
-    function recovery(uint256 tokenId) external view returns (address) {
-        return registrationMetadataOf[tokenId].recovery;
-    }
-
-    /**
-     * @notice Get the expiration time of a fname.
-     *
-     * @param tokenId The uint256 representation of the fname
-     * @return The timestamp when the fname expires
-     */
-    function expiry(uint256 tokenId) external view returns (uint256) {
-        return registrationMetadataOf[tokenId].expiryTs;
-    }
-
-    /**
-     * @notice Get the recovery destination of a fname.
-     *
-     * @param tokenId The uint256 representation of the fname
-     * @return The destination address of the most recent recovery attempt.
-     */
-    function recoveryDestination(uint256 tokenId) external view returns (address) {
-        return recoveryMetadataOf[tokenId].recoveryDestination;
-    }
-
-    /**
-     * @notice Get the recovery clock of a fname.
-     *
-     * @param tokenId The uint256 representation of the fname
-     * @return The timestamp of the recovery attempt or zero if there is no active recovery.
-     */
-    function recoveryTs(uint256 tokenId) external view returns (uint256) {
-        return recoveryMetadataOf[tokenId].recoveryTs;
     }
 
     /*//////////////////////////////////////////////////////////////

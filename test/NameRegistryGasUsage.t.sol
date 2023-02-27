@@ -85,9 +85,10 @@ contract NameRegistryGasUsageTest is Test {
 
             uint256 firstExpiration = block.timestamp + REGISTRATION_PERIOD;
 
-            assertEq(nameRegistry.expiry(nameTokenId), firstExpiration);
+            (address _recovery, uint256 _expiry) = nameRegistry.registrationMetadataOf(nameTokenId);
+            assertEq(_expiry, firstExpiration);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.recovery(nameTokenId), RECOVERY);
+            assertEq(_recovery, RECOVERY);
             assertEq(alice.balance, balance - nameRegistry.fee());
 
             // Wait until the registration expires, then renew the registration for a year
@@ -96,7 +97,8 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.renew{value: 0.01 ether}(nameTokenId);
 
             uint256 secondExpiration = block.timestamp + REGISTRATION_PERIOD;
-            assertEq(nameRegistry.expiry(nameTokenId), secondExpiration);
+            (, _expiry) = nameRegistry.registrationMetadataOf(nameTokenId);
+            assertEq(_expiry, secondExpiration);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
 
             // Wait until the second registration expires, then wait for the renewal period to pass
@@ -106,9 +108,10 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.bid{value: 1_000.01 ether}(alice, nameTokenId, RECOVERY);
 
             assertEq(nameRegistry.balanceOf(alice), 1);
-            assertEq(nameRegistry.expiry(nameTokenId), block.timestamp + REGISTRATION_PERIOD);
+            (_recovery, _expiry) = nameRegistry.registrationMetadataOf(nameTokenId);
+            assertEq(_expiry, block.timestamp + REGISTRATION_PERIOD);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.recovery(nameTokenId), RECOVERY);
+            assertEq(_recovery, RECOVERY);
 
             // Transfer the name to a new owner
             vm.prank(alice);
@@ -139,8 +142,9 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.trustedRegister(name, alice, RECOVERY, inviterId, inviteeId);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.expiry(nameTokenId), block.timestamp + REGISTRATION_PERIOD);
-            assertEq(nameRegistry.recovery(nameTokenId), RECOVERY);
+            (address _recovery, uint256 _expiry) = nameRegistry.registrationMetadataOf(nameTokenId);
+            assertEq(_expiry, block.timestamp + REGISTRATION_PERIOD);
+            assertEq(_recovery, RECOVERY);
         }
     }
 }

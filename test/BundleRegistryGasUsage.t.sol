@@ -80,11 +80,12 @@ contract BundleRegistryGasUsageTest is Test {
             uint256 balance = alice.balance;
             vm.prank(alice);
             bundleRegistry.register{value: 0.01 ether}(alice, RECOVERY, URL, name, "secret");
+            (address recovery, uint40 expiryTs) = nameRegistry.registrationMetadataOf(nameTokenId);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.expiry(nameTokenId), renewableTs);
+            assertEq(expiryTs, renewableTs);
             assertEq(alice.balance, balance - nameRegistry.fee());
-            assertEq(nameRegistry.recovery(nameTokenId), RECOVERY);
+            assertEq(recovery, RECOVERY);
         }
     }
 
@@ -105,8 +106,9 @@ contract BundleRegistryGasUsageTest is Test {
             bundleRegistry.trustedRegister(alice, RECOVERY, URL, name, 1);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            assertEq(nameRegistry.expiry(nameTokenId), block.timestamp + 365 days);
-            assertEq(nameRegistry.recovery(nameTokenId), RECOVERY);
+            (address recovery, uint40 expiryTs) = nameRegistry.registrationMetadataOf(nameTokenId);
+            assertEq(expiryTs, block.timestamp + 365 days);
+            assertEq(recovery, RECOVERY);
         }
     }
 }
