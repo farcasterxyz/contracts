@@ -1928,7 +1928,7 @@ contract NameRegistryTest is Test {
 
         // alice sets recovery2 as her recovery address
         vm.prank(alice);
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(true, true, true, true);
         emit ChangeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
 
@@ -2357,7 +2357,7 @@ contract NameRegistryTest is Test {
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         vm.prank(alice);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, true, true);
         emit CancelRecovery(alice, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
@@ -2382,7 +2382,7 @@ contract NameRegistryTest is Test {
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
         vm.prank(recovery);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, true, true);
         emit CancelRecovery(recovery, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
@@ -2407,7 +2407,7 @@ contract NameRegistryTest is Test {
         nameRegistry.pause();
 
         vm.prank(alice);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, true, true);
         emit CancelRecovery(alice, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
@@ -2429,7 +2429,7 @@ contract NameRegistryTest is Test {
 
         vm.warp(renewableTs);
         vm.prank(alice);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, true, true);
         emit CancelRecovery(alice, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
@@ -2452,7 +2452,7 @@ contract NameRegistryTest is Test {
 
         vm.warp(biddableTs);
         vm.prank(alice);
-        vm.expectEmit(true, true, false, false);
+        vm.expectEmit(true, true, true, true);
         emit CancelRecovery(alice, ALICE_TOKEN_ID);
         nameRegistry.cancelRecovery(ALICE_TOKEN_ID);
 
@@ -3026,7 +3026,7 @@ contract NameRegistryTest is Test {
         _grant(ADMIN_ROLE, alice);
 
         vm.prank(alice);
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit ChangeVault(bob);
         nameRegistry.changeVault(bob);
 
@@ -3050,7 +3050,7 @@ contract NameRegistryTest is Test {
         _grant(ADMIN_ROLE, alice);
 
         vm.prank(alice);
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit ChangePool(bob);
         nameRegistry.changePool(bob);
 

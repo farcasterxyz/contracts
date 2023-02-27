@@ -187,7 +187,7 @@ contract IdRegistryTest is Test {
         _register(alice, recovery);
 
         vm.prank(alice);
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(true, true, true, true);
         emit ChangeHome(1, url);
         idRegistry.changeHome(url);
     }
@@ -290,7 +290,7 @@ contract IdRegistryTest is Test {
         _register(alice, oldRecovery);
 
         vm.prank(alice);
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(true, true, true, true);
         emit ChangeRecoveryAddress(1, newRecovery);
         idRegistry.changeRecoveryAddress(newRecovery);
 
@@ -312,7 +312,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), 1);
 
         vm.prank(alice);
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(true, true, true, true);
         emit ChangeRecoveryAddress(1, newRecovery);
         idRegistry.changeRecoveryAddress(newRecovery);
 
@@ -580,7 +580,7 @@ contract IdRegistryTest is Test {
 
         // 2. alice cancels the recovery
         vm.prank(alice);
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit CancelRecovery(alice, 1);
         idRegistry.cancelRecovery(alice);
 
@@ -621,7 +621,7 @@ contract IdRegistryTest is Test {
 
         // 2. recovery cancels the recovery
         vm.prank(recovery);
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, true, true, true);
         emit CancelRecovery(recovery, 1);
         idRegistry.cancelRecovery(alice);
 
