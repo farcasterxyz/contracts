@@ -132,7 +132,7 @@ contract NameRegistryTest is Test {
         assertEq(commit5, 0x8c66607f500ae32d56494a3415cd1e630d35ac72da15cda0e33a869dd7b747dc);
     }
 
-    function testCannotGenerateCommitWithInvalidName(address alice, bytes32 secret, address recovery) public {
+    function testFuzzCannotGenerateCommitWithInvalidName(address alice, bytes32 secret, address recovery) public {
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit("Alice", alice, secret, recovery);
 
@@ -174,7 +174,7 @@ contract NameRegistryTest is Test {
         nameRegistry.generateCommit(nameWithStartingEmptyByte, alice, secret, recovery);
     }
 
-    function testMakeCommit(address alice, bytes32 secret, address recovery) public {
+    function testFuzzMakeCommit(address alice, bytes32 secret, address recovery) public {
         _disableTrusted();
         vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
@@ -184,7 +184,12 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
     }
 
-    function testMakeCommitAfterReplayDelay(address alice, bytes32 secret, address recovery, uint256 delay) public {
+    function testFuzzMakeCommitAfterReplayDelay(
+        address alice,
+        bytes32 secret,
+        address recovery,
+        uint256 delay
+    ) public {
         _disableTrusted();
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay > COMMIT_REPLAY_DELAY);
@@ -203,7 +208,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
     }
 
-    function testCannotMakeCommitBeforeReplayDelay(
+    function testFuzzCannotMakeCommitBeforeReplayDelay(
         address alice,
         bytes32 secret,
         address recovery,
@@ -227,7 +232,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), firstCommitTs);
     }
 
-    function testCannotMakeCommitDuringTrustedRegister(address alice, bytes32 secret, address recovery) public {
+    function testFuzzCannotMakeCommitDuringTrustedRegister(address alice, bytes32 secret, address recovery) public {
         vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         vm.prank(alice);
@@ -239,7 +244,7 @@ contract NameRegistryTest is Test {
                            REGISTRATION TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRegister(
+    function testFuzzRegister(
         address alice,
         address bob,
         address recovery,
@@ -276,7 +281,7 @@ contract NameRegistryTest is Test {
         assertEq(alice.balance, amount - nameRegistry.fee());
     }
 
-    function testRegisterWorksWhenAlreadyOwningAName(
+    function testFuzzRegisterWorksWhenAlreadyOwningAName(
         address alice,
         address recovery,
         bytes32 secret,
@@ -325,7 +330,7 @@ contract NameRegistryTest is Test {
     }
 
     // TODO: this is an integration test, and should be moved out to a separate file
-    function testRegisterAfterUnpausing(address alice, address recovery, bytes32 secret, uint256 delay) public {
+    function testFuzzRegisterAfterUnpausing(address alice, address recovery, bytes32 secret, uint256 delay) public {
         _assumeClean(alice);
         // _assumeClean(recovery);
         delay = delay % FUZZ_TIME_PERIOD;
@@ -358,7 +363,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRegisterTheSameNameAgain(
+    function testFuzzCannotRegisterTheSameNameAgain(
         address alice,
         address bob,
         bytes32 secret,
@@ -401,7 +406,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRegisterExpiredName(address alice, address bob, bytes32 secret, address recovery) public {
+    function testFuzzCannotRegisterExpiredName(address alice, address bob, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _disableTrusted();
@@ -453,7 +458,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(bobCommitHash), commitTs);
     }
 
-    function testCannotRegisterWithoutPayment(address alice, bytes32 secret, address recovery) public {
+    function testFuzzCannotRegisterWithoutPayment(address alice, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 1 ether);
@@ -476,7 +481,7 @@ contract NameRegistryTest is Test {
         assertEq(alice.balance, balance);
     }
 
-    function testCannotRegisterWithoutCommit(address alice, address bob, bytes32 secret, address recovery) public {
+    function testFuzzCannotRegisterWithoutCommit(address alice, address bob, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.assume(bob != address(0));
@@ -495,7 +500,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterWithInvalidCommitSecret(
+    function testFuzzCannotRegisterWithInvalidCommitSecret(
         address alice,
         address bob,
         bytes32 secret,
@@ -529,7 +534,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterWithInvalidCommitAddress(
+    function testFuzzCannotRegisterWithInvalidCommitAddress(
         address alice,
         address bob,
         bytes32 secret,
@@ -565,7 +570,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterWithInvalidCommitName(
+    function testFuzzCannotRegisterWithInvalidCommitName(
         address alice,
         address bob,
         bytes32 secret,
@@ -602,7 +607,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterBeforeDelay(address alice, bytes32 secret, address recovery) public {
+    function testFuzzCannotRegisterBeforeDelay(address alice, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 10_000 ether);
@@ -626,7 +631,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterWithInvalidName(address alice, bytes32 secret, address recovery) public {
+    function testFuzzCannotRegisterWithInvalidName(address alice, bytes32 secret, address recovery) public {
         _assumeClean(alice);
         _disableTrusted();
         bytes16 incorrectUsername = "al{ce";
@@ -649,7 +654,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(incorrectTokenId), address(0));
     }
 
-    function testCannotRegisterWhenPaused(address alice, address recovery, bytes32 secret) public {
+    function testFuzzCannotRegisterWhenPaused(address alice, address recovery, bytes32 secret) public {
         _assumeClean(alice);
         _disableTrusted();
         _grant(OPERATOR_ROLE, ADMIN);
@@ -678,7 +683,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterFromNonPayableIfOverpaying(address alice, address recovery, bytes32 secret) public {
+    function testFuzzCannotRegisterFromNonPayableIfOverpaying(address alice, address recovery, bytes32 secret) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.warp(JAN1_2023_TS);
@@ -702,7 +707,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRegisterToZeroAddress(address alice, address recovery, bytes32 secret) public {
+    function testFuzzCannotRegisterToZeroAddress(address alice, address recovery, bytes32 secret) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 1 ether);
@@ -729,7 +734,7 @@ contract NameRegistryTest is Test {
                          REGISTER TRUSTED TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTrustedRegister(
+    function testFuzzTrustedRegister(
         address trustedCaller,
         address alice,
         address recovery,
@@ -757,7 +762,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotTrustedRegisterWhenDisabled(
+    function testFuzzCannotTrustedRegisterWhenDisabled(
         address trustedCaller,
         address alice,
         address recovery,
@@ -785,7 +790,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTrustedRegisterNameTwice(
+    function testFuzzCannotTrustedRegisterNameTwice(
         address trustedCaller,
         address alice,
         address recovery,
@@ -815,7 +820,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotTrustedRegisterFromArbitrarySender(
+    function testFuzzCannotTrustedRegisterFromArbitrarySender(
         address trustedCaller,
         address arbitrarySender,
         address alice,
@@ -843,7 +848,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTrustedRegisterWhenPaused(
+    function testFuzzCannotTrustedRegisterWhenPaused(
         address trustedCaller,
         address alice,
         address recovery,
@@ -873,7 +878,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTrustedRegisterToZeroAddress(
+    function testFuzzCannotTrustedRegisterToZeroAddress(
         address trustedCaller,
         address recovery,
         uint256 inviter,
@@ -896,7 +901,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTrustedRegisterWithInvalidName(
+    function testFuzzCannotTrustedRegisterWithInvalidName(
         address alice,
         address trustedCaller,
         address recovery,
@@ -926,7 +931,7 @@ contract NameRegistryTest is Test {
                                RENEW TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRenew(address alice, address bob, uint256 amount, uint256 timestamp) public {
+    function testFuzzRenew(address alice, address bob, uint256 amount, uint256 timestamp) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _register(alice);
@@ -952,7 +957,7 @@ contract NameRegistryTest is Test {
         assertEq(bob.balance, amount - FEE);
     }
 
-    function testCannotRenewWithoutPayment(address alice, uint256 amount) public {
+    function testFuzzCannotRenewWithoutPayment(address alice, uint256 amount) public {
         _assumeClean(alice);
         _register(alice);
         vm.warp(block.timestamp + REGISTRATION_PERIOD);
@@ -973,7 +978,7 @@ contract NameRegistryTest is Test {
         assertEq(alice.balance, amount);
     }
 
-    function testCannotRenewIfInvitable(address alice) public {
+    function testFuzzCannotRenewIfInvitable(address alice) public {
         _assumeClean(alice);
         vm.deal(alice, 1 ether);
         vm.warp(JAN1_2023_TS);
@@ -989,7 +994,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRenewIfRegistrable(address alice) public {
+    function testFuzzCannotRenewIfRegistrable(address alice) public {
         _assumeClean(alice);
         vm.deal(alice, 1 ether);
 
@@ -1008,7 +1013,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRenewIfBiddable(address alice) public {
+    function testFuzzCannotRenewIfBiddable(address alice) public {
         _assumeClean(alice);
         _register(alice);
         uint256 registerTs = block.timestamp;
@@ -1028,7 +1033,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRenewIfRegistered(address alice) public {
+    function testFuzzCannotRenewIfRegistered(address alice) public {
         _assumeClean(alice);
         _register(alice);
         uint256 registerTs = block.timestamp;
@@ -1046,7 +1051,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRenewIfPaused(address alice) public {
+    function testFuzzCannotRenewIfPaused(address alice) public {
         _assumeClean(alice);
         _register(alice);
         vm.warp(block.timestamp + REGISTRATION_PERIOD);
@@ -1066,7 +1071,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRenewFromNonPayableIfOverpaying(address alice) public {
+    function testFuzzCannotRenewFromNonPayableIfOverpaying(address alice) public {
         _assumeClean(alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
@@ -1088,7 +1093,7 @@ contract NameRegistryTest is Test {
                                 BID TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testBid(
+    function testFuzzBid(
         address alice,
         address bob,
         address charlie,
@@ -1125,7 +1130,7 @@ contract NameRegistryTest is Test {
         assertEq(bob.balance, amount - (winningBid));
     }
 
-    function testBidResetsERC721Approvals(address alice, address bob, address charlie) public {
+    function testFuzzBidResetsERC721Approvals(address alice, address bob, address charlie) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1145,7 +1150,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
     }
 
-    function testBidAfterOneStep(address alice, address bob, address recovery) public {
+    function testFuzzBidAfterOneStep(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1183,7 +1188,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidOnHundredthStep(address alice, address bob, address recovery) public {
+    function testFuzzBidOnHundredthStep(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1220,7 +1225,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidOnLastStep(address alice, address bob, address recovery) public {
+    function testFuzzBidOnLastStep(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1257,7 +1262,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidAfterLastStep(address alice, address bob, address recovery) public {
+    function testFuzzBidAfterLastStep(address alice, address bob, address recovery) public {
         _assumeClean(bob);
         _assumeClean(alice);
         vm.assume(alice != bob);
@@ -1294,7 +1299,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testBidShouldClearRecoveryClock(
+    function testFuzzBidShouldClearRecoveryClock(
         address alice,
         address bob,
         address charlie,
@@ -1332,7 +1337,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery2);
     }
 
-    function testCannotBidWithUnderpayment(address alice, address bob, address recovery, uint256 amount) public {
+    function testFuzzCannotBidWithUnderpayment(address alice, address bob, address recovery, uint256 amount) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1358,7 +1363,7 @@ contract NameRegistryTest is Test {
         assertEq(bob.balance, amount);
     }
 
-    function testCannotBidWhenRegistered(address alice, address bob, address recovery) public {
+    function testFuzzCannotBidWhenRegistered(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1378,7 +1383,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotBidIfRenewable(address alice, address bob, address recovery) public {
+    function testFuzzCannotBidIfRenewable(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1398,7 +1403,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotBidIfInvitable(address bob, address recovery) public {
+    function testFuzzCannotBidIfInvitable(address bob, address recovery) public {
         _assumeClean(bob);
 
         // Fast forward to 2022 when registrations are possible
@@ -1415,7 +1420,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotBidIfRegistrable(address bob, address recovery) public {
+    function testFuzzCannotBidIfRegistrable(address bob, address recovery) public {
         _assumeClean(bob);
 
         // Fast forward to 2022 when registrations are possible and move to Registrable
@@ -1434,7 +1439,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotBidIfPaused(address alice, address bob, address recovery) public {
+    function testFuzzCannotBidIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(alice != bob);
@@ -1462,7 +1467,7 @@ contract NameRegistryTest is Test {
         assertEq(bob.balance, 1001 ether);
     }
 
-    function testCannotBidFromNonPayableIfOverpaying(address alice, address charlie) public {
+    function testFuzzCannotBidFromNonPayableIfOverpaying(address alice, address charlie) public {
         _assumeClean(alice);
         _register(alice);
         address nonPayable = address(this);
@@ -1490,14 +1495,14 @@ contract NameRegistryTest is Test {
                               ERC-721 TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testOwnerOf(address alice) public {
+    function testFuzzOwnerOf(address alice) public {
         _assumeClean(alice);
         _register(alice);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
     }
 
-    function testOwnerOfRevertsIfExpired(address alice) public {
+    function testFuzzOwnerOfRevertsIfExpired(address alice) public {
         _assumeClean(alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
@@ -1514,12 +1519,12 @@ contract NameRegistryTest is Test {
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
-    function testOwnerOfRevertsIfInvitableOrRegistrable() public {
+    function testFuzzOwnerOfRevertsIfInvitableOrRegistrable() public {
         vm.expectRevert("ERC721: invalid token ID");
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
-    function testSafeTransferFromOwner(address alice, address bob, address recovery) public {
+    function testFuzzSafeTransferFromOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
@@ -1545,7 +1550,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testSafeTransferFromApprover(address alice, address bob, address approver, address recovery) public {
+    function testFuzzSafeTransferFromApprover(address alice, address bob, address approver, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
@@ -1577,7 +1582,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotSafeTransferIfFnameExpired(address alice, address bob, address recovery) public {
+    function testFuzzCannotSafeTransferIfFnameExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != bob);
@@ -1617,7 +1622,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotSafeTransferFromIfPaused(address alice, address bob, address recovery) public {
+    function testFuzzCannotSafeTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1644,7 +1649,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotSafeTransferFromIfRegistrable(address alice, address bob) public {
+    function testFuzzCannotSafeTransferFromIfRegistrable(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
@@ -1663,7 +1668,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotSafeTransferFromIfNotOwner(address alice, address bob, address recovery) public {
+    function testFuzzCannotSafeTransferFromIfNotOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
@@ -1686,7 +1691,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotSafeTransferFromToZeroAddress(address alice, address bob, address recovery) public {
+    function testFuzzCannotSafeTransferFromToZeroAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1708,7 +1713,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testTransferFromOwner(address alice, address bob, address recovery) public {
+    function testFuzzTransferFromOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1733,7 +1738,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testTransferFromApprover(address alice, address bob, address approver, address recovery) public {
+    function testFuzzTransferFromApprover(address alice, address bob, address approver, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         _assumeClean(approver);
@@ -1764,7 +1769,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTransferFromIfFnameExpired(address alice, address bob, address recovery) public {
+    function testFuzzCannotTransferFromIfFnameExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != bob);
@@ -1804,7 +1809,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotTransferFromIfPaused(address alice, address bob, address recovery) public {
+    function testFuzzCannotTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1831,7 +1836,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotTransferFromIfRegistrable(address alice, address bob) public {
+    function testFuzzCannotTransferFromIfRegistrable(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(bob != address(0));
         vm.assume(alice != bob);
@@ -1850,7 +1855,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotTransferFromIfNotOwner(address alice, address bob, address recovery) public {
+    function testFuzzCannotTransferFromIfNotOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
@@ -1873,7 +1878,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotTransferFromToZeroAddress(address alice, address bob, address recovery) public {
+    function testFuzzCannotTransferFromToZeroAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -1895,7 +1900,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testTokenUri() public {
+    function testFuzzTokenUri() public {
         uint256 tokenId = uint256(bytes32("alice"));
         assertEq(nameRegistry.tokenURI(tokenId), "http://www.farcaster.xyz/u/alice.json");
 
@@ -1908,7 +1913,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.tokenURI(tokenIdMax), "http://www.farcaster.xyz/u/alicenwonderland.json");
     }
 
-    function testCannotGetTokenUriForInvalidName() public {
+    function testFuzzCannotGetTokenUriForInvalidName() public {
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.tokenURI(uint256(bytes32("alicenWonderland")));
     }
@@ -1917,7 +1922,7 @@ contract NameRegistryTest is Test {
                           CHANGE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeRecoveryAddress(address alice, address recovery1, address recovery2) public {
+    function testFuzzChangeRecoveryAddress(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
         vm.assume(alice != recovery1);
         vm.assume(recovery1 != address(0));
@@ -1936,7 +1941,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCannotChangeRecoveryAddressUnlessOwner(
+    function testFuzzCannotChangeRecoveryAddressUnlessOwner(
         address alice,
         address bob,
         address recovery1,
@@ -1960,7 +1965,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
     }
 
-    function testCannotChangeRecoveryAddressIfExpired(address alice, address recovery1, address recovery2) public {
+    function testFuzzCannotChangeRecoveryAddressIfExpired(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
         _assumeClean(recovery1);
         vm.assume(recovery1 != address(0));
@@ -1991,7 +1996,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), requestTs);
     }
 
-    function testCannotChangeRecoveryAddressIfRegistrable(address alice, address recovery) public {
+    function testFuzzCannotChangeRecoveryAddressIfRegistrable(address alice, address recovery) public {
         _assumeClean(alice);
         vm.assume(alice != recovery);
         vm.assume(recovery != address(0));
@@ -2004,7 +2009,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCannotChangeRecoveryAddressIfPaused(address alice, address recovery1, address recovery2) public {
+    function testFuzzCannotChangeRecoveryAddressIfPaused(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
         _assumeClean(recovery1);
         vm.assume(alice != recovery1);
@@ -2033,7 +2038,7 @@ contract NameRegistryTest is Test {
                          REQUEST RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRequestRecovery(address alice, address bob, address charlie, address recovery) public {
+    function testFuzzRequestRecovery(address alice, address bob, address charlie, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(bob != address(0));
@@ -2061,7 +2066,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), charlie);
     }
 
-    function testCannotRequestRecoveryToZeroAddr(address alice, address recovery) public {
+    function testFuzzCannotRequestRecoveryToZeroAddr(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         _register(alice);
@@ -2079,7 +2084,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotRequestRecoveryUnlessRecoveryAddress(address alice, address bob, address recovery) public {
+    function testFuzzCannotRequestRecoveryUnlessRecoveryAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         vm.assume(bob != recovery);
@@ -2097,7 +2102,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotRequestRecoveryIfPaused(address alice, address recovery) public {
+    function testFuzzCannotRequestRecoveryIfPaused(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2124,7 +2129,7 @@ contract NameRegistryTest is Test {
                          COMPLETE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCompleteRecovery(address alice, address bob, address recovery) public {
+    function testFuzzCompleteRecovery(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2155,7 +2160,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), bob);
     }
 
-    function testRecoveryCompletionResetsERC721Approvals(address alice, address recovery) public {
+    function testFuzzRecoveryCompletionResetsERC721Approvals(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2183,7 +2188,11 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotCompleteRecoveryUnlessRecovery(address alice, address recovery, address notRecovery) public {
+    function testFuzzCannotCompleteRecoveryUnlessRecovery(
+        address alice,
+        address recovery,
+        address notRecovery
+    ) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(recovery != notRecovery);
@@ -2210,7 +2219,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotCompleteRecoveryIfNotStarted(address alice, address recovery) public {
+    function testFuzzCannotCompleteRecoveryIfNotStarted(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2238,7 +2247,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testCannotCompleteRecoveryWhenInEscrow(address alice, address recovery, uint256 waitPeriod) public {
+    function testFuzzCannotCompleteRecoveryWhenInEscrow(address alice, address recovery, uint256 waitPeriod) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2262,7 +2271,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotCompleteRecoveryIfExpired(address alice, address bob, address recovery) public {
+    function testFuzzCannotCompleteRecoveryIfExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2304,7 +2313,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testCannotCompleteRecoveryIfPaused(address alice, address recovery) public {
+    function testFuzzCannotCompleteRecoveryIfPaused(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2343,7 +2352,7 @@ contract NameRegistryTest is Test {
                           CANCEL RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCancelRecoveryFromCustodyAddress(address alice, address bob, address recovery) public {
+    function testFuzzCancelRecoveryFromCustodyAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2368,7 +2377,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCancelRecoveryFromRecoveryAddress(address alice, address bob, address recovery) public {
+    function testFuzzCancelRecoveryFromRecoveryAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2393,7 +2402,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCancelRecoveryIfPaused(address alice, address recovery) public {
+    function testFuzzCancelRecoveryIfPaused(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2418,7 +2427,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCancelRecoveryIfRenewable(address alice, address recovery) public {
+    function testFuzzCancelRecoveryIfRenewable(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2441,7 +2450,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCancelRecoveryIfBiddable(address alice, address recovery) public {
+    function testFuzzCancelRecoveryIfBiddable(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2464,7 +2473,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
+    function testFuzzCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2483,7 +2492,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryClockOf(ALICE_TOKEN_ID), 0);
     }
 
-    function testCannotCancelRecoveryIfUnauthorized(address alice, address recovery, address bob) public {
+    function testFuzzCannotCancelRecoveryIfUnauthorized(address alice, address recovery, address bob) public {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
@@ -2509,7 +2518,7 @@ contract NameRegistryTest is Test {
                            DEFAULT ADMIN TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testGrantAdminRole(address alice) public {
+    function testFuzzGrantAdminRole(address alice) public {
         _assumeClean(alice);
         vm.assume(alice != address(0));
         assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
@@ -2521,7 +2530,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), true);
     }
 
-    function testRevokeAdminRole(address alice) public {
+    function testFuzzRevokeAdminRole(address alice) public {
         _assumeClean(alice);
         vm.assume(alice != address(0));
 
@@ -2534,7 +2543,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.hasRole(ADMIN_ROLE, alice), false);
     }
 
-    function testCannotGrantAdminRoleUnlessDefaultAdmin(address alice, address bob) public {
+    function testFuzzCannotGrantAdminRoleUnlessDefaultAdmin(address alice, address bob) public {
         _assumeClean(alice);
         _assumeClean(bob);
         assertEq(nameRegistry.hasRole(ADMIN_ROLE, ADMIN), true);
@@ -2553,7 +2562,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.hasRole(ADMIN_ROLE, bob), false);
     }
 
-    function testGrantDefaultAdminRole(address newDefaultAdmin) public {
+    function testFuzzGrantDefaultAdminRole(address newDefaultAdmin) public {
         vm.assume(defaultAdmin != newDefaultAdmin);
         assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
         assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), false);
@@ -2565,7 +2574,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), true);
     }
 
-    function testCannotGrantDefaultAdminRoleUnlessDefaultAdmin(address newDefaultAdmin, address alice) public {
+    function testFuzzCannotGrantDefaultAdminRoleUnlessDefaultAdmin(address newDefaultAdmin, address alice) public {
         _assumeClean(alice);
         vm.assume(alice != defaultAdmin);
         vm.assume(newDefaultAdmin != defaultAdmin);
@@ -2586,7 +2595,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin), false);
     }
 
-    function testRevokeDefaultAdminRole(address newDefaultAdmin) public {
+    function testFuzzRevokeDefaultAdminRole(address newDefaultAdmin) public {
         vm.prank(defaultAdmin);
         nameRegistry.grantRole(DEFAULT_ADMIN_ROLE, newDefaultAdmin);
         assertEq(nameRegistry.hasRole(DEFAULT_ADMIN_ROLE, defaultAdmin), true);
@@ -2601,7 +2610,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testCannotRevokeDefaultAdminRoleUnlessDefaultAdmin(address newDefaultAdmin, address alice) public {
+    function testFuzzCannotRevokeDefaultAdminRoleUnlessDefaultAdmin(address newDefaultAdmin, address alice) public {
         _assumeClean(alice);
         vm.assume(defaultAdmin != newDefaultAdmin);
         vm.assume(alice != defaultAdmin && alice != newDefaultAdmin);
@@ -2629,7 +2638,7 @@ contract NameRegistryTest is Test {
                              MODERATOR TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testReclaimRegisteredNames(
+    function testFuzzReclaimRegisteredNames(
         address[4] calldata users,
         address mod,
         address[4] calldata recoveryAddresses,
@@ -2676,7 +2685,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimRegisteredNamesCloseToExpiryShouldExtend(
+    function testFuzzReclaimRegisteredNamesCloseToExpiryShouldExtend(
         address[4] calldata users,
         address mod,
         address recovery,
@@ -2727,7 +2736,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimExpiredNames(
+    function testFuzzReclaimExpiredNames(
         address[4] calldata users,
         address mod,
         address recovery,
@@ -2777,7 +2786,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimBiddableNames(
+    function testFuzzReclaimBiddableNames(
         address[4] calldata users,
         address mod,
         address recovery,
@@ -2827,7 +2836,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimResetsERC721Approvals(
+    function testFuzzReclaimResetsERC721Approvals(
         address[4] calldata users,
         address[4] calldata approveUsers,
         address[4] calldata destinations
@@ -2864,7 +2873,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testReclaimWhenPaused(address[4] calldata users, address[4] calldata destinations) public {
+    function testFuzzReclaimWhenPaused(address[4] calldata users, address[4] calldata destinations) public {
         address[] memory addresses = new address[](8);
         for (uint256 i = 0; i < users.length; i++) {
             addresses[i] = users[i];
@@ -2898,7 +2907,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testCannotReclaimIfRegistrable(address mod, address[4] calldata destinations) public {
+    function testFuzzCannotReclaimIfRegistrable(address mod, address[4] calldata destinations) public {
         address[] memory addresses = new address[](5);
         for (uint256 i = 0; i < destinations.length; i++) {
             addresses[i] = destinations[i];
@@ -2927,7 +2936,7 @@ contract NameRegistryTest is Test {
         }
     }
 
-    function testCannotReclaimUnlessModerator(
+    function testFuzzCannotReclaimUnlessModerator(
         address[4] calldata users,
         address[4] calldata destinations,
         address notModerator,
@@ -2976,7 +2985,7 @@ contract NameRegistryTest is Test {
                                ADMIN TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeTrustedCaller(address alice) public {
+    function testFuzzChangeTrustedCaller(address alice) public {
         vm.assume(alice != nameRegistry.trustedCaller());
 
         vm.prank(ADMIN);
@@ -2987,7 +2996,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedCaller(), alice);
     }
 
-    function testCannotChangeTrustedCallerUnlessAdmin(address alice, address bob) public {
+    function testFuzzCannotChangeTrustedCallerUnlessAdmin(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(alice != ADMIN);
         address trustedCaller = nameRegistry.trustedCaller();
@@ -3000,7 +3009,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedCaller(), trustedCaller);
     }
 
-    function testDisableTrustedCaller() public {
+    function testFuzzDisableTrustedCaller() public {
         assertEq(nameRegistry.trustedOnly(), 1);
 
         vm.prank(ADMIN);
@@ -3008,7 +3017,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedOnly(), 0);
     }
 
-    function testCannotDisableTrustedCallerUnlessAdmin(address alice) public {
+    function testFuzzCannotDisableTrustedCallerUnlessAdmin(address alice) public {
         _assumeClean(alice);
         vm.assume(alice != ADMIN);
         assertEq(nameRegistry.trustedOnly(), 1);
@@ -3020,7 +3029,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedOnly(), 1);
     }
 
-    function testChangeVault(address alice, address bob) public {
+    function testFuzzChangeVault(address alice, address bob) public {
         _assumeClean(alice);
         assertEq(nameRegistry.vault(), VAULT);
         _grant(ADMIN_ROLE, alice);
@@ -3033,7 +3042,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.vault(), bob);
     }
 
-    function testCannotChangeVaultUnlessAdmin(address alice, address bob) public {
+    function testFuzzCannotChangeVaultUnlessAdmin(address alice, address bob) public {
         _assumeClean(alice);
         assertEq(nameRegistry.vault(), VAULT);
 
@@ -3044,7 +3053,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.vault(), VAULT);
     }
 
-    function testChangePool(address alice, address bob) public {
+    function testFuzzChangePool(address alice, address bob) public {
         _assumeClean(alice);
         assertEq(nameRegistry.pool(), POOL);
         _grant(ADMIN_ROLE, alice);
@@ -3057,7 +3066,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.pool(), bob);
     }
 
-    function testCannotChangePoolUnlessAdmin(address alice, address bob) public {
+    function testFuzzCannotChangePoolUnlessAdmin(address alice, address bob) public {
         _assumeClean(alice);
         assertEq(nameRegistry.pool(), POOL);
 
@@ -3072,7 +3081,7 @@ contract NameRegistryTest is Test {
                              TREASURER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeFee(address alice, uint256 fee) public {
+    function testFuzzChangeFee(address alice, uint256 fee) public {
         vm.assume(alice != FORWARDER);
         _grant(TREASURER_ROLE, alice);
         assertEq(nameRegistry.fee(), 0.01 ether);
@@ -3085,7 +3094,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.fee(), fee);
     }
 
-    function testCannotChangeFeeUnlessTreasurer(address alice, uint256 fee) public {
+    function testFuzzCannotChangeFeeUnlessTreasurer(address alice, uint256 fee) public {
         vm.assume(alice != FORWARDER);
 
         vm.prank(alice);
@@ -3093,7 +3102,7 @@ contract NameRegistryTest is Test {
         nameRegistry.changeFee(fee);
     }
 
-    function testWithdrawFunds(address alice, uint256 amount) public {
+    function testFuzzWithdrawFunds(address alice, uint256 amount) public {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
         vm.deal(address(nameRegistry), 1 ether);
@@ -3106,7 +3115,7 @@ contract NameRegistryTest is Test {
         assertEq(VAULT.balance, amount);
     }
 
-    function testCannotWithdrawUnlessTreasurer(address alice, uint256 amount) public {
+    function testFuzzCannotWithdrawUnlessTreasurer(address alice, uint256 amount) public {
         _assumeClean(alice);
         vm.deal(address(nameRegistry), 1 ether);
         amount = amount % 1 ether;
@@ -3119,7 +3128,7 @@ contract NameRegistryTest is Test {
         assertEq(VAULT.balance, 0);
     }
 
-    function testCannotWithdrawInvalidAmount(address alice, uint256 amount) public {
+    function testFuzzCannotWithdrawInvalidAmount(address alice, uint256 amount) public {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
         amount = amount % AMOUNT_FUZZ_MAX;
@@ -3133,7 +3142,7 @@ contract NameRegistryTest is Test {
         assertEq(VAULT.balance, 0);
     }
 
-    function testCannotWithdrawToNonPayableAddress(address alice, uint256 amount) public {
+    function testFuzzCannotWithdrawToNonPayableAddress(address alice, uint256 amount) public {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
         vm.deal(address(nameRegistry), 1 ether);
@@ -3157,7 +3166,7 @@ contract NameRegistryTest is Test {
     // Tests that cover pausing and its implications on other functions live alongside unit tests
     // for the functions
 
-    function testCannotPauseUnlessOperator(address alice) public {
+    function testFuzzCannotPauseUnlessOperator(address alice) public {
         vm.assume(alice != FORWARDER);
 
         vm.prank(alice);
@@ -3165,7 +3174,7 @@ contract NameRegistryTest is Test {
         nameRegistry.pause();
     }
 
-    function testCannotUnpauseUnlessOperator(address alice) public {
+    function testFuzzCannotUnpauseUnlessOperator(address alice) public {
         vm.assume(alice != FORWARDER);
 
         vm.prank(alice);

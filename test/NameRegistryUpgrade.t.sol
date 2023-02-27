@@ -44,7 +44,7 @@ contract NameRegistryUpgradeTest is Test {
         assertEq(nameRegistryProxy.vault(), VAULT);
     }
 
-    function testV2Initializer(address newVault) public {
+    function testFuzzV2Initializer(address newVault) public {
         // Check that upgrading and initializing changes storage values correctly
         assertEq(nameRegistryProxy.vault(), VAULT);
 
@@ -89,7 +89,7 @@ contract NameRegistryUpgradeTest is Test {
         assertEq(s1, true);
     }
 
-    function testCannotUpgradeUnlessOwner(address alice) public {
+    function testFuzzCannotUpgradeUnlessOwner(address alice) public {
         vm.assume(alice != defaultAdmin && alice != ADMIN);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);

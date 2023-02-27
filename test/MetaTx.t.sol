@@ -82,7 +82,7 @@ contract MetaTxTest is Test {
                                METATX TEST
     //////////////////////////////////////////////////////////////*/
 
-    function testIdRegistryRegister(address relayer, address recovery, uint256 alicePrivateKey) public {
+    function testFuzzIdRegistryRegister(address relayer, address recovery, uint256 alicePrivateKey) public {
         vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);
 
@@ -112,7 +112,7 @@ contract MetaTxTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
     }
 
-    function testNameRegistryTransfer(address relayer, address recovery, uint256 alicePrivateKey) public {
+    function testFuzzNameRegistryTransfer(address relayer, address recovery, uint256 alicePrivateKey) public {
         _assumeClean(relayer);
         vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);

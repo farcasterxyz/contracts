@@ -46,7 +46,7 @@ contract IdRegistryTest is Test {
                              REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRegister(address alice, address bob, address recovery, string calldata url) public {
+    function testFuzzRegister(address alice, address bob, address recovery, string calldata url) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         assertEq(idRegistry.getIdCounter(), 0);
 
@@ -62,7 +62,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testCannotRegisterIfTrustedCallerOnly(
+    function testFuzzCannotRegisterIfTrustedCallerOnly(
         address alice,
         address bob,
         address recovery,
@@ -80,7 +80,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testCannotRegisterToAnAddressThatOwnsAnID(
+    function testFuzzCannotRegisterToAnAddressThatOwnsAnID(
         address alice,
         address bob,
         address recovery,
@@ -103,7 +103,12 @@ contract IdRegistryTest is Test {
                          TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTrustedRegister(address alice, address trustedCaller, address recovery, string calldata url) public {
+    function testFuzzTrustedRegister(
+        address alice,
+        address trustedCaller,
+        address recovery,
+        string calldata url
+    ) public {
         vm.assume(trustedCaller != FORWARDER && recovery != FORWARDER);
         idRegistry.changeTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
@@ -118,7 +123,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testCannotTrustedRegisterUnlessTrustedCallerOnly(
+    function testFuzzCannotTrustedRegisterUnlessTrustedCallerOnly(
         address alice,
         address trustedCaller,
         address recovery,
@@ -136,7 +141,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testCannotTrustedRegisterFromUntrustedCaller(
+    function testFuzzCannotTrustedRegisterFromUntrustedCaller(
         address alice,
         address trustedCaller,
         address untrustedCaller,
@@ -156,7 +161,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testCannotTrustedRegisterToAnAddressThatOwnsAnID(
+    function testFuzzCannotTrustedRegisterToAnAddressThatOwnsAnID(
         address alice,
         address trustedCaller,
         address recovery,
@@ -182,7 +187,7 @@ contract IdRegistryTest is Test {
                                HOME TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeHome(address alice, address recovery, string calldata url) public {
+    function testFuzzChangeHome(address alice, address recovery, string calldata url) public {
         vm.assume(alice != FORWARDER);
         _register(alice, recovery);
 
@@ -192,7 +197,7 @@ contract IdRegistryTest is Test {
         idRegistry.changeHome(url);
     }
 
-    function testCannotChangeHomeWithoutId(address alice, string calldata url) public {
+    function testFuzzCannotChangeHomeWithoutId(address alice, string calldata url) public {
         vm.assume(alice != FORWARDER);
 
         vm.prank(alice);
@@ -204,7 +209,7 @@ contract IdRegistryTest is Test {
                              TRANSFER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTransfer(address alice, address bob) public {
+    function testFuzzTransfer(address alice, address bob) public {
         vm.assume(alice != FORWARDER);
         vm.assume(alice != bob);
         _register(alice, address(0));
@@ -221,7 +226,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(bob), 1);
     }
 
-    function testTransferResetsRecoveryState(
+    function testFuzzTransferResetsRecoveryState(
         address alice,
         address bob,
         address recovery,
@@ -251,7 +256,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
 
-    function testCannotTransferToAddressWithId(address alice, address bob, address recovery) public {
+    function testFuzzCannotTransferToAddressWithId(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
         _register(alice, recovery);
@@ -268,7 +273,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(bob), 2);
     }
 
-    function testCannotTransferIfNoId(address alice, address bob) public {
+    function testFuzzCannotTransferIfNoId(address alice, address bob) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(bob), 0);
@@ -285,7 +290,7 @@ contract IdRegistryTest is Test {
                           CHANGE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeRecoveryAddress(address alice, address oldRecovery, address newRecovery) public {
+    function testFuzzChangeRecoveryAddress(address alice, address oldRecovery, address newRecovery) public {
         vm.assume(alice != FORWARDER);
         _register(alice, oldRecovery);
 
@@ -297,7 +302,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), newRecovery);
     }
 
-    function testChangeRecoveryAddressResetsRecovery(
+    function testFuzzChangeRecoveryAddressResetsRecovery(
         address alice,
         address oldRecovery,
         address recoveryTarget,
@@ -319,7 +324,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
 
-    function testCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
+    function testFuzzCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
 
@@ -332,7 +337,7 @@ contract IdRegistryTest is Test {
                          REQUEST RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRequestRecovery(address alice, address bob, address recovery) public {
+    function testFuzzRequestRecovery(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         _register(alice, recovery);
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
@@ -348,7 +353,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
     }
 
-    function testRequestRecoveryOverridesPreviousRecovery(
+    function testFuzzRequestRecoveryOverridesPreviousRecovery(
         address alice,
         address bob,
         address charlie,
@@ -373,7 +378,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryDestinationOf(1), charlie);
     }
 
-    function testCannotRequestRecoveryUnlessRecoveryAddress(
+    function testFuzzCannotRequestRecoveryUnlessRecoveryAddress(
         address alice,
         address recovery,
         address notRecovery,
@@ -396,7 +401,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
 
-    function testCannotRequestRecoveryWithoutId(address alice, address bob, address recoveryDestination) public {
+    function testFuzzCannotRequestRecoveryWithoutId(address alice, address bob, address recoveryDestination) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != recoveryDestination);
         vm.assume(bob != address(0));
@@ -410,7 +415,7 @@ contract IdRegistryTest is Test {
                          COMPLETE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCompleteRecovery(
+    function testFuzzCompleteRecovery(
         address alice,
         address bob,
         address recovery,
@@ -442,7 +447,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
 
-    function testCannotCompleteRecoveryUnlessRecoveryAddress(
+    function testFuzzCannotCompleteRecoveryUnlessRecoveryAddress(
         address alice,
         address bob,
         address recovery,
@@ -475,7 +480,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
     }
 
-    function testCannotCompleteRecoveryIfNotRequested(address alice, address recovery, uint256 delay) public {
+    function testFuzzCannotCompleteRecoveryIfNotRequested(address alice, address recovery, uint256 delay) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != recovery);
         delay = delay % FUZZ_TIME_PERIOD;
@@ -492,7 +497,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
 
-    function testCannotCompleteRecoveryWhenInEscrow(
+    function testFuzzCannotCompleteRecoveryWhenInEscrow(
         address alice,
         address bob,
         address recovery,
@@ -522,7 +527,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
     }
 
-    function testCannotCompleteRecoveryToAddressThatOwnsAnId(
+    function testFuzzCannotCompleteRecoveryToAddressThatOwnsAnId(
         address alice,
         address bob,
         address recovery,
@@ -559,7 +564,7 @@ contract IdRegistryTest is Test {
                           CANCEL RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testCancelRecoveryFromCustodyAddress(
+    function testFuzzCancelRecoveryFromCustodyAddress(
         address alice,
         address bob,
         address recovery,
@@ -600,7 +605,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
 
-    function testCancelRecoveryFromRecoveryAddress(
+    function testFuzzCancelRecoveryFromRecoveryAddress(
         address alice,
         address bob,
         address recovery,
@@ -641,7 +646,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryClockOf(1), 0);
     }
 
-    function testCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
+    function testFuzzCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != recovery);
         _register(alice, recovery);
@@ -655,7 +660,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testCannotCancelRecoveryIfUnauthorized(
+    function testFuzzCannotCancelRecoveryIfUnauthorized(
         address alice,
         address bob,
         address unauthorized,
@@ -688,7 +693,7 @@ contract IdRegistryTest is Test {
                                OWNER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeTrustedCaller(address alice) public {
+    function testFuzzChangeTrustedCaller(address alice) public {
         vm.assume(alice != FORWARDER);
         assertEq(idRegistry.owner(), owner);
 
@@ -698,7 +703,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getTrustedCaller(), alice);
     }
 
-    function testCannotChangeTrustedCallerUnlessOwner(address alice, address bob) public {
+    function testFuzzCannotChangeTrustedCallerUnlessOwner(address alice, address bob) public {
         vm.assume(alice != FORWARDER && alice != address(0));
         vm.assume(idRegistry.owner() != alice);
 
@@ -708,7 +713,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getTrustedCaller(), address(0));
     }
 
-    function testDisableTrustedCaller() public {
+    function testFuzzDisableTrustedCaller() public {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getTrustedOnly(), 1);
 
@@ -718,7 +723,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getTrustedOnly(), 0);
     }
 
-    function testCannotDisableTrustedCallerUnlessOwner(address alice) public {
+    function testFuzzCannotDisableTrustedCallerUnlessOwner(address alice) public {
         vm.assume(alice != FORWARDER && alice != address(0));
         vm.assume(idRegistry.owner() != alice);
 
@@ -728,7 +733,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getTrustedOnly(), 1);
     }
 
-    function testCannotTransferOwnership(address newOwner) public {
+    function testFuzzCannotTransferOwnership(address newOwner) public {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getPendingOwner(), address(0));
 
@@ -739,7 +744,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getPendingOwner(), address(0));
     }
 
-    function testRequestTransferOwnership(address newOwner, address newOwner2) public {
+    function testFuzzRequestTransferOwnership(address newOwner, address newOwner2) public {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getPendingOwner(), address(0));
 
@@ -752,7 +757,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getPendingOwner(), newOwner2);
     }
 
-    function testCannotRequestTransferOwnershipUnlessOwner(address alice, address newOwner) public {
+    function testFuzzCannotRequestTransferOwnershipUnlessOwner(address alice, address newOwner) public {
         vm.assume(alice != FORWARDER && alice != owner);
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getPendingOwner(), address(0));
@@ -765,7 +770,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getPendingOwner(), address(0));
     }
 
-    function testCompleteTransferOwnership(address newOwner) public {
+    function testFuzzCompleteTransferOwnership(address newOwner) public {
         vm.assume(newOwner != FORWARDER && newOwner != owner);
         vm.prank(owner);
         idRegistry.requestTransferOwnership(newOwner);
@@ -779,7 +784,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getPendingOwner(), address(0));
     }
 
-    function testCannotCompleteTransferOwnershipUnlessPendingOwner(address alice, address newOwner) public {
+    function testFuzzCannotCompleteTransferOwnershipUnlessPendingOwner(address alice, address newOwner) public {
         vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
         vm.assume(newOwner != alice);
 
