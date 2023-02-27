@@ -6,15 +6,15 @@ import {NameRegistry} from "../src/NameRegistry.sol";
 
 import "forge-std/Test.sol";
 
-import {BundleRegistryTestable} from "./Utils.sol";
-import {IdRegistryTestable} from "./Utils.sol";
+import {BundleRegistryHarness} from "./Utils.sol";
+import {IdRegistryHarness} from "./Utils.sol";
 
 /* solhint-disable state-visibility */
 
 contract BundleRegistryGasUsageTest is Test {
-    IdRegistryTestable idRegistry;
+    IdRegistryHarness idRegistry;
     NameRegistry nameRegistry;
-    BundleRegistryTestable bundleRegistry;
+    BundleRegistryHarness bundleRegistry;
     NameRegistry nameRegistryImpl;
     ERC1967Proxy nameRegistryProxy;
 
@@ -39,7 +39,7 @@ contract BundleRegistryGasUsageTest is Test {
 
     function setUp() public {
         // Set up the IdRegistry
-        idRegistry = new IdRegistryTestable(FORWARDER);
+        idRegistry = new IdRegistryHarness(FORWARDER);
 
         // Set up the NameRegistry with UUPS Proxy and configure the admin role
         nameRegistryImpl = new NameRegistry(FORWARDER);
@@ -49,7 +49,11 @@ contract BundleRegistryGasUsageTest is Test {
         nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
 
         // Set up the BundleRegistry
-        bundleRegistry = new BundleRegistryTestable(address(idRegistry), address(nameRegistry), address(this));
+        bundleRegistry = new BundleRegistryHarness(
+            address(idRegistry),
+            address(nameRegistry),
+            address(this)
+        );
     }
 
     function testGasRegister() public {

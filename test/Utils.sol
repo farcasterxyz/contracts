@@ -7,9 +7,9 @@ import {IdRegistry} from "../src/IdRegistry.sol";
 /* solhint-disable no-empty-blocks */
 
 /**
- * @dev IdRegistryTestable exposes IdRegistry's private methods for test assertions.
+ * @dev IdRegistryHarness exposes IdRegistry's private methods for test assertions.
  */
-contract IdRegistryTestable is IdRegistry {
+contract IdRegistryHarness is IdRegistry {
     constructor(address forwarder) IdRegistry(forwarder) {}
 
     function getIdCounter() public view returns (uint256) {
@@ -46,9 +46,9 @@ contract IdRegistryTestable is IdRegistry {
 }
 
 /**
- * @dev BundleRegistryTestable exposes IdRegistry's private methods for test assertions.
+ * @dev BundleRegistryHarness exposes IdRegistry's private methods for test assertions.
  */
-contract BundleRegistryTestable is BundleRegistry {
+contract BundleRegistryHarness is BundleRegistry {
     constructor(
         address idRegistry,
         address nameRegistry,

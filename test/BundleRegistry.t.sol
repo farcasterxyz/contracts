@@ -8,9 +8,9 @@ import "forge-std/Test.sol";
 import "./TestConstants.sol";
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
-import {BundleRegistryTestable} from "./Utils.sol";
+import {BundleRegistryHarness} from "./Utils.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {IdRegistryTestable} from "./Utils.sol";
+import {IdRegistryHarness} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
@@ -26,10 +26,10 @@ contract BundleRegistryTest is Test {
     NameRegistry nameRegistry;
 
     // Instance of the IdRegistry contract wrapped in its test wrapper
-    IdRegistryTestable idRegistry;
+    IdRegistryHarness idRegistry;
 
     // Instance of the BundleRegistry contract wrapped in its test wrapper
-    BundleRegistryTestable bundleRegistry;
+    BundleRegistryHarness bundleRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -78,7 +78,7 @@ contract BundleRegistryTest is Test {
 
     function setUp() public {
         // Set up the IdRegistry
-        idRegistry = new IdRegistryTestable(FORWARDER);
+        idRegistry = new IdRegistryHarness(FORWARDER);
 
         // Set up the NameRegistry with UUPS Proxy and configure the admin role
         nameRegistryImpl = new NameRegistry(FORWARDER);
@@ -88,7 +88,11 @@ contract BundleRegistryTest is Test {
         nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
 
         // Set up the BundleRegistry
-        bundleRegistry = new BundleRegistryTestable(address(idRegistry), address(nameRegistry), address(this));
+        bundleRegistry = new BundleRegistryHarness(
+            address(idRegistry),
+            address(nameRegistry),
+            address(this)
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

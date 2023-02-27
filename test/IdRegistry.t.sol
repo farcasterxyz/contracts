@@ -5,12 +5,12 @@ import "forge-std/Test.sol";
 import "./TestConstants.sol";
 
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {IdRegistryTestable} from "./Utils.sol";
+import {IdRegistryHarness} from "./Utils.sol";
 
 /* solhint-disable state-visibility */
 
 contract IdRegistryTest is Test {
-    IdRegistryTestable idRegistry;
+    IdRegistryHarness idRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -39,7 +39,7 @@ contract IdRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public {
-        idRegistry = new IdRegistryTestable(FORWARDER);
+        idRegistry = new IdRegistryHarness(FORWARDER);
     }
 
     /*//////////////////////////////////////////////////////////////
