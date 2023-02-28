@@ -13,5 +13,6 @@
   "[solidity]": {
     "editor.defaultFormatter": "JuanBlanco.solidity"
   },
+  "solidity.formatter": "forge",
   "cSpell.words": ["curr", "Fname", "Invitable", "Pausable", "UUPS"]
 }
