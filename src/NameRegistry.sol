@@ -394,7 +394,7 @@ contract NameRegistry is
 
         _validateName(fname);
 
-        commit = keccak256(abi.encode(fname, to, recovery, secret));
+        commit = keccak256(abi.encodePacked(fname, to, recovery, secret));
     }
 
     /**

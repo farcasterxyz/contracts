@@ -113,23 +113,23 @@ contract NameRegistryTest is Test {
 
         // alphabetic name
         bytes32 commit1 = nameRegistry.generateCommit("alice", alice, "secret", recovery);
-        assertEq(commit1, 0xf6d11924ab4b4f89882cb4feed6a4365d22f4d0344d4b58abe27e6886b83b811);
+        assertEq(commit1, 0x3ba53de39275fcb9ae251b498d9f633b3860061639bcab81844ea33a78e2d0d9);
 
         // 1-char name
         bytes32 commit2 = nameRegistry.generateCommit("1", alice, "secret", recovery);
-        assertEq(commit2, 0xc2c738c5b10e7bf31692bc6603b035245be099b35ace27ba21f2ce793852aaaa);
+        assertEq(commit2, 0x8cc6e92825efdd92dc42e93ab2b951483e95dc6d169204c2e83d814d5a05d4f5);
 
         // 16-char alphabetic
         bytes32 commit3 = nameRegistry.generateCommit("alicenwonderland", alice, "secret", recovery);
-        assertEq(commit3, 0xc52dbd957d10771393523f943e365d409742486a8ec4d5d11a90f725bc3b6ec3);
+        assertEq(commit3, 0xd48bad75130e526b4a61093ea7e296a39d609c214b3141ef9f5e8e07e9806750);
 
         // 16-char alphanumeric name
         bytes32 commit4 = nameRegistry.generateCommit("alice0wonderland", alice, "secret", recovery);
-        assertEq(commit4, 0xf3291f3f5ce66f7e375ae3d117401bb1581787b8a82185920bf4ec5914120520);
+        assertEq(commit4, 0x76dcf4dd8b8319cb7319f156bed59891dd1ca7316588d50252c7cd9f17ffd4ec);
 
         // 16-char alphanumeric hyphenated name
         bytes32 commit5 = nameRegistry.generateCommit("al1c3-w0nderl4nd", alice, "secret", recovery);
-        assertEq(commit5, 0x8c66607f500ae32d56494a3415cd1e630d35ac72da15cda0e33a869dd7b747dc);
+        assertEq(commit5, 0x5bc1557c8d13e9a7d0243265e680912650ef8db0c6ba55594f861c0e2e2331b7);
     }
 
     function testFuzzCannotGenerateCommitWithInvalidName(address alice, bytes32 secret, address recovery) public {
