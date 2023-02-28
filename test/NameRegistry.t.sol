@@ -1299,7 +1299,7 @@ contract NameRegistryTest is Test {
         assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testFuzzBidShouldClearRecoveryClock(
+    function testFuzzBidShouldClearRecoveryTs(
         address alice,
         address bob,
         address charlie,
@@ -2071,7 +2071,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         _register(alice);
 
-        // Start a recovery to set recoveryClockOf and recoveryDestinationOf to non-zero values
+        // Start a recovery to set recoveryStateOf to non-zero values
         uint256 requestTs = _requestRecovery(alice, recovery);
 
         // recovery requests a recovery of alice's id to 0x0
@@ -2108,7 +2108,7 @@ contract NameRegistryTest is Test {
         vm.assume(alice != recovery);
         _register(alice);
 
-        // Set and request a recovery so that recoveryClockOf is non-zero
+        // Set and request a recovery so that recoveryTs is non-zero
         uint256 requestTs = _requestRecovery(alice, recovery);
 
         // pause the contract

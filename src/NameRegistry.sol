@@ -875,12 +875,12 @@ contract NameRegistry is
             revert Unauthorized();
         }
 
-        uint256 _recoveryClock = recoveryStateOf[tokenId].recoveryTs;
-        if (_recoveryClock == 0) revert NoRecovery();
+        uint256 recoveryTs = recoveryStateOf[tokenId].recoveryTs;
+        if (recoveryTs == 0) revert NoRecovery();
 
         unchecked {
-            // Safety: _recoveryClock is always set to block.timestamp and cannot realistically overflow
-            if (block.timestamp < _recoveryClock + ESCROW_PERIOD) {
+            // Safety: recoveryTs is always set to block.timestamp and cannot realistically overflow
+            if (block.timestamp < recoveryTs + ESCROW_PERIOD) {
                 revert Escrow();
             }
         }
