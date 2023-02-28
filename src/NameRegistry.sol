@@ -784,7 +784,7 @@ contract NameRegistry is
     function _afterTokenTransfer(address from, address to, uint256 tokenId) internal override {
         super._afterTokenTransfer(from, to, tokenId);
 
-        // Checking state before clearing is more gas-efficient than always clearing
+        // Perf: check state before clear to save gas
         if (recoveryStateOf[tokenId].recoveryTs != 0) {
             delete recoveryStateOf[tokenId].recoveryTs;
         }
