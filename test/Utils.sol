@@ -59,7 +59,7 @@ contract NameRegistryHarness is NameRegistry {
 
     /// @dev Get the expiry timestamp for a tokenId
     function expiryTsOf(uint256 tokenId) public view returns (uint256) {
-        return metadataOf[tokenId].expiryTs;
+        return uint256(metadataOf[tokenId].expiryTs);
     }
 
     /// @dev Get the recovery destination for a tokenId
@@ -69,7 +69,7 @@ contract NameRegistryHarness is NameRegistry {
 
     /// @dev Get the recovery timestamp for a tokenId
     function recoveryTsOf(uint256 tokenId) public view returns (uint256) {
-        return recoveryStateOf[tokenId].recoveryTs;
+        return uint256(recoveryStateOf[tokenId].recoveryTs);
     }
 }
 
