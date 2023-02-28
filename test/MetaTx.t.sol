@@ -6,14 +6,14 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 
 import "forge-std/Test.sol";
 
-import {IdRegistryTestable} from "./Utils.sol";
+import {IdRegistryHarness} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable avoid-low-level-calls */
 
 contract MetaTxTest is Test {
-    IdRegistryTestable idRegistry;
+    IdRegistryHarness idRegistry;
     ERC1967Proxy nameRegistryProxy;
     NameRegistry nameRegistryImpl;
     NameRegistry nameRegistry;
@@ -66,7 +66,7 @@ contract MetaTxTest is Test {
         forwarder = new MinimalForwarder();
 
         // Set up the idRegistry and move to a state where it is no longer in trusted registration
-        idRegistry = new IdRegistryTestable(address(forwarder));
+        idRegistry = new IdRegistryHarness(address(forwarder));
         idRegistry.disableTrustedOnly();
 
         // Set up the nameRegistry and proxy, and move to a state where it is no longer in trusted registration
@@ -82,7 +82,7 @@ contract MetaTxTest is Test {
                                METATX TEST
     //////////////////////////////////////////////////////////////*/
 
-    function testIdRegistryRegister(address relayer, address recovery, uint256 alicePrivateKey) public {
+    function testFuzzIdRegistryRegister(address relayer, address recovery, uint256 alicePrivateKey) public {
         vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);
 
@@ -112,7 +112,7 @@ contract MetaTxTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
     }
 
-    function testNameRegistryTransfer(address relayer, address recovery, uint256 alicePrivateKey) public {
+    function testFuzzNameRegistryTransfer(address relayer, address recovery, uint256 alicePrivateKey) public {
         _assumeClean(relayer);
         vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
         address alice = vm.addr(alicePrivateKey);

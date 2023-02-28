@@ -8,9 +8,9 @@ import "forge-std/Test.sol";
 import "./TestConstants.sol";
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
-import {BundleRegistryTestable} from "./Utils.sol";
+import {BundleRegistryHarness} from "./Utils.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {IdRegistryTestable} from "./Utils.sol";
+import {IdRegistryHarness} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
@@ -26,10 +26,10 @@ contract BundleRegistryTest is Test {
     NameRegistry nameRegistry;
 
     // Instance of the IdRegistry contract wrapped in its test wrapper
-    IdRegistryTestable idRegistry;
+    IdRegistryHarness idRegistry;
 
     // Instance of the BundleRegistry contract wrapped in its test wrapper
-    BundleRegistryTestable bundleRegistry;
+    BundleRegistryHarness bundleRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -78,7 +78,7 @@ contract BundleRegistryTest is Test {
 
     function setUp() public {
         // Set up the IdRegistry
-        idRegistry = new IdRegistryTestable(FORWARDER);
+        idRegistry = new IdRegistryHarness(FORWARDER);
 
         // Set up the NameRegistry with UUPS Proxy and configure the admin role
         nameRegistryImpl = new NameRegistry(FORWARDER);
@@ -88,14 +88,18 @@ contract BundleRegistryTest is Test {
         nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
 
         // Set up the BundleRegistry
-        bundleRegistry = new BundleRegistryTestable(address(idRegistry), address(nameRegistry), address(this));
+        bundleRegistry = new BundleRegistryHarness(
+            address(idRegistry),
+            address(nameRegistry),
+            address(this)
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
                              REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testRegister(
+    function testFuzzRegister(
         address alice,
         address relayer,
         address recovery,
@@ -136,7 +140,7 @@ contract BundleRegistryTest is Test {
         assertEq(address(bundleRegistry).balance, 0 ether);
     }
 
-    function testCannotRegisterIfIdRegistryEnabledNameRegistryDisabled(
+    function testFuzzCannotRegisterIfIdRegistryEnabledNameRegistryDisabled(
         address alice,
         address relayer,
         address recovery,
@@ -177,7 +181,7 @@ contract BundleRegistryTest is Test {
         assertEq(address(bundleRegistry).balance, 0 ether);
     }
 
-    function testCannotRegisterIfIdRegistryDisabledNameRegistryEnabled(
+    function testFuzzCannotRegisterIfIdRegistryDisabledNameRegistryEnabled(
         address alice,
         address relayer,
         address recovery,
@@ -212,7 +216,7 @@ contract BundleRegistryTest is Test {
         assertEq(address(bundleRegistry).balance, 0 ether);
     }
 
-    function testCannotRegisterIfBothEnabled(
+    function testFuzzCannotRegisterIfBothEnabled(
         address alice,
         address relayer,
         address recovery,
@@ -250,7 +254,12 @@ contract BundleRegistryTest is Test {
                      PARTIAL TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testPartialTrustedRegister(address alice, address recovery, string calldata url, uint256 inviter) public {
+    function testFuzzPartialTrustedRegister(
+        address alice,
+        address recovery,
+        string calldata url,
+        uint256 inviter
+    ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
@@ -266,7 +275,7 @@ contract BundleRegistryTest is Test {
         _assertSuccessfulRegistration(alice, recovery);
     }
 
-    function testCannotPartialTrustedRegisterIfBothEnabled(
+    function testFuzzCannotPartialTrustedRegisterIfBothEnabled(
         address alice,
         address recovery,
         string calldata url,
@@ -285,7 +294,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testCannotPartialTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(
+    function testFuzzCannotPartialTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(
         address alice,
         address recovery,
         string calldata url,
@@ -305,7 +314,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testCannotPartialTrustedRegisterIfBothDisabled(
+    function testFuzzCannotPartialTrustedRegisterIfBothDisabled(
         address alice,
         address recovery,
         string calldata url,
@@ -324,7 +333,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testCannotPartialTrustedRegisterUnlessTrustedCaller(
+    function testFuzzCannotPartialTrustedRegisterUnlessTrustedCaller(
         address alice,
         address recovery,
         string calldata url,
@@ -353,7 +362,7 @@ contract BundleRegistryTest is Test {
                          TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTrustedRegister(address alice, address recovery, string calldata url, uint256 inviter) public {
+    function testFuzzTrustedRegister(address alice, address recovery, string calldata url, uint256 inviter) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
@@ -368,7 +377,7 @@ contract BundleRegistryTest is Test {
         _assertSuccessfulRegistration(alice, recovery);
     }
 
-    function testCannotTrustedRegisterFromUntrustedCaller(
+    function testFuzzCannotTrustedRegisterFromUntrustedCaller(
         address alice,
         address recovery,
         string calldata url,
@@ -392,7 +401,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testTrustedRegisterIfIdRegistryDisabledNameRegistryEnabled(
+    function testFuzzTrustedRegisterIfIdRegistryDisabledNameRegistryEnabled(
         address alice,
         address recovery,
         string calldata url,
@@ -412,7 +421,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(
+    function testFuzzTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(
         address alice,
         address recovery,
         string calldata url,
@@ -432,7 +441,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testTrustedRegisterIfBothDisabled(
+    function testFuzzTrustedRegisterIfBothDisabled(
         address alice,
         address recovery,
         string calldata url,
@@ -455,7 +464,7 @@ contract BundleRegistryTest is Test {
                       TRUSTED BATCH REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testTrustedBatchRegister(address alice, address bob, address charlie) public {
+    function testFuzzTrustedBatchRegister(address alice, address bob, address charlie) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(bob != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(charlie != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
@@ -515,7 +524,7 @@ contract BundleRegistryTest is Test {
         assertEq(recoveryCharlie, address(0));
     }
 
-    function testCannotTrustedBatchRegisterFromUntrustedCaller(address alice, address untrustedCaller) public {
+    function testFuzzCannotTrustedBatchRegisterFromUntrustedCaller(address alice, address untrustedCaller) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(untrustedCaller != address(this)); // guarantees call from untrusted caller
 
@@ -535,7 +544,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testTrustedBatchRegisterIfIdRegistryDisabledNameRegistryEnabled(address alice) public {
+    function testFuzzTrustedBatchRegisterIfIdRegistryDisabledNameRegistryEnabled(address alice) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
@@ -553,7 +562,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(address alice) public {
+    function testFuzzTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(address alice) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is enabled in IdRegistry, but disabled in NameRegistry and
@@ -571,7 +580,7 @@ contract BundleRegistryTest is Test {
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testTrustedRegisterIfBothDisabled(address alice) public {
+    function testFuzzTrustedRegisterIfBothDisabled(address alice) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is disabled in both registries
@@ -592,7 +601,7 @@ contract BundleRegistryTest is Test {
                                OWNER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testChangeTrustedCaller(address alice) public {
+    function testFuzzChangeTrustedCaller(address alice) public {
         vm.assume(alice != FORWARDER);
         assertEq(bundleRegistry.owner(), owner);
 
@@ -602,7 +611,7 @@ contract BundleRegistryTest is Test {
         assertEq(bundleRegistry.getTrustedCaller(), alice);
     }
 
-    function testCannotChangeTrustedCallerUnlessOwner(address alice, address bob) public {
+    function testFuzzCannotChangeTrustedCallerUnlessOwner(address alice, address bob) public {
         vm.assume(bundleRegistry.owner() != alice);
 
         vm.prank(alice);

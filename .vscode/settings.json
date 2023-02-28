@@ -2,7 +2,8 @@
   "search.exclude": {
     ".git": true,
     "out": true,
-    "cache": true
+    "cache": true,
+    "lib": true,
   },
   "editor.formatOnSave": true,
   "editor.rulers": [119],
