@@ -779,15 +779,11 @@ contract NameRegistry is
     }
 
     /**
-     * @dev Hook that ensures that recovery address is reset whenever a transfer occurs.
+     * @dev Hook that ensures that recovery state and address is reset whenever a transfer occurs.
      */
     function _afterTokenTransfer(address from, address to, uint256 tokenId) internal override {
         super._afterTokenTransfer(from, to, tokenId);
-
-        // Perf: check state before clear to save gas
-        if (recoveryStateOf[tokenId].timestamp != 0) {
-            delete recoveryStateOf[tokenId].timestamp;
-        }
+        delete recoveryStateOf[tokenId];
         delete metadataOf[tokenId].recovery;
     }
 
@@ -805,7 +801,9 @@ contract NameRegistry is
      * INVARIANT 3: Changing ownerOf must set recovery to address(0) and
      *              recoveryState[id].timestamp to 0
      *
-     * INVARIANT 4: If timestamp is non-zero, then destination is a non-zero address.
+     * INVARIANT 4: If RecoveryState.timestamp is non-zero, then RecoveryState.destination is
+     *              also non zero. If RecoveryState.timestamp 0, then
+     *              RecoveryState.destination must also be address(0)
      */
 
     /**
@@ -819,12 +817,7 @@ contract NameRegistry is
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
         metadataOf[tokenId].recovery = recovery;
-
-        // Perf: clear any active recovery requests, but check if they exist before deleting
-        // because this usually already zero
-        if (recoveryStateOf[tokenId].timestamp != 0) {
-            delete recoveryStateOf[tokenId].timestamp;
-        }
+        delete recoveryStateOf[tokenId];
 
         emit ChangeRecoveryAddress(tokenId, recovery);
     }
@@ -910,7 +903,7 @@ contract NameRegistry is
         if (recoveryStateOf[tokenId].timestamp == 0) revert NoRecovery();
 
         // Clear the recovery request so that it cannot be completed
-        delete recoveryStateOf[tokenId].timestamp;
+        delete recoveryStateOf[tokenId];
 
         emit CancelRecovery(sender, tokenId);
     }
