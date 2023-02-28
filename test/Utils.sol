@@ -21,16 +21,12 @@ contract IdRegistryHarness is IdRegistry {
         return recoveryOf[id];
     }
 
-    function setRecoveryClockOf(uint256 id, uint256 timestamp) public {
-        recoveryClockOf[id] = timestamp;
-    }
-
-    function getRecoveryClockOf(uint256 id) public view returns (uint256) {
-        return recoveryClockOf[id];
+    function getRecoveryTsOf(uint256 id) public view returns (uint256) {
+        return uint256(recoveryStateOf[id].timestamp);
     }
 
     function getRecoveryDestinationOf(uint256 id) public view returns (address) {
-        return recoveryDestinationOf[id];
+        return recoveryStateOf[id].destination;
     }
 
     function getTrustedCaller() public view returns (address) {
