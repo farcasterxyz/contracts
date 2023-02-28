@@ -500,7 +500,7 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
-        (address recoveryAlice, uint40 expiryTsAlice) = nameRegistry.registrationMetadataOf(ALICE_TOKEN_ID);
+        (address recoveryAlice, uint40 expiryTsAlice) = nameRegistry.metadataOf(ALICE_TOKEN_ID);
         assertEq(expiryTsAlice, block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(recoveryAlice, address(0));
@@ -509,7 +509,7 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.idOf(bob), 2);
         assertEq(idRegistry.getRecoveryOf(2), address(0));
         assertEq(nameRegistry.balanceOf(bob), 1);
-        (address recoveryBob, uint40 expiryTsBob) = nameRegistry.registrationMetadataOf(BOB_TOKEN_ID);
+        (address recoveryBob, uint40 expiryTsBob) = nameRegistry.metadataOf(BOB_TOKEN_ID);
         assertEq(expiryTsBob, block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), bob);
         assertEq(recoveryBob, address(0));
@@ -518,7 +518,7 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.idOf(charlie), 3);
         assertEq(idRegistry.getRecoveryOf(3), address(0));
         assertEq(nameRegistry.balanceOf(charlie), 1);
-        (address recoveryCharlie, uint40 expiryTsCharlie) = nameRegistry.registrationMetadataOf(CHARLIE_TOKEN_ID);
+        (address recoveryCharlie, uint40 expiryTsCharlie) = nameRegistry.metadataOf(CHARLIE_TOKEN_ID);
         assertEq(expiryTsCharlie, block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(CHARLIE_TOKEN_ID), charlie);
         assertEq(recoveryCharlie, address(0));
@@ -641,7 +641,7 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        (address _recovery, uint40 expiryTs) = nameRegistry.registrationMetadataOf(ALICE_TOKEN_ID);
+        (address _recovery, uint40 expiryTs) = nameRegistry.metadataOf(ALICE_TOKEN_ID);
         assertEq(expiryTs, block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(_recovery, recovery);
@@ -653,7 +653,7 @@ contract BundleRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         assertEq(nameRegistry.balanceOf(alice), 0);
-        (address recovery, uint40 expiryTs) = nameRegistry.registrationMetadataOf(ALICE_TOKEN_ID);
+        (address recovery, uint40 expiryTs) = nameRegistry.metadataOf(ALICE_TOKEN_ID);
         assertEq(expiryTs, 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));

@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
+import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable no-empty-blocks */
 
@@ -42,6 +43,33 @@ contract IdRegistryHarness is IdRegistry {
 
     function getPendingOwner() public view returns (address) {
         return pendingOwner;
+    }
+}
+
+/**
+ * @dev NameRegistryHarness exposes NameRegistry's struct values with concise accessors for testing.
+ */
+contract NameRegistryHarness is NameRegistry {
+    constructor(address forwarder) NameRegistry(forwarder) {}
+
+    /// @dev Get the recovery address for a tokenId
+    function recoveryOf(uint256 tokenId) public view returns (address) {
+        return metadataOf[tokenId].recovery;
+    }
+
+    /// @dev Get the expiry timestamp for a tokenId
+    function expiryTsOf(uint256 tokenId) public view returns (uint256) {
+        return uint256(metadataOf[tokenId].expiryTs);
+    }
+
+    /// @dev Get the recovery destination for a tokenId
+    function recoveryDestinationOf(uint256 tokenId) public view returns (address) {
+        return recoveryStateOf[tokenId].recoveryDestination;
+    }
+
+    /// @dev Get the recovery timestamp for a tokenId
+    function recoveryTsOf(uint256 tokenId) public view returns (uint256) {
+        return uint256(recoveryStateOf[tokenId].recoveryTs);
     }
 }
 

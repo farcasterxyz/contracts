@@ -85,7 +85,7 @@ contract NameRegistryGasUsageTest is Test {
 
             uint256 firstExpiration = block.timestamp + REGISTRATION_PERIOD;
 
-            (address _recovery, uint256 _expiry) = nameRegistry.registrationMetadataOf(nameTokenId);
+            (address _recovery, uint256 _expiry) = nameRegistry.metadataOf(nameTokenId);
             assertEq(_expiry, firstExpiration);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(_recovery, RECOVERY);
@@ -97,7 +97,7 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.renew{value: 0.01 ether}(nameTokenId);
 
             uint256 secondExpiration = block.timestamp + REGISTRATION_PERIOD;
-            (, _expiry) = nameRegistry.registrationMetadataOf(nameTokenId);
+            (, _expiry) = nameRegistry.metadataOf(nameTokenId);
             assertEq(_expiry, secondExpiration);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
 
@@ -108,7 +108,7 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.bid{value: 1_000.01 ether}(alice, nameTokenId, RECOVERY);
 
             assertEq(nameRegistry.balanceOf(alice), 1);
-            (_recovery, _expiry) = nameRegistry.registrationMetadataOf(nameTokenId);
+            (_recovery, _expiry) = nameRegistry.metadataOf(nameTokenId);
             assertEq(_expiry, block.timestamp + REGISTRATION_PERIOD);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(_recovery, RECOVERY);
@@ -142,7 +142,7 @@ contract NameRegistryGasUsageTest is Test {
             nameRegistry.trustedRegister(name, alice, RECOVERY, inviterId, inviteeId);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
-            (address _recovery, uint256 _expiry) = nameRegistry.registrationMetadataOf(nameTokenId);
+            (address _recovery, uint256 _expiry) = nameRegistry.metadataOf(nameTokenId);
             assertEq(_expiry, block.timestamp + REGISTRATION_PERIOD);
             assertEq(_recovery, RECOVERY);
         }
