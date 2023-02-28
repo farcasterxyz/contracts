@@ -46,12 +46,12 @@ contract NameRegistry is
 
     /**
      * @dev Contains the state of the most recent recovery attempt
-     * @param recoveryDestination Destination of the last recovery, left dirty on completion.
-     * @param recoveryTs Timestamp of the current recovery or zero if there is no active recovery.
+     * @param destination Destination of the last recovery, left dirty on completion.
+     * @param timestamp Timestamp of the current recovery or zero if there is no active recovery.
      */
     struct RecoveryState {
-        address recoveryDestination;
-        uint40 recoveryTs;
+        address destination;
+        uint40 timestamp;
     }
 
     /**
@@ -785,8 +785,8 @@ contract NameRegistry is
         super._afterTokenTransfer(from, to, tokenId);
 
         // Perf: check state before clear to save gas
-        if (recoveryStateOf[tokenId].recoveryTs != 0) {
-            delete recoveryStateOf[tokenId].recoveryTs;
+        if (recoveryStateOf[tokenId].timestamp != 0) {
+            delete recoveryStateOf[tokenId].timestamp;
         }
         delete metadataOf[tokenId].recovery;
     }
@@ -802,9 +802,10 @@ contract NameRegistry is
      * the request during escrow, the recoveryAddress can then transfer the fname. The custody
      * address can remove or change the recovery address at any time.
      *
-     * INVARIANT 3: Changing ownerOf must set recovery to address(0) and recoveryTs[id] to 0
+     * INVARIANT 3: Changing ownerOf must set recovery to address(0) and
+     *              recoveryState[id].timestamp to 0
      *
-     * INVARIANT 4: If recoveryTs is non-zero, then recoveryDestination is a non-zero address.
+     * INVARIANT 4: If timestamp is non-zero, then destination is a non-zero address.
      */
 
     /**
@@ -821,8 +822,8 @@ contract NameRegistry is
 
         // Perf: clear any active recovery requests, but check if they exist before deleting
         // because this usually already zero
-        if (recoveryStateOf[tokenId].recoveryTs != 0) {
-            delete recoveryStateOf[tokenId].recoveryTs;
+        if (recoveryStateOf[tokenId].timestamp != 0) {
+            delete recoveryStateOf[tokenId].timestamp;
         }
 
         emit ChangeRecoveryAddress(tokenId, recovery);
@@ -848,10 +849,10 @@ contract NameRegistry is
         // completeRecovery will revert when it runs
 
         // Track when the escrow period started
-        recoveryStateOf[tokenId].recoveryTs = uint40(block.timestamp);
+        recoveryStateOf[tokenId].timestamp = uint40(block.timestamp);
 
         // Store the final destination so that it cannot be modified unless completed or cancelled
-        recoveryStateOf[tokenId].recoveryDestination = to;
+        recoveryStateOf[tokenId].destination = to;
 
         // Perf: Gas costs can be reduced by omitting the from param, at the cost of breaking
         // compatibility with the IdRegistry's RequestRecovery event
@@ -875,18 +876,18 @@ contract NameRegistry is
             revert Unauthorized();
         }
 
-        uint256 recoveryTs = recoveryStateOf[tokenId].recoveryTs;
-        if (recoveryTs == 0) revert NoRecovery();
+        uint256 recoveryTimestamp = recoveryStateOf[tokenId].timestamp;
+        if (recoveryTimestamp == 0) revert NoRecovery();
 
         unchecked {
-            // Safety: recoveryTs is always set to block.timestamp and cannot realistically overflow
-            if (block.timestamp < recoveryTs + ESCROW_PERIOD) {
+            // Safety: recoveryTimestamp is set to block.timestamp and can't realistically overflow
+            if (block.timestamp < recoveryTimestamp + ESCROW_PERIOD) {
                 revert Escrow();
             }
         }
 
         // Assumption: Invariant 4 prevents this from going to address(0).
-        _transfer(ownerOf(tokenId), recoveryStateOf[tokenId].recoveryDestination, tokenId);
+        _transfer(ownerOf(tokenId), recoveryStateOf[tokenId].destination, tokenId);
     }
 
     /**
@@ -906,10 +907,10 @@ contract NameRegistry is
         }
 
         // Check if there is a recovery to avoid emitting incorrect CancelRecovery events
-        if (recoveryStateOf[tokenId].recoveryTs == 0) revert NoRecovery();
+        if (recoveryStateOf[tokenId].timestamp == 0) revert NoRecovery();
 
         // Clear the recovery request so that it cannot be completed
-        delete recoveryStateOf[tokenId].recoveryTs;
+        delete recoveryStateOf[tokenId].timestamp;
 
         emit CancelRecovery(sender, tokenId);
     }
