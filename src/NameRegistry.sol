@@ -704,7 +704,7 @@ contract NameRegistry is
         uint256 expiryTs = uint256(metadataOf[tokenId].expiryTs);
 
         // Expired names should not be transferrable by the previous owner
-        if (expiryTs != 0 && block.timestamp >= uint256(metadataOf[tokenId].expiryTs)) revert Expired();
+        if (expiryTs != 0 && block.timestamp >= expiryTs) revert Expired();
 
         super.transferFrom(from, to, tokenId);
     }
@@ -721,7 +721,7 @@ contract NameRegistry is
         uint256 expiryTs = uint256(metadataOf[tokenId].expiryTs);
 
         // Expired names should not be transferrable by the previous owner
-        if (expiryTs != 0 && block.timestamp >= uint256(metadataOf[tokenId].expiryTs)) revert Expired();
+        if (expiryTs != 0 && block.timestamp >= expiryTs) revert Expired();
 
         super.safeTransferFrom(from, to, tokenId, data);
     }
