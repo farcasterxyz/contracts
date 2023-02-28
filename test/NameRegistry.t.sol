@@ -252,7 +252,7 @@ contract NameRegistryTest is Test {
      */
 
     function _recovery(uint256 tokenId) internal view returns (address recovery) {
-        (recovery,) = nameRegistry.registrationMetadataOf(tokenId);
+        (recovery,) = nameRegistry.metadataOf(tokenId);
     }
 
     /**
@@ -262,7 +262,7 @@ contract NameRegistryTest is Test {
      * @return expiryTs The timestamp when the fname expires
      */
     function expiry(uint256 tokenId) internal view returns (uint256 expiryTs) {
-        (, expiryTs) = nameRegistry.registrationMetadataOf(tokenId);
+        (, expiryTs) = nameRegistry.metadataOf(tokenId);
     }
 
     /**
@@ -272,7 +272,7 @@ contract NameRegistryTest is Test {
      * @return _recoveryDestination The destination address of the most recent recovery attempt.
      */
     function recoveryDestination(uint256 tokenId) internal view returns (address _recoveryDestination) {
-        (_recoveryDestination,) = nameRegistry.recoveryMetadataOf(tokenId);
+        (_recoveryDestination,) = nameRegistry.recoveryStateOf(tokenId);
     }
 
     /**
@@ -282,7 +282,7 @@ contract NameRegistryTest is Test {
      * @return recoveryTs The timestamp of the recovery attempt or zero if there is no active recovery.
      */
     function _recoveryTs(uint256 tokenId) internal view returns (uint256 recoveryTs) {
-        (, recoveryTs) = nameRegistry.recoveryMetadataOf(tokenId);
+        (, recoveryTs) = nameRegistry.recoveryStateOf(tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
