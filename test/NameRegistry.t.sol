@@ -241,51 +241,6 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Get the recovery address of a fname.
-     *
-     * @param tokenId The uint256 representation of the fname
-     * @return recovery The address which can recover the fname
-     */
-
-    function _recovery(uint256 tokenId) internal view returns (address recovery) {
-        (recovery,) = nameRegistry.metadataOf(tokenId);
-    }
-
-    /**
-     * @notice Get the expiration time of a fname.
-     *
-     * @param tokenId The uint256 representation of the fname
-     * @return expiryTs The timestamp when the fname expires
-     */
-    function expiry(uint256 tokenId) internal view returns (uint256 expiryTs) {
-        (, expiryTs) = nameRegistry.metadataOf(tokenId);
-    }
-
-    /**
-     * @notice Get the recovery destination of a fname.
-     *
-     * @param tokenId The uint256 representation of the fname
-     * @return _recoveryDestination The destination address of the most recent recovery attempt.
-     */
-    function recoveryDestination(uint256 tokenId) internal view returns (address _recoveryDestination) {
-        (_recoveryDestination,) = nameRegistry.recoveryStateOf(tokenId);
-    }
-
-    /**
-     * @notice Get the recovery clock of a fname.
-     *
-     * @param tokenId The uint256 representation of the fname
-     * @return recoveryTs The timestamp of the recovery attempt or zero if there is no active recovery.
-     */
-    function _recoveryTs(uint256 tokenId) internal view returns (uint256 recoveryTs) {
-        (, recoveryTs) = nameRegistry.recoveryStateOf(tokenId);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                            REGISTRATION TESTS
     //////////////////////////////////////////////////////////////*/
 
@@ -321,8 +276,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), 0);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(BOB_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
-        assertEq(_recovery(BOB_TOKEN_ID), recovery);
+        assertEq(expiryOf(BOB_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(BOB_TOKEN_ID), recovery);
         assertEq(alice.balance, amount - nameRegistry.fee());
     }
 
@@ -363,13 +318,13 @@ contract NameRegistryTest is Test {
         vm.stopPrank();
 
         assertEq(nameRegistry.timestampOf(commitHashAlice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), aliceRegister + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(expiryOf(ALICE_TOKEN_ID), aliceRegister + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
 
         assertEq(nameRegistry.timestampOf(commitHashBob), 0);
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), alice);
-        assertEq(expiry(BOB_TOKEN_ID), bobRegister + REGISTRATION_PERIOD);
-        assertEq(_recovery(BOB_TOKEN_ID), recovery);
+        assertEq(expiryOf(BOB_TOKEN_ID), bobRegister + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(BOB_TOKEN_ID), recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 2);
     }
@@ -404,8 +359,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotRegisterTheSameNameAgain(
@@ -447,8 +402,8 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.timestampOf(bobCommitHash), commitTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(expiry(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotRegisterExpiredName(address alice, address bob, bytes32 secret, address recovery) public {
@@ -480,10 +435,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.register{value: FEE}("alice", bob, secret, recovery);
 
-        assertEq(expiry(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
+        assertEq(expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.timestampOf(bobCommitHash), commitTs);
 
         // Fast forward to when @alice is biddable and register @alice to bob
@@ -496,10 +451,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.register{value: FEE}("alice", bob, secret, recovery);
 
-        assertEq(expiry(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
+        assertEq(expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
         assertEq(nameRegistry.timestampOf(bobCommitHash), commitTs);
     }
 
@@ -521,8 +476,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(alice.balance, balance);
     }
 
@@ -541,8 +496,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(BOB_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(BOB_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRegisterWithInvalidCommitSecret(
@@ -575,8 +530,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(BOB_TOKEN_ID), 0);
-        assertEq(_recovery(BOB_TOKEN_ID), address(0));
+        assertEq(expiryOf(BOB_TOKEN_ID), 0);
+        assertEq(recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRegisterWithInvalidCommitAddress(
@@ -611,8 +566,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(incorrectOwner), 0);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(BOB_TOKEN_ID), 0);
-        assertEq(_recovery(BOB_TOKEN_ID), address(0));
+        assertEq(expiryOf(BOB_TOKEN_ID), 0);
+        assertEq(recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRegisterWithInvalidCommitName(
@@ -646,10 +601,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
-        assertEq(expiry(BOB_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(BOB_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(BOB_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(BOB_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRegisterBeforeDelay(address alice, bytes32 secret, address recovery) public {
@@ -671,9 +626,9 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(commitHash), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRegisterWithInvalidName(address alice, bytes32 secret, address recovery) public {
@@ -694,9 +649,9 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.timestampOf(invalidCommit), commitTs);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(incorrectTokenId), address(0));
-        assertEq(expiry(incorrectTokenId), 0);
+        assertEq(expiryOf(incorrectTokenId), 0);
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(_recovery(incorrectTokenId), address(0));
+        assertEq(recoveryOf(incorrectTokenId), address(0));
     }
 
     function testFuzzCannotRegisterWhenPaused(address alice, address recovery, bytes32 secret) public {
@@ -724,8 +679,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRegisterFromNonPayableIfOverpaying(address alice, address recovery, bytes32 secret) public {
@@ -748,8 +703,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRegisterToZeroAddress(address alice, address recovery, bytes32 secret) public {
@@ -771,8 +726,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -802,9 +757,9 @@ contract NameRegistryTest is Test {
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotTrustedRegisterWhenDisabled(
@@ -829,10 +784,10 @@ contract NameRegistryTest is Test {
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotTrustedRegisterNameTwice(
@@ -859,10 +814,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: token already minted");
         nameRegistry.trustedRegister("alice", alice, recovery2, inviter, invitee);
 
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotTrustedRegisterFromArbitrarySender(
@@ -887,10 +842,10 @@ contract NameRegistryTest is Test {
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotTrustedRegisterWhenPaused(
@@ -917,10 +872,10 @@ contract NameRegistryTest is Test {
         nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotTrustedRegisterToZeroAddress(
@@ -940,10 +895,10 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: mint to the zero address");
         nameRegistry.trustedRegister("alice", address(0), recovery, inviter, invitee);
 
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotTrustedRegisterWithInvalidName(
@@ -966,10 +921,10 @@ contract NameRegistryTest is Test {
         nameRegistry.trustedRegister("al}ce", alice, recovery, inviter, invitee);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -996,9 +951,9 @@ contract NameRegistryTest is Test {
         nameRegistry.renew{value: amount}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(expiry(ALICE_TOKEN_ID), expectedExpiryTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), expectedExpiryTs);
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(bob.balance, amount - FEE);
     }
 
@@ -1016,10 +971,10 @@ contract NameRegistryTest is Test {
         nameRegistry.renew{value: amount}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(alice.balance, amount);
     }
 
@@ -1033,10 +988,10 @@ contract NameRegistryTest is Test {
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRenewIfRegistrable(address alice) public {
@@ -1052,10 +1007,10 @@ contract NameRegistryTest is Test {
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRenewIfBiddable(address alice) public {
@@ -1072,10 +1027,10 @@ contract NameRegistryTest is Test {
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRenewIfRegistered(address alice) public {
@@ -1091,9 +1046,9 @@ contract NameRegistryTest is Test {
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
+        assertEq(expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRenewIfPaused(address alice) public {
@@ -1110,10 +1065,10 @@ contract NameRegistryTest is Test {
         nameRegistry.renew{value: FEE}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRenewFromNonPayableIfOverpaying(address alice) public {
@@ -1128,10 +1083,10 @@ contract NameRegistryTest is Test {
         nameRegistry.renew{value: FEE + 1 wei}(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1170,8 +1125,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(charlie), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery2);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery2);
         assertEq(bob.balance, amount - (winningBid));
     }
 
@@ -1218,8 +1173,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
 
         // Bid above the price and succeed
         nameRegistry.bid{value: bidPrice}(bob, ALICE_TOKEN_ID, recovery);
@@ -1229,8 +1184,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzBidOnHundredthStep(address alice, address bob, address recovery) public {
@@ -1256,8 +1211,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
 
         // Bid above the price and succeed
         vm.prank(bob);
@@ -1266,8 +1221,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzBidOnLastStep(address alice, address bob, address recovery) public {
@@ -1293,8 +1248,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
 
         // Bid above the price and succeed
         vm.prank(bob);
@@ -1303,8 +1258,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzBidAfterLastStep(address alice, address bob, address recovery) public {
@@ -1329,8 +1284,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
 
         // Bid with the bidPrice which succeeds
         vm.prank(bob);
@@ -1340,8 +1295,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzBidShouldClearRecoveryClock(
@@ -1366,8 +1321,8 @@ contract NameRegistryTest is Test {
         // recovery1 requests a recovery of @alice to bob
         vm.prank(recovery1);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), block.timestamp);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery1);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), block.timestamp);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery1);
 
         // charlie completes a bid on alice
         vm.warp(biddableTs);
@@ -1376,10 +1331,10 @@ contract NameRegistryTest is Test {
         nameRegistry.bid{value: 1001 ether}(charlie, ALICE_TOKEN_ID, recovery2);
 
         assertEq(nameRegistry.balanceOf(charlie), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
+        assertEq(expiryOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), charlie);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery2);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery2);
     }
 
     function testFuzzCannotBidWithUnderpayment(address alice, address bob, address recovery, uint256 amount) public {
@@ -1403,8 +1358,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(bob.balance, amount);
     }
 
@@ -1424,8 +1379,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), registerTs + REGISTRATION_PERIOD);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotBidIfRenewable(address alice, address bob, address recovery) public {
@@ -1444,8 +1399,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotBidIfInvitable(address bob, address recovery) public {
@@ -1461,8 +1416,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotBidIfRegistrable(address bob, address recovery) public {
@@ -1480,8 +1435,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotBidIfPaused(address alice, address bob, address recovery) public {
@@ -1505,10 +1460,10 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1); // balanceOf counts expired ids by design
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(bob.balance, 1001 ether);
     }
 
@@ -1530,9 +1485,9 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.balanceOf(alice), 1); // balanceOf counts expired ids by design
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.balanceOf(nonPayable), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
         assertEq(nonPayable.balance, 1001 ether);
     }
 
@@ -1589,10 +1544,10 @@ contract NameRegistryTest is Test {
         // assert that @alice is owned by bob and that the recovery request was reset
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzSafeTransferFromApprover(address alice, address bob, address approver, address recovery) public {
@@ -1621,10 +1576,10 @@ contract NameRegistryTest is Test {
         // assert that @alice is owned by bob and that the recovery request was reset
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotSafeTransferIfFnameExpired(address alice, address bob, address recovery) public {
@@ -1646,11 +1601,11 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
 
         // Warp to biddable state and attempt a transfer
         vm.warp(biddableTs);
@@ -1660,11 +1615,11 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotSafeTransferFromIfPaused(address alice, address bob, address recovery) public {
@@ -1688,10 +1643,10 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotSafeTransferFromIfRegistrable(address alice, address bob) public {
@@ -1706,11 +1661,11 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotSafeTransferFromIfNotOwner(address alice, address bob, address recovery) public {
@@ -1730,10 +1685,10 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotSafeTransferFromToZeroAddress(address alice, address bob, address recovery) public {
@@ -1752,10 +1707,10 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzTransferFromOwner(address alice, address bob, address recovery) public {
@@ -1777,10 +1732,10 @@ contract NameRegistryTest is Test {
         // assert that @alice is owned by bob and that the recovery request was reset
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzTransferFromApprover(address alice, address bob, address approver, address recovery) public {
@@ -1808,10 +1763,10 @@ contract NameRegistryTest is Test {
         // assert that @alice is owned by bob and that the recovery request was reset
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotTransferFromIfFnameExpired(address alice, address bob, address recovery) public {
@@ -1833,11 +1788,11 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
 
         // Warp to biddable state and attempt a transfer
         vm.warp(biddableTs);
@@ -1847,11 +1802,11 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotTransferFromIfPaused(address alice, address bob, address recovery) public {
@@ -1875,10 +1830,10 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotTransferFromIfRegistrable(address alice, address bob) public {
@@ -1893,11 +1848,11 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), 0);
+        assertEq(expiryOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotTransferFromIfNotOwner(address alice, address bob, address recovery) public {
@@ -1917,10 +1872,10 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotTransferFromToZeroAddress(address alice, address bob, address recovery) public {
@@ -1939,10 +1894,10 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzTokenUri() public {
@@ -1982,8 +1937,8 @@ contract NameRegistryTest is Test {
         emit ChangeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
 
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery2);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery2);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
     }
 
     function testFuzzCannotChangeRecoveryAddressUnlessOwner(
@@ -2006,8 +1961,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
 
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery1);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery1);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
     }
 
     function testFuzzCannotChangeRecoveryAddressIfExpired(address alice, address recovery1, address recovery2) public {
@@ -2028,8 +1983,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
 
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery1);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery1);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
 
         // Warp to when name is biddable
         vm.warp(biddableTs);
@@ -2037,8 +1992,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
 
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery1);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery1);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
     }
 
     function testFuzzCannotChangeRecoveryAddressIfRegistrable(address alice, address recovery) public {
@@ -2050,8 +2005,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("ERC721: invalid token ID");
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
 
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
     }
 
     function testFuzzCannotChangeRecoveryAddressIfPaused(address alice, address recovery1, address recovery2) public {
@@ -2075,8 +2030,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert("Pausable: paused");
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery2);
 
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery1);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery1);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2092,23 +2047,23 @@ contract NameRegistryTest is Test {
 
         vm.prank(alice);
         nameRegistry.changeRecoveryAddress(ALICE_TOKEN_ID, recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
 
         // Request a recovery from alice to bob
         vm.prank(recovery);
         vm.expectEmit(true, true, true, true);
         emit RequestRecovery(alice, bob, ALICE_TOKEN_ID);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), block.timestamp);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), bob);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), block.timestamp);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), bob);
 
         // Request another recovery from alice to charlie after some time has elapsed
         vm.warp(block.timestamp + 10 minutes);
         vm.prank(recovery);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, charlie);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), block.timestamp);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), charlie);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), block.timestamp);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), charlie);
     }
 
     function testFuzzCannotRequestRecoveryToZeroAddr(address alice, address recovery) public {
@@ -2125,8 +2080,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidRecovery.selector);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, address(0));
 
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotRequestRecoveryUnlessRecoveryAddress(address alice, address bob, address recovery) public {
@@ -2143,8 +2098,8 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.Unauthorized.selector);
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, bob);
 
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotRequestRecoveryIfPaused(address alice, address recovery) public {
@@ -2167,7 +2122,7 @@ contract NameRegistryTest is Test {
         vm.expectRevert("Pausable: paused");
         nameRegistry.requestRecovery(ALICE_TOKEN_ID, recovery);
 
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2198,11 +2153,11 @@ contract NameRegistryTest is Test {
 
         if (alice != bob) assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(bob), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), bob);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), bob);
     }
 
     function testFuzzRecoveryCompletionResetsERC721Approvals(address alice, address recovery) public {
@@ -2225,12 +2180,12 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.balanceOf(recovery), 1);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), recovery);
-        assertEq(_recovery(ALICE_TOKEN_ID), address(0));
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotCompleteRecoveryUnlessRecovery(
@@ -2257,11 +2212,11 @@ contract NameRegistryTest is Test {
         if (alice != notRecovery) {
             assertEq(nameRegistry.balanceOf(notRecovery), 0);
         }
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotCompleteRecoveryIfNotStarted(address alice, address recovery) public {
@@ -2280,16 +2235,16 @@ contract NameRegistryTest is Test {
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(recovery), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), address(0));
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), address(0));
     }
 
     function testFuzzCannotCompleteRecoveryWhenInEscrow(address alice, address recovery, uint256 waitPeriod) public {
@@ -2309,11 +2264,11 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(recovery), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotCompleteRecoveryIfExpired(address alice, address bob, address recovery) public {
@@ -2335,12 +2290,12 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(recovery), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
 
         // Fast forward to biddable and attempt to recover
         vm.warp(biddableTs);
@@ -2350,12 +2305,12 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(recovery), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     function testFuzzCannotCompleteRecoveryIfPaused(address alice, address recovery) public {
@@ -2381,16 +2336,16 @@ contract NameRegistryTest is Test {
         nameRegistry.completeRecovery(ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(recovery), 0);
-        assertEq(expiry(ALICE_TOKEN_ID), renewableTs);
+        assertEq(expiryOf(ALICE_TOKEN_ID), renewableTs);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), requestTs);
-        assertEq(recoveryDestination(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2418,8 +2373,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(alice), 1);
         if (alice != bob) assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
     }
 
     function testFuzzCancelRecoveryFromRecoveryAddress(address alice, address bob, address recovery) public {
@@ -2443,8 +2398,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(alice), 1);
         if (alice != bob) assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
     }
 
     function testFuzzCancelRecoveryIfPaused(address alice, address recovery) public {
@@ -2468,8 +2423,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(recovery), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
     }
 
     function testFuzzCancelRecoveryIfRenewable(address alice, address recovery) public {
@@ -2491,8 +2446,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(recovery), 0);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
     }
 
     function testFuzzCancelRecoveryIfBiddable(address alice, address recovery) public {
@@ -2514,8 +2469,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(recovery), 0);
         vm.expectRevert(NameRegistry.Expired.selector);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
     }
 
     function testFuzzCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
@@ -2533,8 +2488,8 @@ contract NameRegistryTest is Test {
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), 0);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), 0);
     }
 
     function testFuzzCannotCancelRecoveryIfUnauthorized(address alice, address recovery, address bob) public {
@@ -2555,8 +2510,8 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.balanceOf(bob), 0);
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
-        assertEq(_recovery(ALICE_TOKEN_ID), recovery);
-        assertEq(_recoveryTs(ALICE_TOKEN_ID), block.timestamp);
+        assertEq(recoveryOf(ALICE_TOKEN_ID), recovery);
+        assertEq(recoveryTsOf(ALICE_TOKEN_ID), block.timestamp);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2723,10 +2678,10 @@ contract NameRegistryTest is Test {
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
             assertEq(nameRegistry.balanceOf(destinations[i]), 1);
-            assertEq(expiry(tokenIds[i]), renewalTs);
+            assertEq(expiryOf(tokenIds[i]), renewalTs);
             assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
-            assertEq(_recovery(tokenIds[i]), address(0));
-            assertEq(_recoveryTs(tokenIds[i]), 0);
+            assertEq(recoveryOf(tokenIds[i]), address(0));
+            assertEq(recoveryTsOf(tokenIds[i]), 0);
         }
     }
 
@@ -2774,10 +2729,10 @@ contract NameRegistryTest is Test {
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
             assertEq(nameRegistry.balanceOf(destinations[i]), 1);
-            assertEq(expiry(tokenIds[i]), expectedExpiryTs);
+            assertEq(expiryOf(tokenIds[i]), expectedExpiryTs);
             assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
-            assertEq(_recovery(tokenIds[i]), address(0));
-            assertEq(_recoveryTs(tokenIds[i]), 0);
+            assertEq(recoveryOf(tokenIds[i]), address(0));
+            assertEq(recoveryTsOf(tokenIds[i]), 0);
         }
     }
 
@@ -2824,10 +2779,10 @@ contract NameRegistryTest is Test {
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
             assertEq(nameRegistry.balanceOf(destinations[i]), 1);
-            assertEq(expiry(tokenIds[i]), expectedExpiryTs);
+            assertEq(expiryOf(tokenIds[i]), expectedExpiryTs);
             assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
-            assertEq(_recovery(tokenIds[i]), address(0));
-            assertEq(_recoveryTs(tokenIds[i]), 0);
+            assertEq(recoveryOf(tokenIds[i]), address(0));
+            assertEq(recoveryTsOf(tokenIds[i]), 0);
         }
     }
 
@@ -2874,10 +2829,10 @@ contract NameRegistryTest is Test {
         for (uint256 i = 0; i < users.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 0);
             assertEq(nameRegistry.balanceOf(destinations[i]), 1);
-            assertEq(expiry(tokenIds[i]), expectedExpiryTs);
+            assertEq(expiryOf(tokenIds[i]), expectedExpiryTs);
             assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
-            assertEq(_recovery(tokenIds[i]), address(0));
-            assertEq(_recoveryTs(tokenIds[i]), 0);
+            assertEq(recoveryOf(tokenIds[i]), address(0));
+            assertEq(recoveryTsOf(tokenIds[i]), 0);
         }
     }
 
@@ -2947,7 +2902,7 @@ contract NameRegistryTest is Test {
         nameRegistry.reclaim(reclaimActions);
 
         for (uint256 i = 0; i < users.length; i++) {
-            assertEq(expiry(tokenIds[i]), renewableTs);
+            assertEq(expiryOf(tokenIds[i]), renewableTs);
             assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
         }
     }
@@ -2973,11 +2928,11 @@ contract NameRegistryTest is Test {
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             assertEq(nameRegistry.balanceOf(destinations[i]), 0);
-            assertEq(expiry(tokenIds[i]), 0);
+            assertEq(expiryOf(tokenIds[i]), 0);
             vm.expectRevert("ERC721: invalid token ID");
             assertEq(nameRegistry.ownerOf(tokenIds[i]), address(0));
-            assertEq(_recovery(tokenIds[i]), address(0));
-            assertEq(_recoveryTs(tokenIds[i]), 0);
+            assertEq(recoveryOf(tokenIds[i]), address(0));
+            assertEq(recoveryTsOf(tokenIds[i]), 0);
         }
     }
 
@@ -3019,10 +2974,10 @@ contract NameRegistryTest is Test {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             assertEq(nameRegistry.balanceOf(users[i]), 1);
             assertEq(nameRegistry.balanceOf(destinations[i]), 0);
-            assertEq(expiry(tokenIds[i]), renewableTs);
+            assertEq(expiryOf(tokenIds[i]), renewableTs);
             assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
-            assertEq(_recovery(tokenIds[i]), recoveryAddresses[i]);
-            assertEq(_recoveryTs(tokenIds[i]), recoveryTs);
+            assertEq(recoveryOf(tokenIds[i]), recoveryAddresses[i]);
+            assertEq(recoveryTsOf(tokenIds[i]), recoveryTs);
         }
     }
 
@@ -3228,6 +3183,30 @@ contract NameRegistryTest is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                            VIEW HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Get the recovery address for a tokenId
+    function recoveryOf(uint256 tokenId) internal view returns (address recoveryAddress) {
+        (recoveryAddress,) = nameRegistry.metadataOf(tokenId);
+    }
+
+    /// @dev Get the expiry timestamp for a tokenId
+    function expiryOf(uint256 tokenId) internal view returns (uint256 timestamp) {
+        (, timestamp) = nameRegistry.metadataOf(tokenId);
+    }
+
+    /// @dev Get the recovery destination for a tokenId
+    function recoveryDestinationOf(uint256 tokenId) internal view returns (address destination) {
+        (destination,) = nameRegistry.recoveryStateOf(tokenId);
+    }
+
+    /// @dev Get the recovery timestamp for a tokenId
+    function recoveryTsOf(uint256 tokenId) internal view returns (uint256 timestamp) {
+        (, timestamp) = nameRegistry.recoveryStateOf(tokenId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
@@ -3282,13 +3261,13 @@ contract NameRegistryTest is Test {
     function _requestRecovery(address user, uint256 tokenId, address recovery) internal returns (uint256 requestTs) {
         vm.prank(user);
         nameRegistry.changeRecoveryAddress(tokenId, recovery);
-        assertEq(_recovery(tokenId), recovery);
-        assertEq(_recoveryTs(tokenId), 0);
+        assertEq(recoveryOf(tokenId), recovery);
+        assertEq(recoveryTsOf(tokenId), 0);
 
         vm.prank(recovery);
         nameRegistry.requestRecovery(tokenId, recovery);
-        assertEq(_recoveryTs(tokenId), block.timestamp);
-        assertEq(_recovery(tokenId), recovery);
+        assertEq(recoveryTsOf(tokenId), block.timestamp);
+        assertEq(recoveryOf(tokenId), recovery);
         return block.timestamp;
     }
 
