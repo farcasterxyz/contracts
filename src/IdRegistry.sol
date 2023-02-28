@@ -19,6 +19,20 @@ import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Con
  */
 contract IdRegistry is ERC2771Context, Ownable {
     /*//////////////////////////////////////////////////////////////
+                                 STRUCTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Contains the state of the most recent recovery attempt.
+     * @param destination Destination of the current recovery or address(0) if no active recovery.
+     * @param timestamp Timestamp of the current recovery or zero if no active recovery.
+     */
+    struct RecoveryState {
+        address destination;
+        uint40 timestamp;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
@@ -154,16 +168,9 @@ contract IdRegistry is ERC2771Context, Ownable {
     mapping(uint256 => address) internal recoveryOf;
 
     /**
-     * @dev Maps each fid to the timestamp at which the recovery request was started. This is set
-     *      to zero when there is no active recovery.
+     * @dev Maps each fid to a RecoveryState.
      */
-    mapping(uint256 => uint256) internal recoveryClockOf;
-
-    /**
-     * @dev Maps each fid to the destination for the last recovery attempted. This value is left
-     *      dirty to save gas and a non-zero value does not indicate an active recovery.
-     */
-    mapping(uint256 => address) internal recoveryDestinationOf;
+    mapping(uint256 => RecoveryState) internal recoveryStateOf;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -283,9 +290,7 @@ contract IdRegistry is ERC2771Context, Ownable {
         idOf[to] = id;
         delete idOf[from];
 
-        // Perf: clear any active recovery requests, but check if they exist before deleting
-        // because this usually already zero
-        if (recoveryClockOf[id] != 0) delete recoveryClockOf[id];
+        delete recoveryStateOf[id];
         recoveryOf[id] = address(0);
 
         emit Transfer(from, to, id);
@@ -313,15 +318,21 @@ contract IdRegistry is ERC2771Context, Ownable {
      */
 
     /**
-     * INVARIANT 2: If an address has a non-zero recoveryClock, it must also have an fid
+     * INVARIANT 2: If an address has a non-zero RecoveryState.timestamp, it must also have an fid
      *
-     * if recoveryClockOf[idOf[address]] != 0 then idOf[addr] != 0
+     * if recoveryStateOf[idOf[address]].timestamp != 0 then idOf[addr] != 0
      *
-     * 1. at the start, idOf[addr] = 0 and recoveryClockOf[idOf[addr]] == 0 ∀ addr
-     * 2. recoveryClockOf[idOf[addr]] becomes non-zero only in requestRecovery(), which
+     * 1. at the start, idOf[addr] = 0 and recoveryStateOf[idOf[addr]].timestamp == 0 ∀ addr
+     * 2. recoveryStateOf[idOf[addr]].timestamp becomes non-zero only in requestRecovery(), which
      *    requires idOf[addr] != 0
      * 3. idOf[addr] becomes zero only in transfer() and completeRecovery(), which requires
-     *    recoveryClockOf[id[addr]] == 0
+     *    recoveryStateOf[id[addr]].timestamp   == 0
+     */
+
+    /**
+     * INVARIANT 3: If RecoveryState.timestamp is non-zero, then RecoveryState.destination is
+     *              also non zero. If RecoveryState.timestamp 0, then
+     *              RecoveryState.destination must also be address(0)
      */
 
     /**
@@ -337,9 +348,7 @@ contract IdRegistry is ERC2771Context, Ownable {
 
         recoveryOf[id] = recovery;
 
-        // Perf: clear any active recovery requests, but check if they exist before deleting
-        // because this usually already zero
-        if (recoveryClockOf[id] != 0) delete recoveryClockOf[id];
+        delete recoveryStateOf[id];
 
         emit ChangeRecoveryAddress(id, recovery);
     }
@@ -358,10 +367,10 @@ contract IdRegistry is ERC2771Context, Ownable {
         // Assumption: id != 0 because of Invariant 1
 
         // Track when the escrow period started
-        recoveryClockOf[id] = block.timestamp;
+        recoveryStateOf[id].timestamp = uint40(block.timestamp);
 
         // Store the final destination so that it cannot be modified unless completed or cancelled
-        recoveryDestinationOf[id] = to;
+        recoveryStateOf[id].destination = to;
 
         emit RequestRecovery(from, to, id);
     }
@@ -374,30 +383,31 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param from The address that owns the id.
      */
     function completeRecovery(address from) external {
+        // Ensure that the caller is authorized to perform the recovery
         uint256 id = idOf[from];
-
         if (_msgSender() != recoveryOf[id]) revert Unauthorized();
 
-        uint256 _recoveryClock = recoveryClockOf[id];
+        // Ensure that a recovery has previously been requeste
+        RecoveryState memory state = recoveryStateOf[id];
+        if (state.timestamp == 0) revert NoRecovery();
 
-        if (_recoveryClock == 0) revert NoRecovery();
-
-        // Assumption: we don't need to check that the id still lives in the address because any
-        // transfer would have reset this clock to zero causing a revert
-
-        // Revert if the recovery is still in its escrow period
+        // Ensure that the recovery has passed its escrow period
         unchecked {
-            // Safety: rhs cannot overflow because _recoveryClock is a block.timestamp
-            if (block.timestamp < _recoveryClock + ESCROW_PERIOD) {
+            // Safety: rhs cannot overflow because timestamp is a block.timestamp
+            if (block.timestamp < state.timestamp + ESCROW_PERIOD) {
                 revert Escrow();
             }
         }
 
-        address to = recoveryDestinationOf[id];
-        if (idOf[to] != 0) revert HasId();
+        // Ensure that the destination address does not own an fid
+        if (idOf[state.destination] != 0) revert HasId();
+
+        // Assumption: we don't need to check that the id still lives in the address because any
+        // transfer would have reset timestamp to zero causing a revert
 
         // Assumption: id != 0 because of invariant 1 and 2 (either asserts this)
-        _unsafeTransfer(id, from, to);
+
+        _unsafeTransfer(id, from, state.destination);
     }
 
     /**
@@ -416,10 +426,10 @@ contract IdRegistry is ERC2771Context, Ownable {
         // Assumption: id != 0 because of Invariant 1
 
         // Check if there is a recovery to avoid emitting incorrect CancelRecovery events
-        if (recoveryClockOf[id] == 0) revert NoRecovery();
+        if (recoveryStateOf[id].timestamp == 0) revert NoRecovery();
 
         // Clear the recovery request so that it cannot be completed
-        delete recoveryClockOf[id];
+        delete recoveryStateOf[id];
 
         emit CancelRecovery(sender, id);
     }

@@ -243,7 +243,8 @@ contract IdRegistryTest is Test {
         // request a recovery to set the clock to 1
         vm.prank(recovery);
         idRegistry.requestRecovery(alice, recoveryTarget);
-        assertEq(idRegistry.getRecoveryClockOf(1), 1);
+        assertEq(idRegistry.getRecoveryTsOf(1), 1);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), recoveryTarget);
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
@@ -253,7 +254,8 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
 
     function testFuzzCannotTransferToAddressWithId(address alice, address bob, address recovery) public {
@@ -314,14 +316,16 @@ contract IdRegistryTest is Test {
 
         vm.prank(oldRecovery);
         idRegistry.requestRecovery(alice, recoveryTarget);
-        assertEq(idRegistry.getRecoveryClockOf(1), 1);
+        assertEq(idRegistry.getRecoveryTsOf(1), 1);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), recoveryTarget);
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit ChangeRecoveryAddress(1, newRecovery);
         idRegistry.changeRecoveryAddress(newRecovery);
 
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
 
     function testFuzzCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
@@ -340,7 +344,7 @@ contract IdRegistryTest is Test {
     function testFuzzRequestRecovery(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         _register(alice, recovery);
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
         assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
 
         vm.prank(recovery);
@@ -349,7 +353,7 @@ contract IdRegistryTest is Test {
         idRegistry.requestRecovery(alice, bob);
 
         assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryClockOf(1), block.timestamp);
+        assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
         assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
     }
 
@@ -365,7 +369,7 @@ contract IdRegistryTest is Test {
         _register(alice, recovery);
         vm.prank(recovery);
         idRegistry.requestRecovery(alice, bob);
-        assertEq(idRegistry.getRecoveryClockOf(1), block.timestamp);
+        assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
         assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
 
         // Move forward in time and request another recovery
@@ -374,7 +378,7 @@ contract IdRegistryTest is Test {
         idRegistry.requestRecovery(alice, charlie);
 
         assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryClockOf(1), block.timestamp);
+        assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
         assertEq(idRegistry.getRecoveryDestinationOf(1), charlie);
     }
 
@@ -389,7 +393,7 @@ contract IdRegistryTest is Test {
         vm.assume(notRecovery != recovery);
         _register(alice, recovery);
 
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
         assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
 
         vm.prank(notRecovery);
@@ -397,7 +401,7 @@ contract IdRegistryTest is Test {
         idRegistry.requestRecovery(alice, recoveryDestination);
 
         assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
         assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
 
@@ -419,12 +423,12 @@ contract IdRegistryTest is Test {
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp,
+        uint40 timestamp,
         uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay > ESCROW_PERIOD);
         _register(alice, recovery);
@@ -444,7 +448,8 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
 
     function testFuzzCannotCompleteRecoveryUnlessRecoveryAddress(
@@ -452,13 +457,13 @@ contract IdRegistryTest is Test {
         address bob,
         address recovery,
         address notRecovery,
-        uint256 timestamp,
+        uint40 timestamp,
         uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && notRecovery != FORWARDER);
         vm.assume(recovery != notRecovery && alice != notRecovery);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
@@ -477,7 +482,8 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
+        assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
     }
 
     function testFuzzCannotCompleteRecoveryIfNotRequested(address alice, address recovery, uint256 delay) public {
@@ -494,19 +500,20 @@ contract IdRegistryTest is Test {
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
 
     function testFuzzCannotCompleteRecoveryWhenInEscrow(
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp,
+        uint40 timestamp,
         uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % ESCROW_PERIOD;
         _register(alice, recovery);
 
@@ -524,19 +531,20 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
+        assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
     }
 
     function testFuzzCannotCompleteRecoveryToAddressThatOwnsAnId(
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp,
+        uint40 timestamp,
         uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
@@ -557,7 +565,8 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 2);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
+        assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -568,12 +577,12 @@ contract IdRegistryTest is Test {
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp,
+        uint40 timestamp,
         uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
@@ -602,19 +611,20 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
 
     function testFuzzCancelRecoveryFromRecoveryAddress(
         address alice,
         address bob,
         address recovery,
-        uint256 timestamp,
+        uint40 timestamp,
         uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
         _register(alice, recovery);
@@ -643,7 +653,8 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
     }
 
     function testFuzzCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
@@ -656,7 +667,8 @@ contract IdRegistryTest is Test {
         idRegistry.cancelRecovery(alice);
 
         assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryClockOf(1), 0);
+        assertEq(idRegistry.getRecoveryTsOf(1), 0);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
@@ -665,12 +677,12 @@ contract IdRegistryTest is Test {
         address bob,
         address unauthorized,
         address recovery,
-        uint256 timestamp
+        uint40 timestamp
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && unauthorized != FORWARDER);
         vm.assume(alice != bob);
         vm.assume(unauthorized != alice && unauthorized != recovery);
-        vm.assume(timestamp > 0 && timestamp < type(uint256).max - ESCROW_PERIOD);
+        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         _register(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob
@@ -685,7 +697,8 @@ contract IdRegistryTest is Test {
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.getRecoveryClockOf(1), timestamp);
+        assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
