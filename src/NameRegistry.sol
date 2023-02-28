@@ -46,11 +46,11 @@ contract NameRegistry is
 
     /**
      * @dev Contains the state of the most recent recovery attempt
-     * @param recoveryDestination Destination of the last recovery, left dirty on completion.
+     * @param destination Destination of the last recovery, left dirty on completion.
      * @param recoveryTs Timestamp of the current recovery or zero if there is no active recovery.
      */
     struct RecoveryState {
-        address recoveryDestination;
+        address destination;
         uint40 recoveryTs;
     }
 
@@ -804,7 +804,7 @@ contract NameRegistry is
      *
      * INVARIANT 3: Changing ownerOf must set recovery to address(0) and recoveryTs[id] to 0
      *
-     * INVARIANT 4: If recoveryTs is non-zero, then recoveryDestination is a non-zero address.
+     * INVARIANT 4: If recoveryTs is non-zero, then destination is a non-zero address.
      */
 
     /**
@@ -851,7 +851,7 @@ contract NameRegistry is
         recoveryStateOf[tokenId].recoveryTs = uint40(block.timestamp);
 
         // Store the final destination so that it cannot be modified unless completed or cancelled
-        recoveryStateOf[tokenId].recoveryDestination = to;
+        recoveryStateOf[tokenId].destination = to;
 
         // Perf: Gas costs can be reduced by omitting the from param, at the cost of breaking
         // compatibility with the IdRegistry's RequestRecovery event
@@ -886,7 +886,7 @@ contract NameRegistry is
         }
 
         // Assumption: Invariant 4 prevents this from going to address(0).
-        _transfer(ownerOf(tokenId), recoveryStateOf[tokenId].recoveryDestination, tokenId);
+        _transfer(ownerOf(tokenId), recoveryStateOf[tokenId].destination, tokenId);
     }
 
     /**

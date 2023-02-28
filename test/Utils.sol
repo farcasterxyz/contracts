@@ -60,7 +60,7 @@ contract NameRegistryHarness is NameRegistry {
 
     /// @dev Get the recovery destination for a tokenId
     function recoveryDestinationOf(uint256 tokenId) public view returns (address) {
-        return recoveryStateOf[tokenId].recoveryDestination;
+        return recoveryStateOf[tokenId].destination;
     }
 
     /// @dev Get the recovery timestamp for a tokenId

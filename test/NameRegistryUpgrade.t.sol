@@ -131,7 +131,7 @@ contract NameRegistryV2 is
     address public pool;
     mapping(uint256 => address) public recoveryOf;
     mapping(uint256 => uint256) public recoveryClockOf;
-    mapping(uint256 => address) public recoveryDestinationOf;
+    mapping(uint256 => address) public destinationOf;
 
     // New storage values
     uint256 public number;
