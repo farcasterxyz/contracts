@@ -44,6 +44,26 @@ contract NameRegistry is
         address destination;
     }
 
+    /**
+     * @dev RegistrationMetadata struct represents the fname registration data.
+     * @param recovery The address that can recover the fname.
+     * @param expiryTs The time at which fname expires.
+     */
+    struct RegistrationMetadata {
+        address recovery;
+        uint40 expiryTs;
+    }
+
+    /**
+     * @dev RecoveryMetadata struct represents the fname registration data.
+     * @param recoveryDestination The destination address of the most recent recovery attempt.
+     * @param recoveryTs The timestamp of the recovery attempt or zero if there is no active recovery.
+     */
+    struct RecoveryMetadata {
+        address recoveryDestination;
+        uint40 recoveryTs;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -224,43 +244,28 @@ contract NameRegistry is
     mapping(bytes32 => uint256) public timestampOf;
 
     /**
-     * @notice Maps each uint256 representation of an fname to the time at which it expires
-     * @dev    Occupies slot 4
-     */
-    mapping(uint256 => uint256) public expiryOf;
-
-    /**
      * @notice The address that funds can be withdrawn to
-     * @dev    Occupies slot 5
+     * @dev    Occupies slot 4
      */
     address public vault;
 
     /**
      * @notice The address that names can be reclaimed to
-     * @dev    Occupies slot 6
+     * @dev    Occupies slot 5
      */
     address public pool;
 
     /**
-     * @notice Maps each uint256 representation of an fname to the address that can recover it
+     * @notice Maps each uint256 representation of an fname to registration metadata
+     * @dev    Occupies slot 6
+     */
+    mapping(uint256 => RegistrationMetadata) public registrationMetadataOf;
+
+    /**
+     * @notice Maps each uint256 representation of an fname to recovery metadata
      * @dev    Occupies slot 7
      */
-    mapping(uint256 => address) public recoveryOf;
-
-    /**
-     * @notice Maps each uint256 representation of an fname to the timestamp of the recovery
-     *         attempt or zero if there is no active recovery.
-     * @dev    Occupies slot 8
-     */
-    mapping(uint256 => uint256) public recoveryClockOf;
-
-    /**
-     * @notice Maps each uint256 representation of an fname to the destination address of the most
-     *         recent recovery attempt.
-     * @dev    Occupies slot 9, and the value is left dirty after a recovery to save gas and should
-     *         not be relied upon to check if there is an active recovery.
-     */
-    mapping(uint256 => address) public recoveryDestinationOf;
+    mapping(uint256 => RecoveryMetadata) public recoveryMetadataOf;
 
     /**
      * @dev Added to allow future versions to add new variables in case this contract becomes
@@ -363,10 +368,10 @@ contract NameRegistry is
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1A: If an id is not minted, expiryOf[id] must be 0 and ownerOf(id) and
-     *               recoveryOf[id] must also be address(0).
+     * INVARIANT 1A: If an id is not minted, registrationMetadataOf[id].expiryTs must be 0 and ownerOf(id) and
+     *               registrationMetadataOf[id].recovery[id] must also be address(0).
      *
-     * INVARIANT 1B: If an id is minted, expiryOf[id] and ownerOf(id) must be non-zero.
+     * INVARIANT 1B: If an id is minted, registrationMetadataOf[id].expiryTs and ownerOf(id) must be non-zero.
      *
      * INVARIANT 2: An fname cannot be transferred to address(0) after it is minted.
      */
@@ -452,11 +457,11 @@ contract NameRegistry is
         delete timestampOf[commit];
 
         unchecked {
-            // Safety: expiryOf will not overflow given the expected sizes of block.timestamp
-            expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+            // Safety: expiryTs will not overflow given the expected sizes of block.timestamp
+            registrationMetadataOf[tokenId].expiryTs = uint40(block.timestamp + REGISTRATION_PERIOD);
         }
 
-        recoveryOf[tokenId] = recovery;
+        registrationMetadataOf[tokenId].recovery = recovery;
 
         uint256 overpayment;
 
@@ -507,11 +512,11 @@ contract NameRegistry is
         _mint(to, tokenId);
 
         unchecked {
-            // Safety: expiryOf will not overflow given the expected sizes of block.timestamp
-            expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+            // Safety: expiry will not overflow given the expected sizes of block.timestamp
+            registrationMetadataOf[tokenId].expiryTs = uint40(block.timestamp + REGISTRATION_PERIOD);
         }
 
-        recoveryOf[tokenId] = recovery;
+        registrationMetadataOf[tokenId].recovery = recovery;
 
         emit Invite(inviter, invitee, fname);
     }
@@ -526,7 +531,7 @@ contract NameRegistry is
         if (msg.value < _fee) revert InsufficientFunds();
 
         // Check that the tokenID was previously registered
-        uint256 expiryTs = expiryOf[tokenId];
+        uint256 expiryTs = uint256(registrationMetadataOf[tokenId].expiryTs);
         if (expiryTs == 0) revert Registrable();
 
         // tokenID is not owned by address(0) because of INVARIANT 1B + 2
@@ -539,9 +544,9 @@ contract NameRegistry is
 
         if (block.timestamp < expiryTs) revert Registered();
 
-        expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+        registrationMetadataOf[tokenId].expiryTs = uint40(block.timestamp + REGISTRATION_PERIOD);
 
-        emit Renew(tokenId, expiryOf[tokenId]);
+        emit Renew(tokenId, uint256(registrationMetadataOf[tokenId].expiryTs));
 
         uint256 overpayment;
 
@@ -569,7 +574,7 @@ contract NameRegistry is
      */
     function bid(address to, uint256 tokenId, address recovery) external payable {
         // Check that the tokenID was previously registered
-        uint256 expiryTs = expiryOf[tokenId];
+        uint256 expiryTs = uint256(registrationMetadataOf[tokenId].expiryTs);
         if (expiryTs == 0) revert Registrable();
 
         uint256 auctionStartTimestamp;
@@ -639,11 +644,11 @@ contract NameRegistry is
         _transfer(super.ownerOf(tokenId), to, tokenId);
 
         unchecked {
-            // Safety: expiryOf will not overflow given the expected sizes of block.timestamp
-            expiryOf[tokenId] = block.timestamp + REGISTRATION_PERIOD;
+            // Safety: expiry will not overflow given the expected sizes of block.timestamp
+            registrationMetadataOf[tokenId].expiryTs = uint40(block.timestamp + REGISTRATION_PERIOD);
         }
 
-        recoveryOf[tokenId] = recovery;
+        registrationMetadataOf[tokenId].recovery = recovery;
 
         uint256 overpayment;
 
@@ -670,7 +675,7 @@ contract NameRegistry is
      * @param tokenId The uint256 representation of the fname to check
      */
     function ownerOf(uint256 tokenId) public view override returns (address) {
-        uint256 expiryTs = expiryOf[tokenId];
+        uint256 expiryTs = uint256(registrationMetadataOf[tokenId].expiryTs);
 
         if (expiryTs != 0 && block.timestamp >= expiryTs) revert Expired();
 
@@ -690,10 +695,10 @@ contract NameRegistry is
      * @param tokenId The uint256 representation of the fname to transfer
      */
     function transferFrom(address from, address to, uint256 tokenId) public override {
-        uint256 expiryTs = expiryOf[tokenId];
+        uint256 expiryTs = uint256(registrationMetadataOf[tokenId].expiryTs);
 
         // Expired names should not be transferrable by the previous owner
-        if (expiryTs != 0 && block.timestamp >= expiryOf[tokenId]) revert Expired();
+        if (expiryTs != 0 && block.timestamp >= uint256(registrationMetadataOf[tokenId].expiryTs)) revert Expired();
 
         super.transferFrom(from, to, tokenId);
     }
@@ -707,10 +712,10 @@ contract NameRegistry is
      * @param data     Additional data with no specified format, sent in call to `to`
      */
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public override {
-        uint256 expiryTs = expiryOf[tokenId];
+        uint256 expiryTs = uint256(registrationMetadataOf[tokenId].expiryTs);
 
         // Expired names should not be transferrable by the previous owner
-        if (expiryTs != 0 && block.timestamp >= expiryOf[tokenId]) revert Expired();
+        if (expiryTs != 0 && block.timestamp >= uint256(registrationMetadataOf[tokenId].expiryTs)) revert Expired();
 
         super.safeTransferFrom(from, to, tokenId, data);
     }
@@ -774,8 +779,8 @@ contract NameRegistry is
         super._afterTokenTransfer(from, to, tokenId);
 
         // Checking state before clearing is more gas-efficient than always clearing
-        if (recoveryClockOf[tokenId] != 0) delete recoveryClockOf[tokenId];
-        delete recoveryOf[tokenId];
+        if (recoveryMetadataOf[tokenId].recoveryTs != 0) delete recoveryMetadataOf[tokenId].recoveryTs;
+        delete registrationMetadataOf[tokenId].recovery;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -789,9 +794,9 @@ contract NameRegistry is
      * the request during escrow, the recoveryAddress can then transfer the fname. The custody
      * address can remove or change the recovery address at any time.
      *
-     * INVARIANT 3: Changing ownerOf must set recoveryOf to address(0) and recoveryClockOf[id] to 0
+     * INVARIANT 3: Changing ownerOf must set recovery to address(0) and recoveryTs[id] to 0
      *
-     * INVARIANT 4: If recoveryClockOf is non-zero, then recoveryDestinationOf is a non-zero address.
+     * INVARIANT 4: If recoveryTs is non-zero, then recoveryDestination is a non-zero address.
      */
 
     /**
@@ -804,11 +809,11 @@ contract NameRegistry is
     function changeRecoveryAddress(uint256 tokenId, address recovery) external whenNotPaused {
         if (ownerOf(tokenId) != _msgSender()) revert Unauthorized();
 
-        recoveryOf[tokenId] = recovery;
+        registrationMetadataOf[tokenId].recovery = recovery;
 
         // Perf: clear any active recovery requests, but check if they exist before deleting
         // because this usually already zero
-        if (recoveryClockOf[tokenId] != 0) delete recoveryClockOf[tokenId];
+        if (recoveryMetadataOf[tokenId].recoveryTs != 0) delete recoveryMetadataOf[tokenId].recoveryTs;
 
         emit ChangeRecoveryAddress(tokenId, recovery);
     }
@@ -825,16 +830,16 @@ contract NameRegistry is
         if (to == address(0)) revert InvalidRecovery();
 
         // Invariant 3 ensures that a request cannot be made after ownership change without consent
-        if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
+        if (_msgSender() != registrationMetadataOf[tokenId].recovery) revert Unauthorized();
 
         // Perf: don't check if in renewable or biddable state since it saves gas and
         // completeRecovery will revert when it runs
 
         // Track when the escrow period started
-        recoveryClockOf[tokenId] = block.timestamp;
+        recoveryMetadataOf[tokenId].recoveryTs = uint40(block.timestamp);
 
         // Store the final destination so that it cannot be modified unless completed or cancelled
-        recoveryDestinationOf[tokenId] = to;
+        recoveryMetadataOf[tokenId].recoveryDestination = to;
 
         // Perf: Gas costs can be reduced by omitting the from param, at the cost of breaking
         // compatibility with the IdRegistry's RequestRecovery event
@@ -849,12 +854,12 @@ contract NameRegistry is
      * @param tokenId The uint256 representation of the fname
      */
     function completeRecovery(uint256 tokenId) external {
-        if (block.timestamp >= expiryOf[tokenId]) revert Expired();
+        if (block.timestamp >= uint256(registrationMetadataOf[tokenId].expiryTs)) revert Expired();
 
         // Invariant 3 ensures that a request cannot be completed after ownership change without consent
-        if (_msgSender() != recoveryOf[tokenId]) revert Unauthorized();
+        if (_msgSender() != registrationMetadataOf[tokenId].recovery) revert Unauthorized();
 
-        uint256 _recoveryClock = recoveryClockOf[tokenId];
+        uint256 _recoveryClock = recoveryMetadataOf[tokenId].recoveryTs;
         if (_recoveryClock == 0) revert NoRecovery();
 
         unchecked {
@@ -863,7 +868,7 @@ contract NameRegistry is
         }
 
         // Assumption: Invariant 4 prevents this from going to address(0).
-        _transfer(ownerOf(tokenId), recoveryDestinationOf[tokenId], tokenId);
+        _transfer(ownerOf(tokenId), recoveryMetadataOf[tokenId].recoveryDestination, tokenId);
     }
 
     /**
@@ -878,13 +883,15 @@ contract NameRegistry is
 
         // Perf: super.ownerOf is called instead of ownerOf since cancellation has no undesirable
         // side effects when expired and it saves some gas.
-        if (sender != super.ownerOf(tokenId) && sender != recoveryOf[tokenId]) revert Unauthorized();
+        if (sender != super.ownerOf(tokenId) && sender != registrationMetadataOf[tokenId].recovery) {
+            revert Unauthorized();
+        }
 
         // Check if there is a recovery to avoid emitting incorrect CancelRecovery events
-        if (recoveryClockOf[tokenId] == 0) revert NoRecovery();
+        if (recoveryMetadataOf[tokenId].recoveryTs == 0) revert NoRecovery();
 
         // Clear the recovery request so that it cannot be completed
-        delete recoveryClockOf[tokenId];
+        delete recoveryMetadataOf[tokenId].recoveryTs;
 
         emit CancelRecovery(sender, tokenId);
     }
@@ -910,7 +917,7 @@ contract NameRegistry is
         for (uint256 i = 0; i < reclaimActionsLength;) {
             uint256 tokenId = reclaimActions[i].tokenId;
 
-            uint256 _expiry = expiryOf[tokenId];
+            uint256 _expiry = uint256(registrationMetadataOf[tokenId].expiryTs);
 
             // If an fname hasn't been minted, it should be minted instead of reclaimed
             if (_expiry == 0) revert Registrable();
@@ -921,7 +928,7 @@ contract NameRegistry is
 
             // If an fname expires in the near future, extend its registration by the renewal period
             if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
-                expiryOf[tokenId] = block.timestamp + RENEWAL_PERIOD;
+                registrationMetadataOf[tokenId].expiryTs = uint40(block.timestamp + RENEWAL_PERIOD);
             }
             unchecked {
                 // Safety: i can never overflow because length is guaranteed to be <= reclaimActions.length
