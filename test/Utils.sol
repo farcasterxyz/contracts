@@ -65,7 +65,7 @@ contract NameRegistryHarness is NameRegistry {
 
     /// @dev Get the recovery timestamp for a tokenId
     function recoveryTsOf(uint256 tokenId) public view returns (uint256) {
-        return uint256(recoveryStateOf[tokenId].recoveryTs);
+        return uint256(recoveryStateOf[tokenId].timestamp);
     }
 }
 
