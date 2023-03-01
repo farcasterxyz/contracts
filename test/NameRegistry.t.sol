@@ -1689,7 +1689,7 @@ contract NameRegistryTest is Test {
         uint256 requestTs = _requestRecovery(alice, recovery);
 
         vm.prank(bob);
-        vm.expectRevert("ERC721: caller is not token owner nor approved");
+        vm.expectRevert("ERC721: caller is not token owner or approved");
         nameRegistry.safeTransferFrom(alice, bob, ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
@@ -1886,7 +1886,7 @@ contract NameRegistryTest is Test {
         uint256 requestTs = _requestRecovery(alice, recovery);
 
         vm.prank(bob);
-        vm.expectRevert("ERC721: caller is not token owner nor approved");
+        vm.expectRevert("ERC721: caller is not token owner or approved");
         nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
 
         assertEq(nameRegistry.balanceOf(alice), 1);

@@ -774,15 +774,20 @@ contract NameRegistry is
     /**
      * @dev Hook that ensures that token transfers cannot occur when the contract is paused.
      */
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override whenNotPaused {
-        super._beforeTokenTransfer(from, to, tokenId);
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256 batchSize
+    ) internal override whenNotPaused {
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
 
     /**
      * @dev Hook that ensures that recovery state and address is reset whenever a transfer occurs.
      */
-    function _afterTokenTransfer(address from, address to, uint256 tokenId) internal override {
-        super._afterTokenTransfer(from, to, tokenId);
+    function _afterTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize) internal override {
+        super._afterTokenTransfer(from, to, tokenId, batchSize);
         delete recoveryStateOf[tokenId];
         delete metadataOf[tokenId].recovery;
     }
