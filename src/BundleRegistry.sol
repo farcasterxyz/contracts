@@ -56,9 +56,6 @@ contract BundleRegistry is Ownable {
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev The default homeUrl value for the IdRegistry call, to be used until Hubs are launched
-    string internal constant DEFAULT_URL = "https://www.farcaster.xyz/";
-
     /**
      * @notice Configure the addresses of the Registry contracts and the trusted caller which is
      *        allowed to register during the bootstrap phase.
@@ -77,15 +74,9 @@ contract BundleRegistry is Ownable {
      * @notice Register an fid and an fname during the final Mainnet phase, where registration is
      *         open to everyone.
      */
-    function register(
-        address to,
-        address recovery,
-        string calldata url,
-        bytes16 username,
-        bytes32 secret
-    ) external payable {
+    function register(address to, address recovery, bytes16 username, bytes32 secret) external payable {
         // Audit: is it possible to end up in a state where one passes but the other fails?
-        idRegistry.register(to, recovery, url);
+        idRegistry.register(to, recovery);
 
         nameRegistry.register{value: msg.value}(username, to, secret, recovery);
 
@@ -102,17 +93,12 @@ contract BundleRegistry is Ownable {
      *         the fid is available to all, but registration of the fname can only be performed by
      *         the Farcaster Bootstrap Server (trustedCaller)
      */
-    function partialTrustedRegister(
-        address to,
-        address recovery,
-        string calldata url,
-        bytes16 username
-    ) external payable {
+    function partialTrustedRegister(address to, address recovery, bytes16 username) external payable {
         // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Audit: is it possible to end up in a state where one passes but the other fails?
-        idRegistry.register(to, recovery, url);
+        idRegistry.register(to, recovery);
         nameRegistry.trustedRegister(username, to, recovery);
     }
 
@@ -120,26 +106,26 @@ contract BundleRegistry is Ownable {
      * @notice Register an fid and an fname during the Goerli phase, where registration can only be
      *         performed by the Farcaster Bootstrap Server (trustedCaller)
      */
-    function trustedRegister(address to, address recovery, string calldata url, bytes16 username) external payable {
+    function trustedRegister(address to, address recovery, bytes16 username) external payable {
         // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Audit: is it possible to end up in a state where one passes but the other fails?
-        idRegistry.trustedRegister(to, recovery, url);
+        idRegistry.trustedRegister(to, recovery);
         nameRegistry.trustedRegister(username, to, recovery);
     }
 
     /**
      * @notice Register multiple fids and fname during a migration to a new network, where
      *         registration can only be performed by the Farcaster Bootstrap Server (trustedCaller).
-     *         Recovery address and homeUrl are initialized to default values during this migration.
+     *         Recovery address is initialized to default value during this migration.
      */
     function trustedBatchRegister(BatchUser[] calldata users) external {
         // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         for (uint256 i = 0; i < users.length; i++) {
-            idRegistry.trustedRegister(users[i].to, address(0), DEFAULT_URL);
+            idRegistry.trustedRegister(users[i].to, address(0));
             nameRegistry.trustedRegister(users[i].username, users[i].to, address(0));
         }
     }
