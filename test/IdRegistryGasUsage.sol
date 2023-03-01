@@ -13,7 +13,6 @@ contract IdRegistryGasUsageTest is Test {
     address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     address constant TRUSTED_SENDER = address(0x123);
     address constant RECOVERY = address(0x6D1217BD164119E2ddE6ce1723879844FD73114e);
-    string url = "https://farcaster.xyz";
 
     function setUp() public {
         idRegistry = new IdRegistryHarness(FORWARDER);
@@ -28,7 +27,7 @@ contract IdRegistryGasUsageTest is Test {
         for (uint256 i = 0; i < 15; i++) {
             // Register the name
             address alice = address(uint160(i));
-            idRegistry.register(alice, RECOVERY, url);
+            idRegistry.register(alice, RECOVERY);
             assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
 
             // Requesting a recovery should be done multiple times to get a good median value,
@@ -57,7 +56,7 @@ contract IdRegistryGasUsageTest is Test {
         for (uint256 i = 0; i < 25; i++) {
             address alice = address(uint160(i));
             vm.prank(TRUSTED_SENDER);
-            idRegistry.trustedRegister(alice, address(0), url);
+            idRegistry.trustedRegister(alice, address(0));
             assertEq(idRegistry.idOf(alice), i + 1);
         }
     }

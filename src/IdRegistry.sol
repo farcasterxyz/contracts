@@ -67,9 +67,8 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param to       The custody address that owns the fid
      * @param id       The fid that was registered.
      * @param recovery The address that can initiate a recovery request for the fid
-     * @param url      The home url of the fid
      */
-    event Register(address indexed to, uint256 indexed id, address recovery, string url);
+    event Register(address indexed to, uint256 indexed id, address recovery);
 
     /**
      * @dev Emit an event when a Farcaster ID is transferred to a new custody address.
@@ -79,14 +78,6 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param id   The fid that was transferred.
      */
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
-
-    /**
-     * @dev Emit an event when a Farcaster ID's home url is updated
-     *
-     * @param id  The fid whose home url was updated.
-     * @param url The new home url.
-     */
-    event ChangeHome(uint256 indexed id, string url);
 
     /**
      * @dev Emit an event when a Farcaster ID's recovery address is updated
@@ -190,22 +181,22 @@ contract IdRegistry is ERC2771Context, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Register a new, unique Farcaster ID (fid) for an address that doesn't have one. This
-     *        method can be called by anyone when trustedOnly is set to 0.
+     * @notice Register a new, unique Farcaster ID (fid) to an address that doesn't have one during
+     *         the seedable phase.
      *
-     * @param to       The address which will control the fid
-     * @param recovery The address which can recover the fid
-     * @param url      The home url for the fid's off-chain data
+     * @param to       Address which will own the fid
+     * @param recovery Address which can recover the fid
      */
-    function register(address to, address recovery, string calldata url) external {
+    function register(address to, address recovery) external {
         // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
 
+        // Do not allow general registration during the seed phase
         if (trustedOnly == 1) revert Seedable();
 
         _unsafeRegister(to, recovery);
 
-        // Perf: instead of returning the id from _unsafeRegister, fetch the latest value of idCounter
-        emit Register(to, idCounter, recovery, url);
+        // Perf: return idCounter instead of the return value from _unsafeRegister()
+        emit Register(to, idCounter, recovery);
     }
 
     /**
@@ -214,9 +205,8 @@ contract IdRegistry is ERC2771Context, Ownable {
      *
      * @param to       The address which will control the fid
      * @param recovery The address which can recover the fid
-     * @param url      The home url for the fid's off-chain data
      */
-    function trustedRegister(address to, address recovery, string calldata url) external {
+    function trustedRegister(address to, address recovery) external {
         // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
 
         if (trustedOnly == 0) revert Registrable();
@@ -228,20 +218,7 @@ contract IdRegistry is ERC2771Context, Ownable {
         _unsafeRegister(to, recovery);
 
         // Assumption: the most recent value of the idCounter must equal the id of this user
-        emit Register(to, idCounter, recovery, url);
-    }
-
-    /**
-     * @notice Emit an event with a new home url if the caller owns an fid. This function supports
-     *         ERC 2771 meta-transactions and can be called via a relayer.
-     *
-     * @param url The new home url for the fid
-     */
-    function changeHome(string calldata url) external {
-        uint256 id = idOf[_msgSender()];
-        if (id == 0) revert HasNoId();
-
-        emit ChangeHome(id, url);
+        emit Register(to, idCounter, recovery);
     }
 
     /**

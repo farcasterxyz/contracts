@@ -19,7 +19,7 @@ contract MetaTxTest is Test {
     NameRegistry nameRegistry;
     MinimalForwarder forwarder;
 
-    event Register(address indexed to, uint256 indexed id, address recovery, string url);
+    event Register(address indexed to, uint256 indexed id, address recovery);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -99,7 +99,7 @@ contract MetaTxTest is Test {
             // the gas limit that should be used for the call
             gas: 100_000,
             // the call data that should be forwarded to the contract
-            data: abi.encodeWithSelector(bytes4(keccak256("register(address,address,string)")), alice, recovery, "")
+            data: abi.encodeWithSelector(bytes4(keccak256("register(address,address)")), alice, recovery)
         });
 
         bytes memory signature = _signReq(req, alicePrivateKey);
@@ -107,7 +107,7 @@ contract MetaTxTest is Test {
         // 4. Have the relayer call the contract and check that the name is registered to alice.
         vm.prank(relayer);
         vm.expectEmit(true, true, true, true);
-        emit Register(alice, 1, recovery, "");
+        emit Register(alice, 1, recovery);
         forwarder.execute(req, signature);
         assertEq(idRegistry.idOf(alice), 1);
     }

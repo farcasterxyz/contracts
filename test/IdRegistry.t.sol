@@ -16,9 +16,8 @@ contract IdRegistryTest is Test {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Register(address indexed to, uint256 indexed id, address recovery, string url);
+    event Register(address indexed to, uint256 indexed id, address recovery);
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
-    event ChangeHome(uint256 indexed id, string url);
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
     event CancelRecovery(address indexed by, uint256 indexed id);
@@ -46,7 +45,7 @@ contract IdRegistryTest is Test {
                              REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzRegister(address alice, address bob, address recovery, string calldata url) public {
+    function testFuzzRegister(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         assertEq(idRegistry.getIdCounter(), 0);
 
@@ -54,45 +53,35 @@ contract IdRegistryTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit Register(bob, 1, recovery, url);
-        idRegistry.register(bob, recovery, url);
+        emit Register(bob, 1, recovery);
+        idRegistry.register(bob, recovery);
 
         assertEq(idRegistry.getIdCounter(), 1);
         assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testFuzzCannotRegisterIfTrustedCallerOnly(
-        address alice,
-        address bob,
-        address recovery,
-        string calldata url
-    ) public {
+    function testFuzzCannotRegisterIfTrustedCallerOnly(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         assertEq(idRegistry.getIdCounter(), 0);
 
         vm.prank(alice);
         vm.expectRevert(IdRegistry.Seedable.selector);
-        idRegistry.register(bob, recovery, url);
+        idRegistry.register(bob, recovery);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testFuzzCannotRegisterToAnAddressThatOwnsAnID(
-        address alice,
-        address bob,
-        address recovery,
-        string calldata url
-    ) public {
+    function testFuzzCannotRegisterToAnAddressThatOwnsAnID(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER);
         _register(alice, address(0));
         assertEq(idRegistry.getIdCounter(), 1);
 
         vm.prank(bob);
         vm.expectRevert(IdRegistry.HasId.selector);
-        idRegistry.register(alice, recovery, url);
+        idRegistry.register(alice, recovery);
 
         assertEq(idRegistry.getIdCounter(), 1);
         assertEq(idRegistry.idOf(alice), 1);
@@ -103,20 +92,15 @@ contract IdRegistryTest is Test {
                          TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzTrustedRegister(
-        address alice,
-        address trustedCaller,
-        address recovery,
-        string calldata url
-    ) public {
+    function testFuzzTrustedRegister(address alice, address trustedCaller, address recovery) public {
         vm.assume(trustedCaller != FORWARDER && recovery != FORWARDER);
         idRegistry.changeTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
 
         vm.prank(trustedCaller);
         vm.expectEmit(true, true, true, true);
-        emit Register(alice, 1, recovery, url);
-        idRegistry.trustedRegister(alice, recovery, url);
+        emit Register(alice, 1, recovery);
+        idRegistry.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.getIdCounter(), 1);
         assertEq(idRegistry.idOf(alice), 1);
@@ -126,15 +110,14 @@ contract IdRegistryTest is Test {
     function testFuzzCannotTrustedRegisterUnlessTrustedCallerOnly(
         address alice,
         address trustedCaller,
-        address recovery,
-        string calldata url
+        address recovery
     ) public {
         vm.assume(trustedCaller != FORWARDER && recovery != FORWARDER);
         idRegistry.disableTrustedOnly();
 
         vm.prank(trustedCaller);
         vm.expectRevert(IdRegistry.Registrable.selector);
-        idRegistry.trustedRegister(alice, recovery, url);
+        idRegistry.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(alice), 0);
@@ -145,8 +128,7 @@ contract IdRegistryTest is Test {
         address alice,
         address trustedCaller,
         address untrustedCaller,
-        address recovery,
-        string calldata url
+        address recovery
     ) public {
         vm.assume(untrustedCaller != FORWARDER && recovery != FORWARDER);
         vm.assume(untrustedCaller != trustedCaller);
@@ -154,7 +136,7 @@ contract IdRegistryTest is Test {
 
         vm.prank(untrustedCaller);
         vm.expectRevert(IdRegistry.Unauthorized.selector);
-        idRegistry.trustedRegister(alice, recovery, url);
+        idRegistry.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(alice), 0);
@@ -164,45 +146,22 @@ contract IdRegistryTest is Test {
     function testFuzzCannotTrustedRegisterToAnAddressThatOwnsAnID(
         address alice,
         address trustedCaller,
-        address recovery,
-        string calldata url
+        address recovery
     ) public {
         vm.assume(trustedCaller != FORWARDER);
         idRegistry.changeTrustedCaller(trustedCaller);
 
         vm.prank(trustedCaller);
-        idRegistry.trustedRegister(alice, address(0), url);
+        idRegistry.trustedRegister(alice, address(0));
         assertEq(idRegistry.getIdCounter(), 1);
 
         vm.prank(trustedCaller);
         vm.expectRevert(IdRegistry.HasId.selector);
-        idRegistry.trustedRegister(alice, recovery, url);
+        idRegistry.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.getIdCounter(), 1);
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                               HOME TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzChangeHome(address alice, address recovery, string calldata url) public {
-        vm.assume(alice != FORWARDER);
-        _register(alice, recovery);
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit ChangeHome(1, url);
-        idRegistry.changeHome(url);
-    }
-
-    function testFuzzCannotChangeHomeWithoutId(address alice, string calldata url) public {
-        vm.assume(alice != FORWARDER);
-
-        vm.prank(alice);
-        vm.expectRevert(IdRegistry.HasNoId.selector);
-        idRegistry.changeHome(url);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -819,6 +778,6 @@ contract IdRegistryTest is Test {
     function _register(address alice, address bob) internal {
         idRegistry.disableTrustedOnly();
         vm.prank(alice);
-        idRegistry.register(alice, bob, "");
+        idRegistry.register(alice, bob);
     }
 }

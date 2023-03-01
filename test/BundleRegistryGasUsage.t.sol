@@ -32,8 +32,6 @@ contract BundleRegistryGasUsageTest is Test {
 
     address constant RECOVERY = address(0x456);
 
-    string constant URL = "https://farcaster.xyz";
-
     bytes16[10] names =
         [bytes16("alice"), "bob11", "carol", "dave1", "eve11", "frank", "georg", "harry", "ian11", "jane1"]; // padded to all be length 5
 
@@ -83,7 +81,7 @@ contract BundleRegistryGasUsageTest is Test {
             vm.warp(registerTs);
             uint256 balance = alice.balance;
             vm.prank(alice);
-            bundleRegistry.register{value: 0.01 ether}(alice, RECOVERY, URL, name, "secret");
+            bundleRegistry.register{value: 0.01 ether}(alice, RECOVERY, name, "secret");
             (address recovery, uint40 expiryTs) = nameRegistry.metadataOf(nameTokenId);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
@@ -107,7 +105,7 @@ contract BundleRegistryGasUsageTest is Test {
 
             // 3. Register the name alice
             vm.warp(block.timestamp + 60 seconds);
-            bundleRegistry.trustedRegister(alice, RECOVERY, URL, name);
+            bundleRegistry.trustedRegister(alice, RECOVERY, name);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             (address recovery, uint40 expiryTs) = nameRegistry.metadataOf(nameTokenId);
