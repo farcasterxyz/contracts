@@ -89,7 +89,7 @@ contract NameRegistryTest is Test {
 
     bytes16[] fnames = [bytes16("alice"), bytes16("bob"), bytes16("carol"), bytes16("dan")];
 
-    uint256[] tokenIds = [ALICE_TOKEN_ID, BOB_TOKEN_ID, CAROL_TOKEN_ID, DAN_TOKEN_ID];
+    uint256[] TOKEN_IDS = [ALICE_TOKEN_ID, BOB_TOKEN_ID, CAROL_TOKEN_ID, DAN_TOKEN_ID];
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -2656,29 +2656,21 @@ contract NameRegistryTest is Test {
         _grant(MODERATOR_ROLE, mod);
 
         for (uint256 i = 0; i < fnames.length; i++) {
-            _requestRecovery(users[i], tokenIds[i], recoveryAddresses[i]);
+            _requestRecovery(users[i], TOKEN_IDS[i], recoveryAddresses[i]);
         }
 
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
         for (uint256 i = 0; i < users.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+            reclaimActions[i] = NameRegistry.ReclaimAction(TOKEN_IDS[i], destinations[i]);
             vm.expectEmit(true, true, true, true);
-            emit Transfer(users[i], destinations[i], tokenIds[i]);
+            emit Transfer(users[i], destinations[i], TOKEN_IDS[i]);
         }
 
         vm.prank(mod);
         nameRegistry.reclaim(reclaimActions);
 
-        for (uint256 i = 0; i < users.length; i++) {
-            assertEq(nameRegistry.balanceOf(users[i]), 0);
-            assertEq(nameRegistry.balanceOf(destinations[i]), 1);
-            assertEq(nameRegistry.expiryTsOf(tokenIds[i]), renewalTs);
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
-            assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
-            assertEq(nameRegistry.recoveryTsOf(tokenIds[i]), 0);
-            assertEq(nameRegistry.recoveryDestinationOf(tokenIds[i]), address(0));
-        }
+        _assertBatchReclaimSuccess(users, destinations, renewalTs);
     }
 
     function testFuzzReclaimRegisteredNamesCloseToExpiryShouldExtend(
@@ -2704,7 +2696,7 @@ contract NameRegistryTest is Test {
         _grant(MODERATOR_ROLE, mod);
 
         for (uint256 i = 0; i < fnames.length; i++) {
-            _requestRecovery(users[i], tokenIds[i], recovery);
+            _requestRecovery(users[i], TOKEN_IDS[i], recovery);
         }
 
         // Fast forward to just before the renewals expire
@@ -2712,9 +2704,9 @@ contract NameRegistryTest is Test {
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
         for (uint256 i = 0; i < users.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+            reclaimActions[i] = NameRegistry.ReclaimAction(TOKEN_IDS[i], destinations[i]);
             vm.expectEmit(true, true, true, true);
-            emit Transfer(users[i], destinations[i], tokenIds[i]);
+            emit Transfer(users[i], destinations[i], TOKEN_IDS[i]);
         }
         vm.prank(mod);
         nameRegistry.reclaim(reclaimActions);
@@ -2722,15 +2714,7 @@ contract NameRegistryTest is Test {
         // reclaim should extend the expiry ahead of the current timestamp
         uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
 
-        for (uint256 i = 0; i < users.length; i++) {
-            assertEq(nameRegistry.balanceOf(users[i]), 0);
-            assertEq(nameRegistry.balanceOf(destinations[i]), 1);
-            assertEq(nameRegistry.expiryTsOf(tokenIds[i]), expectedExpiryTs);
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
-            assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
-            assertEq(nameRegistry.recoveryTsOf(tokenIds[i]), 0);
-            assertEq(nameRegistry.recoveryDestinationOf(tokenIds[i]), address(0));
-        }
+        _assertBatchReclaimSuccess(users, destinations, expectedExpiryTs);
     }
 
     function testFuzzReclaimExpiredNames(
@@ -2756,16 +2740,16 @@ contract NameRegistryTest is Test {
         _grant(MODERATOR_ROLE, mod);
 
         for (uint256 i = 0; i < fnames.length; i++) {
-            _requestRecovery(users[i], tokenIds[i], recovery);
+            _requestRecovery(users[i], TOKEN_IDS[i], recovery);
         }
 
         vm.warp(renewableTs);
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
         for (uint256 i = 0; i < users.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+            reclaimActions[i] = NameRegistry.ReclaimAction(TOKEN_IDS[i], destinations[i]);
             vm.expectEmit(true, true, true, true);
-            emit Transfer(users[i], destinations[i], tokenIds[i]);
+            emit Transfer(users[i], destinations[i], TOKEN_IDS[i]);
         }
         vm.prank(mod);
         nameRegistry.reclaim(reclaimActions);
@@ -2773,15 +2757,7 @@ contract NameRegistryTest is Test {
         // reclaim should extend the expiry ahead of the current timestamp
         uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
 
-        for (uint256 i = 0; i < users.length; i++) {
-            assertEq(nameRegistry.balanceOf(users[i]), 0);
-            assertEq(nameRegistry.balanceOf(destinations[i]), 1);
-            assertEq(nameRegistry.expiryTsOf(tokenIds[i]), expectedExpiryTs);
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
-            assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
-            assertEq(nameRegistry.recoveryTsOf(tokenIds[i]), 0);
-            assertEq(nameRegistry.recoveryDestinationOf(tokenIds[i]), address(0));
-        }
+        _assertBatchReclaimSuccess(users, destinations, expectedExpiryTs);
     }
 
     function testFuzzReclaimBiddableNames(
@@ -2807,16 +2783,16 @@ contract NameRegistryTest is Test {
         _grant(MODERATOR_ROLE, ADMIN);
 
         for (uint256 i = 0; i < fnames.length; i++) {
-            _requestRecovery(users[i], tokenIds[i], recovery);
+            _requestRecovery(users[i], TOKEN_IDS[i], recovery);
         }
 
         vm.warp(biddableTs);
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
         for (uint256 i = 0; i < users.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+            reclaimActions[i] = NameRegistry.ReclaimAction(TOKEN_IDS[i], destinations[i]);
             vm.expectEmit(true, true, true, true);
-            emit Transfer(users[i], destinations[i], tokenIds[i]);
+            emit Transfer(users[i], destinations[i], TOKEN_IDS[i]);
         }
         vm.prank(ADMIN);
         nameRegistry.reclaim(reclaimActions);
@@ -2824,15 +2800,7 @@ contract NameRegistryTest is Test {
         // reclaim should extend the expiry ahead of the current timestamp
         uint256 expectedExpiryTs = block.timestamp + RENEWAL_PERIOD;
 
-        for (uint256 i = 0; i < users.length; i++) {
-            assertEq(nameRegistry.balanceOf(users[i]), 0);
-            assertEq(nameRegistry.balanceOf(destinations[i]), 1);
-            assertEq(nameRegistry.expiryTsOf(tokenIds[i]), expectedExpiryTs);
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), destinations[i]);
-            assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
-            assertEq(nameRegistry.recoveryTsOf(tokenIds[i]), 0);
-            assertEq(nameRegistry.recoveryDestinationOf(tokenIds[i]), address(0));
-        }
+        _assertBatchReclaimSuccess(users, destinations, expectedExpiryTs);
     }
 
     function testFuzzReclaimResetsERC721Approvals(
@@ -2856,19 +2824,19 @@ contract NameRegistryTest is Test {
 
         for (uint256 i = 0; i < users.length; i++) {
             vm.prank(users[i]);
-            nameRegistry.approve(approveUsers[i], tokenIds[i]);
+            nameRegistry.approve(approveUsers[i], TOKEN_IDS[i]);
         }
 
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
         for (uint256 i = 0; i < users.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+            reclaimActions[i] = NameRegistry.ReclaimAction(TOKEN_IDS[i], destinations[i]);
         }
         vm.prank(ADMIN);
         nameRegistry.reclaim(reclaimActions);
 
         for (uint256 i = 0; i < users.length; i++) {
-            assertEq(nameRegistry.getApproved(tokenIds[i]), address(0));
+            assertEq(nameRegistry.getApproved(TOKEN_IDS[i]), address(0));
         }
     }
 
@@ -2894,16 +2862,13 @@ contract NameRegistryTest is Test {
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
         for (uint256 i = 0; i < users.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+            reclaimActions[i] = NameRegistry.ReclaimAction(TOKEN_IDS[i], destinations[i]);
         }
         vm.prank(ADMIN);
         vm.expectRevert("Pausable: paused");
         nameRegistry.reclaim(reclaimActions);
 
-        for (uint256 i = 0; i < users.length; i++) {
-            assertEq(nameRegistry.expiryTsOf(tokenIds[i]), renewableTs);
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
-        }
+        _assertBatchOwnership(users, TOKEN_IDS, renewableTs);
     }
 
     function testFuzzCannotReclaimIfRegistrable(address mod, address[4] calldata destinations) public {
@@ -2917,22 +2882,22 @@ contract NameRegistryTest is Test {
 
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+        for (uint256 i = 0; i < TOKEN_IDS.length; i++) {
+            reclaimActions[i] = NameRegistry.ReclaimAction(TOKEN_IDS[i], destinations[i]);
         }
 
         vm.prank(mod);
         vm.expectRevert(NameRegistry.Registrable.selector);
         nameRegistry.reclaim(reclaimActions);
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            assertEq(nameRegistry.balanceOf(destinations[i]), 0);
-            assertEq(nameRegistry.expiryTsOf(tokenIds[i]), 0);
+        address[4] memory zeroAddresses = [address(0), address(0), address(0), address(0)];
+        _assertBatchNoOwnership(destinations);
+        _assertBatchRecoveryState(TOKEN_IDS, zeroAddresses, zeroAddresses, 0);
+
+        for (uint256 i = 0; i < TOKEN_IDS.length; i++) {
+            assertEq(nameRegistry.expiryTsOf(TOKEN_IDS[i]), 0);
             vm.expectRevert("ERC721: invalid token ID");
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), address(0));
-            assertEq(nameRegistry.recoveryOf(tokenIds[i]), address(0));
-            assertEq(nameRegistry.recoveryTsOf(tokenIds[i]), 0);
-            assertEq(nameRegistry.recoveryDestinationOf(tokenIds[i]), address(0));
+            assertEq(nameRegistry.ownerOf(TOKEN_IDS[i]), address(0));
         }
     }
 
@@ -2958,28 +2923,22 @@ contract NameRegistryTest is Test {
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 recoveryTs;
         for (uint256 i = 0; i < fnames.length; i++) {
-            recoveryTs = _requestRecovery(users[i], tokenIds[i], recoveryAddresses[i]);
+            recoveryTs = _requestRecovery(users[i], TOKEN_IDS[i], recoveryAddresses[i]);
         }
 
         NameRegistry.ReclaimAction[] memory reclaimActions = new NameRegistry.ReclaimAction[](4);
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            reclaimActions[i] = NameRegistry.ReclaimAction(tokenIds[i], destinations[i]);
+        for (uint256 i = 0; i < TOKEN_IDS.length; i++) {
+            reclaimActions[i] = NameRegistry.ReclaimAction(TOKEN_IDS[i], destinations[i]);
         }
 
         vm.prank(notModerator);
         vm.expectRevert(NameRegistry.NotModerator.selector);
         nameRegistry.reclaim(reclaimActions);
 
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            assertEq(nameRegistry.balanceOf(users[i]), 1);
-            assertEq(nameRegistry.balanceOf(destinations[i]), 0);
-            assertEq(nameRegistry.expiryTsOf(tokenIds[i]), renewableTs);
-            assertEq(nameRegistry.ownerOf(tokenIds[i]), users[i]);
-            assertEq(nameRegistry.recoveryOf(tokenIds[i]), recoveryAddresses[i]);
-            assertEq(nameRegistry.recoveryTsOf(tokenIds[i]), recoveryTs);
-            assertEq(nameRegistry.recoveryDestinationOf(tokenIds[i]), recoveryAddresses[i]);
-        }
+        _assertBatchNoOwnership(destinations);
+        _assertBatchOwnership(users, TOKEN_IDS, renewableTs);
+        _assertBatchRecoveryState(TOKEN_IDS, recoveryAddresses, recoveryAddresses, recoveryTs);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -3258,5 +3217,49 @@ contract NameRegistryTest is Test {
     function _grant(bytes32 role, address target) internal {
         vm.prank(defaultAdmin);
         nameRegistry.grantRole(role, target);
+    }
+
+    function _assertBatchReclaimSuccess(
+        address[4] calldata from,
+        address[4] calldata to,
+        uint256 expectedExpiryTs
+    ) internal {
+        for (uint256 i = 0; i < from.length; i++) {
+            address[4] memory zeroAddresses = [address(0), address(0), address(0), address(0)];
+            _assertBatchNoOwnership(from);
+            _assertBatchOwnership(to, TOKEN_IDS, expectedExpiryTs);
+            _assertBatchRecoveryState(TOKEN_IDS, zeroAddresses, zeroAddresses, 0);
+        }
+    }
+
+    function _assertBatchNoOwnership(address[4] calldata addresses) internal {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            assertEq(nameRegistry.balanceOf(addresses[i]), 0);
+        }
+    }
+
+    function _assertBatchOwnership(
+        address[4] calldata addresses,
+        uint256[] memory fnameTokenIds,
+        uint256 expiryTs
+    ) internal {
+        for (uint256 i = 0; i < addresses.length; i++) {
+            assertEq(nameRegistry.balanceOf(addresses[i]), 1);
+            assertEq(nameRegistry.expiryTsOf(fnameTokenIds[i]), expiryTs);
+            assertEq(nameRegistry.ownerOf(fnameTokenIds[i]), addresses[i]);
+        }
+    }
+
+    function _assertBatchRecoveryState(
+        uint256[] memory fnameTokenIds,
+        address[4] memory recovery,
+        address[4] memory recoveryDestination,
+        uint256 recoveryTs
+    ) internal {
+        for (uint256 i = 0; i < fnameTokenIds.length; i++) {
+            assertEq(nameRegistry.recoveryOf(fnameTokenIds[i]), recovery[i]);
+            assertEq(nameRegistry.recoveryTsOf(TOKEN_IDS[i]), recoveryTs);
+            assertEq(nameRegistry.recoveryDestinationOf(TOKEN_IDS[i]), recoveryDestination[i]);
+        }
     }
 }
