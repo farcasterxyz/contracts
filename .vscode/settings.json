@@ -14,5 +14,12 @@
     "editor.defaultFormatter": "JuanBlanco.solidity"
   },
   "solidity.formatter": "forge",
-  "cSpell.words": ["curr", "Fname", "Invitable", "Pausable", "UUPS"]
+  "cSpell.words": [
+    "curr",
+    "Fname",
+    "Invitable",
+    "Pausable",
+    "UUPS"
+  ],
+  "solidity.compileUsingRemoteVersion": "v0.8.18+commit.87f61d96"
 }
