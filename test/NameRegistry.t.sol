@@ -26,7 +26,6 @@ contract NameRegistryTest is Test {
 
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
     event Renew(uint256 indexed tokenId, uint256 expiry);
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
     event ChangeRecoveryAddress(uint256 indexed tokenId, address indexed recovery);
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed tokenId);
     event CancelRecovery(address indexed by, uint256 indexed tokenId);
@@ -237,7 +236,7 @@ contract NameRegistryTest is Test {
         vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         vm.prank(alice);
-        vm.expectRevert(NameRegistry.Invitable.selector);
+        vm.expectRevert(NameRegistry.Seedable.selector);
         nameRegistry.makeCommit(commitHash);
     }
 
@@ -735,13 +734,7 @@ contract NameRegistryTest is Test {
                          REGISTER TRUSTED TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzTrustedRegister(
-        address trustedCaller,
-        address alice,
-        address recovery,
-        uint256 inviter,
-        uint256 invitee
-    ) public {
+    function testFuzzTrustedRegister(address trustedCaller, address alice, address recovery) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
         vm.warp(JAN1_2023_TS);
@@ -753,9 +746,7 @@ contract NameRegistryTest is Test {
         vm.prank(trustedCaller);
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(0), alice, ALICE_TOKEN_ID);
-        vm.expectEmit(true, true, true, true);
-        emit Invite(inviter, invitee, "alice");
-        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 1);
         assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
@@ -763,13 +754,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
-    function testFuzzCannotTrustedRegisterWhenDisabled(
-        address trustedCaller,
-        address alice,
-        address recovery,
-        uint256 inviter,
-        uint256 invitee
-    ) public {
+    function testFuzzCannotTrustedRegisterWhenDisabled(address trustedCaller, address alice, address recovery) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
         vm.warp(JAN1_2023_TS);
@@ -781,8 +766,8 @@ contract NameRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         vm.prank(trustedCaller);
-        vm.expectRevert(NameRegistry.NotInvitable.selector);
-        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
+        vm.expectRevert(NameRegistry.NotSeedable.selector);
+        nameRegistry.trustedRegister("alice", alice, recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), 0);
@@ -795,9 +780,7 @@ contract NameRegistryTest is Test {
         address trustedCaller,
         address alice,
         address recovery,
-        address recovery2,
-        uint256 inviter,
-        uint256 invitee
+        address recovery2
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
@@ -809,11 +792,11 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedOnly(), 1);
 
         vm.prank(trustedCaller);
-        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery);
 
         vm.prank(trustedCaller);
         vm.expectRevert("ERC721: token already minted");
-        nameRegistry.trustedRegister("alice", alice, recovery2, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery2);
 
         assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), block.timestamp + REGISTRATION_PERIOD);
         assertEq(nameRegistry.balanceOf(alice), 1);
@@ -825,9 +808,7 @@ contract NameRegistryTest is Test {
         address trustedCaller,
         address arbitrarySender,
         address alice,
-        address recovery,
-        uint256 inviter,
-        uint256 invitee
+        address recovery
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
@@ -840,7 +821,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(arbitrarySender);
         vm.expectRevert(NameRegistry.Unauthorized.selector);
-        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), 0);
@@ -849,13 +830,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testFuzzCannotTrustedRegisterWhenPaused(
-        address trustedCaller,
-        address alice,
-        address recovery,
-        uint256 inviter,
-        uint256 invitee
-    ) public {
+    function testFuzzCannotTrustedRegisterWhenPaused(address trustedCaller, address alice, address recovery) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
         vm.warp(JAN1_2023_TS);
@@ -870,7 +845,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(trustedCaller);
         vm.expectRevert("Pausable: paused");
-        nameRegistry.trustedRegister("alice", alice, recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", alice, recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), 0);
@@ -879,12 +854,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testFuzzCannotTrustedRegisterToZeroAddress(
-        address trustedCaller,
-        address recovery,
-        uint256 inviter,
-        uint256 invitee
-    ) public {
+    function testFuzzCannotTrustedRegisterToZeroAddress(address trustedCaller, address recovery) public {
         vm.assume(trustedCaller != FORWARDER);
         vm.warp(JAN1_2023_TS);
 
@@ -894,7 +864,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(trustedCaller);
         vm.expectRevert("ERC721: mint to the zero address");
-        nameRegistry.trustedRegister("alice", address(0), recovery, inviter, invitee);
+        nameRegistry.trustedRegister("alice", address(0), recovery);
 
         assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), 0);
         vm.expectRevert("ERC721: invalid token ID");
@@ -905,9 +875,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotTrustedRegisterWithInvalidName(
         address alice,
         address trustedCaller,
-        address recovery,
-        uint256 inviter,
-        uint256 invitee
+        address recovery
     ) public {
         vm.assume(alice != address(0));
         vm.assume(trustedCaller != FORWARDER);
@@ -919,7 +887,7 @@ contract NameRegistryTest is Test {
 
         vm.prank(trustedCaller);
         vm.expectRevert(NameRegistry.InvalidName.selector);
-        nameRegistry.trustedRegister("al}ce", alice, recovery, inviter, invitee);
+        nameRegistry.trustedRegister("al}ce", alice, recovery);
 
         assertEq(nameRegistry.balanceOf(alice), 0);
         assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), 0);
@@ -979,7 +947,7 @@ contract NameRegistryTest is Test {
         assertEq(alice.balance, amount);
     }
 
-    function testFuzzCannotRenewIfInvitable(address alice) public {
+    function testFuzzCannotRenewIfSeedable(address alice) public {
         _assumeClean(alice);
         vm.deal(alice, 1 ether);
         vm.warp(JAN1_2023_TS);
@@ -1406,7 +1374,7 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), address(0));
     }
 
-    function testFuzzCannotBidIfInvitable(address bob, address recovery) public {
+    function testFuzzCannotBidIfSeedable(address bob, address recovery) public {
         _assumeClean(bob);
 
         // Fast forward to 2022 when registrations are possible
@@ -1522,7 +1490,7 @@ contract NameRegistryTest is Test {
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
-    function testFuzzOwnerOfRevertsIfInvitableOrRegistrable() public {
+    function testFuzzOwnerOfRevertsIfSeedableOrRegistrable() public {
         vm.expectRevert("ERC721: invalid token ID");
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }

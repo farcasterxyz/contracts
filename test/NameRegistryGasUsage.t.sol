@@ -132,14 +132,11 @@ contract NameRegistryGasUsageTest is Test {
             bytes16 name = names[i];
             uint256 nameTokenId = uint256(bytes32(name));
 
-            uint256 inviterId = 5;
-            uint256 inviteeId = 6;
-
             vm.deal(alice, 10_000 ether);
             vm.warp(JAN1_2023_TS);
 
             vm.prank(TRUSTED_SENDER);
-            nameRegistry.trustedRegister(name, alice, RECOVERY, inviterId, inviteeId);
+            nameRegistry.trustedRegister(name, alice, RECOVERY);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             (address _recovery, uint256 _expiry) = nameRegistry.metadataOf(nameTokenId);

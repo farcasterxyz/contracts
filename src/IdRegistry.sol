@@ -49,7 +49,7 @@ contract IdRegistry is ERC2771Context, Ownable {
     error Registrable();
 
     /// @dev Revert if register is invoked before trustedCallerOnly is disabled
-    error Invitable();
+    error Seedable();
 
     /// @dev Revert if a recovery operation is called when there is no active recovery.
     error NoRecovery();
@@ -200,7 +200,7 @@ contract IdRegistry is ERC2771Context, Ownable {
     function register(address to, address recovery, string calldata url) external {
         // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
 
-        if (trustedOnly == 1) revert Invitable();
+        if (trustedOnly == 1) revert Seedable();
 
         _unsafeRegister(to, recovery);
 

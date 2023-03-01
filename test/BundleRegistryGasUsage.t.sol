@@ -107,7 +107,7 @@ contract BundleRegistryGasUsageTest is Test {
 
             // 3. Register the name alice
             vm.warp(block.timestamp + 60 seconds);
-            bundleRegistry.trustedRegister(alice, RECOVERY, URL, name, 1);
+            bundleRegistry.trustedRegister(alice, RECOVERY, URL, name);
 
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             (address recovery, uint40 expiryTs) = nameRegistry.metadataOf(nameTokenId);

@@ -61,7 +61,7 @@ contract BundleRegistry is Ownable {
 
     /**
      * @notice Configure the addresses of the Registry contracts and the trusted caller which is
-     *        allowed to register during the invitation phase.
+     *        allowed to register during the bootstrap phase.
      *
      * @param _idRegistry The address of the IdRegistry contract
      * @param _nameRegistry The address of the NameRegistry UUPS Proxy contract
@@ -100,55 +100,47 @@ contract BundleRegistry is Ownable {
     /**
      * @notice Register an fid and an fname during the first Mainnet phase, where registration of
      *         the fid is available to all, but registration of the fname can only be performed by
-     *         the Farcaster Invite Server (trustedCaller)
+     *         the Farcaster Bootstrap Server (trustedCaller)
      */
     function partialTrustedRegister(
         address to,
         address recovery,
         string calldata url,
-        bytes16 username,
-        uint256 inviter
+        bytes16 username
     ) external payable {
-        // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
+        // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.register(to, recovery, url);
-        nameRegistry.trustedRegister(username, to, recovery, inviter, idRegistry.idOf(to));
+        nameRegistry.trustedRegister(username, to, recovery);
     }
 
     /**
      * @notice Register an fid and an fname during the Goerli phase, where registration can only be
-     *         performed by the Farcaster Invite Server (trustedCaller)
+     *         performed by the Farcaster Bootstrap Server (trustedCaller)
      */
-    function trustedRegister(
-        address to,
-        address recovery,
-        string calldata url,
-        bytes16 username,
-        uint256 inviter
-    ) external payable {
-        // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
+    function trustedRegister(address to, address recovery, string calldata url, bytes16 username) external payable {
+        // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.trustedRegister(to, recovery, url);
-        nameRegistry.trustedRegister(username, to, recovery, inviter, idRegistry.idOf(to));
+        nameRegistry.trustedRegister(username, to, recovery);
     }
 
     /**
      * @notice Register multiple fids and fname during a migration to a new network, where
-     *         registration can only be performed by the Farcaster Invite Server (trustedCaller).
-     *         Recovery address, inviter, invitee and homeUrl are initialized to default values
-     *         during this migration.
+     *         registration can only be performed by the Farcaster Bootstrap Server (trustedCaller).
+     *         Recovery address and homeUrl are initialized to default values during this migration.
      */
     function trustedBatchRegister(BatchUser[] calldata users) external {
-        // Do not allow anyone except the Farcaster Invite Server (trustedCaller) to call this
+        // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         for (uint256 i = 0; i < users.length; i++) {
             idRegistry.trustedRegister(users[i].to, address(0), DEFAULT_URL);
-            nameRegistry.trustedRegister(users[i].username, users[i].to, address(0), 0, 0);
+            nameRegistry.trustedRegister(users[i].username, users[i].to, address(0));
         }
     }
 
