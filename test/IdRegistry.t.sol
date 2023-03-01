@@ -72,7 +72,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getIdCounter(), 0);
 
         vm.prank(alice);
-        vm.expectRevert(IdRegistry.Invitable.selector);
+        vm.expectRevert(IdRegistry.Seedable.selector);
         idRegistry.register(bob, recovery, url);
 
         assertEq(idRegistry.getIdCounter(), 0);

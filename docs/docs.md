@@ -12,7 +12,7 @@ Documentation that covers the high-level functionality of each contract in the s
 
 The ID Registry contract issues Farcaster IDs (fids) for the Farcaster network.
 
-An `fid` is a uint256 that represents a unique user of the network. Fids begin at 0 and increment by one for every new account. There is an infinite supply of fids since they can go as high as ~10^77. IDs begin in the invitable state, where they can only be registered by a pre-determined address. The owner can disable trusted registration which then allows anyone to register an fid.
+An `fid` is a uint256 that represents a unique user of the network. Fids begin at 0 and increment by one for every new account. There is an infinite supply of fids since they can go as high as ~10^77. IDs begin in the seedable state, where they can only be registered by a pre-determined address. The owner can disable trusted registration which then allows anyone to register an fid.
 
 Each address can only own a single fid at a time, but they can otherwise be freely transferred between addresses. The address that currently owns an fid is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address.
 
@@ -20,7 +20,7 @@ Each address can only own a single fid at a time, but they can otherwise be free
 
 An fid can exist in these states:
 
-- `invitable` - the fid has never been issued, and can be registered by the trusted caller
+- `seedable` - the fid has never been issued, and can be registered by the trusted caller
 - `registerable` - the fid has never been issued, and can be registered by anyone
 - `registered` - the fid has been issued to an address
 - `escrow` - a recovery request has been submitted and is pending escrow
@@ -29,8 +29,8 @@ An fid can exist in these states:
 ```mermaid
     stateDiagram-v2
         direction LR
-        invitable --> registerable: disable trusted register
-        invitable --> registered: trusted register
+        seedable --> registerable: disable trusted register
+        seedable --> registered: trusted register
         registerable --> registered: register
         registered --> registered: transfer
         registered --> escrow: request recovery
@@ -57,7 +57,7 @@ The fid state can automatically transition when certain periods of time pass:
 
 The Name Registry contract issues Farcaster names (fnames) for the Farcaster network.
 
-An `fname` is an ERC-721 token that represents a unique name like @alice. An fname can have up to 16 characters that include lowercase letters, numbers or hyphens. It should that match the regular expression `/^[a-z0-9][a-z0-9-]{0,15}$/`. The address that owns an fname is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address. Similar to IDs, Farcaster Names also begin in the invitable state, where they can only be registered by a pre-determined address. The owner can disable trusted registration which then allows anyone to register an fname.
+An `fname` is an ERC-721 token that represents a unique name like @alice. An fname can have up to 16 characters that include lowercase letters, numbers or hyphens. It should that match the regular expression `/^[a-z0-9][a-z0-9-]{0,15}$/`. The address that owns an fname is known as the `custody address`. The contract implements a [recovery system](#3-recovery-system) that protects users if they lose access to this address. Similar to IDs, Farcaster Names also begin in the seedable state, where they can only be registered by a pre-determined address. The owner can disable trusted registration which then allows anyone to register an fname.
 
 Fnames can be registered for one year by paying the registration fee, similar to domain names. Unlike most ERC-721 tokens, minting the token does not imply permanent ownership. Registration uses a two-phase commit reveal system to prevent frontrunning.
 
@@ -73,7 +73,7 @@ Fnames can be registered for one year by paying the registration fee, similar to
 
 An fname can exist in these states:
 
-- `invitable` - the name has never been minted, and can only be minted by the trusted caller
+- `seedable` - the name has never been minted, and can only be minted by the trusted caller
 - `registerable` - the name has never been minted and can be minted by anyone
 - `registered` - the name is registered to an address
 - `renewable` - the name's registration has expired and it can only be renewed by the owner
@@ -84,8 +84,8 @@ An fname can exist in these states:
 ```mermaid
     stateDiagram-v2
         direction LR
-        invitable --> registerable: disable trusted register
-        invitable --> registered: trusted register
+        seedable --> registerable: disable trusted register
+        seedable --> registered: trusted register
         registerable --> registered: register
         registered --> renewable: end(registration)
         renewable --> biddable: end(renewal)

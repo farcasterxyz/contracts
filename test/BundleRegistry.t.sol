@@ -37,8 +37,6 @@ contract BundleRegistryTest is Test {
 
     event ChangeTrustedCaller(address indexed trustedCaller, address indexed owner);
 
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
-
     event Register(address indexed to, uint256 indexed id, address recovery, string url);
 
     /*//////////////////////////////////////////////////////////////
@@ -172,7 +170,7 @@ contract BundleRegistryTest is Test {
 
         vm.deal(relayer, 1 ether);
         vm.prank(relayer);
-        vm.expectRevert(IdRegistry.Invitable.selector);
+        vm.expectRevert(IdRegistry.Seedable.selector);
         bundleRegistry.register{value: 0.01 ether}(alice, recovery, url, "alice", secret);
 
         _assertUnsuccessfulRegistration(alice);
@@ -201,7 +199,7 @@ contract BundleRegistryTest is Test {
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
-        vm.expectRevert(NameRegistry.Invitable.selector);
+        vm.expectRevert(NameRegistry.Seedable.selector);
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
 
@@ -235,13 +233,13 @@ contract BundleRegistryTest is Test {
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
-        vm.expectRevert(NameRegistry.Invitable.selector);
+        vm.expectRevert(NameRegistry.Seedable.selector);
         nameRegistry.makeCommit(commitHash);
         vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
 
         vm.deal(relayer, 1 ether);
         vm.prank(relayer);
-        vm.expectRevert(IdRegistry.Invitable.selector);
+        vm.expectRevert(IdRegistry.Seedable.selector);
         bundleRegistry.register{value: 1 ether}(alice, recovery, url, "alice", secret);
 
         _assertUnsuccessfulRegistration(alice);
@@ -254,12 +252,7 @@ contract BundleRegistryTest is Test {
                      PARTIAL TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzPartialTrustedRegister(
-        address alice,
-        address recovery,
-        string calldata url,
-        uint256 inviter
-    ) public {
+    function testFuzzPartialTrustedRegister(address alice, address recovery, string calldata url) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
@@ -268,9 +261,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
         idRegistry.disableTrustedOnly();
 
-        vm.expectEmit(true, true, true, true);
-        emit Invite(inviter, 1, "alice");
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice");
 
         _assertSuccessfulRegistration(alice, recovery);
     }
@@ -278,8 +269,7 @@ contract BundleRegistryTest is Test {
     function testFuzzCannotPartialTrustedRegisterIfBothEnabled(
         address alice,
         address recovery,
-        string calldata url,
-        uint256 inviter
+        string calldata url
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
@@ -288,8 +278,8 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
-        vm.expectRevert(IdRegistry.Invitable.selector);
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
+        vm.expectRevert(IdRegistry.Seedable.selector);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice");
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -297,8 +287,7 @@ contract BundleRegistryTest is Test {
     function testFuzzCannotPartialTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(
         address alice,
         address recovery,
-        string calldata url,
-        uint256 inviter
+        string calldata url
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
@@ -308,8 +297,8 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
-        vm.expectRevert(IdRegistry.Invitable.selector);
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
+        vm.expectRevert(IdRegistry.Seedable.selector);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice");
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -317,8 +306,7 @@ contract BundleRegistryTest is Test {
     function testFuzzCannotPartialTrustedRegisterIfBothDisabled(
         address alice,
         address recovery,
-        string calldata url,
-        uint256 inviter
+        string calldata url
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
@@ -327,8 +315,8 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
-        vm.expectRevert(NameRegistry.NotInvitable.selector);
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
+        vm.expectRevert(NameRegistry.NotSeedable.selector);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice");
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -337,7 +325,6 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
         address untrustedCaller
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
@@ -353,7 +340,7 @@ contract BundleRegistryTest is Test {
         // deployer and therefore the trusted caller for BundleRegistry
         vm.prank(untrustedCaller);
         vm.expectRevert(BundleRegistry.Unauthorized.selector);
-        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice", inviter);
+        bundleRegistry.partialTrustedRegister(alice, recovery, url, "alice");
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -362,7 +349,7 @@ contract BundleRegistryTest is Test {
                          TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzTrustedRegister(address alice, address recovery, string calldata url, uint256 inviter) public {
+    function testFuzzTrustedRegister(address alice, address recovery, string calldata url) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
@@ -370,9 +357,7 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
-        vm.expectEmit(true, true, true, true);
-        emit Invite(inviter, 1, "alice");
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice");
 
         _assertSuccessfulRegistration(alice, recovery);
     }
@@ -381,7 +366,6 @@ contract BundleRegistryTest is Test {
         address alice,
         address recovery,
         string calldata url,
-        uint256 inviter,
         address untrustedCaller
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
@@ -396,7 +380,7 @@ contract BundleRegistryTest is Test {
         // and therefore the trusted caller for BundleRegistry
         vm.prank(untrustedCaller);
         vm.expectRevert(BundleRegistry.Unauthorized.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice");
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -404,8 +388,7 @@ contract BundleRegistryTest is Test {
     function testFuzzTrustedRegisterIfIdRegistryDisabledNameRegistryEnabled(
         address alice,
         address recovery,
-        string calldata url,
-        uint256 inviter
+        string calldata url
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
@@ -416,7 +399,7 @@ contract BundleRegistryTest is Test {
         idRegistry.disableTrustedOnly();
 
         vm.expectRevert(NameRegistry.Registrable.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice");
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -424,8 +407,7 @@ contract BundleRegistryTest is Test {
     function testFuzzTrustedRegisterIfIdRegistryEnabledNameRegistryDisabled(
         address alice,
         address recovery,
-        string calldata url,
-        uint256 inviter
+        string calldata url
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
@@ -435,18 +417,13 @@ contract BundleRegistryTest is Test {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
-        vm.expectRevert(NameRegistry.NotInvitable.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
+        vm.expectRevert(NameRegistry.NotSeedable.selector);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice");
 
         _assertUnsuccessfulRegistration(alice);
     }
 
-    function testFuzzTrustedRegisterIfBothDisabled(
-        address alice,
-        address recovery,
-        string calldata url,
-        uint256 inviter
-    ) public {
+    function testFuzzTrustedRegisterIfBothDisabled(address alice, address recovery, string calldata url) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
 
         // State: Trusted registration is disabled in both registries
@@ -455,7 +432,7 @@ contract BundleRegistryTest is Test {
         nameRegistry.disableTrustedOnly();
 
         vm.expectRevert(NameRegistry.Registrable.selector);
-        bundleRegistry.trustedRegister(alice, recovery, url, "alice", inviter);
+        bundleRegistry.trustedRegister(alice, recovery, url, "alice");
 
         _assertUnsuccessfulRegistration(alice);
     }
@@ -481,18 +458,12 @@ contract BundleRegistryTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit Register(alice, 1, address(0), "https://www.farcaster.xyz/");
-        vm.expectEmit(true, true, true, true);
-        emit Invite(0, 0, "alice");
 
         vm.expectEmit(true, true, true, true);
         emit Register(bob, 2, address(0), "https://www.farcaster.xyz/");
-        vm.expectEmit(true, true, true, true);
-        emit Invite(0, 0, "bob");
 
         vm.expectEmit(true, true, true, true);
         emit Register(charlie, 3, address(0), "https://www.farcaster.xyz/");
-        vm.expectEmit(true, true, true, true);
-        emit Invite(0, 0, "charlie");
 
         bundleRegistry.trustedBatchRegister(batchArray);
 
@@ -574,7 +545,7 @@ contract BundleRegistryTest is Test {
         BundleRegistry.BatchUser[] memory batchArray = new BundleRegistry.BatchUser[](1);
         batchArray[0] = BundleRegistry.BatchUser({to: alice, username: "alice"});
 
-        vm.expectRevert(NameRegistry.NotInvitable.selector);
+        vm.expectRevert(NameRegistry.NotSeedable.selector);
         bundleRegistry.trustedBatchRegister(batchArray);
 
         _assertUnsuccessfulRegistration(alice);

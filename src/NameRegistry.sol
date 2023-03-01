@@ -105,10 +105,10 @@ contract NameRegistry is
     error Registrable();
 
     /// @dev Revert if makeCommit() is invoked before trustedCallerOnly is disabled
-    error Invitable();
+    error Seedable();
 
     /// @dev Revert if trustedRegister() is invoked after trustedCallerOnly is disabled
-    error NotInvitable();
+    error NotSeedable();
 
     /// @dev Revert if the fname being operated on is renewable or biddable
     error Expired();
@@ -139,15 +139,6 @@ contract NameRegistry is
      * @param expiry  The timestamp at which the renewal expires
      */
     event Renew(uint256 indexed tokenId, uint256 expiry);
-
-    /**
-     * @dev Emit an event when a user invites another user to register a Farcaster Name
-     *
-     * @param inviterId The fid of the user with the invite
-     * @param inviteeId The fid of the user receiving the invite
-     * @param fname     The fname that was registered by the invitee
-     */
-    event Invite(uint256 indexed inviterId, uint256 indexed inviteeId, bytes16 indexed fname);
 
     /**
      * @dev Emit an event when a Farcaster Name's recovery address is updated
@@ -225,7 +216,7 @@ contract NameRegistry is
     uint256 public fee;
 
     /**
-     * @notice The address controlled by the Farcaster Invite service that is allowed to call
+     * @notice The address controlled by the Farcaster Bootstrap service that is allowed to call
      *         trustedRegister
      * @dev    Occupies slot 1
      */
@@ -405,7 +396,7 @@ contract NameRegistry is
      * @param commit The commitment hash to be persisted on-chain
      */
     function makeCommit(bytes32 commit) external {
-        if (trustedOnly == 1) revert Invitable();
+        if (trustedOnly == 1) revert Seedable();
 
         unchecked {
             // Safety: timestampOf is always set to block.timestamp and cannot overflow here
@@ -483,25 +474,17 @@ contract NameRegistry is
     }
 
     /**
-     * @notice Mint a fname during the invitation period from the trusted caller.
+     * @notice Mint a fname during the bootstrap period from the trusted caller.
      *
      * @dev The function is pauseable since it invokes _transfer by way of _mint.
      *
      * @param to the address that will claim the fname
      * @param fname the fname to register
      * @param recovery address which can recovery the fname if the custody address is lost
-     * @param inviter the fid of the user who invited the new user to get an fname
-     * @param invitee the fid of the user who was invited to get an fname
      */
-    function trustedRegister(
-        bytes16 fname,
-        address to,
-        address recovery,
-        uint256 inviter,
-        uint256 invitee
-    ) external payable {
-        // Trusted Register can only be called during the invite period (when trustedOnly = 1)
-        if (trustedOnly == 0) revert NotInvitable();
+    function trustedRegister(bytes16 fname, address to, address recovery) external payable {
+        // Trusted Register can only be called during the bootstrap period (when trustedOnly = 1)
+        if (trustedOnly == 0) revert NotSeedable();
 
         // Call msg.sender instead of _msgSender() to prevent meta-txns and allow the function
         // to be called by BatchRegistry. This also saves ~100 gas.
@@ -521,8 +504,6 @@ contract NameRegistry is
         }
 
         metadataOf[tokenId].recovery = recovery;
-
-        emit Invite(inviter, invitee, fname);
     }
 
     /**
