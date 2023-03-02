@@ -549,7 +549,7 @@ contract BundleRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzChangeTrustedCaller(address alice) public {
-        vm.assume(alice != FORWARDER);
+        vm.assume(alice != FORWARDER && alice != address(0));
         assertEq(bundleRegistry.owner(), owner);
 
         vm.expectEmit(true, true, true, true);
@@ -558,7 +558,18 @@ contract BundleRegistryTest is Test {
         assertEq(bundleRegistry.getTrustedCaller(), alice);
     }
 
+    function testFuzzCannotChangeTrustedCallerToZeroAddress(address alice) public {
+        vm.assume(alice != FORWARDER);
+        assertEq(bundleRegistry.owner(), owner);
+
+        vm.expectRevert(BundleRegistry.InvalidAddress.selector);
+        bundleRegistry.changeTrustedCaller(address(0));
+
+        assertEq(bundleRegistry.getTrustedCaller(), owner);
+    }
+
     function testFuzzCannotChangeTrustedCallerUnlessOwner(address alice, address bob) public {
+        vm.assume(alice != FORWARDER && alice != address(0));
         vm.assume(bundleRegistry.owner() != alice);
 
         vm.prank(alice);

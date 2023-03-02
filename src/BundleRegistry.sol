@@ -26,6 +26,9 @@ contract BundleRegistry is Ownable {
     /// @dev Revert when excess funds could not be sent back to the caller
     error CallFailed();
 
+    /// @dev Revert when an invalid address is provided as input.
+    error InvalidAddress();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -77,7 +80,7 @@ contract BundleRegistry is Ownable {
     function register(address to, address recovery, bytes16 username, bytes32 secret) external payable {
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.register(to, recovery);
-
+        // Audit: is it possible to drain funds that you did not send in here?
         nameRegistry.register{value: msg.value}(username, to, secret, recovery);
 
         // Return any funds returned by the NameRegistry back to the caller
@@ -133,9 +136,11 @@ contract BundleRegistry is Ownable {
     /**
      * @notice Change the trusted caller that can call trustedRegister and partialTrustedRegister
      */
-    function changeTrustedCaller(address newTrustedCaller) external onlyOwner {
-        trustedCaller = newTrustedCaller;
-        emit ChangeTrustedCaller(newTrustedCaller, msg.sender);
+    function changeTrustedCaller(address _trustedCaller) external onlyOwner {
+        if (_trustedCaller == address(0)) revert InvalidAddress();
+
+        trustedCaller = _trustedCaller;
+        emit ChangeTrustedCaller(_trustedCaller, msg.sender);
     }
 
     // solhint-disable-next-line no-empty-blocks

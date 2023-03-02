@@ -57,6 +57,9 @@ contract IdRegistry is ERC2771Context, Ownable {
     /// @dev Revert when completeRecovery() is called before the escrow period has elapsed.
     error Escrow();
 
+    /// @dev Revert when an invalid address is provided as input.
+    error InvalidAddress();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -421,6 +424,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param _trustedCaller The address of the new trusted caller
      */
     function changeTrustedCaller(address _trustedCaller) external onlyOwner {
+        if (_trustedCaller == address(0)) revert InvalidAddress();
         trustedCaller = _trustedCaller;
         emit ChangeTrustedCaller(_trustedCaller);
     }
@@ -447,6 +451,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      *         this again with address(0).
      */
     function requestTransferOwnership(address newOwner) public onlyOwner {
+        if (newOwner == address(0)) revert InvalidAddress();
         pendingOwner = newOwner;
     }
 
