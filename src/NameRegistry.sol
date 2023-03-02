@@ -128,6 +128,9 @@ contract NameRegistry is
     /// @dev Revert if the recovery address is set to address(0).
     error InvalidRecovery();
 
+    /// @dev Revert when an invalid address is provided as input.
+    error InvalidAddress();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -947,6 +950,7 @@ contract NameRegistry is
     function changeTrustedCaller(address _trustedCaller) external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
+        if (_trustedCaller == address(0)) revert InvalidAddress();
         trustedCaller = _trustedCaller;
         emit ChangeTrustedCaller(_trustedCaller);
     }
@@ -969,6 +973,8 @@ contract NameRegistry is
     function changeVault(address _vault) external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
+        if (_vault == address(0)) revert InvalidAddress();
+
         vault = _vault;
         emit ChangeVault(_vault);
     }
@@ -981,6 +987,8 @@ contract NameRegistry is
     function changePool(address _pool) external {
         // avoid _msgSender() since meta-tx are unnecessary here and increase attack surface area
         if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
+        if (_pool == address(0)) revert InvalidAddress();
+
         pool = _pool;
         emit ChangePool(_pool);
     }

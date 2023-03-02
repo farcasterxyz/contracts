@@ -736,7 +736,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzTrustedRegister(address trustedCaller, address alice, address recovery) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedCaller != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.warp(JAN1_2023_TS);
         assertEq(nameRegistry.trustedOnly(), 1);
 
@@ -756,7 +756,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzCannotTrustedRegisterWhenDisabled(address trustedCaller, address alice, address recovery) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedCaller != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.warp(JAN1_2023_TS);
 
         vm.prank(ADMIN);
@@ -783,7 +783,7 @@ contract NameRegistryTest is Test {
         address recovery2
     ) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedCaller != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.assume(recovery != recovery2);
         vm.warp(JAN1_2023_TS);
 
@@ -811,7 +811,7 @@ contract NameRegistryTest is Test {
         address recovery
     ) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedCaller != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.assume(arbitrarySender != trustedCaller);
         assertEq(nameRegistry.trustedOnly(), 1);
         vm.warp(JAN1_2023_TS);
@@ -832,7 +832,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzCannotTrustedRegisterWhenPaused(address trustedCaller, address alice, address recovery) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedCaller != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.warp(JAN1_2023_TS);
 
         assertEq(nameRegistry.trustedOnly(), 1);
@@ -855,7 +855,7 @@ contract NameRegistryTest is Test {
     }
 
     function testFuzzCannotTrustedRegisterToZeroAddress(address trustedCaller, address recovery) public {
-        vm.assume(trustedCaller != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.warp(JAN1_2023_TS);
 
         assertEq(nameRegistry.trustedOnly(), 1);
@@ -878,7 +878,7 @@ contract NameRegistryTest is Test {
         address recovery
     ) public {
         vm.assume(alice != address(0));
-        vm.assume(trustedCaller != FORWARDER);
+        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.warp(JAN1_2023_TS);
 
         assertEq(nameRegistry.trustedOnly(), 1);
@@ -2946,7 +2946,7 @@ contract NameRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzChangeTrustedCaller(address alice) public {
-        vm.assume(alice != nameRegistry.trustedCaller());
+        vm.assume(alice != nameRegistry.trustedCaller() && alice != address(0));
 
         vm.prank(ADMIN);
         vm.expectEmit(true, true, true, true);
@@ -2956,11 +2956,22 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.trustedCaller(), alice);
     }
 
+    function testFuzzCannotChangeTrustedCallerToZeroAddr(address alice) public {
+        vm.assume(alice != nameRegistry.trustedCaller() && alice != address(0));
+        address trustedCaller = nameRegistry.trustedCaller();
+
+        vm.prank(ADMIN);
+        vm.expectRevert(NameRegistry.InvalidAddress.selector);
+        nameRegistry.changeTrustedCaller(address(0));
+
+        assertEq(nameRegistry.trustedCaller(), trustedCaller);
+    }
+
     function testFuzzCannotChangeTrustedCallerUnlessAdmin(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(alice != ADMIN);
         address trustedCaller = nameRegistry.trustedCaller();
-        vm.assume(bob != trustedCaller);
+        vm.assume(bob != trustedCaller && bob != address(0));
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
@@ -2991,6 +3002,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzChangeVault(address alice, address bob) public {
         _assumeClean(alice);
+        vm.assume(bob != address(0));
         assertEq(nameRegistry.vault(), VAULT);
         _grant(ADMIN_ROLE, alice);
 
@@ -3002,8 +3014,21 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.vault(), bob);
     }
 
+    function testFuzzCannotChangeVaultToZeroAddr(address alice) public {
+        _assumeClean(alice);
+        assertEq(nameRegistry.vault(), VAULT);
+        _grant(ADMIN_ROLE, alice);
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.InvalidAddress.selector);
+        nameRegistry.changeVault(address(0));
+
+        assertEq(nameRegistry.vault(), VAULT);
+    }
+
     function testFuzzCannotChangeVaultUnlessAdmin(address alice, address bob) public {
         _assumeClean(alice);
+        vm.assume(bob != address(0));
         assertEq(nameRegistry.vault(), VAULT);
 
         vm.prank(alice);
@@ -3015,6 +3040,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzChangePool(address alice, address bob) public {
         _assumeClean(alice);
+        vm.assume(bob != address(0));
         assertEq(nameRegistry.pool(), POOL);
         _grant(ADMIN_ROLE, alice);
 
@@ -3026,15 +3052,26 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.pool(), bob);
     }
 
+    function testFuzzCannotChangePoolToZeroAddr(address alice) public {
+        _assumeClean(alice);
+        assertEq(nameRegistry.pool(), POOL);
+        _grant(ADMIN_ROLE, alice);
+
+        vm.prank(alice);
+        vm.expectRevert(NameRegistry.InvalidAddress.selector);
+        nameRegistry.changePool(address(0));
+
+        assertEq(nameRegistry.pool(), POOL);
+    }
+
     function testFuzzCannotChangePoolUnlessAdmin(address alice, address bob) public {
         _assumeClean(alice);
+        vm.assume(bob != address(0));
         assertEq(nameRegistry.pool(), POOL);
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
         nameRegistry.changePool(bob);
-
-        assertEq(nameRegistry.pool(), POOL);
     }
 
     /*//////////////////////////////////////////////////////////////
