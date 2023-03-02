@@ -80,6 +80,7 @@ contract BundleRegistry is Ownable {
     function register(address to, address recovery, bytes16 username, bytes32 secret) external payable {
         // Audit: is it possible to end up in a state where one passes but the other fails?
         idRegistry.register(to, recovery);
+        // Audit: is it possible to drain funds that you did not send in here?
         nameRegistry.register{value: msg.value}(username, to, secret, recovery);
 
         // Return any funds returned by the NameRegistry back to the caller
