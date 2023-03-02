@@ -1096,7 +1096,7 @@ contract NameRegistry is
     // solhint-disable-next-line code-complexity
     function _validateName(bytes16 fname) internal pure {
         uint256 length = fname.length;
-        bool nameEnded;
+        bool nameEnded = false;
 
         /**
          * Iterate over the bytes16 fname one char at a time, ensuring that:
