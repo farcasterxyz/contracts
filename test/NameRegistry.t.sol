@@ -1968,6 +1968,46 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
+    function testFuzzCannotTransferFromApproverIfPaused(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        _assumeClean(approver);
+        vm.assume(bob != address(0));
+        vm.assume(alice != bob);
+        vm.assume(approver != alice);
+        _register(alice);
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // alice sets charlie as her approver
+        vm.prank(alice);
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        // Pause the contract
+        _grant(OPERATOR_ROLE, ADMIN);
+        vm.prank(ADMIN);
+        nameRegistry.pause();
+
+        vm.prank(approver);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
+
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+    }
+
     function testFuzzCannotTransferFromIfRegistrable(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(bob != address(0));
