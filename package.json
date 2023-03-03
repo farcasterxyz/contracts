@@ -12,9 +12,6 @@
     "lint-staged": "^13.0.2"
   },
   "scripts": {
-    "prepare": "husky install",
-    "format": "forge fmt",
-    "format:check": "forge fmt --check",
-    "solhint": "solhint --config \"./.solhint.json\" \"{src,test}/**/*.sol\""
-  }
+    "prepare": "husky install"
+ }
 }

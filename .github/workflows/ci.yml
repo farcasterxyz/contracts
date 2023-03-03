@@ -28,19 +28,6 @@ jobs:
           cache: "yarn"
           node-version: "18"
 
-      - name: Restore cached dependencies for Node modules
-        id: module-cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ github.workspace }}/node_modules
-          key: ${{ runner.os }}--node--${{ hashFiles('**/yarn.lock') }}
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Run audit
-        run: yarn audit
-
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -51,8 +38,8 @@ jobs:
           forge --version
           forge build --sizes
 
-      - name: Run forge formatter
-        run: yarn format:check
+      - name: Run forge fmt
+        run: forge fmt --check
 
       - name: Run forge tests
         run: forge test -vvv
