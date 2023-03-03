@@ -1597,6 +1597,59 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
+    function testFuzzCannotSafeTransferFromApproverIfFnameExpired(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        _assumeClean(approver);
+        vm.assume(alice != bob);
+        vm.assume(bob != address(0));
+        vm.assume(approver != alice);
+        _register(alice);
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
+        uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // alice sets charlie as her approver
+        vm.prank(alice);
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        // Warp to renewable state and attempt a transfer
+        vm.warp(renewableTs);
+        vm.startPrank(approver);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        nameRegistry.safeTransferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+
+        // Warp to biddable state and attempt a transfer
+        vm.warp(biddableTs);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        nameRegistry.safeTransferFrom(alice, bob, ALICE_TOKEN_ID);
+        vm.stopPrank();
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+    }
+
     function testFuzzCannotSafeTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
