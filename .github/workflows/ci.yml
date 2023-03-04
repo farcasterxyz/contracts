@@ -11,35 +11,16 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  check:
+  test:
     strategy:
       fail-fast: true
 
-    name: Farcaster Contract Tests
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - uses: actions/setup-node@v3
-        with:
-          cache: "yarn"
-          node-version: "18"
-
-      - name: Restore cached dependencies for Node modules
-        id: module-cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ github.workspace }}/node_modules
-          key: ${{ runner.os }}--node--${{ hashFiles('**/yarn.lock') }}
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Run audit
-        run: yarn audit
 
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -51,8 +32,8 @@ jobs:
           forge --version
           forge build --sizes
 
-      - name: Run forge formatter
-        run: yarn format:check
+      - name: Run forge fmt
+        run: forge fmt --check
 
       - name: Run forge tests
         run: forge test -vvv
@@ -72,10 +53,18 @@ jobs:
         uses: github/codeql-action/upload-sarif@v1
         with:
           sarif_file: ${{ steps.slither.outputs.sarif }}
+          
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
 
       - name: Check code coverage
         run: |
           forge coverage --report lcov
         id: coverage
 
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v3
