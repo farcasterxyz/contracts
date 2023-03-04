@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import {IdRegistryHarness} from "./Utils.sol";
-
 import "forge-std/Test.sol";
+
+import {IdRegistryHarness} from "./Utils.sol";
 
 /* solhint-disable state-visibility */
 
