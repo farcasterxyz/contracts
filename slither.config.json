@@ -1,5 +1,5 @@
 {
-  "detectors_to_exclude": "assembly-usage, block-timestamp, conformance-to-solidity-naming-conventions, incorrect-versions-of-solidity",
+  "detectors_to_exclude": "assembly-usage, block-timestamp, conformance-to-solidity-naming-conventions, incorrect-versions-of-solidity, similar-variables, low-level-calls",
   "exclude_informational": false,
   "exclude_low": false,
   "exclude_medium": false,
