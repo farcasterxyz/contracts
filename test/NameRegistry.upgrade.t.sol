@@ -11,6 +11,8 @@ import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/Owna
 import "forge-std/Test.sol";
 
 import "../src/NameRegistry.sol";
+import "./TestConstants.sol";
+import "./NameRegistryConstants.sol";
 
 /* solhint-disable state-visibility*/
 /* solhint-disable avoid-low-level-calls */
@@ -22,12 +24,6 @@ contract NameRegistryUpgradeTest is Test {
     NameRegistryV2 nameRegistryV2Impl;
 
     address defaultAdmin = address(this);
-
-    address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
-    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
-    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
-    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     function setUp() public {
         nameRegistryImpl = new NameRegistry(FORWARDER);

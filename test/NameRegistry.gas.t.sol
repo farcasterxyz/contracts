@@ -6,6 +6,8 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 import "forge-std/Test.sol";
 
 import {NameRegistry} from "../src/NameRegistry.sol";
+import "./NameRegistryConstants.sol";
+import "./TestConstants.sol";
 
 /* solhint-disable state-visibility */
 
@@ -23,23 +25,11 @@ contract NameRegistryGasUsageTest is Test {
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
-    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
-    address constant RECOVERY = address(0x8Ca9aB5b1756B7020a299ff4dc79b5E854a5cac5);
     address constant TRUSTED_SENDER = address(0x4E29ad5578668e2f82A921FFd5fA7720eDD59D47);
-    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
-    uint256 constant COMMIT_REGISTER_DELAY = 60;
-    uint256 constant RENEWAL_PERIOD = 30 days;
-    uint256 constant REGISTRATION_PERIOD = 365 days;
-
-    uint256 constant JAN1_2023_TS = 1672531200; // Jan 1, 2023 0:00:00 GMT
-
+    // names are padded to 5 characters
     bytes16[10] names =
-        [bytes16("alice"), "bob11", "carol", "dave1", "eve11", "frank", "georg", "harry", "ian11", "jane1"]; // padded to be length 5
-
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+        [bytes16("alice"), "bob11", "carol", "dave1", "eve11", "frank", "georg", "harry", "ian11", "jane1"];
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTORS

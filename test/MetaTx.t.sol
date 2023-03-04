@@ -6,6 +6,7 @@ import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.so
 
 import "forge-std/Test.sol";
 
+import "./NameRegistryConstants.sol";
 import {IdRegistryHarness} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
@@ -26,8 +27,6 @@ contract MetaTxTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     address defaultAdmin = address(this);
-    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
-    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 
     bytes32 private constant _TYPEHASH_FW_REQ =
         keccak256("ForwardRequest(address from,address to,uint256 value,uint256 gas,uint256 nonce,bytes data)");
@@ -37,13 +36,6 @@ contract MetaTxTest is Test {
 
     // The largest uint256 that can be used as an ECDSA private key
     uint256 constant PKEY_MAX = 115792089237316195423570985008687907852837564279074904382605163141518161494337;
-
-    // A timestamp during which registrations are allowed - Dec 1, 2022 00:00:00 GMT
-    uint256 constant DEC1_2022_TS = 1669881600;
-
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-
-    uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
 
     address[] knownContracts = [
         address(0xCe71065D4017F316EC606Fe4422e11eB2c47c246), // FuzzerDict
@@ -55,8 +47,6 @@ contract MetaTxTest is Test {
         address(0xEFc56627233b02eA95bAE7e19F648d7DcD5Bb132), // ???
         address(0xf5a2fE45F4f1308502b1C136b9EF8af136141382)
     ];
-
-    address constant PRECOMPILE_CONTRACTS = address(9); // some addresses up to 0x9 are precompiled contracts
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -183,6 +173,6 @@ contract MetaTxTest is Test {
             vm.assume(a != knownContracts[i]);
         }
 
-        vm.assume(a > PRECOMPILE_CONTRACTS);
+        vm.assume(a > MAX_PRECOMPILE);
     }
 }
