@@ -5,6 +5,6 @@
   "exclude_medium": false,
   "exclude_high": false,
   "disable_color": false,
-  "filter_paths": "(test/|lib/forge-std/|script/)",
+  "filter_paths": "(test/|lib/forge-std/|script/|node_modules/)",
   "legacy_ast": false
 }
