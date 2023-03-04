@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
+import "forge-std/Test.sol";
+
 import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/ContextUpgradeable.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC721Upgradeable} from "openzeppelin-upgradeable/contracts/token/ERC721/ERC721Upgradeable.sol";
@@ -8,11 +10,10 @@ import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/meta
 import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
-import "forge-std/Test.sol";
-
-import "../src/NameRegistry.sol";
 import "./TestConstants.sol";
 import "./NameRegistryConstants.sol";
+
+import "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility*/
 /* solhint-disable avoid-low-level-calls */
