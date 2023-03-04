@@ -10,12 +10,12 @@ import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Con
  * @author @v
  * @custom:version 2.0.0
  *
- * @notice IdRegistry enables any ETH address to claim a unique Farcaster ID (fid). An address
- *         can only custody one fid at a time and may transfer it to another address. The Registry
- *         starts in a trusted mode where only a trusted caller can register an fid and can move
- *         to an untrusted mode where any address can register an fid. The Registry implements
- *         a recovery system which allows the custody address to nominate a recovery address that
- *         can transfer the fid to a new address after a delay.
+ * @notice IdRegistry lets any ETH address claim a unique Farcaster ID (fid). An address can own
+ *         one fid at a time and may transfer it to another address. The IdRegistry starts in the
+ *         seedable state where only a trusted caller can register fids and later moves to an open
+ *         state where any address can register an fid. The Registry implements a recovery system
+ *         which lets the address that owns an fid nominate a recovery address that can transfer
+ *         the fid to a new address after a delay.
  */
 contract IdRegistry is ERC2771Context, Ownable {
     /*//////////////////////////////////////////////////////////////
@@ -36,7 +36,7 @@ contract IdRegistry is ERC2771Context, Ownable {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Revert when the caller does not have the authority to perform the action
+    /// @dev Revert when the caller does not have the authority to perform the action.
     error Unauthorized();
 
     /// @dev Revert when the caller is required to have an fid but does not have one.
@@ -45,10 +45,10 @@ contract IdRegistry is ERC2771Context, Ownable {
     /// @dev Revert when the destination is required to be empty, but has an fid.
     error HasId();
 
-    /// @dev Revert if trustedRegister is invoked after trustedCallerOnly is disabled
+    /// @dev Revert if trustedRegister is invoked after trustedCallerOnly is disabled.
     error Registrable();
 
-    /// @dev Revert if register is invoked before trustedCallerOnly is disabled
+    /// @dev Revert if register is invoked before trustedCallerOnly is disabled.
     error Seedable();
 
     /// @dev Revert if a recovery operation is called when there is no active recovery.
@@ -174,7 +174,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @notice Set the owner of the contract to the deployer and configure the trusted forwarder.
      *
      * @param _forwarder The address of the ERC2771 forwarder contract that this contract trusts to
-     *                  verify the authenticity of signed meta-transaction requests.
+     *                   verify the authenticity of signed meta-transaction requests.
      */
     // solhint-disable-next-line no-empty-blocks
     constructor(address _forwarder) ERC2771Context(_forwarder) Ownable() {}
@@ -191,14 +191,11 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param recovery Address which can recover the fid
      */
     function register(address to, address recovery) external {
-        // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
-
-        // Do not allow general registration during the seed phase
+        /* Revert if the contract is in the seedable (trustedOnly) state  */
         if (trustedOnly == 1) revert Seedable();
 
         _unsafeRegister(to, recovery);
 
-        // Perf: return idCounter instead of the return value from _unsafeRegister()
         emit Register(to, idCounter, recovery);
     }
 
@@ -210,33 +207,33 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param recovery The address which can recover the fid
      */
     function trustedRegister(address to, address recovery) external {
-        // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
-
+        /* Revert if the contract is not in the seedable(trustedOnly) state */
         if (trustedOnly == 0) revert Registrable();
 
-        // Perf: Check msg.sender instead of msgSender() because saves 100 gas and trusted caller
-        // doesn't need meta transactions
+        /* Revert if the caller is not the trusted caller */
+        // Perf: Use msg.sender instead of msgSender() to save 100 gas since meta-tx are not needed
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         _unsafeRegister(to, recovery);
 
-        // Assumption: the most recent value of the idCounter must equal the id of this user
         emit Register(to, idCounter, recovery);
     }
 
     /**
      * @dev Registers a new, unique fid and sets up a recovery address for a caller without
-     *      checking any invariants or emitting events.
+     *      checking all invariants or emitting events.
      */
     function _unsafeRegister(address to, address recovery) internal {
-        // Perf: inlining this can save ~ 20-40 gas per call at the expense of readability
+        /* Revert if the destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
+        // Safety: idCounter cannot realistically overflow, and incrementing before assignment
+        // ensures that the id 0 is never assigned to an address.
         unchecked {
             idCounter++;
         }
 
-        // Incrementing before assigning ensures that 0 is never issued as a valid ID.
+        // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
         idOf[to] = idCounter;
         recoveryOf[idCounter] = recovery;
     }
@@ -255,23 +252,26 @@ contract IdRegistry is ERC2771Context, Ownable {
         address sender = _msgSender();
         uint256 id = idOf[sender];
 
-        // Ensure that the caller owns an fid and that the destination address does not.
+        /* Revert if sender does not own an fid */
         if (id == 0) revert HasNoId();
+
+        /* Revert if destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
         _unsafeTransfer(id, sender, to);
     }
 
     /**
-     * @dev Transfer the fid to another address, clear the recovery address and reset active
-     *      recovery requests, without checking any invariants.
+     * @dev Transfer the fid to another address and reset recovery without checking invariants.
      */
     function _unsafeTransfer(uint256 id, address from, address to) internal {
+        /* Transfer ownership of the fid between addresses */
         idOf[to] = id;
         delete idOf[from];
 
+        /* Clear the recovery address and reset active recovery requests */
         delete recoveryStateOf[id];
-        recoveryOf[id] = address(0);
+        delete recoveryOf[id];
 
         emit Transfer(from, to, id);
     }
