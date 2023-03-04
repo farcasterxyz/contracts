@@ -210,8 +210,10 @@ contract IdRegistry is ERC2771Context, Ownable {
         /* Revert if the contract is not in the seedable(trustedOnly) state */
         if (trustedOnly == 0) revert Registrable();
 
-        /* Revert if the caller is not the trusted caller */
-        // Perf: Use msg.sender instead of msgSender() to save 100 gas since meta-tx are not needed
+        /* 
+         * Revert if the caller is not the trusted caller 
+         * Perf: Use msg.sender instead of msgSender() to save 100 gas since meta-tx are not needed
+         */
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         _unsafeRegister(to, recovery);
@@ -227,13 +229,15 @@ contract IdRegistry is ERC2771Context, Ownable {
         /* Revert if the destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
-        // Safety: idCounter cannot realistically overflow, and incrementing before assignment
-        // ensures that the id 0 is never assigned to an address.
+        /* 
+         * Safety: idCounter cannot realistically overflow, and incrementing before assignment
+         * ensures that the id 0 is never assigned to an address.
+         */
         unchecked {
             idCounter++;
         }
 
-        // Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid
+        /* Perf: Don't check to == address(0) to save 29 gas since 0x0 can only register 1 fid */
         idOf[to] = idCounter;
         recoveryOf[idCounter] = recovery;
     }
@@ -281,53 +285,50 @@ contract IdRegistry is ERC2771Context, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1: If msgSender() is a recovery address for another address, that address
-     *              must own an fid
+     * INVARIANT 1: If msgSender() is a recovery address for an address, the latter must own an fid
      *
-     *  if _msgSender() == recoveryOf[idOf[addr]], then idOf[addr] != 0 during requestRecovery(),
-     *  completeRecovery() and cancelRecovery()
+     * 1. idOf[addr] = 0 && recoveryOf[idOf[addr]] == address(0) ∀ addr
      *
-     *
-     * 1. at the start, idOf[addr] = 0 && recoveryOf[idOf[addr]] == address(0) ∀ addr
      * 2. _msgSender() != address(0) ∀ _msgSender()
-     * 3. recoveryOf[addr] becomes non-zero only in register(), trustedRegister() and
-     *    changeRecoveryAddress(), which requires idOf[addr] != 0
-     * 4. idOf[addr] becomes 0 only in transfer() and completeRecovery(), which requires
-     *    recoveryOf[addr] == address(0)
      *
+     * 3. recoveryOf[addr] != address(0) ↔ idOf[addr] != 0
+     *    see register(), trustedRegister() and changeRecoveryAddress()
+     *
+     * 4. idOf[addr] == 0 ↔ recoveryOf[addr] == address(0)
+     *    see transfer() and completeRecovery()
      */
 
     /**
-     * INVARIANT 2: If an address has a non-zero RecoveryState.timestamp, it must also have an fid
+     * INVARIANT 2: If an address has a non-zero RecoveryState.timestamp, it must own an fid
      *
-     * if recoveryStateOf[idOf[address]].timestamp != 0 then idOf[addr] != 0
+     * 1. idOf[addr] == 0  && recoveryStateOf[idOf[addr]].timestamp == 0 ∀ addr
      *
-     * 1. at the start, idOf[addr] = 0 and recoveryStateOf[idOf[addr]].timestamp == 0 ∀ addr
-     * 2. recoveryStateOf[idOf[addr]].timestamp becomes non-zero only in requestRecovery(), which
-     *    requires idOf[addr] != 0
-     * 3. idOf[addr] becomes zero only in transfer() and completeRecovery(), which requires
-     *    recoveryStateOf[id[addr]].timestamp   == 0
+     * 2. recoveryStateOf[idOf[addr]].timestamp != 0 requires idOf[addr] != 0
+     *    see requestRecovery()
+     *
+     * 3. idOf[addr] == 0 ↔ recoveryStateOf[id[addr]].timestamp == 0
+     *    see transfer() and completeRecovery()
      */
 
     /**
-     * INVARIANT 3: If RecoveryState.timestamp is non-zero, then RecoveryState.destination is
-     *              also non zero. If RecoveryState.timestamp 0, then
-     *              RecoveryState.destination must also be address(0)
+     * INVARIANT 3: RecoveryState.timestamp and  RecoveryState.destination must both be zero or
+     *              non-zero for a given fid. See register(), trustedRegister(),
+     *              changeRecoveryAddress() and _unsafeTransfer() which enforce this.
      */
 
     /**
-     * @notice Change the recovery address of the fid owned by this address and reset active
-     *         recovery requests. Supports ERC 2771 meta-transactions and can be called by a
-     *         relayer.
+     * @notice Change the recovery address of the fid owned by the caller and reset active recovery
+     *         requests. Supports ERC 2771 meta-transactions and can be called by a relayer.
      *
-     * @param recovery The address which can recover the fid (set to 0x0 to disable recovery)
+     * @param recovery The address which can recover the fid (set to 0x0 to disable recovery).
      */
     function changeRecoveryAddress(address recovery) external {
+        /* Revert if the caller does not own an fid */
         uint256 id = idOf[_msgSender()];
         if (id == 0) revert HasNoId();
 
+        /* Change the recovery address and reset active recovery requests */
         recoveryOf[id] = recovery;
-
         delete recoveryStateOf[id];
 
         emit ChangeRecoveryAddress(id, recovery);
@@ -341,15 +342,15 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param to   The address where the fid should be sent
      */
     function requestRecovery(address from, address to) external {
+        /* Revert unless the caller is the recovery address */
         uint256 id = idOf[from];
         if (_msgSender() != recoveryOf[id]) revert Unauthorized();
 
-        // Assumption: id != 0 because of Invariant 1
-
-        // Track when the escrow period started
+        /* 
+         * Set the recovery state 
+         * Safety: id != 0 because of Invariant 1
+         */
         recoveryStateOf[id].timestamp = uint40(block.timestamp);
-
-        // Store the final destination so that it cannot be modified unless completed or cancelled
         recoveryStateOf[id].destination = to;
 
         emit RequestRecovery(from, to, id);
@@ -358,35 +359,38 @@ contract IdRegistry is ERC2771Context, Ownable {
     /**
      * @notice Complete a recovery request and transfer the fid if the caller is the recovery
      *         address and the escrow period has passed. Supports ERC 2771 meta-transactions and
-     *         can be called via a relayer.
+     *         can be called by a relayer.
      *
-     * @param from The address that owns the id.
+     * @param from The address that owns the fid.
      */
     function completeRecovery(address from) external {
-        // Ensure that the caller is authorized to perform the recovery
+        /* Revert unless the caller is the recovery address */
         uint256 id = idOf[from];
         if (_msgSender() != recoveryOf[id]) revert Unauthorized();
 
-        // Ensure that a recovery has previously been requeste
+        /* Revert unless a recovery exists */
         RecoveryState memory state = recoveryStateOf[id];
         if (state.timestamp == 0) revert NoRecovery();
 
-        // Ensure that the recovery has passed its escrow period
+        /* 
+         * Revert unless the escrow period has passed 
+         * Safety: cannot overflow because state.timestamp was a block.timestamp
+         */
         unchecked {
-            // Safety: rhs cannot overflow because timestamp is a block.timestamp
             if (block.timestamp < state.timestamp + ESCROW_PERIOD) {
                 revert Escrow();
             }
         }
 
-        // Ensure that the destination address does not own an fid
+        /* Revert if the destination already has an fid */
         if (idOf[state.destination] != 0) revert HasId();
 
-        // Assumption: we don't need to check that the id still lives in the address because any
-        // transfer would have reset timestamp to zero causing a revert
-
-        // Assumption: id != 0 because of invariant 1 and 2 (either asserts this)
-
+        /* 
+         * Assumption 1: we don't need to check that the id still lives in the address because a
+         * transfer would have reset timestamp to zero causing a revert
+         * 
+         * Assumption 2: id != 0 because of Invariant 1 and 2 (either asserts this)
+         */
         _unsafeTransfer(id, from, state.destination);
     }
 
@@ -400,15 +404,13 @@ contract IdRegistry is ERC2771Context, Ownable {
         uint256 id = idOf[from];
         address sender = _msgSender();
 
-        // Allow cancellation only if the sender is the recovery address or the custody address
+        /* Revert unless the caller is the recovery address or the custody address */
         if (sender != from && sender != recoveryOf[id]) revert Unauthorized();
 
-        // Assumption: id != 0 because of Invariant 1
-
-        // Check if there is a recovery to avoid emitting incorrect CancelRecovery events
+        /* Revert unless an active recovery exists */
         if (recoveryStateOf[id].timestamp == 0) revert NoRecovery();
 
-        // Clear the recovery request so that it cannot be completed
+        /* Assumption: id != 0 because of Invariant 1 */
         delete recoveryStateOf[id];
 
         emit CancelRecovery(sender, id);
@@ -424,14 +426,17 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @param _trustedCaller The address of the new trusted caller
      */
     function changeTrustedCaller(address _trustedCaller) external onlyOwner {
+        /* Revert if the address is the zero address */
         if (_trustedCaller == address(0)) revert InvalidAddress();
+
         trustedCaller = _trustedCaller;
+
         emit ChangeTrustedCaller(_trustedCaller);
     }
 
     /**
-     * @notice Disable trustedRegister() and let anyone get an fid by calling register(). This must
-     *         be called by the contract's owner.
+     * @notice Disable trustedRegister() and transition from seedable to registrable, which allows
+     *        anyone to register an fid. This must be called by the contract's owner.
      */
     function disableTrustedOnly() external onlyOwner {
         delete trustedOnly;
@@ -439,37 +444,39 @@ contract IdRegistry is ERC2771Context, Ownable {
     }
 
     /**
-     * @notice Override to prevent a single-step transfer of ownership
+     * @notice Overriden to prevent a single-step transfer of ownership
      */
     function transferOwnership(address /*newOwner*/ ) public view override onlyOwner {
         revert Unauthorized();
     }
 
     /**
-     * @notice Begin a request to transfer ownership to a new address ("pendingOwner"). This must
-     *         be called by the contract's owner. A transfer request can be cancelled by calling
-     *         this again with address(0).
+     * @notice Start a request to transfer ownership to a new address ("pendingOwner"). This must
+     *         be called by the owner, and can be cancelled by calling again with address(0).
      */
     function requestTransferOwnership(address newOwner) public onlyOwner {
+        /* Revert if the newOwner is the zero address */
         if (newOwner == address(0)) revert InvalidAddress();
+
         pendingOwner = newOwner;
     }
 
     /**
-     * @notice Complete a request to transfer ownership. This must be called by the pendingOwner
+     * @notice Complete a request to transfer ownership by calling from pendingOwner.
      */
     function completeTransferOwnership() external {
-        // Safety: burning ownership is not possible since this can never be called by address(0)
-
-        // msg.sender is used instead of _msgSender() to keep surface area for attacks low
+        /* Revert unless the caller is the pending owner */
         if (msg.sender != pendingOwner) revert Unauthorized();
 
+        /* Safety: burning ownership is impossible since this can't be called from address(0) */
         _transferOwnership(msg.sender);
+
+        /* Clean up state to prevent the function from being called again without a new request */
         delete pendingOwner;
     }
 
     /*//////////////////////////////////////////////////////////////
-                         OPEN ZEPPELIN OVERRIDES
+                        OPEN ZEPPELIN OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
     function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
