@@ -11,22 +11,16 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  check:
+  test:
     strategy:
       fail-fast: true
 
-    name: Farcaster Contract Tests
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - uses: actions/setup-node@v3
-        with:
-          cache: "yarn"
-          node-version: "18"
 
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -46,6 +40,14 @@ jobs:
 
       - name: Check forge snapshots
         run: forge snapshot --check --match-contract Gas
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
 
       - name: Check code coverage
         run: |
