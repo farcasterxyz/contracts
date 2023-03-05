@@ -213,6 +213,7 @@ contract NameRegistryTest is Test {
     ) public {
         vm.assume(bob != address(0));
         _assumeClean(alice);
+        _assumeClean(bob);
         _disableTrusted();
         vm.warp(JAN1_2023_TS);
 
