@@ -203,7 +203,7 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
 
         // call register() from address(this) which is non-payable
         // overpay by 1 wei to return funds which causes the revert
-        vm.expectRevert(NameRegistry.CallFailed.selector);
+        vm.expectRevert(BundleRegistry.CallFailed.selector);
         bundleRegistry.register{value: FEE + 1 wei}(alice, recovery, "alice", secret);
 
         _assertUnsuccessfulRegistration(alice);
