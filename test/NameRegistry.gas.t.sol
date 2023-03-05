@@ -50,39 +50,35 @@ contract NameRegistryGasUsageTest is Test {
         nameRegistry.disableTrustedOnly();
 
         for (uint256 i = 0; i < names.length; i++) {
-            // Add +10 to the integer to skip the precompile contracts
-            address alice = address(uint160(i) + 10);
-            vm.deal(alice, 10_000 ether);
-
-            // Add +100 to avoid collision with alice in all instances
-            address bob = address(uint160(i) + 100);
-
+            address alice = address(uint160(i) + 10); // Add +10 to avoid precompile contracts
+            address bob = address(uint160(i) + 100); // Add +100 to avoid collision with all alice
             bytes16 name = names[i];
             uint256 nameTokenId = uint256(bytes32(name));
 
-            // Make the first commit on Jan 1, 2023
-            vm.warp(JAN1_2023_TS);
+            vm.deal(alice, 10_000 ether);
+
+            /* Make the first commit */
+            vm.warp(10_000); // Avoid CommitReplay() false positive at block.timestamp == 0
             bytes32 commitHash = nameRegistry.generateCommit(name, alice, "secret", RECOVERY);
 
             vm.prank(alice);
             nameRegistry.makeCommit(commitHash);
             assertEq(nameRegistry.timestampOf(commitHash), block.timestamp);
 
-            // Register the name after the commit register delay has elapsed
+            /* Register the name after the commit register delay */
             vm.warp(block.timestamp + COMMIT_REGISTER_DELAY);
             uint256 balance = alice.balance;
             vm.prank(alice);
             nameRegistry.register{value: 0.01 ether}(name, alice, "secret", RECOVERY);
 
             uint256 firstExpiration = block.timestamp + REGISTRATION_PERIOD;
-
             (address _recovery, uint256 _expiry) = nameRegistry.metadataOf(nameTokenId);
             assertEq(_expiry, firstExpiration);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(_recovery, RECOVERY);
             assertEq(alice.balance, balance - nameRegistry.fee());
 
-            // Wait until the registration expires, then renew the registration for a year
+            /* Let the name expire and renew it before it goes up for bidding */
             vm.warp(firstExpiration);
             vm.prank(alice);
             nameRegistry.renew{value: 0.01 ether}(nameTokenId);
@@ -92,8 +88,7 @@ contract NameRegistryGasUsageTest is Test {
             assertEq(_expiry, secondExpiration);
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
 
-            // Wait until the second registration expires, then wait for the renewal period to pass
-            // and finally bid on the name
+            /* Let the name expire and go up for bidding and then bid on it */
             vm.warp(secondExpiration + RENEWAL_PERIOD);
             vm.prank(alice);
             nameRegistry.bid{value: 1_000.01 ether}(alice, nameTokenId, RECOVERY);
@@ -104,9 +99,25 @@ contract NameRegistryGasUsageTest is Test {
             assertEq(nameRegistry.ownerOf(nameTokenId), alice);
             assertEq(_recovery, RECOVERY);
 
-            // Transfer the name to a new owner
+            /* Request and cancel a recovery */
+            vm.prank(RECOVERY);
+            nameRegistry.requestRecovery(nameTokenId, bob);
+
             vm.prank(alice);
-            nameRegistry.transferFrom(alice, bob, nameTokenId);
+            nameRegistry.cancelRecovery(nameTokenId);
+
+            /* Either transfer the name or request and complete a recovery */
+            if (i < 5) {
+                vm.prank(alice);
+                nameRegistry.transferFrom(alice, bob, nameTokenId);
+            } else {
+                vm.prank(RECOVERY);
+                nameRegistry.requestRecovery(nameTokenId, bob);
+
+                vm.warp(block.timestamp + 7 days);
+                vm.prank(RECOVERY);
+                nameRegistry.completeRecovery(nameTokenId);
+            }
 
             assertEq(nameRegistry.ownerOf(nameTokenId), bob);
             assertEq(nameRegistry.balanceOf(alice), 0);
