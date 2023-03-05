@@ -244,24 +244,24 @@ contract NameRegistryTest is Test {
         address alice,
         address recovery,
         bytes32 secret,
-        uint256 delay_bob,
-        uint256 delay_alice
+        uint256 delayBob,
+        uint256 delayAlice
     ) public {
         _assumeClean(alice);
         _disableTrusted();
         vm.deal(alice, 1 ether);
         vm.warp(JAN1_2023_TS);
 
-        delay_alice = delay_alice % FUZZ_TIME_PERIOD;
-        delay_bob = delay_bob % FUZZ_TIME_PERIOD;
-        vm.assume(delay_alice >= COMMIT_REPLAY_DELAY);
-        vm.assume(delay_bob >= COMMIT_REPLAY_DELAY);
+        delayAlice = delayAlice % FUZZ_TIME_PERIOD;
+        delayBob = delayBob % FUZZ_TIME_PERIOD;
+        vm.assume(delayAlice >= COMMIT_REPLAY_DELAY);
+        vm.assume(delayBob >= COMMIT_REPLAY_DELAY);
 
         // Register @alice to alice
         vm.startPrank(alice);
         bytes32 commitHashAlice = nameRegistry.generateCommit("alice", alice, secret, recovery);
         nameRegistry.makeCommit(commitHashAlice);
-        vm.warp(block.timestamp + delay_alice);
+        vm.warp(block.timestamp + delayAlice);
         uint256 aliceRegister = block.timestamp;
         nameRegistry.register{value: nameRegistry.fee()}("alice", alice, secret, recovery);
 
@@ -271,7 +271,7 @@ contract NameRegistryTest is Test {
         // Register @bob to alice
         bytes32 commitHashBob = nameRegistry.generateCommit("bob", alice, secret, recovery);
         nameRegistry.makeCommit(commitHashBob);
-        vm.warp(block.timestamp + delay_bob);
+        vm.warp(block.timestamp + delayBob);
         uint256 bobRegister = block.timestamp;
         nameRegistry.register{value: FEE}("bob", alice, secret, recovery);
         vm.stopPrank();
