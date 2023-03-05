@@ -5,13 +5,13 @@ import "forge-std/Test.sol";
 
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import "./TestConstants.sol";
 import "./NameRegistryConstants.sol";
+import "./TestConstants.sol";
+import {BundleRegistryHarness} from "./Utils.sol";
+import {IdRegistryHarness} from "./Utils.sol";
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
-import {BundleRegistryHarness} from "./Utils.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {IdRegistryHarness} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
