@@ -989,12 +989,19 @@ contract NameRegistry is
             /* Transfer the name with super.ownerOf so that it works even if the name is expired */
             _transfer(super.ownerOf(tokenId), reclaimActions[i].destination, tokenId);
 
-            /* If the fname expires soon, extend its expiry by 30 days */
-            if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
-                metadataOf[tokenId].expiryTs = uint40(block.timestamp + RENEWAL_PERIOD);
-            }
+            /**
+             * If the fname expires soon, extend its expiry by 30 days
+             *
+             * Safety: RENEWAL_PERIOD is a constant much smaller than _expiry which is a recent
+             * block.timestamp and subtraction cannot underflow.
+             *
+             * Safety: block.timestamp + RENEWAL_PERIOD cannot overflow a uint40 for many years.
+             */
 
             unchecked {
+                if (block.timestamp >= _expiry - RENEWAL_PERIOD) {
+                    metadataOf[tokenId].expiryTs = uint40(block.timestamp + RENEWAL_PERIOD);
+                }
                 i++; // Safety: the loop ends if i is >= reclaimActions.length
             }
         }

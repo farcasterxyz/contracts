@@ -1494,11 +1494,11 @@ contract NameRegistryTest is Test {
 
         _requestRecovery(alice, recovery);
 
-        // alice sets charlie as her approver
+        // alice sets her approver
         vm.prank(alice);
         nameRegistry.approve(approver, ALICE_TOKEN_ID);
 
-        // alice transfers @alice to bob
+        // approver transfers @alice to bob
         vm.prank(approver);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, ALICE_TOKEN_ID);
