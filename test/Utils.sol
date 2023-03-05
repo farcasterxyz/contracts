@@ -22,7 +22,7 @@ contract IdRegistryHarness is IdRegistry {
     }
 
     function getRecoveryTsOf(uint256 id) public view returns (uint256) {
-        return uint256(recoveryStateOf[id].timestamp);
+        return uint256(recoveryStateOf[id].startTs);
     }
 
     function getRecoveryDestinationOf(uint256 id) public view returns (address) {
@@ -65,7 +65,7 @@ contract NameRegistryHarness is NameRegistry {
 
     /// @dev Get the recovery timestamp for a tokenId
     function recoveryTsOf(uint256 tokenId) public view returns (uint256) {
-        return uint256(recoveryStateOf[tokenId].timestamp);
+        return uint256(recoveryStateOf[tokenId].startTs);
     }
 }
 

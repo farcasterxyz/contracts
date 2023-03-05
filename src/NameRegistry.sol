@@ -48,11 +48,11 @@ contract NameRegistry is
     /**
      * @dev Contains the state of the most recent recovery attempt.
      * @param destination Destination of the current recovery or address(0) if no active recovery.
-     * @param timestamp Timestamp of the current recovery or zero if no active recovery.
+     * @param startTs Timestamp of the current recovery or zero if no active recovery.
      */
     struct RecoveryState {
         address destination;
-        uint40 timestamp;
+        uint40 startTs;
     }
 
     /**
@@ -839,10 +839,10 @@ contract NameRegistry is
      * address can remove or change the recovery address at any time.
      *
      * INVARIANT 3: Changing ownerOf must set recovery to address(0) and
-     *              recoveryState[id].timestamp to 0
+     *              recoveryState[id].startTs to 0
      *
-     * INVARIANT 4: If RecoveryState.timestamp is non-zero, then RecoveryState.destination is
-     *              also non zero. If RecoveryState.timestamp 0, then
+     * INVARIANT 4: If RecoveryState.startTs is non-zero, then RecoveryState.destination is
+     *              also non zero. If RecoveryState.startTs 0, then
      *              RecoveryState.destination must also be address(0)
      */
 
@@ -887,7 +887,7 @@ contract NameRegistry is
          * Safety: requestRecovery is allowed to be performed on a renewable or biddable name,
          * to save gas since completeRecovery will fail anyway.
          */
-        recoveryStateOf[tokenId].timestamp = uint40(block.timestamp);
+        recoveryStateOf[tokenId].startTs = uint40(block.timestamp);
         recoveryStateOf[tokenId].destination = to;
 
         emit RequestRecovery(ownerOf(tokenId), to, tokenId);
@@ -912,7 +912,7 @@ contract NameRegistry is
         }
 
         /* Revert if there is no active recovery request */
-        uint256 recoveryTimestamp = recoveryStateOf[tokenId].timestamp;
+        uint256 recoveryTimestamp = recoveryStateOf[tokenId].startTs;
         if (recoveryTimestamp == 0) revert NoRecovery();
 
         /**
@@ -951,7 +951,7 @@ contract NameRegistry is
         }
 
         /* Revert if there is no active recovery request */
-        if (recoveryStateOf[tokenId].timestamp == 0) revert NoRecovery();
+        if (recoveryStateOf[tokenId].startTs == 0) revert NoRecovery();
 
         delete recoveryStateOf[tokenId];
 

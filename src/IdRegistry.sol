@@ -26,11 +26,11 @@ contract IdRegistry is ERC2771Context, Ownable {
     /**
      * @dev Contains the state of the most recent recovery attempt.
      * @param destination Destination of the current recovery or address(0) if no active recovery.
-     * @param timestamp Timestamp of the current recovery or zero if no active recovery.
+     * @param startTs Timestamp of the current recovery or zero if no active recovery.
      */
     struct RecoveryState {
         address destination;
-        uint40 timestamp;
+        uint40 startTs;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -300,19 +300,19 @@ contract IdRegistry is ERC2771Context, Ownable {
      */
 
     /**
-     * INVARIANT 2: If an address has a non-zero RecoveryState.timestamp, it must own an fid
+     * INVARIANT 2: If an address has a non-zero RecoveryState.startTs, it must own an fid
      *
-     * 1. idOf[addr] == 0  && recoveryStateOf[idOf[addr]].timestamp == 0 ∀ addr
+     * 1. idOf[addr] == 0  && recoveryStateOf[idOf[addr]].startTs == 0 ∀ addr
      *
-     * 2. recoveryStateOf[idOf[addr]].timestamp != 0 requires idOf[addr] != 0
+     * 2. recoveryStateOf[idOf[addr]].startTs != 0 requires idOf[addr] != 0
      *    see requestRecovery()
      *
-     * 3. idOf[addr] == 0 ↔ recoveryStateOf[id[addr]].timestamp == 0
+     * 3. idOf[addr] == 0 ↔ recoveryStateOf[id[addr]].startTs == 0
      *    see transfer() and completeRecovery()
      */
 
     /**
-     * INVARIANT 3: RecoveryState.timestamp and  RecoveryState.destination must both be zero or
+     * INVARIANT 3: RecoveryState.startTs and  RecoveryState.destination must both be zero or
      *              non-zero for a given fid. See register(), trustedRegister(),
      *              changeRecoveryAddress() and _unsafeTransfer() which enforce this.
      */
@@ -348,11 +348,11 @@ contract IdRegistry is ERC2771Context, Ownable {
         if (_msgSender() != recoveryOf[id]) revert Unauthorized();
 
         /**
-         * Start the recovery by setting the timestamp and destination of the request.
+         * Start the recovery by setting the startTs and destination of the request.
          *
          * Safety: id != 0 because of Invariant 1
          */
-        recoveryStateOf[id].timestamp = uint40(block.timestamp);
+        recoveryStateOf[id].startTs = uint40(block.timestamp);
         recoveryStateOf[id].destination = to;
 
         emit RequestRecovery(from, to, id);
@@ -372,14 +372,14 @@ contract IdRegistry is ERC2771Context, Ownable {
 
         /* Revert unless a recovery exists */
         RecoveryState memory state = recoveryStateOf[id];
-        if (state.timestamp == 0) revert NoRecovery();
+        if (state.startTs == 0) revert NoRecovery();
 
         /**
          * Revert unless the escrow period has passed
-         * Safety: cannot overflow because state.timestamp was a block.timestamp
+         * Safety: cannot overflow because state.startTs was a block.timestamp
          */
         unchecked {
-            if (block.timestamp < state.timestamp + ESCROW_PERIOD) {
+            if (block.timestamp < state.startTs + ESCROW_PERIOD) {
                 revert Escrow();
             }
         }
@@ -389,7 +389,7 @@ contract IdRegistry is ERC2771Context, Ownable {
 
         /**
          * Assumption 1: we don't need to check that the id still lives in the address because a
-         * transfer would have reset timestamp to zero causing a revert
+         * transfer would have reset startTs to zero causing a revert
          *
          * Assumption 2: id != 0 because of Invariant 1 and 2 (either asserts this)
          */
@@ -410,7 +410,7 @@ contract IdRegistry is ERC2771Context, Ownable {
         if (sender != from && sender != recoveryOf[id]) revert Unauthorized();
 
         /* Revert unless an active recovery exists */
-        if (recoveryStateOf[id].timestamp == 0) revert NoRecovery();
+        if (recoveryStateOf[id].startTs == 0) revert NoRecovery();
 
         /* Assumption: id != 0 because of Invariant 1 */
         delete recoveryStateOf[id];
