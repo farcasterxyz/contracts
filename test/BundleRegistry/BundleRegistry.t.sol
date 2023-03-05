@@ -172,6 +172,45 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
         assertEq(address(bundleRegistry).balance, 0 ether);
     }
 
+    function testFuzzCannotRegisterFromNonPayableIfOverpaying(
+        address alice,
+        address relayer,
+        address recovery,
+        bytes32 secret,
+        uint256 commitDelay,
+        uint256 registerDelay
+    ) public {
+        vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
+        vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
+        _assumeClean(relayer); // relayer must be able to receive funds
+        commitDelay = commitDelay % FUZZ_TIME_PERIOD;
+        vm.assume(commitDelay >= COMMIT_REPLAY_DELAY);
+        vm.warp(block.timestamp + commitDelay); // block.timestamp must be at least greater than the replay delay
+
+        // State: Trusted Registration is disabled in both registries, and trusted caller is not set
+        idRegistry.disableTrustedOnly();
+        vm.prank(ADMIN);
+        nameRegistry.disableTrustedOnly();
+
+        registerDelay = registerDelay % FUZZ_TIME_PERIOD;
+        vm.assume(registerDelay > COMMIT_REGISTER_DELAY);
+
+        // Commit must be made and waiting period must have elapsed before fname can be registered
+        uint256 commitTs = block.timestamp;
+        bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
+        nameRegistry.makeCommit(commitHash);
+        vm.warp(block.timestamp + registerDelay);
+
+        // call register() from address(this) which is non-payable
+        // overpay by 1 wei to return funds which causes the revert
+        vm.expectRevert(NameRegistry.CallFailed.selector);
+        bundleRegistry.register{value: FEE + 1 wei}(alice, recovery, "alice", secret);
+
+        _assertUnsuccessfulRegistration(alice);
+
+        assertEq(nameRegistry.timestampOf(commitHash), commitTs);
+    }
+
     /*//////////////////////////////////////////////////////////////
                      PARTIAL TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
