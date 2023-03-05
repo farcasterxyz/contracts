@@ -11,11 +11,12 @@ import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Con
  * @custom:version 2.0.0
  *
  * @notice IdRegistry lets any ETH address claim a unique Farcaster ID (fid). An address can own
- *         one fid at a time and may transfer it to another address. The IdRegistry starts in the
- *         seedable state where only a trusted caller can register fids and later moves to an open
- *         state where any address can register an fid. The Registry implements a recovery system
- *         which lets the address that owns an fid nominate a recovery address that can transfer
- *         the fid to a new address after a delay.
+ *         one fid at a time and may transfer it to another address.
+ *
+ *         The IdRegistry starts in the seedable state where only a trusted caller can register
+ *         fids and later moves to an open state where any address can register an fid. The
+ *         Registry implements a recovery system which lets the address that owns an fid nominate
+ *         a recovery address that can transfer the fid to a new address after a delay.
  */
 contract IdRegistry is ERC2771Context, Ownable {
     /*//////////////////////////////////////////////////////////////
@@ -210,8 +211,8 @@ contract IdRegistry is ERC2771Context, Ownable {
         /* Revert if the contract is not in the seedable(trustedOnly) state */
         if (trustedOnly == 0) revert Registrable();
 
-        /* 
-         * Revert if the caller is not the trusted caller 
+        /**
+         * Revert if the caller is not the trusted caller
          * Perf: Use msg.sender instead of msgSender() to save 100 gas since meta-tx are not needed
          */
         if (msg.sender != trustedCaller) revert Unauthorized();
@@ -229,7 +230,7 @@ contract IdRegistry is ERC2771Context, Ownable {
         /* Revert if the destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
-        /* 
+        /**
          * Safety: idCounter cannot realistically overflow, and incrementing before assignment
          * ensures that the id 0 is never assigned to an address.
          */
@@ -346,8 +347,9 @@ contract IdRegistry is ERC2771Context, Ownable {
         uint256 id = idOf[from];
         if (_msgSender() != recoveryOf[id]) revert Unauthorized();
 
-        /* 
-         * Set the recovery state 
+        /**
+         * Start the recovery by setting the timestamp and destination of the request.
+         *
          * Safety: id != 0 because of Invariant 1
          */
         recoveryStateOf[id].timestamp = uint40(block.timestamp);
@@ -372,8 +374,8 @@ contract IdRegistry is ERC2771Context, Ownable {
         RecoveryState memory state = recoveryStateOf[id];
         if (state.timestamp == 0) revert NoRecovery();
 
-        /* 
-         * Revert unless the escrow period has passed 
+        /**
+         * Revert unless the escrow period has passed
          * Safety: cannot overflow because state.timestamp was a block.timestamp
          */
         unchecked {
@@ -385,10 +387,10 @@ contract IdRegistry is ERC2771Context, Ownable {
         /* Revert if the destination already has an fid */
         if (idOf[state.destination] != 0) revert HasId();
 
-        /* 
+        /**
          * Assumption 1: we don't need to check that the id still lives in the address because a
          * transfer would have reset timestamp to zero causing a revert
-         * 
+         *
          * Assumption 2: id != 0 because of Invariant 1 and 2 (either asserts this)
          */
         _unsafeTransfer(id, from, state.destination);
