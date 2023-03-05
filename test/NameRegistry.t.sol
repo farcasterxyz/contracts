@@ -93,6 +93,9 @@ contract NameRegistryTest is Test {
 
     function testFuzzCannotGenerateCommitWithInvalidName(address alice, bytes32 secret, address recovery) public {
         vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit("-", alice, secret, recovery);
+
+        vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit("Alice", alice, secret, recovery);
 
         vm.expectRevert(NameRegistry.InvalidName.selector);
@@ -113,21 +116,33 @@ contract NameRegistryTest is Test {
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit(" alice", alice, secret, recovery);
 
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(unicode"￾", alice, secret, recovery);
+
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(unicode"��", alice, secret, recovery);
+
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(unicode"﷽", alice, secret, recovery);
+
+        vm.expectRevert(NameRegistry.InvalidName.selector);
+        nameRegistry.generateCommit(unicode"😃", alice, secret, recovery);
+
         bytes16 blankName = 0x00000000000000000000000000000000;
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit(blankName, alice, secret, recovery);
 
-        // Should reject "a�ice", where � == 129 which is an invalid ASCII character
+        // Reject "a�ice", where � == 129 which is an invalid ASCII character
         bytes16 nameWithInvalidAsciiChar = 0x61816963650000000000000000000000;
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit(nameWithInvalidAsciiChar, alice, secret, recovery);
 
-        // Should reject "a�ice", where � == NULL
+        // Reject "a�ice", where � == NULL
         bytes16 nameWithEmptyByte = 0x61006963650000000000000000000000;
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit(nameWithEmptyByte, alice, secret, recovery);
 
-        // Should reject "�lice", where � == NULL
+        // Reject "�lice", where � == NULL
         bytes16 nameWithStartingEmptyByte = 0x006c6963650000000000000000000000;
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit(nameWithStartingEmptyByte, alice, secret, recovery);
