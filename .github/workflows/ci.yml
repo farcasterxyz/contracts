@@ -55,3 +55,26 @@ jobs:
         id: coverage
 
       - uses: codecov/codecov-action@v3
+
+  slither-analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Slither
+        uses: crytic/slither-action@main
+        id: slither # Required to reference this step in the next step.
+        with:
+          fail-on: none # Required to avoid failing the CI run regardless of findings.
+          sarif: results.sarif
+          slither-args: --filter-paths "./lib|./test|./script" --exclude naming-convention
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: ${{ steps.slither.outputs.sarif }}
