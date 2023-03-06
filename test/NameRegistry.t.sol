@@ -1468,6 +1468,28 @@ contract NameRegistryTest is Test {
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
+    function testFuzzCannotSetApproverIfNotOwner(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        _assumeClean(approver);
+        vm.assume(alice != bob && alice != approver);
+        vm.assume(bob != address(0));
+        _register(alice);
+
+        // bob tries to set an approver of alices fname
+        vm.prank(bob);
+        vm.expectRevert("ERC721: approve caller is not token owner or approved for all");
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        //verify that bob is not approved for @alice
+        assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
+    }
+
     function testFuzzSafeTransferFromOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
@@ -1948,8 +1970,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzCannotTransferFromIfRegistrable(address alice, address bob) public {
         _assumeClean(alice);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob && alice != approver);
+        vm.assume(bob != address(0) && bob != alice);
         vm.warp(JAN1_2023_TS);
 
         vm.prank(alice);
