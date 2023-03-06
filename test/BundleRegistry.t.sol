@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-
 import "forge-std/Test.sol";
 
+import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+import "./NameRegistryConstants.sol";
 import "./TestConstants.sol";
+import {BundleRegistryHarness} from "./Utils.sol";
+import {IdRegistryHarness} from "./Utils.sol";
 
 import {BundleRegistry} from "../src/BundleRegistry.sol";
-import {BundleRegistryHarness} from "./Utils.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {IdRegistryHarness} from "./Utils.sol";
 import {NameRegistry} from "../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
@@ -56,23 +57,6 @@ contract BundleRegistryTest is Test {
     // Address of the test contract
     address owner = address(this);
 
-    // Address of the last precompile contract
-    address constant MAX_PRECOMPILE = address(9);
-
-    address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
-    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
-    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
-
-    uint256 constant ALICE_TOKEN_ID = uint256(bytes32("alice"));
-    bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    uint256 constant BOB_TOKEN_ID = uint256(bytes32("bob"));
-    uint256 constant CHARLIE_TOKEN_ID = uint256(bytes32("charlie"));
-
-    uint256 constant COMMIT_REPLAY_DELAY = 10 minutes;
-    uint256 constant COMMIT_REGISTER_DELAY = 60;
-    uint256 constant REGISTRATION_PERIOD = 365 days;
-
     function setUp() public {
         // Set up the IdRegistry
         idRegistry = new IdRegistryHarness(FORWARDER);
@@ -102,29 +86,29 @@ contract BundleRegistryTest is Test {
         address recovery,
         bytes32 secret,
         uint256 amount,
-        uint256 commit_delay,
-        uint256 register_delay
+        uint256 commitDelay,
+        uint256 registerDelay
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         vm.assume(amount >= nameRegistry.fee()); // the amount must be at least equal to the fee
         _assumeClean(relayer); // relayer must be able to receive funds
-        commit_delay = commit_delay % FUZZ_TIME_PERIOD;
-        vm.assume(commit_delay >= COMMIT_REPLAY_DELAY);
-        vm.warp(block.timestamp + commit_delay); // block.timestamp must be at least greater than the replay delay
+        commitDelay = commitDelay % FUZZ_TIME_PERIOD;
+        vm.assume(commitDelay >= COMMIT_REPLAY_DELAY);
+        vm.warp(block.timestamp + commitDelay); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted Registration is disabled in both registries, and trusted caller is not set
         idRegistry.disableTrustedOnly();
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
-        register_delay = register_delay % FUZZ_TIME_PERIOD;
-        vm.assume(register_delay > COMMIT_REGISTER_DELAY);
+        registerDelay = registerDelay % FUZZ_TIME_PERIOD;
+        vm.assume(registerDelay > COMMIT_REGISTER_DELAY);
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
         nameRegistry.makeCommit(commitHash);
-        vm.warp(block.timestamp + register_delay);
+        vm.warp(block.timestamp + registerDelay);
 
         vm.deal(relayer, amount);
         vm.prank(relayer);
@@ -417,11 +401,11 @@ contract BundleRegistryTest is Test {
                       TRUSTED BATCH REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzTrustedBatchRegister(address alice, address bob, address charlie) public {
+    function testFuzzTrustedBatchRegister(address alice, address bob, address carol) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(bob != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.assume(charlie != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
-        vm.assume((alice != bob) && (alice != charlie) && (bob != charlie));
+        vm.assume(carol != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
+        vm.assume((alice != bob) && (alice != carol) && (bob != carol));
 
         idRegistry.changeTrustedCaller(address(bundleRegistry));
         vm.prank(ADMIN);
@@ -430,7 +414,7 @@ contract BundleRegistryTest is Test {
         BundleRegistry.BatchUser[] memory batchArray = new BundleRegistry.BatchUser[](3);
         batchArray[0] = BundleRegistry.BatchUser({to: alice, username: "alice"});
         batchArray[1] = BundleRegistry.BatchUser({to: bob, username: "bob"});
-        batchArray[2] = BundleRegistry.BatchUser({to: charlie, username: "charlie"});
+        batchArray[2] = BundleRegistry.BatchUser({to: carol, username: "carol"});
 
         vm.expectEmit(true, true, true, true);
         emit Register(alice, 1, address(0));
@@ -439,7 +423,7 @@ contract BundleRegistryTest is Test {
         emit Register(bob, 2, address(0));
 
         vm.expectEmit(true, true, true, true);
-        emit Register(charlie, 3, address(0));
+        emit Register(carol, 3, address(0));
 
         bundleRegistry.trustedBatchRegister(batchArray);
 
@@ -461,13 +445,13 @@ contract BundleRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(BOB_TOKEN_ID), bob);
         assertEq(recoveryBob, address(0));
 
-        // Check that charlie was set up correctly
-        assertEq(idRegistry.idOf(charlie), 3);
+        // Check that carol was set up correctly
+        assertEq(idRegistry.idOf(carol), 3);
         assertEq(idRegistry.getRecoveryOf(3), address(0));
-        assertEq(nameRegistry.balanceOf(charlie), 1);
-        (address recoveryCharlie, uint40 expiryTsCharlie) = nameRegistry.metadataOf(CHARLIE_TOKEN_ID);
+        assertEq(nameRegistry.balanceOf(carol), 1);
+        (address recoveryCharlie, uint40 expiryTsCharlie) = nameRegistry.metadataOf(CAROL_TOKEN_ID);
         assertEq(expiryTsCharlie, block.timestamp + REGISTRATION_PERIOD);
-        assertEq(nameRegistry.ownerOf(CHARLIE_TOKEN_ID), charlie);
+        assertEq(nameRegistry.ownerOf(CAROL_TOKEN_ID), carol);
         assertEq(recoveryCharlie, address(0));
     }
 

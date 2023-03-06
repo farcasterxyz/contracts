@@ -2,10 +2,11 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
+
 import "./TestConstants.sol";
+import {IdRegistryHarness} from "./Utils.sol";
 
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {IdRegistryHarness} from "./Utils.sol";
 
 /* solhint-disable state-visibility */
 
@@ -21,15 +22,11 @@ contract IdRegistryTest is Test {
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
     event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
     event CancelRecovery(address indexed by, uint256 indexed id);
-    event ChangeTrustedCaller(address indexed trustedCaller);
-    event DisableTrustedOnly();
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
     uint256 constant ESCROW_PERIOD = 259_200;
     address owner = address(this);
 
@@ -61,7 +58,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testFuzzCannotRegisterIfTrustedCallerOnly(address alice, address bob, address recovery) public {
+    function testFuzzCannotRegisterIfSeedable(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         assertEq(idRegistry.getIdCounter(), 0);
 
@@ -74,9 +71,9 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testFuzzCannotRegisterToAnAddressThatOwnsAnID(address alice, address bob, address recovery) public {
+    function testFuzzCannotRegisterToAnAddressThatOwnsAnId(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER);
-        _register(alice, address(0));
+        _register(alice);
         assertEq(idRegistry.getIdCounter(), 1);
 
         vm.prank(bob);
@@ -171,9 +168,8 @@ contract IdRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzTransfer(address alice, address bob) public {
-        vm.assume(alice != FORWARDER);
-        vm.assume(alice != bob);
-        _register(alice, address(0));
+        vm.assume(alice != FORWARDER && alice != bob);
+        _register(alice);
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
@@ -191,21 +187,19 @@ contract IdRegistryTest is Test {
         address alice,
         address bob,
         address recovery,
-        address recoveryTarget
+        address recoveryDestination
     ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        vm.assume(alice != bob);
-        vm.assume(alice != recoveryTarget);
+        vm.assume(alice != FORWARDER && alice != bob && alice != recoveryDestination);
+        vm.assume(recovery != FORWARDER);
 
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
 
-        // request a recovery to set the clock to 1
         vm.prank(recovery);
-        idRegistry.requestRecovery(alice, recoveryTarget);
-        assertEq(idRegistry.getRecoveryTsOf(1), 1);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), recoveryTarget);
+        idRegistry.requestRecovery(alice, recoveryDestination);
+        assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), recoveryDestination);
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
@@ -215,15 +209,14 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+        _assertNoRecoveryState(1);
     }
 
     function testFuzzCannotTransferToAddressWithId(address alice, address bob, address recovery) public {
-        vm.assume(alice != FORWARDER && bob != FORWARDER);
-        vm.assume(alice != bob);
-        _register(alice, recovery);
-        _register(bob, recovery);
+        vm.assume(alice != FORWARDER && alice != bob);
+        vm.assume(bob != FORWARDER);
+        _registerWithRecovery(alice, recovery);
+        _registerWithRecovery(bob, recovery);
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 2);
@@ -255,7 +248,7 @@ contract IdRegistryTest is Test {
 
     function testFuzzChangeRecoveryAddress(address alice, address oldRecovery, address newRecovery) public {
         vm.assume(alice != FORWARDER);
-        _register(alice, oldRecovery);
+        _registerWithRecovery(alice, oldRecovery);
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
@@ -268,25 +261,24 @@ contract IdRegistryTest is Test {
     function testFuzzChangeRecoveryAddressResetsRecovery(
         address alice,
         address oldRecovery,
-        address recoveryTarget,
+        address recoveryDestination,
         address newRecovery
     ) public {
         vm.assume(alice != FORWARDER && oldRecovery != FORWARDER);
-        vm.assume(alice != oldRecovery && alice != recoveryTarget);
-        _register(alice, oldRecovery);
+        vm.assume(alice != oldRecovery && alice != recoveryDestination);
+        _registerWithRecovery(alice, oldRecovery);
 
         vm.prank(oldRecovery);
-        idRegistry.requestRecovery(alice, recoveryTarget);
+        idRegistry.requestRecovery(alice, recoveryDestination);
         assertEq(idRegistry.getRecoveryTsOf(1), 1);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), recoveryTarget);
+        assertEq(idRegistry.getRecoveryDestinationOf(1), recoveryDestination);
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit ChangeRecoveryAddress(1, newRecovery);
         idRegistry.changeRecoveryAddress(newRecovery);
 
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+        _assertNoRecoveryState(1);
     }
 
     function testFuzzCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
@@ -304,7 +296,7 @@ contract IdRegistryTest is Test {
 
     function testFuzzRequestRecovery(address alice, address bob, address recovery) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
         assertEq(idRegistry.getRecoveryTsOf(1), 0);
         assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
 
@@ -327,7 +319,7 @@ contract IdRegistryTest is Test {
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         delay = delay % FUZZ_TIME_PERIOD;
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
         vm.prank(recovery);
         idRegistry.requestRecovery(alice, bob);
         assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
@@ -352,18 +344,16 @@ contract IdRegistryTest is Test {
         vm.assume(alice != FORWARDER && notRecovery != FORWARDER);
         vm.assume(alice != recoveryDestination);
         vm.assume(notRecovery != recovery);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+        _assertNoRecoveryState(1);
 
         vm.prank(notRecovery);
         vm.expectRevert(IdRegistry.Unauthorized.selector);
         idRegistry.requestRecovery(alice, recoveryDestination);
 
         assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+        _assertNoRecoveryState(1);
     }
 
     function testFuzzCannotRequestRecoveryWithoutId(address alice, address bob, address recoveryDestination) public {
@@ -392,7 +382,7 @@ contract IdRegistryTest is Test {
         vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay > ESCROW_PERIOD);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
         // Travel to an arbitrary time and then alice requests recovery of id 1 to bob
         vm.warp(timestamp);
@@ -409,8 +399,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+        _assertNoRecoveryState(1);
     }
 
     function testFuzzCannotCompleteRecoveryUnlessRecoveryAddress(
@@ -427,7 +416,7 @@ contract IdRegistryTest is Test {
         vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob
         vm.warp(timestamp);
@@ -452,7 +441,7 @@ contract IdRegistryTest is Test {
         vm.assume(alice != recovery);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
         vm.warp(block.timestamp + delay);
         vm.prank(recovery);
@@ -461,8 +450,7 @@ contract IdRegistryTest is Test {
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+        _assertNoRecoveryState(1);
     }
 
     function testFuzzCannotCompleteRecoveryWhenInEscrow(
@@ -476,7 +464,7 @@ contract IdRegistryTest is Test {
         vm.assume(alice != bob);
         vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % ESCROW_PERIOD;
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob
         vm.warp(timestamp);
@@ -508,8 +496,8 @@ contract IdRegistryTest is Test {
         vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
-        _register(alice, recovery);
-        _register(bob, recovery);
+        _registerWithRecovery(alice, recovery);
+        _register(bob);
 
         // request a recovery of alice's fid to bob
         vm.warp(timestamp);
@@ -546,7 +534,7 @@ contract IdRegistryTest is Test {
         vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
         // 1. recovery requests a recovery of alice's id to bob
         vm.warp(timestamp);
@@ -572,8 +560,7 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+        _assertNoRecoveryState(1);
     }
 
     function testFuzzCancelRecoveryFromRecoveryAddress(
@@ -588,7 +575,7 @@ contract IdRegistryTest is Test {
         vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
         delay = delay % FUZZ_TIME_PERIOD;
         vm.assume(delay >= ESCROW_PERIOD);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
         // 1. recovery requests a recovery of alice's id to bob
         vm.warp(timestamp);
@@ -614,23 +601,21 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+        _assertNoRecoveryState(1);
     }
 
     function testFuzzCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != recovery);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
         vm.prank(alice);
         vm.expectRevert(IdRegistry.NoRecovery.selector);
         idRegistry.cancelRecovery(alice);
 
         assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
         assertEq(idRegistry.getRecoveryOf(1), recovery);
+        _assertNoRecoveryState(1);
     }
 
     function testFuzzCannotCancelRecoveryIfUnauthorized(
@@ -644,7 +629,7 @@ contract IdRegistryTest is Test {
         vm.assume(alice != bob);
         vm.assume(unauthorized != alice && unauthorized != recovery);
         vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
-        _register(alice, recovery);
+        _registerWithRecovery(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob
         vm.warp(timestamp);
@@ -658,150 +643,27 @@ contract IdRegistryTest is Test {
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
         assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                               OWNER TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzChangeTrustedCaller(address alice) public {
-        vm.assume(alice != FORWARDER && alice != address(0));
-        assertEq(idRegistry.owner(), owner);
-
-        vm.expectEmit(true, true, true, true);
-        emit ChangeTrustedCaller(alice);
-        idRegistry.changeTrustedCaller(alice);
-        assertEq(idRegistry.getTrustedCaller(), alice);
-    }
-
-    function testFuzzCannotChangeTrustedCallerToZeroAddr() public {
-        assertEq(idRegistry.owner(), owner);
-
-        vm.expectRevert(IdRegistry.InvalidAddress.selector);
-        idRegistry.changeTrustedCaller(address(0));
-
-        assertEq(idRegistry.getTrustedCaller(), address(0));
-    }
-
-    function testFuzzCannotChangeTrustedCallerUnlessOwner(address alice, address bob) public {
-        vm.assume(alice != FORWARDER && bob != address(0));
-        vm.assume(idRegistry.owner() != alice);
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.changeTrustedCaller(bob);
-        assertEq(idRegistry.getTrustedCaller(), address(0));
-    }
-
-    function testFuzzDisableTrustedCaller() public {
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getTrustedOnly(), 1);
-
-        vm.expectEmit(true, true, true, true);
-        idRegistry.disableTrustedOnly();
-        emit DisableTrustedOnly();
-        assertEq(idRegistry.getTrustedOnly(), 0);
-    }
-
-    function testFuzzCannotDisableTrustedCallerUnlessOwner(address alice) public {
-        vm.assume(alice != FORWARDER && alice != address(0));
-        vm.assume(idRegistry.owner() != alice);
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.disableTrustedOnly();
-        assertEq(idRegistry.getTrustedOnly(), 1);
-    }
-
-    function testFuzzCannotTransferOwnershipWithoutRequestFlow(address newOwner) public {
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
-        idRegistry.transferOwnership(newOwner);
-
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-    }
-
-    function testFuzzRequestTransferOwnership(address newOwner, address newOwner2) public {
-        vm.assume(newOwner != address(0) && newOwner2 != address(0));
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-
-        idRegistry.requestTransferOwnership(newOwner);
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), newOwner);
-
-        idRegistry.requestTransferOwnership(newOwner2);
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), newOwner2);
-    }
-
-    function testFuzzCannotRequestTransferOwnershipToZeroAddr(address newOwner, address newOwner2) public {
-        vm.assume(newOwner != address(0) && newOwner2 != address(0));
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-
-        vm.expectRevert(IdRegistry.InvalidAddress.selector);
-        idRegistry.requestTransferOwnership(address(0));
-
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-    }
-
-    function testFuzzCannotRequestTransferOwnershipUnlessOwner(address alice, address newOwner) public {
-        vm.assume(alice != FORWARDER && alice != owner && newOwner != address(0));
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.requestTransferOwnership(newOwner);
-
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-    }
-
-    function testFuzzCompleteTransferOwnership(address newOwner) public {
-        vm.assume(newOwner != FORWARDER && newOwner != owner && newOwner != address(0));
-        vm.prank(owner);
-        idRegistry.requestTransferOwnership(newOwner);
-
-        vm.expectEmit(true, true, true, true);
-        emit OwnershipTransferred(owner, newOwner);
-        vm.prank(newOwner);
-        idRegistry.completeTransferOwnership();
-
-        assertEq(idRegistry.owner(), newOwner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-    }
-
-    function testFuzzCannotCompleteTransferOwnershipUnlessPendingOwner(address alice, address newOwner) public {
-        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
-        vm.assume(newOwner != alice && newOwner != address(0));
-
-        vm.prank(owner);
-        idRegistry.requestTransferOwnership(newOwner);
-
-        vm.prank(alice);
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
-        idRegistry.completeTransferOwnership();
-
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _register(address alice, address bob) internal {
+    function _register(address caller) internal {
+        _registerWithRecovery(caller, address(0));
+    }
+
+    function _registerWithRecovery(address caller, address recovery) internal {
         idRegistry.disableTrustedOnly();
-        vm.prank(alice);
-        idRegistry.register(alice, bob);
+        vm.prank(caller);
+        idRegistry.register(caller, recovery);
+    }
+
+    function _assertNoRecoveryState(uint256 fid) internal {
+        assertEq(idRegistry.getRecoveryTsOf(fid), 0);
+        assertEq(idRegistry.getRecoveryDestinationOf(fid), address(0));
     }
 }

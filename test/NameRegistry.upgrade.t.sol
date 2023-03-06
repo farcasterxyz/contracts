@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
+import "forge-std/Test.sol";
+
 import {ContextUpgradeable} from "openzeppelin-upgradeable/contracts/utils/ContextUpgradeable.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC721Upgradeable} from "openzeppelin-upgradeable/contracts/token/ERC721/ERC721Upgradeable.sol";
@@ -8,7 +10,8 @@ import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/meta
 import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
-import "forge-std/Test.sol";
+import "./TestConstants.sol";
+import "./NameRegistryConstants.sol";
 
 import "../src/NameRegistry.sol";
 
@@ -22,12 +25,6 @@ contract NameRegistryUpgradeTest is Test {
     NameRegistryV2 nameRegistryV2Impl;
 
     address defaultAdmin = address(this);
-
-    address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
-    address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
-    address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
-    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-    bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     function setUp() public {
         nameRegistryImpl = new NameRegistry(FORWARDER);

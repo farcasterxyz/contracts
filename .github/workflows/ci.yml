@@ -11,35 +11,16 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  check:
+  test:
     strategy:
       fail-fast: true
 
-    name: Farcaster Contract Tests
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-
-      - uses: actions/setup-node@v3
-        with:
-          cache: "yarn"
-          node-version: "18"
-
-      - name: Restore cached dependencies for Node modules
-        id: module-cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ github.workspace }}/node_modules
-          key: ${{ runner.os }}--node--${{ hashFiles('**/yarn.lock') }}
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Run audit
-        run: yarn audit
 
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -51,8 +32,8 @@ jobs:
           forge --version
           forge build --sizes
 
-      - name: Run forge formatter
-        run: yarn format:check
+      - name: Run forge fmt
+        run: forge fmt --check
 
       - name: Run forge tests
         run: forge test -vvv
@@ -60,9 +41,39 @@ jobs:
       - name: Check forge snapshots
         run: forge snapshot --check --match-contract Gas
 
-      - name: Check code coverage
-        run: |
-          forge coverage --report lcov
-        id: coverage
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
 
-      - uses: codecov/codecov-action@v2
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Check code coverage
+        run: forge coverage --report summary --report lcov
+
+      # Ignores coverage results for the test and script directories. Note that because this
+      # filtering applies to the lcov file, the summary table generated in the previous step will
+      # still include all files and directories.
+      # The `--rc lcov_branch_coverage=1` part keeps branch info in the filtered report, since lcov
+      # defaults to removing branch info.
+      - name: Filter directories
+        run: |
+          sudo apt update && sudo apt install -y lcov
+          lcov --remove lcov.info 'test/*' 'script/*' --output-file lcov.info --rc lcov_branch_coverage=1
+
+      # Post a detailed coverage report as a comment and deletes previous comments on each push.
+      - name: Post coverage report
+        if: github.event_name == 'pull_request' # This action fails when ran outside of a pull request.
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          delete-old-comments: true
+          lcov-file: ./lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }} # Adds a coverage summary comment to the PR.
+
+      # Fail coverage if the specified coverage threshold is not met
+      - name: Verify minimum coverage
+        uses: zgosalvez/github-actions-report-lcov@v2
+        with:
+          coverage-files: ./lcov.info
+          minimum-coverage: 94
