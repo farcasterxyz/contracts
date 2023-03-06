@@ -15,11 +15,11 @@ contract BundleRegistryScript is Script {
     address constant GOERLI_FORWARDER = address(0x7A95fA73250dc53556d264522150A940d4C50238);
     bytes32 constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
-    address DEPLOYER = vm.addr(vm.envUint("PRIVATE_KEY"));
+    address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
 
     // TODO: Update the vault and pool addresses every time
-    address VAULT = DEPLOYER;
-    address POOL = DEPLOYER;
+    address vault = deployer;
+    address pool = deployer;
     NameRegistry nameRegistryImpl;
     NameRegistry nameRegistry;
     ERC1967Proxy proxy;
@@ -30,20 +30,20 @@ contract BundleRegistryScript is Script {
      * @dev Deploys IdRegistry, NameRegistry and BundleRegistry contracts with the following config:
      *
      * IdRegistry
-     *  - trusted_caller: DEPLOYER
-     *  - owner         : DEPLOYER
+     *  - trusted_caller: deployer
+     *  - owner         : deployer
      *
      * NameRegistry
      *  - trusted_caller: BundleRegistry
-     *  - default_admin : DEPLOYER
+     *  - default_admin : deployer
      *  - admin         : none
      *
      * BundleRegistry
-     *  - trusted_caller: DEPLOYER
-     *  - owner         : DEPLOYER
+     *  - trusted_caller: deployer
+     *  - owner         : deployer
      */
     function run() public {
-        vm.startBroadcast(DEPLOYER);
+        vm.startBroadcast(deployer);
         idRegistry = new IdRegistry(GOERLI_FORWARDER);
 
         nameRegistryImpl = new NameRegistry(GOERLI_FORWARDER);
@@ -51,18 +51,18 @@ contract BundleRegistryScript is Script {
         proxy = new ERC1967Proxy(address(nameRegistryImpl), "");
         nameRegistry = NameRegistry(address(proxy));
 
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
+        nameRegistry.initialize("Farcaster NameRegistry", "FCN", vault, pool);
 
-        bundleRegistry = new BundleRegistry(address(idRegistry), address(nameRegistry), DEPLOYER);
+        bundleRegistry = new BundleRegistry(address(idRegistry), address(nameRegistry), deployer);
 
         // Set the BundleRegistry as the trusted caller for IdRegistry and NameRegistry
         idRegistry.changeTrustedCaller(address(bundleRegistry));
 
-        nameRegistry.grantRole(ADMIN_ROLE, DEPLOYER);
+        nameRegistry.grantRole(ADMIN_ROLE, deployer);
 
         nameRegistry.changeTrustedCaller(address(bundleRegistry));
 
-        nameRegistry.renounceRole(ADMIN_ROLE, DEPLOYER);
+        nameRegistry.renounceRole(ADMIN_ROLE, deployer);
         vm.stopBroadcast();
     }
 }
