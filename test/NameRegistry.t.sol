@@ -517,9 +517,8 @@ contract NameRegistryTest is Test {
         address recovery
     ) public {
         _assumeClean(alice);
-        vm.assume(bob != address(0));
+        vm.assume(bob != address(0) && bob != incorrectOwner);
         vm.assume(incorrectOwner != address(0));
-        vm.assume(bob != incorrectOwner);
         _disableTrusted();
 
         vm.deal(alice, 10_000 ether);
@@ -1048,8 +1047,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _register(alice);
-        vm.assume(alice != charlie);
-        vm.assume(charlie != address(0));
+        vm.assume(charlie != address(0) && charlie != alice);
         amount = amount % AMOUNT_FUZZ_MAX;
         uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
 
@@ -1474,8 +1472,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1503,8 +1500,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         _assumeClean(approver);
         vm.assume(bob != address(0));
-        vm.assume(alice != bob);
-        vm.assume(approver != alice);
+        vm.assume(alice != bob && alice != approver);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1533,8 +1529,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotSafeTransferIfFnameExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(alice != bob);
-        vm.assume(bob != address(0));
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
@@ -1581,9 +1576,8 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(recovery);
         _assumeClean(approver);
-        vm.assume(alice != bob);
+        vm.assume(alice != bob && alice != approver);
         vm.assume(bob != address(0));
-        vm.assume(approver != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
@@ -1619,8 +1613,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotSafeTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1654,8 +1647,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         _assumeClean(approver);
         vm.assume(bob != address(0));
-        vm.assume(alice != bob);
-        vm.assume(approver != alice);
+        vm.assume(alice != bob && alice != approver);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1685,8 +1677,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzCannotSafeTransferFromIfRegistrable(address alice, address bob) public {
         _assumeClean(alice);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         vm.warp(JAN1_2023_TS);
 
         vm.prank(alice);
@@ -1707,8 +1698,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1730,8 +1720,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotSafeTransferFromToZeroAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1753,8 +1742,7 @@ contract NameRegistryTest is Test {
     function testFuzzTransferFromOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1781,8 +1769,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         _assumeClean(approver);
         vm.assume(bob != address(0));
-        vm.assume(alice != bob);
-        vm.assume(approver != alice);
+        vm.assume(alice != bob && alice != approver);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1811,8 +1798,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotTransferFromIfFnameExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(alice != bob);
-        vm.assume(bob != address(0));
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
@@ -1860,9 +1846,8 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(recovery);
         _assumeClean(approver);
-        vm.assume(alice != bob);
+        vm.assume(alice != bob && alice != approver);
         vm.assume(bob != address(0));
-        vm.assume(approver != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
@@ -1898,8 +1883,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1934,8 +1918,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         _assumeClean(approver);
         vm.assume(bob != address(0));
-        vm.assume(alice != bob);
-        vm.assume(approver != alice);
+        vm.assume(alice != bob && alice != approver);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1966,7 +1949,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotTransferFromIfRegistrable(address alice, address bob) public {
         _assumeClean(alice);
         vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(alice != bob && alice != approver);
         vm.warp(JAN1_2023_TS);
 
         vm.prank(alice);
@@ -1987,8 +1970,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -2010,8 +1992,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotTransferFromToZeroAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -2054,8 +2035,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzChangeRecoveryAddress(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
-        vm.assume(alice != recovery1);
-        vm.assume(recovery1 != address(0));
+        vm.assume(recovery1 != address(0) && recovery1 != alice);
         _register(alice);
 
         // alice sets recovery1 as her recovery address and requests a recovery
@@ -2132,8 +2112,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzCannotChangeRecoveryAddressIfRegistrable(address alice, address recovery) public {
         _assumeClean(alice);
-        vm.assume(alice != recovery);
-        vm.assume(recovery != address(0));
+        vm.assume(recovery != address(0) && recovery != alice);
 
         vm.prank(alice);
         vm.expectRevert("ERC721: invalid token ID");
@@ -2147,8 +2126,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotChangeRecoveryAddressIfPaused(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
         _assumeClean(recovery1);
-        vm.assume(alice != recovery1);
-        vm.assume(recovery1 != address(0));
+        vm.assume(recovery1 != address(0) && recovery1 != alice);
         vm.assume(recovery2 != address(0));
         _register(alice);
 
@@ -2332,8 +2310,7 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(recovery != notRecovery);
-        vm.assume(notRecovery != address(0));
+        vm.assume(notRecovery != address(0) && notRecovery != recovery);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -2631,9 +2608,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
-        vm.assume(bob != address(0));
-        vm.assume(bob != recovery);
-        vm.assume(bob != alice);
+        vm.assume(bob != address(0) && bob != recovery && bob != alice);
         _register(alice);
 
         _requestRecovery(alice, recovery);
