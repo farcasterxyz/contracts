@@ -517,9 +517,8 @@ contract NameRegistryTest is Test {
         address recovery
     ) public {
         _assumeClean(alice);
-        vm.assume(bob != address(0));
+        vm.assume(bob != address(0) && bob != incorrectOwner);
         vm.assume(incorrectOwner != address(0));
-        vm.assume(bob != incorrectOwner);
         _disableTrusted();
 
         vm.deal(alice, 10_000 ether);
@@ -1048,8 +1047,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _register(alice);
-        vm.assume(alice != charlie);
-        vm.assume(charlie != address(0));
+        vm.assume(charlie != address(0) && charlie != alice);
         amount = amount % AMOUNT_FUZZ_MAX;
         uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
 
@@ -1470,12 +1468,33 @@ contract NameRegistryTest is Test {
         nameRegistry.ownerOf(ALICE_TOKEN_ID);
     }
 
+    function testFuzzCannotSetApproverIfNotOwner(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        _assumeClean(approver);
+        vm.assume(alice != bob && alice != approver);
+        vm.assume(bob != address(0));
+        _register(alice);
+
+        // bob tries to set an approver of alices fname
+        vm.prank(bob);
+        vm.expectRevert("ERC721: approve caller is not token owner or approved for all");
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        //verify that bob is not approved for @alice
+        assertEq(nameRegistry.getApproved(ALICE_TOKEN_ID), address(0));
+    }
+
     function testFuzzSafeTransferFromOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1503,8 +1522,7 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         _assumeClean(approver);
         vm.assume(bob != address(0));
-        vm.assume(alice != bob);
-        vm.assume(approver != alice);
+        vm.assume(alice != bob && alice != approver);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1533,8 +1551,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotSafeTransferIfFnameExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(alice != bob);
-        vm.assume(bob != address(0));
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
@@ -1572,11 +1589,53 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
+    function testFuzzCannotSafeTransferFromApproverIfFnameExpired(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        _assumeClean(approver);
+        vm.assume(alice != bob && alice != approver);
+        vm.assume(bob != address(0));
+        _register(alice);
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
+        uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // alice sets her approver
+        vm.prank(alice);
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        // Warp to renewable state and attempt a transfer
+        vm.warp(renewableTs);
+        vm.startPrank(approver);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        nameRegistry.safeTransferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        // Warp to biddable state and attempt a transfer
+        vm.warp(biddableTs);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        nameRegistry.safeTransferFrom(alice, bob, ALICE_TOKEN_ID);
+        vm.stopPrank();
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+    }
+
     function testFuzzCannotSafeTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1600,10 +1659,47 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
+    function testFuzzCannotSafeTransferFromApproverIfPaused(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        _assumeClean(approver);
+        vm.assume(bob != address(0));
+        vm.assume(alice != bob && alice != approver);
+        _register(alice);
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // alice sets her approver
+        vm.prank(alice);
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        // Pause the contract
+        _grant(OPERATOR_ROLE, ADMIN);
+        vm.prank(ADMIN);
+        nameRegistry.pause();
+
+        vm.prank(approver);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.safeTransferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+    }
+
     function testFuzzCannotSafeTransferFromIfRegistrable(address alice, address bob) public {
         _assumeClean(alice);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         vm.warp(JAN1_2023_TS);
 
         vm.prank(alice);
@@ -1624,8 +1720,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1647,8 +1742,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotSafeTransferFromToZeroAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1670,8 +1764,7 @@ contract NameRegistryTest is Test {
     function testFuzzTransferFromOwner(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1698,14 +1791,13 @@ contract NameRegistryTest is Test {
         _assumeClean(recovery);
         _assumeClean(approver);
         vm.assume(bob != address(0));
-        vm.assume(alice != bob);
-        vm.assume(approver != alice);
+        vm.assume(alice != bob && alice != approver);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
         _requestRecovery(alice, recovery);
 
-        // alice sets charlie as her approver
+        // alice sets her approver
         vm.prank(alice);
         nameRegistry.approve(approver, ALICE_TOKEN_ID);
 
@@ -1728,8 +1820,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotTransferFromIfFnameExpired(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(alice != bob);
-        vm.assume(bob != address(0));
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
@@ -1768,11 +1859,53 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
+    function testFuzzCannotTransferFromApproverIfFnameExpired(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        _assumeClean(approver);
+        vm.assume(alice != bob && alice != approver);
+        vm.assume(bob != address(0));
+        _register(alice);
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
+        uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // alice sets her approver
+        vm.prank(alice);
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        // Warp to renewable state and attempt a transfer
+        vm.warp(renewableTs);
+        vm.startPrank(approver);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        // Warp to biddable state and attempt a transfer
+        vm.warp(biddableTs);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
+        vm.stopPrank();
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
+        vm.expectRevert(NameRegistry.Expired.selector);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
+        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+    }
+
     function testFuzzCannotTransferFromIfPaused(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1797,10 +1930,47 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
+    function testFuzzCannotTransferFromApproverIfPaused(
+        address alice,
+        address bob,
+        address approver,
+        address recovery
+    ) public {
+        _assumeClean(alice);
+        _assumeClean(recovery);
+        _assumeClean(approver);
+        vm.assume(bob != address(0));
+        vm.assume(alice != bob && alice != approver);
+        _register(alice);
+        uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
+
+        uint256 requestTs = _requestRecovery(alice, recovery);
+
+        // alice sets her approver
+        vm.prank(alice);
+        nameRegistry.approve(approver, ALICE_TOKEN_ID);
+
+        // Pause the contract
+        _grant(OPERATOR_ROLE, ADMIN);
+        vm.prank(ADMIN);
+        nameRegistry.pause();
+
+        vm.prank(approver);
+        vm.expectRevert("Pausable: paused");
+        nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
+
+        assertEq(nameRegistry.balanceOf(alice), 1);
+        assertEq(nameRegistry.balanceOf(bob), 0);
+        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
+        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
+        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
+        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
+        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
+    }
+
     function testFuzzCannotTransferFromIfRegistrable(address alice, address bob) public {
         _assumeClean(alice);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         vm.warp(JAN1_2023_TS);
 
         vm.prank(alice);
@@ -1821,8 +1991,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(bob);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1844,8 +2013,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotTransferFromToZeroAddress(address alice, address bob, address recovery) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(bob != address(0));
-        vm.assume(alice != bob);
+        vm.assume(bob != address(0) && bob != alice);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -1888,8 +2056,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzChangeRecoveryAddress(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
-        vm.assume(alice != recovery1);
-        vm.assume(recovery1 != address(0));
+        vm.assume(recovery1 != address(0) && recovery1 != alice);
         _register(alice);
 
         // alice sets recovery1 as her recovery address and requests a recovery
@@ -1966,8 +2133,7 @@ contract NameRegistryTest is Test {
 
     function testFuzzCannotChangeRecoveryAddressIfRegistrable(address alice, address recovery) public {
         _assumeClean(alice);
-        vm.assume(alice != recovery);
-        vm.assume(recovery != address(0));
+        vm.assume(recovery != address(0) && recovery != alice);
 
         vm.prank(alice);
         vm.expectRevert("ERC721: invalid token ID");
@@ -1981,8 +2147,7 @@ contract NameRegistryTest is Test {
     function testFuzzCannotChangeRecoveryAddressIfPaused(address alice, address recovery1, address recovery2) public {
         _assumeClean(alice);
         _assumeClean(recovery1);
-        vm.assume(alice != recovery1);
-        vm.assume(recovery1 != address(0));
+        vm.assume(recovery1 != address(0) && recovery1 != alice);
         vm.assume(recovery2 != address(0));
         _register(alice);
 
@@ -2166,8 +2331,7 @@ contract NameRegistryTest is Test {
     ) public {
         _assumeClean(alice);
         _assumeClean(recovery);
-        vm.assume(recovery != notRecovery);
-        vm.assume(notRecovery != address(0));
+        vm.assume(notRecovery != address(0) && notRecovery != recovery);
         _register(alice);
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
 
@@ -2465,9 +2629,7 @@ contract NameRegistryTest is Test {
         _assumeClean(alice);
         _assumeClean(recovery);
         vm.assume(alice != recovery);
-        vm.assume(bob != address(0));
-        vm.assume(bob != recovery);
-        vm.assume(bob != alice);
+        vm.assume(bob != address(0) && bob != recovery && bob != alice);
         _register(alice);
 
         _requestRecovery(alice, recovery);
