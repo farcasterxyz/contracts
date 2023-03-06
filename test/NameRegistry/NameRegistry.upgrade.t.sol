@@ -10,62 +10,53 @@ import {ERC2771ContextUpgradeable} from "openzeppelin-upgradeable/contracts/meta
 import {Initializable} from "openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
-import "./TestConstants.sol";
+import "../TestConstants.sol";
 import "./NameRegistryConstants.sol";
 
-import "../src/NameRegistry.sol";
+import "../../src/NameRegistry.sol";
+import {NameRegistryTestSuite} from "./NameRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility*/
 /* solhint-disable avoid-low-level-calls */
 
-contract NameRegistryUpgradeTest is Test {
-    ERC1967Proxy proxy;
-    NameRegistry nameRegistryImpl;
-    NameRegistry nameRegistryProxy;
+contract NameRegistryUpgradeTest is NameRegistryTestSuite {
     NameRegistryV2 nameRegistryV2Impl;
 
-    address defaultAdmin = address(this);
-
-    function setUp() public {
-        nameRegistryImpl = new NameRegistry(FORWARDER);
+    function setUp() public override {
+        super.setUp();
         nameRegistryV2Impl = new NameRegistryV2(FORWARDER);
-        proxy = new ERC1967Proxy(address(nameRegistryImpl), "");
-
-        nameRegistryProxy = NameRegistry(address(proxy));
-        nameRegistryProxy.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
-        nameRegistryProxy.grantRole(ADMIN_ROLE, ADMIN);
     }
 
     function testProxyRead() public {
         // Check that values set in the initializer can be read from the proxy
-        assertEq(nameRegistryProxy.vault(), VAULT);
+        assertEq(nameRegistry.vault(), VAULT);
     }
 
     function testFuzzV2Initializer(address newVault) public {
         // Check that upgrading and initializing changes storage values correctly
-        assertEq(nameRegistryProxy.vault(), VAULT);
+        assertEq(nameRegistry.vault(), VAULT);
 
-        NameRegistryV2 nameRegistryV2Proxy = _upgradeToV2();
+        NameRegistryV2 nameRegistryV2 = _upgradeToV2();
 
         vm.prank(ADMIN);
-        nameRegistryV2Proxy.initializeV2("Farcaster NameRegistry", "FCN", newVault, POOL);
+        nameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", newVault, POOL);
 
-        // Calling nameRegistryProxy and nameRegistryV2Proxy is equivalent on-chain, they're just
+        // Calling nameRegistry and nameRegistryV2 is equivalent on-chain, they're just
         // different solidity classes with the same address
-        assertEq(nameRegistryProxy.vault(), newVault);
+        assertEq(nameRegistry.vault(), newVault);
     }
 
     function testV2NewFunction() public {
         // Check that a new function added in V2 can be called
-        NameRegistryV2 nameRegistryV2Proxy = _upgradeToV2();
+        NameRegistryV2 nameRegistryV2 = _upgradeToV2();
 
         vm.prank(ADMIN);
-        nameRegistryV2Proxy.initializeV2("Farcaster NameRegistry", "FCN", VAULT, POOL);
+        nameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", VAULT, POOL);
 
-        assertEq(nameRegistryV2Proxy.number(), 0);
+        assertEq(nameRegistryV2.number(), 0);
 
-        nameRegistryV2Proxy.setNumber(42);
-        assertEq(nameRegistryV2Proxy.number(), 42);
+        nameRegistryV2.setNumber(42);
+        assertEq(nameRegistryV2.number(), 42);
     }
 
     // solhint-disable-next-line no-empty-blocks
@@ -82,7 +73,7 @@ contract NameRegistryUpgradeTest is Test {
 
     function testCannotCallV2FunctionBeforeUpgrade() public {
         vm.expectRevert();
-        (bool s1,) = address(proxy).call(abi.encodeWithSelector(nameRegistryV2Impl.setNumber.selector, 1));
+        (bool s1,) = address(nameRegistryProxy).call(abi.encodeWithSelector(nameRegistryV2Impl.setNumber.selector, 1));
         assertEq(s1, true);
     }
 
@@ -90,14 +81,14 @@ contract NameRegistryUpgradeTest is Test {
         vm.assume(alice != defaultAdmin && alice != ADMIN);
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotAdmin.selector);
-        nameRegistryProxy.upgradeTo(address(nameRegistryV2Impl));
+        nameRegistry.upgradeTo(address(nameRegistryV2Impl));
     }
 
     /// @dev Upgrade the proxy to the V2 implementation and return the proxy as a V2 contract instance
     function _upgradeToV2() public returns (NameRegistryV2) {
         vm.prank(ADMIN);
-        nameRegistryProxy.upgradeTo(address(nameRegistryV2Impl));
-        return NameRegistryV2(address(proxy));
+        nameRegistry.upgradeTo(address(nameRegistryV2Impl));
+        return NameRegistryV2(address(nameRegistryProxy));
     }
 }
 
