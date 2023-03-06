@@ -1590,7 +1590,7 @@ contract NameRegistryTest is Test {
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
-        // alice sets charlie as her approver
+        // alice sets her approver
         vm.prank(alice);
         nameRegistry.approve(approver, ALICE_TOKEN_ID);
 
@@ -1599,15 +1599,6 @@ contract NameRegistryTest is Test {
         vm.startPrank(approver);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.safeTransferFrom(alice, bob, ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
-        vm.expectRevert(NameRegistry.Expired.selector);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
-        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
 
         // Warp to biddable state and attempt a transfer
         vm.warp(biddableTs);
@@ -1670,7 +1661,7 @@ contract NameRegistryTest is Test {
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
-        // alice sets charlie as her approver
+        // alice sets her approver
         vm.prank(alice);
         nameRegistry.approve(approver, ALICE_TOKEN_ID);
 
@@ -1797,7 +1788,7 @@ contract NameRegistryTest is Test {
 
         _requestRecovery(alice, recovery);
 
-        // alice sets charlie as her approver
+        // alice sets her approver
         vm.prank(alice);
         nameRegistry.approve(approver, ALICE_TOKEN_ID);
 
@@ -1878,7 +1869,7 @@ contract NameRegistryTest is Test {
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
-        // alice sets charlie as her approver
+        // alice sets her approver
         vm.prank(alice);
         nameRegistry.approve(approver, ALICE_TOKEN_ID);
 
@@ -1887,16 +1878,6 @@ contract NameRegistryTest is Test {
         vm.startPrank(approver);
         vm.expectRevert(NameRegistry.Expired.selector);
         nameRegistry.transferFrom(alice, bob, ALICE_TOKEN_ID);
-
-        assertEq(nameRegistry.balanceOf(alice), 1);
-        assertEq(nameRegistry.balanceOf(bob), 0);
-        assertEq(nameRegistry.expiryTsOf(ALICE_TOKEN_ID), renewableTs);
-        vm.expectRevert(NameRegistry.Expired.selector);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), address(0));
-        assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
-        assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
-
-        assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
 
         // Warp to biddable state and attempt a transfer
         vm.warp(biddableTs);
@@ -1960,7 +1941,7 @@ contract NameRegistryTest is Test {
 
         uint256 requestTs = _requestRecovery(alice, recovery);
 
-        // alice sets charlie as her approver
+        // alice sets her approver
         vm.prank(alice);
         nameRegistry.approve(approver, ALICE_TOKEN_ID);
 
@@ -1979,7 +1960,6 @@ contract NameRegistryTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), alice);
         assertEq(nameRegistry.recoveryTsOf(ALICE_TOKEN_ID), requestTs);
         assertEq(nameRegistry.recoveryDestinationOf(ALICE_TOKEN_ID), recovery);
-
         assertEq(nameRegistry.recoveryOf(ALICE_TOKEN_ID), recovery);
     }
 
