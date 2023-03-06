@@ -242,6 +242,25 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.idOf(bob), 0);
     }
 
+    function testFuzzTransferReregister(address alice, address bob) public {
+        vm.assume(alice != FORWARDER && alice != bob);
+        _register(alice);
+
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, 1);
+        idRegistry.transfer(bob);
+
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 1);
+
+        _register(alice);
+        assertEq(idRegistry.idOf(alice), 2);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           CHANGE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
