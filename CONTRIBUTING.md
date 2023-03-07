@@ -45,9 +45,9 @@ Install the following packages globally before you get started:
 
 - [Foundry](https://github.com/foundry-rs/foundry) - smart contract toolchain
 - [Slither](https://github.com/crytic/slither#how-to-install) - smart contract static analysis tool
-- [Yarn](https://classic.yarnpkg.com/lang/en/docs/install) - supporting javascript package manager
+- [Rust/Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) - for git pre-commit hooks
 
-Once they are installed globally, run `yarn install`, `forge build`, `forge test` and `slither .` to verify that they
+Once they are installed globally, run `cargo build`, `forge build`, `forge test` and `slither .` to verify that they
 are working. Expect the slither command to print several warnings which are false positives or non-issues.
 
 ### 2.2. Signing Commits
