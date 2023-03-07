@@ -59,6 +59,22 @@ contract NameRegistryUpgradeTest is NameRegistryTestSuite {
         assertEq(nameRegistryV2.number(), 42);
     }
 
+    function testUpgradeMaintainsExistingRoles(bytes32 role1, address alice, address bob) public {
+        vm.assume(bob != alice);
+        _grant(role1, alice);
+
+        assertTrue(nameRegistry.hasRole(role1, alice), "alice has role1");
+        assertFalse(nameRegistry.hasRole(role1, bob), "bob does not have role1");
+
+        NameRegistryV2 nameRegistryV2 = _upgradeToV2();
+
+        vm.prank(ADMIN);
+        nameRegistryV2.initializeV2("Farcaster NameRegistry", "FCN", VAULT, POOL);
+
+        assertTrue(nameRegistryV2.hasRole(role1, alice), "alice still has role1");
+        assertFalse(nameRegistryV2.hasRole(role1, bob), "bob still does not have role1");
+    }
+
     // solhint-disable-next-line no-empty-blocks
     function testModifiedFnAfterUpgrade() public {
         // TODO: If we decide to stick with UUPS, assert that a function can be redefined and will
@@ -99,7 +115,7 @@ contract NameRegistryV2 is
     Initializable,
     ERC721Upgradeable,
     ERC2771ContextUpgradeable,
-    OwnableUpgradeable,
+    AccessControlUpgradeable,
     PausableUpgradeable,
     UUPSUpgradeable
 {
@@ -144,9 +160,6 @@ contract NameRegistryV2 is
 
         __ERC721_init_unchained(_name, _symbol);
 
-        // Initialize the owner to the deployer and then transfer it to _owner
-        __Ownable_init_unchained();
-
         vault = _vault;
 
         pool = _pool;
@@ -175,10 +188,19 @@ contract NameRegistryV2 is
     }
 
     // solhint-disable-next-line no-empty-blocks
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override {}
 
     // New function added for testing
     function setNumber(uint256 _number) public {
         number = _number;
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable, ERC721Upgradeable)
+        returns (bool)
+    {
+        return AccessControlUpgradeable.supportsInterface(interfaceId);
     }
 }
