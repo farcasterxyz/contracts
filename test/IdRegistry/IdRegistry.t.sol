@@ -3,16 +3,14 @@ pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
 
-import "./TestConstants.sol";
-import {IdRegistryHarness} from "./Utils.sol";
+import "../TestConstants.sol";
 
-import {IdRegistry} from "../src/IdRegistry.sol";
+import {IdRegistry} from "../../src/IdRegistry.sol";
+import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract IdRegistryTest is Test {
-    IdRegistryHarness idRegistry;
-
+contract IdRegistryTest is IdRegistryTestSuite {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -28,15 +26,6 @@ contract IdRegistryTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     uint256 constant ESCROW_PERIOD = 259_200;
-    address owner = address(this);
-
-    /*//////////////////////////////////////////////////////////////
-                               CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    function setUp() public {
-        idRegistry = new IdRegistryHarness(FORWARDER);
-    }
 
     /*//////////////////////////////////////////////////////////////
                              REGISTER TESTS
@@ -665,24 +654,5 @@ contract IdRegistryTest is Test {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
         assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                              TEST HELPERS
-    //////////////////////////////////////////////////////////////*/
-
-    function _register(address caller) internal {
-        _registerWithRecovery(caller, address(0));
-    }
-
-    function _registerWithRecovery(address caller, address recovery) internal {
-        idRegistry.disableTrustedOnly();
-        vm.prank(caller);
-        idRegistry.register(caller, recovery);
-    }
-
-    function _assertNoRecoveryState(uint256 fid) internal {
-        assertEq(idRegistry.getRecoveryTsOf(fid), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(fid), address(0));
     }
 }

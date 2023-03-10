@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.18;
 
-import "forge-std/Test.sol";
+import "../TestConstants.sol";
 
-import "./TestConstants.sol";
-import {IdRegistryHarness} from "./Utils.sol";
-
-import {IdRegistry} from "../src/IdRegistry.sol";
+import {IdRegistry} from "../../src/IdRegistry.sol";
+import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract IdRegistryOwnerTest is Test {
-    IdRegistryHarness idRegistry;
-
+contract IdRegistryOwnerTest is IdRegistryTestSuite {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -20,20 +16,6 @@ contract IdRegistryOwnerTest is Test {
     event ChangeTrustedCaller(address indexed trustedCaller);
     event DisableTrustedOnly();
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    address owner = address(this);
-
-    /*//////////////////////////////////////////////////////////////
-                               CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    function setUp() public {
-        idRegistry = new IdRegistryHarness(FORWARDER);
-    }
 
     function testFuzzChangeTrustedCaller(address alice) public {
         vm.assume(alice != FORWARDER && alice != address(0));
