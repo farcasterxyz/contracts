@@ -1,50 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
+import "../NameRegistry/NameRegistryConstants.sol";
+import "../TestConstants.sol";
 
-import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {NameRegistry} from "../../src/NameRegistry.sol";
 
-import "./NameRegistryConstants.sol";
-import "./TestConstants.sol";
-import {BundleRegistryHarness} from "./Utils.sol";
-import {IdRegistryHarness} from "./Utils.sol";
-
-import {NameRegistry} from "../src/NameRegistry.sol";
+import {BundleRegistryTestSuite} from "./BundleRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract BundleRegistryGasUsageTest is Test {
-    IdRegistryHarness idRegistry;
-    NameRegistry nameRegistry;
-    BundleRegistryHarness bundleRegistry;
-    NameRegistry nameRegistryImpl;
-    ERC1967Proxy nameRegistryProxy;
-
-    address owner = address(this);
-
+contract BundleRegistryGasUsageTest is BundleRegistryTestSuite {
     // padded to all be length 5
     bytes16[10] names =
         [bytes16("alice"), "bob11", "carol", "dave1", "eve11", "frank", "georg", "harry", "ian11", "jane1"];
-
-    function setUp() public {
-        // Set up the IdRegistry
-        idRegistry = new IdRegistryHarness(FORWARDER);
-
-        // Set up the NameRegistry with UUPS Proxy and configure the admin role
-        nameRegistryImpl = new NameRegistry(FORWARDER);
-        nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
-        nameRegistry = NameRegistry(address(nameRegistryProxy));
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
-        nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
-
-        // Set up the BundleRegistry
-        bundleRegistry = new BundleRegistryHarness(
-            address(idRegistry),
-            address(nameRegistry),
-            address(this)
-        );
-    }
 
     function testGasRegister() public {
         idRegistry.disableTrustedOnly();

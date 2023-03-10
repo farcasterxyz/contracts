@@ -1,22 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
-import {IdRegistryHarness} from "./Utils.sol";
+import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
+import {IdRegistryHarness} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
-contract IdRegistryGasUsageTest is Test {
-    IdRegistryHarness idRegistry;
-
-    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
+contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     address constant TRUSTED_SENDER = address(0x123);
     address constant RECOVERY = address(0x6D1217BD164119E2ddE6ce1723879844FD73114e);
-
-    function setUp() public {
-        idRegistry = new IdRegistryHarness(FORWARDER);
-    }
 
     function testGasRegisterAndRecover() public {
         idRegistry.disableTrustedOnly();

@@ -6,22 +6,14 @@ import "forge-std/Test.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import "./NameRegistryConstants.sol";
-import "./TestConstants.sol";
+import "../TestConstants.sol";
 
-import {NameRegistry} from "../src/NameRegistry.sol";
+import {NameRegistry} from "../../src/NameRegistry.sol";
+import {NameRegistryTestSuite} from "./NameRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract NameRegistryGasUsageTest is Test {
-    /// Instance of the implementation contract
-    NameRegistry nameRegistryImpl;
-
-    // Instance of the proxy contract
-    ERC1967Proxy nameRegistryProxy;
-
-    // Instance of the proxy contract cast as the implementation contract
-    NameRegistry nameRegistry;
-
+contract NameRegistryGasUsageTest is NameRegistryTestSuite {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -31,19 +23,6 @@ contract NameRegistryGasUsageTest is Test {
     // names are padded to 5 characters
     bytes16[10] names =
         [bytes16("alice"), "bob11", "carol", "dave1", "eve11", "frank", "georg", "harry", "ian11", "jane1"];
-
-    /*//////////////////////////////////////////////////////////////
-                              CONSTRUCTORS
-    //////////////////////////////////////////////////////////////*/
-
-    function setUp() public {
-        nameRegistryImpl = new NameRegistry(FORWARDER);
-        nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
-
-        nameRegistry = NameRegistry(address(nameRegistryProxy));
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
-        nameRegistry.grantRole(ADMIN_ROLE, ADMIN);
-    }
 
     function testGasRegister() public {
         vm.prank(ADMIN);
