@@ -1,3 +1,3 @@
 // an empty cargo target
-// just allows rusty-hook to run
+// we use cargo to install git commit hooks via rusty-hook
 fn main() {}
