@@ -8,5 +8,5 @@ publish = false
 name = "main"
 path = "main.rs"
 
-[dev-dependencies]
+[dependencies]
 rusty-hook = "^0.11.2"
