@@ -18,7 +18,7 @@ abstract contract IdRegistryTestSuite is Test {
 
     address owner = address(this);
 
-    function setUp() public {
+    function setUp() public virtual {
         idRegistry = new IdRegistryHarness(FORWARDER);
     }
 
