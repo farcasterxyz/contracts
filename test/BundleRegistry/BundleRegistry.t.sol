@@ -207,7 +207,6 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
         bundleRegistry.register{value: FEE + 1 wei}(alice, recovery, "alice", secret);
 
         _assertUnsuccessfulRegistration(alice);
-
         assertEq(nameRegistry.timestampOf(commitHash), commitTs);
     }
 
