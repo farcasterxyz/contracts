@@ -4,17 +4,20 @@ pragma solidity 0.8.18;
 import {CommonBase} from "forge-std/Base.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
-import {IdRegistryHarness, AddressSet, LibAddressSet} from "../../Utils.sol";
+import {IdRegistryHarness, LibAddressSet} from "../../Utils.sol";
+
+import {EnumerableSet} from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
 /* solhint-disable state-visibility */
 
 contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
-    using LibAddressSet for AddressSet;
+    using EnumerableSet for EnumerableSet.AddressSet;
+    using LibAddressSet for EnumerableSet.AddressSet;
 
     IdRegistryHarness idRegistry;
 
-    AddressSet internal _fidOwners;
-    AddressSet internal _recoveryAddrs;
+    EnumerableSet.AddressSet internal _fidOwners;
+    EnumerableSet.AddressSet internal _recoveryAddrs;
 
     address internal currentActor;
 
@@ -36,6 +39,14 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
         owner = _owner;
     }
 
+    function fidOwners() external view returns (address[] memory) {
+        return _fidOwners.values();
+    }
+
+    function recoveryAddrs() external view returns (address[] memory) {
+        return _recoveryAddrs.values();
+    }
+
     function register(address to, address recovery) public {
         idRegistry.register(to, recovery);
 
@@ -44,16 +55,25 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function transfer(uint256 seed, address to) public useFidOwner(seed) {
-        vm.prank(currentActor);
-        idRegistry.transfer(to);
+        if (_fidOwners.length() > 0) {
+            vm.prank(currentActor);
+            idRegistry.transfer(to);
 
-        _fidOwners.add(to);
+            _fidOwners.remove(currentActor);
+            _fidOwners.add(to);
+        }
     }
 
     function changeRecoveryAddress(uint256 seed, address recovery) public useFidOwner(seed) {
-        vm.prank(currentActor);
-        idRegistry.changeRecoveryAddress(recovery);
+        if (_fidOwners.length() > 0) {
+            uint256 fid = idRegistry.idOf(currentActor);
+            address oldRecovery = idRegistry.getRecoveryOf(fid);
 
-        _recoveryAddrs.add(recovery);
+            vm.prank(currentActor);
+            idRegistry.changeRecoveryAddress(recovery);
+
+            _recoveryAddrs.remove(oldRecovery);
+            _recoveryAddrs.add(recovery);
+        }
     }
 }

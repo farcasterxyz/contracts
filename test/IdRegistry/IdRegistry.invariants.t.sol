@@ -17,7 +17,18 @@ contract IdRegistryInvariants is IdRegistryTestSuite {
         targetContract(address(handler));
     }
 
-    function invariant_recoverySenderMustOwnFid() public {
-        assertEq(uint256(1), 1);
+    function invariant_allFidOwnersHaveRecoveryAddr() public {
+        // Note to self: this is not the right property! recovery addrs are cleared on transfer...
+        address[] memory fidOwners = handler.fidOwners();
+        for (uint256 i; i < fidOwners.length; ++i) {
+            address fidOwner = fidOwners[i];
+            uint256 fid = idRegistry.idOf(fidOwner);
+            address recovery = idRegistry.getRecoveryOf(fid);
+
+            // fid exists
+            assertTrue(fid != 0, "Zero fid");
+            // recovery address exists
+            assertTrue(recovery != address(0), "Zero recovery address");
+        }
     }
 }
