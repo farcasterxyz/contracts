@@ -129,13 +129,10 @@ contract NameRegistryTest is NameRegistryTestSuite {
 
         // Run command and capture output
         bytes memory jsResult = vm.ffi(runJsInputs);
-        bytes32 secret = keccak256("SECRET");
         if (jsResult[0] == 0) {
             vm.expectRevert(NameRegistry.InvalidName.selector);
-            nameRegistry.generateCommit(fname, address(0), secret, address(0));
-        } else {
-            nameRegistry.generateCommit(fname, address(0), secret, address(0));
         }
+        nameRegistry.generateCommit(fname, address(0), keccak256("SECRET"), address(0));
     }
 
     function testFuzzMakeCommit(address alice, bytes32 secret, address recovery) public {
