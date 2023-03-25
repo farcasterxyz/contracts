@@ -21,6 +21,8 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
 
     address internal currentActor;
 
+    mapping(address => uint256[]) internal _fidsByRecoveryAddr;
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -48,19 +50,27 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function register(address to, address recovery) public {
-        idRegistry.register(to, recovery);
+        if (idRegistry.idOf(to) == 0) {
+            idRegistry.register(to, recovery);
+            uint256 fid = idRegistry.idOf(to);
 
-        _fidOwners.add(to);
-        _recoveryAddrs.add(recovery);
+            _fidOwners.add(to);
+            _recoveryAddrs.add(recovery);
+            _saveFidByRecoveryAddr(fid, recovery);
+        }
     }
 
     function transfer(uint256 seed, address to) public useFidOwner(seed) {
-        if (_fidOwners.length() > 0) {
+        if (_fidOwners.length() > 0 && idRegistry.idOf(to) == 0) {
+            uint256 fid = idRegistry.idOf(currentActor);
+            address recovery = idRegistry.getRecoveryOf(fid);
+
             vm.prank(currentActor);
             idRegistry.transfer(to);
 
             _fidOwners.remove(currentActor);
             _fidOwners.add(to);
+            _removeFidByRecoveryAddr(fid, recovery);
         }
     }
 
@@ -74,6 +84,26 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
 
             _recoveryAddrs.remove(oldRecovery);
             _recoveryAddrs.add(recovery);
+            _removeFidByRecoveryAddr(fid, oldRecovery);
         }
+    }
+
+    function fidsByRecoveryAddr(address recovery) public view returns (uint256[] memory) {
+        return _fidsByRecoveryAddr[recovery];
+    }
+
+    function _saveFidByRecoveryAddr(uint256 fid, address recovery) internal {
+        _fidsByRecoveryAddr[recovery].push(fid);
+    }
+
+    function _removeFidByRecoveryAddr(uint256 fid, address recovery) internal {
+        uint256[] memory fids = _fidsByRecoveryAddr[recovery];
+        uint256[] memory newFids = new uint256[](fids.length);
+        for (uint256 i; i < fids.length; ++i) {
+            if (fids[i] != fid) {
+                newFids[i] = fids[i];
+            }
+        }
+        _fidsByRecoveryAddr[recovery] = newFids;
     }
 }
