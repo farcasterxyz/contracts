@@ -21,6 +21,7 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
 
     address internal currentActor;
 
+    mapping(uint256 => address) internal _ownerOf;
     mapping(address => uint256[]) internal _fidsByRecoveryAddr;
 
     /*//////////////////////////////////////////////////////////////
@@ -50,10 +51,11 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function register(address to, address recovery) public {
-        if (idRegistry.idOf(to) == 0) {
+        if (idRegistry.idOf(to) == 0 && idRegistry.idOf(to) == 0) {
             idRegistry.register(to, recovery);
             uint256 fid = idRegistry.idOf(to);
 
+            _ownerOf[fid] = to;
             _fidOwners.add(to);
             _recoveryAddrs.add(recovery);
             _saveFidByRecoveryAddr(fid, recovery);
@@ -68,6 +70,7 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
             vm.prank(currentActor);
             idRegistry.transfer(to);
 
+            _ownerOf[fid] = to;
             _fidOwners.remove(currentActor);
             _fidOwners.add(to);
             _removeFidByRecoveryAddr(fid, recovery);
@@ -92,6 +95,10 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
         return _fidsByRecoveryAddr[recovery];
     }
 
+    function ownerOf(uint256 fid) public view returns (address) {
+        return _ownerOf[fid];
+    }
+
     function _saveFidByRecoveryAddr(uint256 fid, address recovery) internal {
         _fidsByRecoveryAddr[recovery].push(fid);
     }
@@ -99,10 +106,15 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
     function _removeFidByRecoveryAddr(uint256 fid, address recovery) internal {
         uint256[] memory fids = _fidsByRecoveryAddr[recovery];
         uint256[] memory newFids = new uint256[](fids.length);
+        uint256 len;
         for (uint256 i; i < fids.length; ++i) {
             if (fids[i] != fid) {
                 newFids[i] = fids[i];
+                ++len;
             }
+        }
+        assembly {
+            mstore(newFids, len)
         }
         _fidsByRecoveryAddr[recovery] = newFids;
     }
