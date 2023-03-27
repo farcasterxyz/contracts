@@ -58,7 +58,7 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
             _ownerOf[fid] = to;
             _fidOwners.add(to);
             _recoveryAddrs.add(recovery);
-            _saveFidByRecoveryAddr(fid, recovery);
+            _addFidByRecoveryAddr(fid, recovery);
         }
     }
 
@@ -88,6 +88,7 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
             _recoveryAddrs.remove(oldRecovery);
             _recoveryAddrs.add(recovery);
             _removeFidByRecoveryAddr(fid, oldRecovery);
+            _addFidByRecoveryAddr(fid, recovery);
         }
     }
 
@@ -99,7 +100,7 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
         return _ownerOf[fid];
     }
 
-    function _saveFidByRecoveryAddr(uint256 fid, address recovery) internal {
+    function _addFidByRecoveryAddr(uint256 fid, address recovery) internal {
         _fidsByRecoveryAddr[recovery].push(fid);
     }
 
