@@ -36,7 +36,7 @@ jobs:
         run: forge fmt --check
 
       - name: Run forge tests
-        run: forge test -vvv
+        run: forge test -vvv --ffi
 
       - name: Check forge snapshots
         run: forge snapshot --check --match-contract Gas
