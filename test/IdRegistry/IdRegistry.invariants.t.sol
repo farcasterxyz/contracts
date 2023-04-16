@@ -57,4 +57,19 @@ contract IdRegistryInvariants is IdRegistryTestSuite {
             }
         }
     }
+
+    mapping(uint256 => bool) seenFids;
+
+    /// @notice A nonzero address may only own one fid at a time. All fids must have a unique owner.
+    function invariant_4_allFidsHaveUniqueOwner() public {
+        address[] memory fidOwners = handler.fidOwners();
+        for (uint256 i; i < fidOwners.length; ++i) {
+            address owner = fidOwners[i];
+            uint256 fid = idRegistry.idOf(owner);
+            if (seenFids[fid]) {
+                revert("invariant 4");
+            }
+            seenFids[fid] = true;
+        }
+    }
 }

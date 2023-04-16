@@ -14,22 +14,20 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
     using EnumerableSet for EnumerableSet.AddressSet;
     using LibAddressSet for EnumerableSet.AddressSet;
 
-    IdRegistryHarness idRegistry;
-
+    EnumerableSet.AddressSet internal _actors;
     EnumerableSet.AddressSet internal _fidOwners;
     EnumerableSet.AddressSet internal _recoveryAddrs;
 
     address internal currentActor;
 
-    mapping(uint256 => address) internal _ownerOf;
+    mapping(uint256 => address) internal _ownersByFid;
     mapping(address => uint256[]) internal _fidsByRecoveryAddr;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-
+    IdRegistryHarness idRegistry;
     address owner;
 
     modifier useFidOwner(uint256 ownerIndexSeed) {
@@ -51,72 +49,62 @@ contract IdRegistryHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function register(address to, address recovery) public {
-        if (idRegistry.idOf(to) == 0 && idRegistry.idOf(to) == 0) {
+        if (idRegistry.idOf(to) == 0) {
             idRegistry.register(to, recovery);
-            uint256 fid = idRegistry.idOf(to);
 
-            _ownerOf[fid] = to;
+            _actors.add(to);
+            _actors.add(recovery);
             _fidOwners.add(to);
             _recoveryAddrs.add(recovery);
-            _addFidByRecoveryAddr(fid, recovery);
         }
     }
 
     function transfer(uint256 seed, address to) public useFidOwner(seed) {
         if (_fidOwners.length() > 0 && idRegistry.idOf(to) == 0) {
-            uint256 fid = idRegistry.idOf(currentActor);
-            address recovery = idRegistry.getRecoveryOf(fid);
-
             vm.prank(currentActor);
             idRegistry.transfer(to);
 
-            _ownerOf[fid] = to;
+            _actors.add(to);
             _fidOwners.remove(currentActor);
             _fidOwners.add(to);
-            _removeFidByRecoveryAddr(fid, recovery);
         }
     }
 
     function changeRecoveryAddress(uint256 seed, address recovery) public useFidOwner(seed) {
         if (_fidOwners.length() > 0) {
-            uint256 fid = idRegistry.idOf(currentActor);
-            address oldRecovery = idRegistry.getRecoveryOf(fid);
-
             vm.prank(currentActor);
             idRegistry.changeRecoveryAddress(recovery);
 
-            _recoveryAddrs.remove(oldRecovery);
-            _recoveryAddrs.add(recovery);
-            _removeFidByRecoveryAddr(fid, oldRecovery);
-            _addFidByRecoveryAddr(fid, recovery);
+            _actors.add(recovery);
         }
     }
 
-    function fidsByRecoveryAddr(address recovery) public view returns (uint256[] memory) {
+    function fidsByRecoveryAddr(address recovery) public returns (uint256[] memory) {
+        _constructOwnersByFidMapping();
         return _fidsByRecoveryAddr[recovery];
     }
 
-    function ownerOf(uint256 fid) public view returns (address) {
-        return _ownerOf[fid];
+    function ownerOf(uint256 fid) public returns (address) {
+        _constructOwnersByFidMapping();
+        return _ownersByFid[fid];
     }
 
-    function _addFidByRecoveryAddr(uint256 fid, address recovery) internal {
-        _fidsByRecoveryAddr[recovery].push(fid);
-    }
-
-    function _removeFidByRecoveryAddr(uint256 fid, address recovery) internal {
-        uint256[] memory fids = _fidsByRecoveryAddr[recovery];
-        uint256[] memory newFids = new uint256[](fids.length);
-        uint256 len;
-        for (uint256 i; i < fids.length; ++i) {
-            if (fids[i] != fid) {
-                newFids[i] = fids[i];
-                ++len;
+    function _constructFidsByRecoveryAddrMapping() internal {
+        for (uint256 i; i < idRegistry.getIdCounter(); ++i) {
+            address recovery = idRegistry.getRecoveryOf(i);
+            if (recovery != address(0)) {
+                _fidsByRecoveryAddr[recovery].push(i);
             }
         }
-        assembly {
-            mstore(newFids, len)
+    }
+
+    function _constructOwnersByFidMapping() internal {
+        for (uint256 i; i < _actors.length(); ++i) {
+            address actor = _actors.at(i);
+            uint256 fid = idRegistry.idOf(actor);
+            if (fid != 0) {
+                _ownersByFid[fid] = actor;
+            }
         }
-        _fidsByRecoveryAddr[recovery] = newFids;
     }
 }

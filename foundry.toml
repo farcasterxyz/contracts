@@ -19,7 +19,7 @@ multiline_func_header = "params_first"
 [invariant]
 runs = 2000
 depth = 25
-fail_on_revert = false
+fail_on_revert = true
 call_override = false
 dictionary_weight = 80
 include_storage = true
