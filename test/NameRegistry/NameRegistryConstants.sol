@@ -4,7 +4,6 @@ pragma solidity 0.8.18;
 // Address of the last precompile contract
 address constant MAX_PRECOMPILE = address(9);
 
-address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
 address constant POOL = address(0xFe4ECfAAF678A24a6661DB61B573FEf3591bcfD6);
 address constant VAULT = address(0xec185Fa332C026e2d4Fc101B891B51EFc78D8836);
 address constant RECOVERY = address(0x456);

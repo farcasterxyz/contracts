@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import "../NameRegistry/NameRegistryConstants.sol";
 import "../TestConstants.sol";
+
 import {BundleRegistryHarness} from "../Utils.sol";
 import {IdRegistryHarness} from "../Utils.sol";
+import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 
 import {NameRegistry} from "../../src/NameRegistry.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract BundleRegistryTestSuite is Test {
+abstract contract BundleRegistryTestSuite is TestSuiteSetup {
     /// Instance of the NameRegistry implementation
     NameRegistry nameRegistryImpl;
 
@@ -30,24 +30,9 @@ abstract contract BundleRegistryTestSuite is Test {
     // Instance of the BundleRegistry contract wrapped in its test wrapper
     BundleRegistryHarness bundleRegistry;
 
-    /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
-    //////////////////////////////////////////////////////////////*/
+    function setUp() public override {
+        TestSuiteSetup.setUp();
 
-    // Address of known contracts
-    address[] knownContracts = [
-        address(0xCe71065D4017F316EC606Fe4422e11eB2c47c246), // FuzzerDict
-        address(0x4e59b44847b379578588920cA78FbF26c0B4956C), // CREATE2 Factory
-        address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84), // address(this)
-        address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A), // FORWARDER
-        address(0x185a4dc360CE69bDCceE33b3784B0282f7961aea), // ???
-        address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D) // ???
-    ];
-
-    // Address of the test contract
-    address owner = address(this);
-
-    function setUp() public {
         // Set up the IdRegistry
         idRegistry = new IdRegistryHarness(FORWARDER);
 
@@ -64,21 +49,6 @@ abstract contract BundleRegistryTestSuite is Test {
             address(nameRegistry),
             address(this)
         );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 HELPERS
-    //////////////////////////////////////////////////////////////*/
-
-    // Ensures that a fuzzed address input does not match a known contract address
-    function _assumeClean(address a) internal view {
-        // TODO: extract the general assume functions into a utils so it can be shared with NameRegistry.t.sol
-        for (uint256 i = 0; i < knownContracts.length; i++) {
-            vm.assume(a != knownContracts[i]);
-        }
-
-        vm.assume(a > MAX_PRECOMPILE);
-        vm.assume(a != ADMIN);
     }
 
     // Assert that a given fname was correctly registered with id 1 and recovery
