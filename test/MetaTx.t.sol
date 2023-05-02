@@ -141,7 +141,7 @@ contract MetaTxTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
     }
 
-    function _signReq(MinimalForwarder.ForwardRequest memory req, uint256 privateKey) private returns (bytes memory) {
+    function _signReq(MinimalForwarder.ForwardRequest memory req, uint256 privateKey) private view returns (bytes memory) {
         // Generate the EIP712 hashStruct from the request
         // (s : 𝕊) = keccak256(keccak256(encodeType(typeOf(s))) ‖ encodeData(s))
         bytes32 hashStruct = keccak256(
@@ -168,7 +168,7 @@ contract MetaTxTest is Test {
         );
     }
 
-    function _assumeClean(address a) internal {
+    function _assumeClean(address a) internal view {
         // TODO: extract the general assume functions into a utils so it can be shared with NameRegistry.t.sol
         for (uint256 i = 0; i < knownContracts.length; i++) {
             vm.assume(a != knownContracts[i]);

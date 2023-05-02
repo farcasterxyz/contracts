@@ -78,7 +78,7 @@ abstract contract NameRegistryTestSuite is Test {
     }
 
     /// @dev vm.assume that the address does not match known contracts
-    function _assumeClean(address a) internal {
+    function _assumeClean(address a) internal view {
         for (uint256 i = 0; i < knownContracts.length; i++) {
             vm.assume(a != knownContracts[i]);
         }
@@ -88,7 +88,7 @@ abstract contract NameRegistryTestSuite is Test {
     }
 
     /// @dev vm.assume that the address are unique
-    function _assumeUniqueAndClean(address[] memory addresses) internal {
+    function _assumeUniqueAndClean(address[] memory addresses) internal view {
         for (uint256 i = 0; i < addresses.length - 1; i++) {
             for (uint256 j = i + 1; j < addresses.length; j++) {
                 vm.assume(addresses[i] != addresses[j]);

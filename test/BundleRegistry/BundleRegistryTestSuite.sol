@@ -71,7 +71,7 @@ abstract contract BundleRegistryTestSuite is Test {
     //////////////////////////////////////////////////////////////*/
 
     // Ensures that a fuzzed address input does not match a known contract address
-    function _assumeClean(address a) internal {
+    function _assumeClean(address a) internal view {
         // TODO: extract the general assume functions into a utils so it can be shared with NameRegistry.t.sol
         for (uint256 i = 0; i < knownContracts.length; i++) {
             vm.assume(a != knownContracts[i]);
