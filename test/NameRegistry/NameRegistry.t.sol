@@ -1198,7 +1198,6 @@ contract NameRegistryTest is NameRegistryTestSuite {
         // Bid with the bidPrice which succeeds
         vm.prank(bob);
         nameRegistry.bid{value: bidPrice}(bob, ALICE_TOKEN_ID, recovery);
-        vm.stopPrank();
 
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
         assertEq(nameRegistry.balanceOf(alice), 0);
