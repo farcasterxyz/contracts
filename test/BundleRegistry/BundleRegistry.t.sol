@@ -37,7 +37,7 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         vm.assume(amount >= nameRegistry.fee()); // the amount must be at least equal to the fee
-        _assumeClean(relayer); // relayer must be able to receive funds
+        assumePayable(relayer); // relayer must be able to receive funds
         commitDelay = commitDelay % FUZZ_TIME_PERIOD;
         vm.assume(commitDelay >= COMMIT_REPLAY_DELAY);
         vm.warp(block.timestamp + commitDelay); // block.timestamp must be at least greater than the replay delay
@@ -75,7 +75,7 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
-        _assumeClean(relayer); // relayer must be able to receive funds
+        assumePayable(relayer); // relayer must be able to receive funds
         timestamp = timestamp % FUZZ_TIME_PERIOD;
         vm.assume(timestamp > COMMIT_REPLAY_DELAY);
         delay = delay % FUZZ_TIME_PERIOD;
@@ -113,7 +113,7 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
-        _assumeClean(relayer); // relayer must be able to receive funds
+        assumePayable(relayer); // relayer must be able to receive funds
         vm.warp(COMMIT_REPLAY_DELAY + 1); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted registration is disabled in IdRegistry, but enabled in NameRegistry and
@@ -147,7 +147,7 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
-        _assumeClean(relayer); // relayer must be able to receive funds
+        assumePayable(relayer); // relayer must be able to receive funds
         vm.warp(COMMIT_REPLAY_DELAY + 1); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted registration is enabled in both registries and trusted caller is set in both
