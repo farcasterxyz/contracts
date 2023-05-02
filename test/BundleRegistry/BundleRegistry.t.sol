@@ -36,10 +36,10 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
     ) public {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
-        vm.assume(amount >= nameRegistry.fee()); // the amount must be at least equal to the fee
         assumePayable(relayer); // relayer must be able to receive funds
-        commitDelay = commitDelay % FUZZ_TIME_PERIOD;
-        vm.assume(commitDelay >= COMMIT_REPLAY_DELAY);
+        amount = bound(amount, nameRegistry.fee(), UINT256_MAX); // the amount must be at least equal to the fee
+        commitDelay = bound(commitDelay, COMMIT_REPLAY_DELAY, FUZZ_TIME_PERIOD);
+
         vm.warp(block.timestamp + commitDelay); // block.timestamp must be at least greater than the replay delay
 
         // State: Trusted Registration is disabled in both registries, and trusted caller is not set
@@ -47,8 +47,7 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
         vm.prank(ADMIN);
         nameRegistry.disableTrustedOnly();
 
-        registerDelay = registerDelay % FUZZ_TIME_PERIOD;
-        vm.assume(registerDelay > COMMIT_REGISTER_DELAY);
+        registerDelay = bound(registerDelay, COMMIT_REGISTER_DELAY + 1, FUZZ_TIME_PERIOD);
 
         // Commit must be made and waiting period must have elapsed before fname can be registered
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
@@ -76,10 +75,8 @@ contract BundleRegistryTest is BundleRegistryTestSuite {
         vm.assume(alice != address(0)); // OZ's ERC-721 throws when a zero-address mints an NFT
         vm.assume(relayer != address(bundleRegistry)); // the bundle registry cannot call itself
         assumePayable(relayer); // relayer must be able to receive funds
-        timestamp = timestamp % FUZZ_TIME_PERIOD;
-        vm.assume(timestamp > COMMIT_REPLAY_DELAY);
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= COMMIT_REGISTER_DELAY);
+        timestamp = bound(timestamp, COMMIT_REPLAY_DELAY + 1, FUZZ_TIME_PERIOD);
+        delay = bound(delay, COMMIT_REGISTER_DELAY, FUZZ_TIME_PERIOD);
 
         vm.warp(timestamp); // block.timestamp must be at least greater than the replay delay
 

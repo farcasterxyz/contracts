@@ -64,7 +64,7 @@ contract MetaTxTest is TestSuiteSetup {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzIdRegistryRegister(address relayer, address recovery, uint256 alicePrivateKey) public {
-        vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
+        alicePrivateKey = bound(alicePrivateKey, 1, PKEY_MAX - 1);
         address alice = vm.addr(alicePrivateKey);
 
         // 1. Construct the ForwardRequest which contains all the parameters needed to make the call
@@ -95,7 +95,7 @@ contract MetaTxTest is TestSuiteSetup {
 
     function testFuzzNameRegistryTransfer(address relayer, address recovery, uint256 alicePrivateKey) public {
         _assumeClean(relayer);
-        vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
+        alicePrivateKey = bound(alicePrivateKey, 1, PKEY_MAX - 1);
         address alice = vm.addr(alicePrivateKey);
 
         // Register the name alice

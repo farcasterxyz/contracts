@@ -131,8 +131,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
         uint256 delay
     ) public {
         _disableTrusted();
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay > COMMIT_REPLAY_DELAY);
+        delay = bound(delay, COMMIT_REPLAY_DELAY + 1, FUZZ_TIME_PERIOD);
         vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
 
@@ -155,7 +154,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
         uint256 delay
     ) public {
         _disableTrusted();
-        delay = delay % COMMIT_REPLAY_DELAY; // fuzz between 0 and (COMMIT_REPLAY_DELAY - 1)
+        delay = bound(delay, 0, COMMIT_REPLAY_DELAY);
         vm.warp(JAN1_2023_TS);
         bytes32 commitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
 
@@ -198,11 +197,10 @@ contract NameRegistryTest is NameRegistryTestSuite {
         _disableTrusted();
         vm.warp(JAN1_2023_TS);
 
-        vm.assume(amount >= FEE);
+        amount = bound(amount, FEE, UINT256_MAX);
         vm.deal(alice, amount);
 
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= COMMIT_REPLAY_DELAY);
+        delay = bound(delay, COMMIT_REPLAY_DELAY, FUZZ_TIME_PERIOD);
 
         vm.prank(alice);
         bytes32 commitHash = nameRegistry.generateCommit("bob", bob, secret, recovery);
@@ -234,10 +232,8 @@ contract NameRegistryTest is NameRegistryTestSuite {
         vm.deal(alice, 1 ether);
         vm.warp(JAN1_2023_TS);
 
-        delayAlice = delayAlice % FUZZ_TIME_PERIOD;
-        delayBob = delayBob % FUZZ_TIME_PERIOD;
-        vm.assume(delayAlice >= COMMIT_REPLAY_DELAY);
-        vm.assume(delayBob >= COMMIT_REPLAY_DELAY);
+        delayAlice = bound(delayAlice, COMMIT_REPLAY_DELAY, FUZZ_TIME_PERIOD);
+        delayBob = bound(delayBob, COMMIT_REPLAY_DELAY, FUZZ_TIME_PERIOD);
 
         // Register @alice to alice
         vm.startPrank(alice);
@@ -274,8 +270,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
     function testFuzzRegisterAfterUnpausing(address alice, address recovery, bytes32 secret, uint256 delay) public {
         _assumeClean(alice);
         // _assumeClean(recovery);
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= COMMIT_REVEAL_DELAY);
+        delay = bound(delay, COMMIT_REVEAL_DELAY, FUZZ_TIME_PERIOD);
         _disableTrusted();
         _grant(OPERATOR_ROLE, ADMIN);
 
@@ -318,8 +313,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
         vm.deal(bob, 1 ether);
         vm.warp(JAN1_2023_TS);
 
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= COMMIT_REPLAY_DELAY);
+        delay = bound(delay, COMMIT_REVEAL_DELAY, FUZZ_TIME_PERIOD);
 
         // Register @alice to alice
         bytes32 aliceCommitHash = nameRegistry.generateCommit("alice", alice, secret, recovery);
@@ -844,12 +838,10 @@ contract NameRegistryTest is NameRegistryTestSuite {
         _assumeClean(alice);
         _assumeClean(bob);
         _register(alice);
-        // TODO: Report foundry bug when setting the max to anything higher
-        // vm.assume(amount >= FEE && amount < (type(uint256).max - 3 wei));
-        amount = (amount % AMOUNT_FUZZ_MAX) + FEE;
+        amount = bound(amount, FEE, AMOUNT_FUZZ_MAX);
 
         uint256 renewableTs = block.timestamp + REGISTRATION_PERIOD;
-        timestamp = (timestamp % (RENEWAL_PERIOD)) + renewableTs;
+        timestamp = bound(timestamp, 0, RENEWAL_PERIOD - 1) + renewableTs;
         uint256 expectedExpiryTs = timestamp + REGISTRATION_PERIOD;
 
         vm.warp(timestamp);
@@ -872,7 +864,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
         vm.warp(block.timestamp + REGISTRATION_PERIOD);
 
         // Ensure that amount is always less than the fee
-        amount = (amount % FEE);
+        amount = bound(amount, 0, FEE - 1);
         vm.deal(alice, amount);
 
         vm.prank(alice);
@@ -1014,7 +1006,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
         _assumeClean(bob);
         _register(alice);
         vm.assume(charlie != address(0) && charlie != alice);
-        amount = amount % AMOUNT_FUZZ_MAX;
+        amount = bound(amount, 0, AMOUNT_FUZZ_MAX);
         uint256 biddableTs = block.timestamp + REGISTRATION_PERIOD + RENEWAL_PERIOD;
 
         vm.prank(alice);
@@ -1022,7 +1014,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
 
         vm.warp(biddableTs);
         uint256 winningBid = BID_START + nameRegistry.fee();
-        vm.assume(amount >= (winningBid) && amount < (type(uint256).max - 3 wei));
+        amount = bound(amount, winningBid, UINT256_MAX - 4 wei);
         vm.deal(bob, amount);
 
         vm.prank(bob);
@@ -1255,7 +1247,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
         uint256 biddableTs = renewableTs + RENEWAL_PERIOD;
 
         // Ensure that amount is always less than the bid + fee
-        amount = (amount % (BID_START + FEE));
+        amount = bound(amount, 0, BID_START + FEE - 1);
         vm.deal(bob, amount);
 
         vm.warp(biddableTs);
@@ -2352,6 +2344,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
 
         uint256 requestTs = _requestRecovery(alice, recovery);
         waitPeriod = waitPeriod % ESCROW_PERIOD;
+        waitPeriod = bound(waitPeriod, 0, ESCROW_PERIOD);
 
         vm.warp(block.timestamp + waitPeriod);
         vm.prank(recovery);
