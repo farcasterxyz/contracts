@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import {MinimalForwarder} from "openzeppelin/contracts/metatx/MinimalForwarder.sol";
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -10,11 +8,12 @@ import "./NameRegistry/NameRegistryConstants.sol";
 import {IdRegistryHarness} from "./Utils.sol";
 
 import {NameRegistry} from "../src/NameRegistry.sol";
+import {TestSuiteSetup} from "./TestSuiteSetup.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable avoid-low-level-calls */
 
-contract MetaTxTest is Test {
+contract MetaTxTest is TestSuiteSetup {
     IdRegistryHarness idRegistry;
     ERC1967Proxy nameRegistryProxy;
     NameRegistry nameRegistryImpl;
@@ -38,22 +37,13 @@ contract MetaTxTest is Test {
     // The largest uint256 that can be used as an ECDSA private key
     uint256 constant PKEY_MAX = 115792089237316195423570985008687907852837564279074904382605163141518161494337;
 
-    address[] knownContracts = [
-        address(0xCe71065D4017F316EC606Fe4422e11eB2c47c246), // FuzzerDict
-        address(0x4e59b44847b379578588920cA78FbF26c0B4956C), // CREATE2 Factory
-        address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84), // address(this)
-        address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A), // FORWARDER
-        address(0x185a4dc360CE69bDCceE33b3784B0282f7961aea), // ???
-        address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D), // ???
-        address(0xEFc56627233b02eA95bAE7e19F648d7DcD5Bb132), // ???
-        address(0xf5a2fE45F4f1308502b1C136b9EF8af136141382)
-    ];
-
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    function setUp() public {
+    function setUp() public override {
+        TestSuiteSetup.setUp();
+
         forwarder = new MinimalForwarder();
 
         // Set up the idRegistry and move to a state where it is no longer in trusted registration
@@ -74,7 +64,7 @@ contract MetaTxTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzIdRegistryRegister(address relayer, address recovery, uint256 alicePrivateKey) public {
-        vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
+        alicePrivateKey = bound(alicePrivateKey, 1, PKEY_MAX - 1);
         address alice = vm.addr(alicePrivateKey);
 
         // 1. Construct the ForwardRequest which contains all the parameters needed to make the call
@@ -105,7 +95,7 @@ contract MetaTxTest is Test {
 
     function testFuzzNameRegistryTransfer(address relayer, address recovery, uint256 alicePrivateKey) public {
         _assumeClean(relayer);
-        vm.assume(alicePrivateKey > 0 && alicePrivateKey < PKEY_MAX);
+        alicePrivateKey = bound(alicePrivateKey, 1, PKEY_MAX - 1);
         address alice = vm.addr(alicePrivateKey);
 
         // Register the name alice
@@ -141,7 +131,10 @@ contract MetaTxTest is Test {
         assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
     }
 
-    function _signReq(MinimalForwarder.ForwardRequest memory req, uint256 privateKey) private returns (bytes memory) {
+    function _signReq(
+        MinimalForwarder.ForwardRequest memory req,
+        uint256 privateKey
+    ) private view returns (bytes memory) {
         // Generate the EIP712 hashStruct from the request
         // (s : 𝕊) = keccak256(keccak256(encodeType(typeOf(s))) ‖ encodeData(s))
         bytes32 hashStruct = keccak256(
@@ -166,14 +159,5 @@ contract MetaTxTest is Test {
                 address(forwarder)
             )
         );
-    }
-
-    function _assumeClean(address a) internal {
-        // TODO: extract the general assume functions into a utils so it can be shared with NameRegistry.t.sol
-        for (uint256 i = 0; i < knownContracts.length; i++) {
-            vm.assume(a != knownContracts[i]);
-        }
-
-        vm.assume(a > MAX_PRECOMPILE);
     }
 }

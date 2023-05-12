@@ -631,7 +631,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
         vm.deal(address(nameRegistry), 1 ether);
-        amount = amount % 1 ether;
+        amount = bound(amount, 0, 1 ether);
 
         vm.prank(alice);
         nameRegistry.withdraw(amount);
@@ -643,7 +643,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
     function testFuzzCannotWithdrawUnlessTreasurer(address alice, uint256 amount) public {
         _assumeClean(alice);
         vm.deal(address(nameRegistry), 1 ether);
-        amount = amount % 1 ether;
+        amount = bound(amount, 0, 1 ether);
 
         vm.prank(alice);
         vm.expectRevert(NameRegistry.NotTreasurer.selector);
@@ -656,7 +656,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
     function testFuzzCannotWithdrawInvalidAmount(address alice, uint256 amount) public {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
-        amount = amount % AMOUNT_FUZZ_MAX;
+        amount = bound(amount, 0, AMOUNT_FUZZ_MAX);
         vm.deal(address(nameRegistry), amount);
 
         vm.prank(alice);
@@ -671,7 +671,7 @@ contract NameRegistryTest is NameRegistryTestSuite {
         _assumeClean(alice);
         _grant(TREASURER_ROLE, alice);
         vm.deal(address(nameRegistry), 1 ether);
-        amount = amount % 1 ether;
+        amount = bound(amount, 0, 1 ether);
 
         vm.prank(ADMIN);
         nameRegistry.changeVault(address(this));

@@ -326,7 +326,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 delay
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        delay = delay % FUZZ_TIME_PERIOD;
+        delay = bound(delay, 0, FUZZ_TIME_PERIOD);
         _registerWithRecovery(alice, recovery);
         vm.prank(recovery);
         idRegistry.requestRecovery(alice, bob);
@@ -387,9 +387,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay > ESCROW_PERIOD);
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
+        delay = bound(delay, ESCROW_PERIOD + 1, FUZZ_TIME_PERIOD);
+
         _registerWithRecovery(alice, recovery);
 
         // Travel to an arbitrary time and then alice requests recovery of id 1 to bob
@@ -421,9 +421,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && notRecovery != FORWARDER);
         vm.assume(recovery != notRecovery && alice != notRecovery);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= ESCROW_PERIOD);
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
+        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
+
         _registerWithRecovery(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob
@@ -447,8 +447,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzCannotCompleteRecoveryIfNotRequested(address alice, address recovery, uint256 delay) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != recovery);
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= ESCROW_PERIOD);
+        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
         _registerWithRecovery(alice, recovery);
 
         vm.warp(block.timestamp + delay);
@@ -470,8 +469,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
-        delay = delay % ESCROW_PERIOD;
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
+        delay = bound(delay, 0, ESCROW_PERIOD - 1);
         _registerWithRecovery(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob
@@ -501,9 +500,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= ESCROW_PERIOD);
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
+        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
         _registerWithRecovery(alice, recovery);
         _register(bob);
 
@@ -539,9 +537,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= ESCROW_PERIOD);
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
+        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
         _registerWithRecovery(alice, recovery);
 
         // 1. recovery requests a recovery of alice's id to bob
@@ -580,9 +577,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
-        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
-        delay = delay % FUZZ_TIME_PERIOD;
-        vm.assume(delay >= ESCROW_PERIOD);
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
+        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
         _registerWithRecovery(alice, recovery);
 
         // 1. recovery requests a recovery of alice's id to bob
@@ -636,7 +632,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.assume(alice != FORWARDER && recovery != FORWARDER && unauthorized != FORWARDER);
         vm.assume(alice != bob);
         vm.assume(unauthorized != alice && unauthorized != recovery);
-        vm.assume(timestamp > 0 && timestamp < type(uint40).max - ESCROW_PERIOD);
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
         _registerWithRecovery(alice, recovery);
 
         // recovery requests a recovery of alice's id to bob

@@ -1,12 +1,16 @@
 [profile.default]
 solc_version = "0.8.18"
 optimizer_runs = 10_000
+fuzz = { runs = 512 }
+remappings = [
+  "solmate/=lib/solmate/",
+  "openzeppelin/=lib/openzeppelin-contracts/",
+  "openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
+]
 
 [profile.ci]
 verbosity = 3
-
-[fuzz]
-runs = 512
+fuzz = { runs = 10000 }
 
 [fmt]
 line_length = 120
