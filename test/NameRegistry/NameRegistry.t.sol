@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
+import {Base64} from "openzeppelin/contracts/utils/Base64.sol";
 
 import "./NameRegistryConstants.sol";
 import "../TestConstants.sol";
@@ -112,6 +113,26 @@ contract NameRegistryTest is NameRegistryTestSuite {
         bytes16 nameWithStartingEmptyByte = 0x006c6963650000000000000000000000;
         vm.expectRevert(NameRegistry.InvalidName.selector);
         nameRegistry.generateCommit(nameWithStartingEmptyByte, alice, secret, recovery);
+    }
+
+    function testFuzzValidateNameMatchesJSImplementation(bytes16 fname) public {
+        string[] memory runJsInputs = new string[](7);
+
+        // Build ffi command string
+        runJsInputs[0] = "npm";
+        runJsInputs[1] = "--prefix";
+        runJsInputs[2] = "test/differential/scripts/";
+        runJsInputs[3] = "--silent";
+        runJsInputs[4] = "run";
+        runJsInputs[5] = "validateName";
+        runJsInputs[6] = Base64.encode(abi.encode(fname));
+
+        // Run command and capture output
+        bytes memory jsResult = vm.ffi(runJsInputs);
+        if (jsResult[0] == 0) {
+            vm.expectRevert(NameRegistry.InvalidName.selector);
+        }
+        nameRegistry.generateCommit(fname, address(0), keccak256("SECRET"), address(0));
     }
 
     function testFuzzMakeCommit(address alice, bytes32 secret, address recovery) public {

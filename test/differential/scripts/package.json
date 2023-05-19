@@ -1,0 +1,10 @@
+{
+  "name": "contracts-differential",
+  "version": "1.0.0",
+  "description": "Scripts to perform solidity/js differential testing",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "validateName": "node validateName.js"
+  }
+}
