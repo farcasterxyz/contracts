@@ -6,6 +6,7 @@ remappings = [
   "solmate/=lib/solmate/",
   "openzeppelin/=lib/openzeppelin-contracts/",
   "openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/",
+  "chainlink/=lib/chainlink-brownie-contracts/contracts/src/"
 ]
 
 [profile.ci]
