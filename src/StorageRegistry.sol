@@ -141,8 +141,11 @@ contract StorageRegistry is Ownable2Step {
     /**
      * @notice Set the price feed, uptime feed, and initial parameters.
      *
-     * @param _priceFeed  Chainlink ETH/USD price feed.
-     * @param _uptimeFeed Chainlink L2 sequencer uptime feed.
+     * @param _priceFeed           Chainlink ETH/USD price feed.
+     * @param _uptimeFeed          Chainlink L2 sequencer uptime feed.
+     * @param _initialRentalPeriod Initial rental period duration in seconds.
+     * @param _initialUsdUnitPrice Initial unit price in USD. Fixed point value with 8 decimals.
+     * @param _initialMaxUnits     Initial maximum capacity in storage units.
      */
     constructor(
         AggregatorV3Interface _priceFeed,
