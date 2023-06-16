@@ -15,7 +15,7 @@ contract StorageRegistry is Ownable2Step {
     /// @dev Revert if the caller attempts to rent more storage than is available.
     error ExceedsCapacity();
 
-    /// @dev Revert if the caller attempts a batch rent with mismatched input array lengths.
+    /// @dev Revert if the caller attempts a batch rent with mismatched input array lengths or an empty array.
     error InvalidBatchInput();
 
     /// @dev Revert if the caller provides the wrong payment amount.
@@ -39,7 +39,7 @@ contract StorageRegistry is Ownable2Step {
     /// @dev Revert if the sequencer uptime feed detects that the L2 sequencer is unavailable.
     error SequencerDown();
 
-    /// @dev Revert if the L2 sequencer restarted less than SEQUENCER_RESTART_GRACE_PERIOD seconds ago.
+    /// @dev Revert if the L2 sequencer restarted less than L2_DOWNTIME_GRACE_PERIOD seconds ago.
     error GracePeriodNotOver();
 
     /*//////////////////////////////////////////////////////////////
@@ -47,7 +47,7 @@ contract StorageRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Emit an event when
+     * @dev Emit an event when caller pays rent for an fid's storage.
      *
      * @param payer     Address of the account paying the storage rent.
      * @param fid       The fid that will receive the storage allocation.
@@ -117,12 +117,12 @@ contract StorageRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Time at which this contract will no longer accept storage rent payments. Changeable by owner.
+     * @dev Block timestamp at which this contract will no longer accept storage rent payments. Changeable by owner.
      */
     uint256 public rentalPeriodEnd;
 
     /**
-     * @dev Unit price per storage unit in USD. Fixed point value with 8 decimals. Changeable by owner.
+     * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD. Changeable by owner.
      */
     uint256 public usdUnitPrice;
 
