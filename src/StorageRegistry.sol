@@ -51,11 +51,9 @@ contract StorageRegistry is Ownable2Step {
      *
      * @param payer     Address of the account paying the storage rent.
      * @param fid       The fid that will receive the storage allocation.
-     * @param timestamp block.timestamp of the rent transaction
-     *                  (TODO: Do we need this in the event or can we just get it from the block?)
      * @param units     The number of storage units being rented.
      */
-    event Rent(address indexed payer, uint256 indexed fid, uint256 timestamp, uint256 units);
+    event Rent(address indexed payer, uint256 indexed fid, uint256 units);
 
     /**
      * @dev Emit an event when an owner changes the price of storage units.
@@ -176,7 +174,7 @@ contract StorageRegistry is Ownable2Step {
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 
         rentedUnits += units;
-        emit Rent(msg.sender, fid, block.timestamp, units);
+        emit Rent(msg.sender, fid, units);
     }
 
     /**
@@ -198,7 +196,7 @@ contract StorageRegistry is Ownable2Step {
             if (rentedUnits + qty > maxUnits) revert ExceedsCapacity();
             totalCost += price(qty);
             rentedUnits += qty;
-            emit Rent(msg.sender, fids[i], block.timestamp, qty);
+            emit Rent(msg.sender, fids[i], qty);
         }
 
         if (msg.value != totalCost) revert InvalidPayment();

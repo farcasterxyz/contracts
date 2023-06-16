@@ -16,7 +16,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Rent(address indexed buyer, uint256 indexed id, uint256 timestamp, uint256 units);
+    event Rent(address indexed buyer, uint256 indexed id, uint256 units);
     event SetPrice(uint256 oldPrice, uint256 newPrice);
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
     event SetRentalPeriodEnd(uint256 oldTimestamp, uint256 newTimestamp);
@@ -504,7 +504,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < ids.length; ++i) {
             if (units[i] != 0) {
                 vm.expectEmit(true, true, false, true);
-                emit Rent(msgSender, ids[i], block.timestamp, units[i]);
+                emit Rent(msgSender, ids[i], units[i]);
             }
         }
         vm.prank(msgSender);
@@ -523,7 +523,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         // Expect emitted event
         vm.expectEmit(true, true, false, true);
-        emit Rent(msgSender, id, block.timestamp, units);
+        emit Rent(msgSender, id, units);
 
         vm.prank(msgSender);
         fcStorage.rent{value: price}(id, units);
