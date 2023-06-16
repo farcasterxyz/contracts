@@ -297,6 +297,41 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.batchRent{value: value}(ids, units);
     }
 
+    function testFuzzBatchRentRevertsExceedsCapacity(
+        address msgSender,
+        uint256[] calldata _ids,
+        uint16[] calldata _units
+    ) public {
+        // Throw away runs with empty arrays.
+        vm.assume(_ids.length > 0);
+        vm.assume(_units.length > 0);
+
+        // Set a high max capacity to avoid overflow.
+        fcStorage.setMaxUnits(uint256(256) * type(uint16).max);
+        uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
+        uint256[] memory ids = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            ids[i] = _ids[i];
+        }
+        uint256 totalUnits;
+        uint256[] memory units = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            units[i] = _units[i];
+            totalUnits += units[i];
+        }
+        vm.assume(totalUnits > 0);
+
+        // Buy all the available units.
+        uint256 maxUnits = fcStorage.maxUnits();
+        uint256 maxUnitsPrice = fcStorage.price(maxUnits);
+        vm.deal(address(this), maxUnitsPrice);
+        fcStorage.rent{value: maxUnitsPrice}(0, maxUnits);
+
+        vm.expectRevert(StorageRegistry.ExceedsCapacity.selector);
+        vm.prank(msgSender);
+        fcStorage.batchRent(ids, units);
+    }
+
     function testFuzzUnitPrice(uint48 usdUnitPrice, int256 ethUsdPrice) public {
         // Ensure Chainlink price is positive
         ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
