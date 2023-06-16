@@ -162,6 +162,15 @@ contract StorageRegistry is Ownable2Step {
     }
 
     /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier whenNotDeprecated() {
+        if (block.timestamp >= deprecationTimestamp) revert ContractDeprecated();
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         STORAGE RENTAL LOGIC
     //////////////////////////////////////////////////////////////*/
 
@@ -171,8 +180,7 @@ contract StorageRegistry is Ownable2Step {
      * @param fid   The fid that will receive the storage allocation.
      * @param units Number of storage units to rent.
      */
-    function rent(uint256 fid, uint256 units) external payable {
-        if (block.timestamp >= deprecationTimestamp) revert ContractDeprecated();
+    function rent(uint256 fid, uint256 units) external payable whenNotDeprecated {
         if (msg.value != price(units)) revert InvalidPayment();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 
@@ -187,8 +195,7 @@ contract StorageRegistry is Ownable2Step {
      * @param fids  An array of fids.
      * @param units An array of storage unit quantities. Must be the same length as the fids array.
      */
-    function batchRent(uint256[] calldata fids, uint256[] calldata units) external payable {
-        if (block.timestamp >= deprecationTimestamp) revert ContractDeprecated();
+    function batchRent(uint256[] calldata fids, uint256[] calldata units) external payable whenNotDeprecated {
         if (fids.length == 0 || units.length == 0) revert InvalidBatchInput();
         if (fids.length != units.length) revert InvalidBatchInput();
 
@@ -253,6 +260,21 @@ contract StorageRegistry is Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                               OWNER ACTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Credit a list of fids with free storage units. Only callable by owner.
+     *
+     * @param fids  An array of fids.
+     * @param units Number of storage units per fid.
+     */
+    function batchCredit(uint256[] calldata fids, uint256 units) external onlyOwner whenNotDeprecated {
+        uint256 totalUnits = fids.length * units;
+        if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
+        rentedUnits += totalUnits;
+        for (uint256 i; i < fids.length; ++i) {
+            emit Rent(msg.sender, fids[i], units);
+        }
+    }
 
     /**
      * @notice Change the USD price per storage unit.

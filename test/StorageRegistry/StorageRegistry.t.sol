@@ -47,7 +47,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzRent(address msgSender, uint256 id, uint200 units) public {
-        _rentStorage(msgSender, id, units);
+        rentStorage(msgSender, id, units);
     }
 
     function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
@@ -132,7 +132,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
-        _batchRentStorage(msgSender, ids, units);
+        batchRentStorage(msgSender, ids, units);
     }
 
     function testFuzzBatchRentRevertsAfterDeadline(
@@ -391,6 +391,37 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.unitPrice();
     }
 
+    function testFuzzOnlyOwnerCanBatchCredit(uint256[] calldata fids, uint256 units) public {
+        vm.prank(mallory);
+        vm.expectRevert("Ownable: caller is not the owner");
+        fcStorage.batchCredit(fids, units);
+    }
+
+    function testFuzzBatchCredit(uint256[] calldata fids, uint32 units) public {
+        batchCredit(fids, units);
+    }
+
+    function testFuzzBatchCreditRevertsExceedsCapacity(uint256[] calldata fids, uint32 units) public {
+        vm.assume(fids.length > 0);
+
+        // Buy all the available units.
+        uint256 maxUnits = fcStorage.maxUnits();
+        uint256 maxUnitsPrice = fcStorage.price(maxUnits);
+        vm.deal(address(this), maxUnitsPrice);
+        fcStorage.rent{value: maxUnitsPrice}(0, maxUnits);
+        units = uint32(bound(units, 1, type(uint32).max));
+
+        vm.expectRevert(StorageRegistry.ExceedsCapacity.selector);
+        fcStorage.batchCredit(fids, units);
+    }
+
+    function testFuzzBatchCreditRevertsAfterDeadline(uint256[] calldata fids, uint32 units) public {
+        vm.warp(fcStorage.deprecationTimestamp() + 1);
+
+        vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
+        fcStorage.batchCredit(fids, units);
+    }
+
     function testFuzzOnlyOwnerCanSetUSDUnitPrice(uint256 unitPrice) public {
         vm.prank(mallory);
         vm.expectRevert("Ownable: caller is not the owner");
@@ -445,7 +476,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     function testFuzzWithdrawal(address msgSender, uint256 id, uint200 units, uint256 amount) public {
         uint256 balanceBefore = address(owner).balance;
 
-        _rentStorage(msgSender, id, units);
+        rentStorage(msgSender, id, units);
 
         // Don't withdraw more than the contract balance
         amount = bound(amount, 0, address(fcStorage).balance);
@@ -486,11 +517,27 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.withdraw(to, amount);
     }
 
-    function _batchRentStorage(
+    function batchCredit(uint256[] memory ids, uint256 units) public {
+        uint256 rented = fcStorage.rentedUnits();
+        uint256 totalUnits = ids.length * units;
+        vm.assume(totalUnits <= fcStorage.maxUnits() - fcStorage.rentedUnits());
+
+        // Expect emitted events
+        for (uint256 i; i < ids.length; ++i) {
+            vm.expectEmit(true, true, false, true);
+            emit Rent(owner, ids[i], units);
+        }
+        fcStorage.batchCredit(ids, units);
+
+        // Expect rented units to increase
+        assertEq(fcStorage.rentedUnits(), rented + totalUnits);
+    }
+
+    function batchRentStorage(
         address msgSender,
         uint256[] memory ids,
         uint256[] memory units
-    ) internal returns (uint256) {
+    ) public returns (uint256) {
         uint256 rented = fcStorage.rentedUnits();
         uint256 totalUnits;
         for (uint256 i; i < units.length; ++i) {
@@ -515,7 +562,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         return totalCost;
     }
 
-    function _rentStorage(address msgSender, uint256 id, uint256 units) internal returns (uint256) {
+    function rentStorage(address msgSender, uint256 id, uint256 units) public returns (uint256) {
         uint256 rented = fcStorage.rentedUnits();
         units = bound(units, 0, fcStorage.maxUnits() - fcStorage.rentedUnits());
         uint256 price = fcStorage.price(units);
