@@ -192,12 +192,15 @@ contract StorageRegistry is Ownable2Step {
         if (fids.length == 0 || units.length == 0) revert InvalidBatchInput();
         if (fids.length != units.length) revert InvalidBatchInput();
 
+        uint256 _ethUsdPrice = ethUsdPrice();
+        uint256 _usdUnitPrice = usdUnitPrice;
+
         uint256 totalCost;
         for (uint256 i; i < fids.length; ++i) {
             uint256 qty = units[i];
             if (qty == 0) continue;
             if (rentedUnits + qty > maxUnits) revert ExceedsCapacity();
-            totalCost += price(qty);
+            totalCost += _price(qty, _usdUnitPrice, _ethUsdPrice);
             rentedUnits += qty;
             emit Rent(msg.sender, fids[i], qty);
         }
@@ -210,11 +213,22 @@ contract StorageRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Cost in wei to rent one storage unit.
+     */
+    function unitPrice() public view returns (uint256) {
+        return price(1);
+    }
+
+    /**
      * @notice Calculate the cost in wei to rent the given number of storage units.
      *
      * @param units Number of storage units.
      */
     function price(uint256 units) public view returns (uint256) {
+        return _price(units, usdUnitPrice, ethUsdPrice());
+    }
+
+    function ethUsdPrice() public view returns (uint256) {
         /* Ensure that the L2 sequencer is up. */
         (, int256 sequencerUp, uint256 startedAt,,) = uptimeFeed.latestRoundData();
         if (sequencerUp != 0) revert SequencerDown();
@@ -224,19 +238,16 @@ contract StorageRegistry is Ownable2Step {
         if (timeSinceUp < L2_DOWNTIME_GRACE_PERIOD) revert GracePeriodNotOver();
 
         /* Get and validate the Chainlink ETH/USD price. */
-        (uint80 roundId, int256 ethUsdPrice,, uint256 updatedAt, uint80 answeredInRound) = priceFeed.latestRoundData();
-        if (ethUsdPrice <= 0) revert InvalidPrice();
+        (uint80 roundId, int256 answer,, uint256 updatedAt, uint80 answeredInRound) = priceFeed.latestRoundData();
+        if (answer <= 0) revert InvalidPrice();
         if (updatedAt == 0) revert IncompleteRound();
         if (answeredInRound < roundId) revert StalePrice();
 
-        return units * usdUnitPrice * 1e18 / uint256(ethUsdPrice);
+        return uint256(answer);
     }
 
-    /**
-     * @notice Cost in wei to rent one storage unit.
-     */
-    function unitPrice() public view returns (uint256) {
-        return price(1);
+    function _price(uint256 units, uint256 usdPerUnit, uint256 ethPerUsd) internal pure returns (uint256) {
+        return units * usdPerUnit * 1e18 / ethPerUsd;
     }
 
     /*//////////////////////////////////////////////////////////////
