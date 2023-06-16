@@ -9,8 +9,8 @@ contract StorageRegistry is Ownable2Step {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Revert if the caller attempts to rent storage after the rental period has ended.
-    error RentalPeriodHasEnded();
+    /// @dev Revert if the caller attempts to rent storage after this contract is deprecated.
+    error ContractDeprecated();
 
     /// @dev Revert if the caller attempts to rent more storage than is available.
     error ExceedsCapacity();
@@ -72,12 +72,12 @@ contract StorageRegistry is Ownable2Step {
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
 
     /**
-     * @dev Emit an event when an owner changes the rentalPeriod end timestamp.
+     * @dev Emit an event when an owner changes the deprecationTimestamp.
      *
-     * @param oldTimestamp The previous rentalPeriod end timestamp.
-     * @param newTimestamp The new rentalPeriod end timestamp.
+     * @param oldTimestamp The previous deprecationTimestamp.
+     * @param newTimestamp The new deprecationTimestamp.
      */
-    event SetRentalPeriodEnd(uint256 oldTimestamp, uint256 newTimestamp);
+    event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
 
     /**
      * @dev Emit an event when an owner makes a withdrawal from the contract balance.
@@ -117,7 +117,7 @@ contract StorageRegistry is Ownable2Step {
     /**
      * @dev Block timestamp at which this contract will no longer accept storage rent payments. Changeable by owner.
      */
-    uint256 public rentalPeriodEnd;
+    uint256 public deprecationTimestamp;
 
     /**
      * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD. Changeable by owner.
@@ -141,22 +141,22 @@ contract StorageRegistry is Ownable2Step {
     /**
      * @notice Set the price feed, uptime feed, and initial parameters.
      *
-     * @param _priceFeed           Chainlink ETH/USD price feed.
-     * @param _uptimeFeed          Chainlink L2 sequencer uptime feed.
-     * @param _initialRentalPeriod Initial rental period duration in seconds.
-     * @param _initialUsdUnitPrice Initial unit price in USD. Fixed point value with 8 decimals.
-     * @param _initialMaxUnits     Initial maximum capacity in storage units.
+     * @param _priceFeed                Chainlink ETH/USD price feed.
+     * @param _uptimeFeed               Chainlink L2 sequencer uptime feed.
+     * @param _initialDeprecationPeriod Initial deprecation period in seconds.
+     * @param _initialUsdUnitPrice      Initial unit price in USD. Fixed point value with 8 decimals.
+     * @param _initialMaxUnits          Initial maximum capacity in storage units.
      */
     constructor(
         AggregatorV3Interface _priceFeed,
         AggregatorV3Interface _uptimeFeed,
-        uint256 _initialRentalPeriod,
+        uint256 _initialDeprecationPeriod,
         uint256 _initialUsdUnitPrice,
         uint256 _initialMaxUnits
     ) Ownable2Step() {
         priceFeed = _priceFeed;
         uptimeFeed = _uptimeFeed;
-        rentalPeriodEnd = block.timestamp + _initialRentalPeriod;
+        deprecationTimestamp = block.timestamp + _initialDeprecationPeriod;
         usdUnitPrice = _initialUsdUnitPrice;
         maxUnits = _initialMaxUnits;
     }
@@ -172,7 +172,7 @@ contract StorageRegistry is Ownable2Step {
      * @param units Number of storage units to rent.
      */
     function rent(uint256 fid, uint256 units) external payable {
-        if (block.timestamp >= rentalPeriodEnd) revert RentalPeriodHasEnded();
+        if (block.timestamp >= deprecationTimestamp) revert ContractDeprecated();
         if (msg.value != price(units)) revert InvalidPayment();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 
@@ -188,7 +188,7 @@ contract StorageRegistry is Ownable2Step {
      * @param units An array of storage unit quantities. Must be the same length as the fids array.
      */
     function batchRent(uint256[] calldata fids, uint256[] calldata units) external payable {
-        if (block.timestamp >= rentalPeriodEnd) revert RentalPeriodHasEnded();
+        if (block.timestamp >= deprecationTimestamp) revert ContractDeprecated();
         if (fids.length == 0 || units.length == 0) revert InvalidBatchInput();
         if (fids.length != units.length) revert InvalidBatchInput();
 
@@ -275,13 +275,13 @@ contract StorageRegistry is Ownable2Step {
     }
 
     /**
-     * @notice Change the rentalPeriod end timestamp.
+     * @notice Change the deprecationTimestamp.
      *
-     * @param timestamp The new rentalPeriod end timestamp.
+     * @param timestamp The new deprecationTimestamp.
      */
-    function setRentalPeriodEnd(uint256 timestamp) external onlyOwner {
-        emit SetRentalPeriodEnd(rentalPeriodEnd, timestamp);
-        rentalPeriodEnd = timestamp;
+    function setDeprecationTimestamp(uint256 timestamp) external onlyOwner {
+        emit SetDeprecationTimestamp(deprecationTimestamp, timestamp);
+        deprecationTimestamp = timestamp;
     }
 
     /**

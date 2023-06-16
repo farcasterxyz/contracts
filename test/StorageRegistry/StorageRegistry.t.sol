@@ -19,7 +19,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     event Rent(address indexed buyer, uint256 indexed id, uint256 units);
     event SetPrice(uint256 oldPrice, uint256 newPrice);
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
-    event SetRentalPeriodEnd(uint256 oldTimestamp, uint256 newTimestamp);
+    event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
     event Withdraw(address indexed to, uint256 amount);
 
     function testOwnerDefault() public {
@@ -34,8 +34,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(address(fcStorage.uptimeFeed()), address(uptimeFeed));
     }
 
-    function testRentalPeriodEndDefault() public {
-        assertEq(fcStorage.rentalPeriodEnd(), 1 + INITIAL_RENTAL_PERIOD);
+    function testDeprecationTimestampDefault() public {
+        assertEq(fcStorage.deprecationTimestamp(), 1 + INITIAL_RENTAL_PERIOD);
     }
 
     function testUsdUnitPriceDefault() public {
@@ -51,9 +51,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
-        vm.warp(fcStorage.rentalPeriodEnd() + 1);
+        vm.warp(fcStorage.deprecationTimestamp() + 1);
 
-        vm.expectRevert(StorageRegistry.RentalPeriodHasEnded.selector);
+        vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
         vm.prank(msgSender);
         fcStorage.rent(id, units);
     }
@@ -150,7 +150,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
-        vm.warp(fcStorage.rentalPeriodEnd() + 1);
+        vm.warp(fcStorage.deprecationTimestamp() + 1);
         uint256 totalUnits;
         for (uint256 i; i < units.length; ++i) {
             totalUnits += units[i];
@@ -159,7 +159,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(totalUnits <= fcStorage.maxUnits() - fcStorage.rentedUnits());
         vm.deal(msgSender, totalCost);
         vm.prank(msgSender);
-        vm.expectRevert(StorageRegistry.RentalPeriodHasEnded.selector);
+        vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
         fcStorage.batchRent{value: totalCost}(ids, units);
     }
 
@@ -425,21 +425,21 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(fcStorage.maxUnits(), maxUnits);
     }
 
-    function testFuzzOnlyOwnerCanSetRentalPeriodEnd(uint256 periodEnd) public {
+    function testFuzzOnlyOwnerCanSetRentalPeriodEnd(uint256 timestamp) public {
         vm.prank(mallory);
         vm.expectRevert("Ownable: caller is not the owner");
-        fcStorage.setRentalPeriodEnd(periodEnd);
+        fcStorage.setDeprecationTimestamp(timestamp);
     }
 
     function testFuzzSetRentalPeriodEnd(uint256 timestamp) public {
-        uint256 currentEnd = fcStorage.rentalPeriodEnd();
+        uint256 currentEnd = fcStorage.deprecationTimestamp();
 
         vm.expectEmit(false, false, false, true);
-        emit SetRentalPeriodEnd(currentEnd, timestamp);
+        emit SetDeprecationTimestamp(currentEnd, timestamp);
 
-        fcStorage.setRentalPeriodEnd(timestamp);
+        fcStorage.setDeprecationTimestamp(timestamp);
 
-        assertEq(fcStorage.rentalPeriodEnd(), timestamp);
+        assertEq(fcStorage.deprecationTimestamp(), timestamp);
     }
 
     function testFuzzWithdrawal(address msgSender, uint256 id, uint200 units, uint256 amount) public {
