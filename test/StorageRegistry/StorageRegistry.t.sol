@@ -7,7 +7,7 @@ import "../TestConstants.sol";
 
 import {StorageRegistry} from "../../src/StorageRegistry.sol";
 import {StorageRegistryTestSuite} from "./StorageRegistryTestSuite.sol";
-import {MockPriceFeed, MockUptimeFeed} from "../Utils.sol";
+import {MockChainlinkFeed} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
@@ -364,7 +364,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     function testPriceFeedRevertsStalePrice() public {
         // Set stale answeredInRound value
         priceFeed.setRoundData(
-            MockPriceFeed.RoundData({
+            MockChainlinkFeed.RoundData({
                 roundId: 2,
                 answer: 2000e8,
                 startedAt: block.timestamp,
@@ -380,7 +380,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     function testPriceFeedRevertsIncompleteRound() public {
         // Set zero timeStamp value
         priceFeed.setRoundData(
-            MockPriceFeed.RoundData({
+            MockChainlinkFeed.RoundData({
                 roundId: 1,
                 answer: 2000e8,
                 startedAt: block.timestamp,
@@ -397,7 +397,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         // Set nonzero answer. It's counterintuitive, but a zero answer
         // means the sequencer is up.
         uptimeFeed.setRoundData(
-            MockUptimeFeed.RoundData({
+            MockChainlinkFeed.RoundData({
                 roundId: 1,
                 answer: answer,
                 startedAt: 0,
@@ -413,7 +413,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     function testUptimeFeedRevertsGracePeriodNotOver() public {
         // Set startedAt == timeStamp, meaning the sequencer just restarted.
         uptimeFeed.setRoundData(
-            MockUptimeFeed.RoundData({
+            MockChainlinkFeed.RoundData({
                 roundId: 1,
                 answer: 0,
                 startedAt: block.timestamp,

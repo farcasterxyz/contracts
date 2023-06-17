@@ -53,7 +53,7 @@ contract StorageRegistryHarness is StorageRegistry {
     ) StorageRegistry(_priceFeed, _uptimeFeed, _rentalPeriod, _usdUnitPrice, _maxUnits) {}
 }
 
-contract MockPriceFeed is AggregatorV3Interface {
+contract MockChainlinkFeed is AggregatorV3Interface {
     struct RoundData {
         uint80 roundId;
         int256 answer;
@@ -64,60 +64,40 @@ contract MockPriceFeed is AggregatorV3Interface {
 
     RoundData public roundData;
 
-    uint8 public decimals = 8;
-    string public description = "Mock ETH/USD Price Feed";
+    uint8 public decimals;
+    string public description;
     uint256 public version = 1;
 
+    constructor(uint8 _decimals, string memory _description) {
+        decimals = _decimals;
+        description = _description;
+    }
+
+    function setAnswer(int256 value) external {
+        roundData.answer = value;
+    }
+
+    function setRoundData(RoundData calldata _roundData) external {
+        roundData = _roundData;
+    }
+
+    function getRoundData(uint80) external view returns (uint80, int256, uint256, uint256, uint80) {
+        return latestRoundData();
+    }
+
+    function latestRoundData() public view returns (uint80, int256, uint256, uint256, uint80) {
+        return
+            (roundData.roundId, roundData.answer, roundData.startedAt, roundData.timeStamp, roundData.answeredInRound);
+    }
+}
+
+contract MockPriceFeed is MockChainlinkFeed(8, "Mock ETH/USD Price Feed") {
     function setPrice(int256 _price) external {
         roundData.answer = _price;
     }
-
-    function setRoundData(RoundData calldata _roundData) external {
-        roundData = _roundData;
-    }
-
-    function getRoundData(uint80) external view returns (uint80, int256, uint256, uint256, uint80) {
-        return latestRoundData();
-    }
-
-    function latestRoundData() public view returns (uint80, int256, uint256, uint256, uint80) {
-        return
-            (roundData.roundId, roundData.answer, roundData.startedAt, roundData.timeStamp, roundData.answeredInRound);
-    }
 }
 
-contract MockUptimeFeed is AggregatorV3Interface {
-    struct RoundData {
-        uint80 roundId;
-        int256 answer;
-        uint256 startedAt;
-        uint256 timeStamp;
-        uint80 answeredInRound;
-    }
-
-    RoundData public roundData;
-
-    uint8 public decimals = 0;
-    string public description = "Mock L2 Sequencer Uptime Feed";
-    uint256 public version = 1;
-
-    function setAnswer(int256 _answer) external {
-        roundData.answer = _answer;
-    }
-
-    function setRoundData(RoundData calldata _roundData) external {
-        roundData = _roundData;
-    }
-
-    function getRoundData(uint80) external view returns (uint80, int256, uint256, uint256, uint80) {
-        return latestRoundData();
-    }
-
-    function latestRoundData() public view returns (uint80, int256, uint256, uint256, uint80) {
-        return
-            (roundData.roundId, roundData.answer, roundData.startedAt, roundData.timeStamp, roundData.answeredInRound);
-    }
-}
+contract MockUptimeFeed is MockChainlinkFeed(0, "Mock L2 Sequencer Uptime Feed") {}
 
 contract RevertOnReceive {
     receive() external payable {

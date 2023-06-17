@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 
-import {StorageRegistryHarness, MockPriceFeed, MockUptimeFeed, RevertOnReceive} from "../Utils.sol";
+import {StorageRegistryHarness, MockPriceFeed, MockUptimeFeed, MockChainlinkFeed, RevertOnReceive} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
@@ -42,7 +42,7 @@ abstract contract StorageRegistryTestSuite is Test {
         revertOnReceive = new RevertOnReceive();
 
         uptimeFeed.setRoundData(
-            MockUptimeFeed.RoundData({
+            MockChainlinkFeed.RoundData({
                 roundId: 1,
                 answer: SEQUENCER_UP,
                 startedAt: 0,
@@ -52,7 +52,7 @@ abstract contract StorageRegistryTestSuite is Test {
         );
 
         priceFeed.setRoundData(
-            MockPriceFeed.RoundData({
+            MockChainlinkFeed.RoundData({
                 roundId: 1,
                 answer: ETH_USD_PRICE,
                 startedAt: 0,
