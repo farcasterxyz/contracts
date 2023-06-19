@@ -80,6 +80,14 @@ contract StorageRegistry is Ownable2Step {
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
 
     /**
+     * @dev Emit an event when an owner changes the priceFeedCacheDuration.
+     *
+     * @param oldDuration The previous priceFeedCacheDuration.
+     * @param newDuration The new priceFeedCacheDuration.
+     */
+    event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
+
+    /**
      * @dev Emit an event when an owner makes a withdrawal from the contract balance.
      *
      * @param to     Address of recipient.
@@ -130,9 +138,24 @@ contract StorageRegistry is Ownable2Step {
     uint256 public maxUnits;
 
     /**
+     * @dev Duration to cache ethUsdPrice before updating from the price feed.
+     */
+    uint256 public priceFeedCacheDuration;
+
+    /**
      * @dev Total number of storage units that have been rented.
      */
     uint256 public rentedUnits;
+
+    /**
+     * @dev Cached Chainlink ETH/USD price.
+     */
+    uint256 public ethUsdPrice;
+
+    /**
+     * @dev Timestamp of the last update to ethUsdPrice.
+     */
+    uint256 public lastPriceFeedUpdate;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -141,24 +164,29 @@ contract StorageRegistry is Ownable2Step {
     /**
      * @notice Set the price feed, uptime feed, and initial parameters.
      *
-     * @param _priceFeed                Chainlink ETH/USD price feed.
-     * @param _uptimeFeed               Chainlink L2 sequencer uptime feed.
-     * @param _initialDeprecationPeriod Initial deprecation period in seconds.
-     * @param _initialUsdUnitPrice      Initial unit price in USD. Fixed point value with 8 decimals.
-     * @param _initialMaxUnits          Initial maximum capacity in storage units.
+     * @param _priceFeed                     Chainlink ETH/USD price feed.
+     * @param _uptimeFeed                    Chainlink L2 sequencer uptime feed.
+     * @param _initialDeprecationPeriod      Initial deprecation period in seconds.
+     * @param _initialUsdUnitPrice           Initial unit price in USD. Fixed point value with 8 decimals.
+     * @param _initialMaxUnits               Initial maximum capacity in storage units.
+     * @param _initialPriceFeedCacheDuration Initial duration to cache ETH/USD price.
      */
     constructor(
         AggregatorV3Interface _priceFeed,
         AggregatorV3Interface _uptimeFeed,
         uint256 _initialDeprecationPeriod,
         uint256 _initialUsdUnitPrice,
-        uint256 _initialMaxUnits
+        uint256 _initialMaxUnits,
+        uint256 _initialPriceFeedCacheDuration
     ) Ownable2Step() {
         priceFeed = _priceFeed;
         uptimeFeed = _uptimeFeed;
         deprecationTimestamp = block.timestamp + _initialDeprecationPeriod;
         usdUnitPrice = _initialUsdUnitPrice;
         maxUnits = _initialMaxUnits;
+        priceFeedCacheDuration = _initialPriceFeedCacheDuration;
+
+        _refreshPrice();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -181,7 +209,7 @@ contract StorageRegistry is Ownable2Step {
      * @param units Number of storage units to rent.
      */
     function rent(uint256 fid, uint256 units) external payable whenNotDeprecated {
-        if (msg.value != price(units)) revert InvalidPayment();
+        if (msg.value != _price(units)) revert InvalidPayment();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 
         rentedUnits += units;
@@ -199,15 +227,15 @@ contract StorageRegistry is Ownable2Step {
         if (fids.length == 0 || units.length == 0) revert InvalidBatchInput();
         if (fids.length != units.length) revert InvalidBatchInput();
 
-        uint256 _ethUsdPrice = ethUsdPrice();
-        uint256 _usdUnitPrice = usdUnitPrice;
+        uint256 _usdPrice = usdUnitPrice;
+        uint256 _ethPrice = _ethUsdPrice();
 
         uint256 totalCost;
         for (uint256 i; i < fids.length; ++i) {
             uint256 qty = units[i];
             if (qty == 0) continue;
             if (rentedUnits + qty > maxUnits) revert ExceedsCapacity();
-            totalCost += _price(qty, _usdUnitPrice, _ethUsdPrice);
+            totalCost += _price(qty, _usdPrice, _ethPrice);
             rentedUnits += qty;
             emit Rent(msg.sender, fids[i], qty);
         }
@@ -222,7 +250,7 @@ contract StorageRegistry is Ownable2Step {
     /**
      * @notice Cost in wei to rent one storage unit.
      */
-    function unitPrice() public view returns (uint256) {
+    function unitPrice() external view returns (uint256) {
         return price(1);
     }
 
@@ -232,10 +260,30 @@ contract StorageRegistry is Ownable2Step {
      * @param units Number of storage units.
      */
     function price(uint256 units) public view returns (uint256) {
-        return _price(units, usdUnitPrice, ethUsdPrice());
+        return _price(units, usdUnitPrice, ethUsdPrice);
     }
 
-    function ethUsdPrice() public view returns (uint256) {
+    /**
+     * @dev Return the cached ethUsdPrice if it's still valid, otherwise get the
+     *      latest ETH/USD price from the price feed and update the cache.
+     */
+    function _ethUsdPrice() internal returns (uint256) {
+        if (block.timestamp - lastPriceFeedUpdate > priceFeedCacheDuration) {
+            /**
+             *  The call to _refreshPrice will cache the new price in storage
+             *  for the next call, but we honor the old price for this call.
+             */
+            (uint256 cachedPrice,) = _refreshPrice();
+            return cachedPrice;
+        } else {
+            return ethUsdPrice;
+        }
+    }
+
+    /**
+     * @dev Get the latest ETH/USD price from the price feed and update the cached price.
+     */
+    function _refreshPrice() internal returns (uint256 cachedPrice, uint256 newPrice) {
         /* Ensure that the L2 sequencer is up. */
         (, int256 sequencerUp, uint256 startedAt,,) = uptimeFeed.latestRoundData();
         if (sequencerUp != 0) revert SequencerDown();
@@ -250,7 +298,15 @@ contract StorageRegistry is Ownable2Step {
         if (updatedAt == 0) revert IncompleteRound();
         if (answeredInRound < roundId) revert StalePrice();
 
-        return uint256(answer);
+        cachedPrice = ethUsdPrice;
+        newPrice = uint256(answer);
+
+        lastPriceFeedUpdate = block.timestamp;
+        ethUsdPrice = newPrice;
+    }
+
+    function _price(uint256 units) internal returns (uint256) {
+        return _price(units, usdUnitPrice, _ethUsdPrice());
     }
 
     function _price(uint256 units, uint256 usdPerUnit, uint256 ethPerUsd) internal pure returns (uint256) {
@@ -262,7 +318,7 @@ contract StorageRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Credit a list of fids with free storage units. Only callable by owner.
+     * @notice Credit multiple fids with free storage units. Only callable by owner.
      *
      * @param fids  An array of fids.
      * @param units Number of storage units per fid.
@@ -274,6 +330,13 @@ contract StorageRegistry is Ownable2Step {
         for (uint256 i; i < fids.length; ++i) {
             emit Rent(msg.sender, fids[i], units);
         }
+    }
+
+    /**
+     * @notice Force refresh the cached Chainlink ETH/USD price.
+     */
+    function refreshPrice() external onlyOwner {
+        _refreshPrice();
     }
 
     /**
@@ -304,6 +367,16 @@ contract StorageRegistry is Ownable2Step {
     function setDeprecationTimestamp(uint256 timestamp) external onlyOwner {
         emit SetDeprecationTimestamp(deprecationTimestamp, timestamp);
         deprecationTimestamp = timestamp;
+    }
+
+    /**
+     * @notice Change the priceFeedCacheDuration.
+     *
+     * @param duration The new priceFeedCacheDuration.
+     */
+    function setCacheDuration(uint256 duration) external onlyOwner {
+        emit SetCacheDuration(priceFeedCacheDuration, duration);
+        priceFeedCacheDuration = duration;
     }
 
     /**

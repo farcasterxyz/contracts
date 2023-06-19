@@ -20,6 +20,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     event SetPrice(uint256 oldPrice, uint256 newPrice);
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
+    event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
     event Withdraw(address indexed to, uint256 amount);
 
     function testOwnerDefault() public {
@@ -35,7 +36,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testDeprecationTimestampDefault() public {
-        assertEq(fcStorage.deprecationTimestamp(), 1 + INITIAL_RENTAL_PERIOD);
+        assertEq(fcStorage.deprecationTimestamp(), DEPLOYED_AT + INITIAL_RENTAL_PERIOD);
     }
 
     function testUsdUnitPriceDefault() public {
@@ -46,8 +47,79 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(fcStorage.maxUnits(), INITIAL_MAX_UNITS);
     }
 
+    function testRentedUnitsDefault() public {
+        assertEq(fcStorage.rentedUnits(), 0);
+    }
+
+    function testEthUSDPriceDefault() public {
+        assertEq(fcStorage.ethUsdPrice(), uint256(ETH_USD_PRICE));
+    }
+
+    function testLastPriceFeedUpdateDefault() public {
+        assertEq(fcStorage.lastPriceFeedUpdate(), block.timestamp);
+    }
+
+    function testPriceFeedCacheDurationDefault() public {
+        assertEq(fcStorage.priceFeedCacheDuration(), 24 hours);
+    }
+
     function testFuzzRent(address msgSender, uint256 id, uint200 units) public {
         rentStorage(msgSender, id, units);
+    }
+
+    function testFuzzRentCachedPrice(
+        address msgSender1,
+        uint256 id1,
+        uint200 units1,
+        address msgSender2,
+        uint256 id2,
+        uint200 units2,
+        int256 newEthUsdPrice,
+        uint256 warp
+    ) public {
+        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdate();
+        uint256 ethUsdPrice = fcStorage.ethUsdPrice();
+
+        // Ensure Chainlink price is positive
+        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+
+        rentStorage(msgSender1, id1, units1);
+
+        // Set a new ETH/USD price
+        priceFeed.setPrice(newEthUsdPrice);
+
+        warp = bound(warp, 0, fcStorage.priceFeedCacheDuration());
+        vm.warp(block.timestamp + warp);
+
+        rentStorage(msgSender2, id2, units2);
+
+        assertEq(fcStorage.lastPriceFeedUpdate(), lastPriceFeedUpdate);
+        assertEq(fcStorage.ethUsdPrice(), ethUsdPrice);
+    }
+
+    function testFuzzRentPriceRefresh(
+        address msgSender1,
+        uint256 id1,
+        uint200 units1,
+        address msgSender2,
+        uint256 id2,
+        uint200 units2,
+        int256 newEthUsdPrice
+    ) public {
+        // Ensure Chainlink price is positive
+        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+
+        rentStorage(msgSender1, id1, units1);
+
+        // Set a new ETH/USD price
+        priceFeed.setPrice(newEthUsdPrice);
+
+        vm.warp(block.timestamp + fcStorage.priceFeedCacheDuration() + 1);
+
+        rentStorage(msgSender2, id2, units2);
+
+        assertEq(fcStorage.lastPriceFeedUpdate(), block.timestamp);
+        assertEq(fcStorage.ethUsdPrice(), uint256(newEthUsdPrice));
     }
 
     function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
@@ -133,6 +205,91 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             units[i] = _units[i];
         }
         batchRentStorage(msgSender, ids, units);
+    }
+
+    function testFuzzBatchRentCachedPrice(
+        address msgSender,
+        uint256[] calldata _ids,
+        uint16[] calldata _units,
+        int256 newEthUsdPrice,
+        uint256 warp
+    ) public {
+        // Throw away runs with empty arrays.
+        vm.assume(_ids.length > 0);
+        vm.assume(_units.length > 0);
+
+        // Set a high max capacity to avoid overflow.
+        fcStorage.setMaxUnits(uint256(256) * type(uint16).max);
+
+        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdate();
+        uint256 ethUsdPrice = fcStorage.ethUsdPrice();
+
+        // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
+        // Truncate the longer one so their lengths match.
+        uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
+        uint256[] memory ids = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            ids[i] = _ids[i];
+        }
+        uint256[] memory units = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            units[i] = _units[i];
+        }
+        batchRentStorage(msgSender, ids, units);
+
+        // Ensure Chainlink price is positive
+        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+
+        // Set a new ETH/USD price
+        priceFeed.setPrice(newEthUsdPrice);
+
+        warp = bound(warp, 0, fcStorage.priceFeedCacheDuration());
+        vm.warp(block.timestamp + warp);
+
+        batchRentStorage(msgSender, ids, units);
+
+        assertEq(fcStorage.lastPriceFeedUpdate(), lastPriceFeedUpdate);
+        assertEq(fcStorage.ethUsdPrice(), ethUsdPrice);
+    }
+
+    function testFuzzBatchRentPriceRefresh(
+        address msgSender,
+        uint256[] calldata _ids,
+        uint16[] calldata _units,
+        int256 newEthUsdPrice
+    ) public {
+        // Throw away runs with empty arrays.
+        vm.assume(_ids.length > 0);
+        vm.assume(_units.length > 0);
+
+        // Set a high max capacity to avoid overflow.
+        fcStorage.setMaxUnits(uint256(256) * type(uint16).max);
+
+        // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
+        // Truncate the longer one so their lengths match.
+        uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
+        uint256[] memory ids = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            ids[i] = _ids[i];
+        }
+        uint256[] memory units = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            units[i] = _units[i];
+        }
+        batchRentStorage(msgSender, ids, units);
+
+        // Ensure Chainlink price is positive
+        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+
+        // Set a new ETH/USD price
+        priceFeed.setPrice(newEthUsdPrice);
+
+        vm.warp(block.timestamp + fcStorage.priceFeedCacheDuration() + 1);
+
+        batchRentStorage(msgSender, ids, units);
+
+        assertEq(fcStorage.lastPriceFeedUpdate(), block.timestamp);
+        assertEq(fcStorage.ethUsdPrice(), uint256(newEthUsdPrice));
     }
 
     function testFuzzBatchRentRevertsAfterDeadline(
@@ -332,14 +489,27 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.batchRent(ids, units);
     }
 
-    function testFuzzUnitPrice(uint48 usdUnitPrice, int256 ethUsdPrice) public {
+    function testFuzzUnitPriceRefresh(uint48 usdUnitPrice, int256 ethUsdPrice) public {
         // Ensure Chainlink price is positive
         ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
 
         priceFeed.setPrice(ethUsdPrice);
+        fcStorage.refreshPrice();
         fcStorage.setPrice(usdUnitPrice);
 
         assertEq(fcStorage.unitPrice(), uint256(usdUnitPrice) * 1e18 / uint256(ethUsdPrice));
+    }
+
+    function testFuzzUnitPriceCached(uint48 usdUnitPrice, int256 ethUsdPrice) public {
+        // Ensure Chainlink price is positive
+        ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
+
+        uint256 cachedPrice = fcStorage.ethUsdPrice();
+
+        priceFeed.setPrice(ethUsdPrice);
+        fcStorage.setPrice(usdUnitPrice);
+
+        assertEq(fcStorage.unitPrice(), uint256(usdUnitPrice) * 1e18 / cachedPrice);
     }
 
     function testFuzzPrice(uint48 usdUnitPrice, uint128 units, int256 ethUsdPrice) public {
@@ -347,9 +517,22 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
 
         priceFeed.setPrice(ethUsdPrice);
+        fcStorage.refreshPrice();
         fcStorage.setPrice(usdUnitPrice);
 
         assertEq(fcStorage.price(units), uint256(usdUnitPrice) * units * 1e18 / uint256(ethUsdPrice));
+    }
+
+    function testFuzzPriceCached(uint48 usdUnitPrice, uint128 units, int256 ethUsdPrice) public {
+        // Ensure Chainlink price is positive
+        ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
+
+        uint256 cachedPrice = fcStorage.ethUsdPrice();
+
+        priceFeed.setPrice(ethUsdPrice);
+        fcStorage.setPrice(usdUnitPrice);
+
+        assertEq(fcStorage.price(units), uint256(usdUnitPrice) * units * 1e18 / cachedPrice);
     }
 
     function testFuzzPriceFeedRevertsInvalidPrice(int256 price) public {
@@ -358,7 +541,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         priceFeed.setPrice(price);
 
         vm.expectRevert(StorageRegistry.InvalidPrice.selector);
-        fcStorage.unitPrice();
+        fcStorage.refreshPrice();
     }
 
     function testPriceFeedRevertsStalePrice() public {
@@ -374,7 +557,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
 
         vm.expectRevert(StorageRegistry.StalePrice.selector);
-        fcStorage.unitPrice();
+        fcStorage.refreshPrice();
     }
 
     function testPriceFeedRevertsIncompleteRound() public {
@@ -389,7 +572,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
         vm.expectRevert(StorageRegistry.IncompleteRound.selector);
-        fcStorage.unitPrice();
+        fcStorage.refreshPrice();
     }
 
     function testUptimeFeedRevertsSequencerDown(int256 answer) public {
@@ -407,7 +590,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
 
         vm.expectRevert(StorageRegistry.SequencerDown.selector);
-        fcStorage.unitPrice();
+        fcStorage.refreshPrice();
     }
 
     function testUptimeFeedRevertsGracePeriodNotOver() public {
@@ -423,7 +606,13 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
 
         vm.expectRevert(StorageRegistry.GracePeriodNotOver.selector);
-        fcStorage.unitPrice();
+        fcStorage.refreshPrice();
+    }
+
+    function testOnlyOwnerCanRefreshPrice() public {
+        vm.prank(mallory);
+        vm.expectRevert("Ownable: caller is not the owner");
+        fcStorage.refreshPrice();
     }
 
     function testFuzzOnlyOwnerCanBatchCredit(uint256[] calldata fids, uint256 units) public {
@@ -491,13 +680,13 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(fcStorage.maxUnits(), maxUnits);
     }
 
-    function testFuzzOnlyOwnerCanSetRentalPeriodEnd(uint256 timestamp) public {
+    function testFuzzOnlyOwnerCanSetDeprecationTime(uint256 timestamp) public {
         vm.prank(mallory);
         vm.expectRevert("Ownable: caller is not the owner");
         fcStorage.setDeprecationTimestamp(timestamp);
     }
 
-    function testFuzzSetRentalPeriodEnd(uint256 timestamp) public {
+    function testFuzzSetDeprecationTime(uint256 timestamp) public {
         uint256 currentEnd = fcStorage.deprecationTimestamp();
 
         vm.expectEmit(false, false, false, true);
@@ -506,6 +695,23 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.setDeprecationTimestamp(timestamp);
 
         assertEq(fcStorage.deprecationTimestamp(), timestamp);
+    }
+
+    function testFuzzOnlyOwnerCanSetCacheDuration(uint256 timestamp) public {
+        vm.prank(mallory);
+        vm.expectRevert("Ownable: caller is not the owner");
+        fcStorage.setCacheDuration(timestamp);
+    }
+
+    function testFuzzSetCacheDuration(uint256 duration) public {
+        uint256 currentDuration = fcStorage.priceFeedCacheDuration();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetCacheDuration(currentDuration, duration);
+
+        fcStorage.setCacheDuration(duration);
+
+        assertEq(fcStorage.priceFeedCacheDuration(), duration);
     }
 
     function testFuzzWithdrawal(address msgSender, uint256 id, uint200 units, uint256 amount) public {

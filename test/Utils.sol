@@ -49,8 +49,9 @@ contract StorageRegistryHarness is StorageRegistry {
         AggregatorV3Interface _uptimeFeed,
         uint256 _rentalPeriod,
         uint256 _usdUnitPrice,
-        uint256 _maxUnits
-    ) StorageRegistry(_priceFeed, _uptimeFeed, _rentalPeriod, _usdUnitPrice, _maxUnits) {}
+        uint256 _maxUnits,
+        uint256 _priceFeedCacheDuration
+    ) StorageRegistry(_priceFeed, _uptimeFeed, _rentalPeriod, _usdUnitPrice, _maxUnits, _priceFeedCacheDuration) {}
 }
 
 contract MockChainlinkFeed is AggregatorV3Interface {

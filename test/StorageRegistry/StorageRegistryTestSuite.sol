@@ -20,6 +20,8 @@ abstract contract StorageRegistryTestSuite is Test {
     address internal owner = address(this);
     address internal mallory = makeAddr("mallory");
 
+    uint256 internal immutable DEPLOYED_AT = block.timestamp + 3600;
+
     uint256 internal constant INITIAL_RENTAL_PERIOD = 365 days;
     uint256 internal constant INITIAL_USD_UNIT_PRICE = 5e8; // $5 USD
     uint256 internal constant INITIAL_MAX_UNITS = 2_000_000;
@@ -27,18 +29,12 @@ abstract contract StorageRegistryTestSuite is Test {
     int256 internal constant SEQUENCER_UP = 0;
     int256 internal constant ETH_USD_PRICE = 2000e8; // $2000 USD/ETH
 
+    uint256 internal constant INITIAL_PRICE_FEED_CACHE_DURATION = 1 days;
     uint256 internal constant INITIAL_PRICE_IN_ETH = 0.0025 ether;
 
     function setUp() public {
         priceFeed = new MockPriceFeed();
         uptimeFeed = new MockUptimeFeed();
-        fcStorage = new StorageRegistryHarness(
-            priceFeed,
-            uptimeFeed,
-            INITIAL_RENTAL_PERIOD,
-            INITIAL_USD_UNIT_PRICE,
-            INITIAL_MAX_UNITS
-        );
         revertOnReceive = new RevertOnReceive();
 
         uptimeFeed.setRoundData(
@@ -61,6 +57,15 @@ abstract contract StorageRegistryTestSuite is Test {
             })
         );
 
-        vm.warp(block.timestamp + fcStorage.L2_DOWNTIME_GRACE_PERIOD());
+        vm.warp(DEPLOYED_AT);
+
+        fcStorage = new StorageRegistryHarness(
+            priceFeed,
+            uptimeFeed,
+            INITIAL_RENTAL_PERIOD,
+            INITIAL_USD_UNIT_PRICE,
+            INITIAL_MAX_UNITS,
+            INITIAL_PRICE_FEED_CACHE_DURATION
+        );
     }
 }
