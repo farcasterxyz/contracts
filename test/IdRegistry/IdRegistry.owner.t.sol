@@ -51,8 +51,8 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.getTrustedOnly(), 1);
 
         vm.expectEmit(true, true, true, true);
-        idRegistry.disableTrustedOnly();
         emit DisableTrustedOnly();
+        idRegistry.disableTrustedOnly();
         assertEq(idRegistry.getTrustedOnly(), 0);
     }
 
