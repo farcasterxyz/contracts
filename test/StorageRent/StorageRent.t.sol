@@ -24,6 +24,7 @@ contract StorageRentTest is StorageRentTestSuite {
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
+    event SetGracePeriod(uint256 oldPeriod, uint256 newPeriod);
     event Withdraw(address indexed to, uint256 amount);
 
     function testVersion() public {
@@ -67,7 +68,11 @@ contract StorageRentTest is StorageRentTestSuite {
     }
 
     function testPriceFeedCacheDurationDefault() public {
-        assertEq(fcStorage.priceFeedCacheDuration(), 24 hours);
+        assertEq(fcStorage.priceFeedCacheDuration(), INITIAL_PRICE_FEED_CACHE_DURATION);
+    }
+
+    function testUptimeFeedGracePeriodDefault() public {
+        assertEq(fcStorage.uptimeFeedGracePeriod(), INITIAL_UPTIME_FEED_GRACE_PERIOD);
     }
 
     function testFuzzRent(address msgSender, uint256 id, uint200 units) public {
@@ -755,10 +760,10 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.setDeprecationTimestamp(block.timestamp - 1);
     }
 
-    function testFuzzOnlyOwnerCanSetCacheDuration(uint256 timestamp) public {
+    function testFuzzOnlyOwnerCanSetCacheDuration(uint256 duration) public {
         vm.prank(mallory);
         vm.expectRevert("Ownable: caller is not the owner");
-        fcStorage.setCacheDuration(timestamp);
+        fcStorage.setCacheDuration(duration);
     }
 
     function testFuzzSetCacheDuration(uint256 duration) public {
@@ -770,6 +775,23 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.setCacheDuration(duration);
 
         assertEq(fcStorage.priceFeedCacheDuration(), duration);
+    }
+
+    function testFuzzOnlyOwnerCanSetGracePeriod(uint256 duration) public {
+        vm.prank(mallory);
+        vm.expectRevert("Ownable: caller is not the owner");
+        fcStorage.setGracePeriod(duration);
+    }
+
+    function testFuzzSetGracePeriod(uint256 duration) public {
+        uint256 currentGracePeriod = fcStorage.uptimeFeedGracePeriod();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetGracePeriod(currentGracePeriod, duration);
+
+        fcStorage.setGracePeriod(duration);
+
+        assertEq(fcStorage.uptimeFeedGracePeriod(), duration);
     }
 
     function testFuzzWithdrawal(address msgSender, uint256 id, uint200 units, uint256 amount) public {

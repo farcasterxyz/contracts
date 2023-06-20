@@ -50,8 +50,19 @@ contract StorageRentHarness is StorageRent {
         uint256 _rentalPeriod,
         uint256 _usdUnitPrice,
         uint256 _maxUnits,
-        uint256 _priceFeedCacheDuration
-    ) StorageRent(_priceFeed, _uptimeFeed, _rentalPeriod, _usdUnitPrice, _maxUnits, _priceFeedCacheDuration) {}
+        uint256 _priceFeedCacheDuration,
+        uint256 _uptimeFeedGracePeriod
+    )
+        StorageRent(
+            _priceFeed,
+            _uptimeFeed,
+            _rentalPeriod,
+            _usdUnitPrice,
+            _maxUnits,
+            _priceFeedCacheDuration,
+            _uptimeFeedGracePeriod
+        )
+    {}
 }
 
 contract MockChainlinkFeed is AggregatorV3Interface {

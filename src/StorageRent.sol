@@ -97,6 +97,14 @@ contract StorageRent is Ownable2Step {
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
 
     /**
+     * @dev Emit an event when an owner changes the uptimeFeedGracePeriod.
+     *
+     * @param oldPeriod The previous uptimeFeedGracePeriod.
+     * @param newPeriod The new uptimeFeedGracePeriod.
+     */
+    event SetGracePeriod(uint256 oldPeriod, uint256 newPeriod);
+
+    /**
      * @dev Emit an event when an owner makes a withdrawal from the contract balance.
      *
      * @param to     Address of recipient.
@@ -112,11 +120,6 @@ contract StorageRent is Ownable2Step {
      * @dev Contract version. Follows Farcaster protocol version scheme.
      */
     string public constant VERSION = "2023.06.01";
-
-    /**
-     * @dev Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
-     */
-    uint256 public constant L2_DOWNTIME_GRACE_PERIOD = 1 hours;
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
@@ -156,6 +159,12 @@ contract StorageRent is Ownable2Step {
      */
     uint256 public priceFeedCacheDuration;
 
+    /**
+     * @dev Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
+     *      See: https://docs.chain.link/data-feeds/l2-sequencer-feeds
+     */
+    uint256 public uptimeFeedGracePeriod;
+
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -188,6 +197,7 @@ contract StorageRent is Ownable2Step {
      * @param _initialUsdUnitPrice           Initial unit price in USD. Fixed point value with 8 decimals.
      * @param _initialMaxUnits               Initial maximum capacity in storage units.
      * @param _initialPriceFeedCacheDuration Initial duration to cache ETH/USD price.
+     * @param _initialUptimeFeedGracePeriod  Initial L2 sequencer downtime grace period.
      */
     constructor(
         AggregatorV3Interface _priceFeed,
@@ -195,7 +205,8 @@ contract StorageRent is Ownable2Step {
         uint256 _initialDeprecationPeriod,
         uint256 _initialUsdUnitPrice,
         uint256 _initialMaxUnits,
-        uint256 _initialPriceFeedCacheDuration
+        uint256 _initialPriceFeedCacheDuration,
+        uint256 _initialUptimeFeedGracePeriod
     ) Ownable2Step() {
         priceFeed = _priceFeed;
         uptimeFeed = _uptimeFeed;
@@ -203,6 +214,7 @@ contract StorageRent is Ownable2Step {
         usdUnitPrice = _initialUsdUnitPrice;
         maxUnits = _initialMaxUnits;
         priceFeedCacheDuration = _initialPriceFeedCacheDuration;
+        uptimeFeedGracePeriod = _initialUptimeFeedGracePeriod;
 
         _refreshPrice();
     }
@@ -319,7 +331,7 @@ contract StorageRent is Ownable2Step {
 
         /* If the L2 sequencer recently restarted, ensure the grace period has elapsed. */
         uint256 timeSinceUp = block.timestamp - uptimeStartedAt;
-        if (timeSinceUp < L2_DOWNTIME_GRACE_PERIOD) revert GracePeriodNotOver();
+        if (timeSinceUp < uptimeFeedGracePeriod) revert GracePeriodNotOver();
 
         /* Get and validate the Chainlink ETH/USD price. */
         (uint80 priceRoundId, int256 answer,, uint256 priceUpdatedAt, uint80 priceAnsweredInRound) =
@@ -415,6 +427,16 @@ contract StorageRent is Ownable2Step {
     function setCacheDuration(uint256 duration) external onlyOwner {
         emit SetCacheDuration(priceFeedCacheDuration, duration);
         priceFeedCacheDuration = duration;
+    }
+
+    /**
+     * @notice Change the uptimeFeedGracePeriod.
+     *
+     * @param period The new uptimeFeedGracePeriod.
+     */
+    function setGracePeriod(uint256 period) external onlyOwner {
+        emit SetGracePeriod(uptimeFeedGracePeriod, period);
+        uptimeFeedGracePeriod = period;
     }
 
     /**
