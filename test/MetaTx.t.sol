@@ -2,12 +2,9 @@
 pragma solidity 0.8.18;
 
 import {MinimalForwarder} from "openzeppelin/contracts/metatx/MinimalForwarder.sol";
-import {ERC1967Proxy} from "openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-import "./NameRegistry/NameRegistryConstants.sol";
 import {IdRegistryHarness} from "./Utils.sol";
 
-import {NameRegistry} from "../src/NameRegistry.sol";
 import {TestSuiteSetup} from "./TestSuiteSetup.sol";
 
 /* solhint-disable state-visibility */
@@ -15,9 +12,6 @@ import {TestSuiteSetup} from "./TestSuiteSetup.sol";
 
 contract MetaTxTest is TestSuiteSetup {
     IdRegistryHarness idRegistry;
-    ERC1967Proxy nameRegistryProxy;
-    NameRegistry nameRegistryImpl;
-    NameRegistry nameRegistry;
     MinimalForwarder forwarder;
 
     event Register(address indexed to, uint256 indexed id, address recovery);
@@ -49,14 +43,6 @@ contract MetaTxTest is TestSuiteSetup {
         // Set up the idRegistry and move to a state where it is no longer in trusted registration
         idRegistry = new IdRegistryHarness(address(forwarder));
         idRegistry.disableTrustedOnly();
-
-        // Set up the nameRegistry and proxy, and move to a state where it is no longer in trusted registration
-        nameRegistryImpl = new NameRegistry(address(forwarder));
-        nameRegistryProxy = new ERC1967Proxy(address(nameRegistryImpl), "");
-        nameRegistry = NameRegistry(address(nameRegistryProxy));
-        nameRegistry.initialize("Farcaster NameRegistry", "FCN", VAULT, POOL);
-        nameRegistry.grantRole(ADMIN_ROLE, defaultAdmin);
-        nameRegistry.disableTrustedOnly();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -91,44 +77,6 @@ contract MetaTxTest is TestSuiteSetup {
         emit Register(alice, 1, recovery);
         forwarder.execute(req, signature);
         assertEq(idRegistry.idOf(alice), 1);
-    }
-
-    function testFuzzNameRegistryTransfer(address relayer, address recovery, uint256 alicePrivateKey) public {
-        _assumeClean(relayer);
-        alicePrivateKey = bound(alicePrivateKey, 1, PKEY_MAX - 1);
-        address alice = vm.addr(alicePrivateKey);
-
-        // Register the name alice
-        bytes32 commitHash = nameRegistry.generateCommit(bytes16("alice"), alice, "secret", recovery);
-
-        vm.deal(relayer, 1 ether);
-        vm.warp(DEC1_2022_TS);
-        vm.prank(relayer);
-        nameRegistry.makeCommit(commitHash);
-
-        vm.warp(block.timestamp + 60);
-        uint256 fee = nameRegistry.fee();
-        vm.prank(relayer);
-        nameRegistry.register{value: fee}(bytes16("alice"), alice, bytes32("secret"), recovery);
-        assertEq(nameRegistry.ownerOf(uint256(bytes32("alice"))), alice);
-
-        address bob = address(bytes20(bytes32("bob")));
-
-        // Transfer the name alice via a meta transaction
-        MinimalForwarder.ForwardRequest memory transferReq = MinimalForwarder.ForwardRequest({
-            from: alice,
-            to: address(nameRegistry),
-            nonce: forwarder.getNonce(alice),
-            value: 0 ether,
-            gas: 200_000,
-            data: abi.encodeWithSelector(NameRegistry.transferFrom.selector, alice, bob, ALICE_TOKEN_ID)
-        });
-
-        bytes memory transferSig = _signReq(transferReq, alicePrivateKey);
-
-        vm.prank(relayer);
-        forwarder.execute(transferReq, transferSig);
-        assertEq(nameRegistry.ownerOf(ALICE_TOKEN_ID), bob);
     }
 
     function _signReq(
