@@ -100,7 +100,7 @@ contract StorageRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Contract version.
+     * @dev Contract version. Follows Farcaster protocol version scheme.
      */
     string public constant VERSION = "2023.06.01";
 
@@ -258,6 +258,7 @@ contract StorageRegistry is Ownable2Step {
 
     /**
      * @notice Cost in wei to rent one storage unit.
+     * @return uint256 cost in wei.
      */
     function unitPrice() external view returns (uint256) {
         return price(1);
@@ -267,6 +268,7 @@ contract StorageRegistry is Ownable2Step {
      * @notice Calculate the cost in wei to rent the given number of storage units.
      *
      * @param units Number of storage units.
+     * @return uint256 cost in wei.
      */
     function price(uint256 units) public view returns (uint256) {
         return _price(units, usdUnitPrice, ethUsdPrice);
