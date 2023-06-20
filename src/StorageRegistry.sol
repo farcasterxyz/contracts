@@ -30,10 +30,10 @@ contract StorageRegistry is Ownable2Step {
     /// @dev Revert when a native token transfer fails.
     error CallFailed();
 
-    /// @dev Revert if the price feed returns a stale price.
-    error StalePrice();
+    /// @dev Revert if a data feed returns a stale answer.
+    error StaleAnswer();
 
-    /// @dev Revert if the price feed round is incomplete and has not yet generated a price.
+    /// @dev Revert if the data feed round is incomplete and has not yet generated an answer.
     error IncompleteRound();
 
     /// @dev Revert if the price feed returns a zero or negative price.
@@ -302,18 +302,27 @@ contract StorageRegistry is Ownable2Step {
      */
     function _refreshPrice() internal returns (uint256 cachedPrice, uint256 newPrice) {
         /* Ensure that the L2 sequencer is up. */
-        (, int256 sequencerUp, uint256 startedAt,,) = uptimeFeed.latestRoundData();
+        (
+            uint80 uptimeRoundId,
+            int256 sequencerUp,
+            uint256 uptimeStartedAt,
+            uint256 uptimeUpdatedAt,
+            uint80 uptimeAnsweredInRound
+        ) = uptimeFeed.latestRoundData();
         if (sequencerUp != 0) revert SequencerDown();
+        if (uptimeUpdatedAt == 0) revert IncompleteRound();
+        if (uptimeAnsweredInRound < uptimeRoundId) revert StaleAnswer();
 
         /* If the L2 sequencer recently restarted, ensure the grace period has elapsed. */
-        uint256 timeSinceUp = block.timestamp - startedAt;
+        uint256 timeSinceUp = block.timestamp - uptimeStartedAt;
         if (timeSinceUp < L2_DOWNTIME_GRACE_PERIOD) revert GracePeriodNotOver();
 
         /* Get and validate the Chainlink ETH/USD price. */
-        (uint80 roundId, int256 answer,, uint256 updatedAt, uint80 answeredInRound) = priceFeed.latestRoundData();
+        (uint80 priceRoundId, int256 answer,, uint256 priceUpdatedAt, uint80 priceAnsweredInRound) =
+            priceFeed.latestRoundData();
         if (answer <= 0) revert InvalidPrice();
-        if (updatedAt == 0) revert IncompleteRound();
-        if (answeredInRound < roundId) revert StalePrice();
+        if (priceUpdatedAt == 0) revert IncompleteRound();
+        if (priceAnsweredInRound < priceRoundId) revert StaleAnswer();
 
         cachedPrice = ethUsdPrice;
         newPrice = uint256(answer);
@@ -327,6 +336,7 @@ contract StorageRegistry is Ownable2Step {
     }
 
     function _price(uint256 units, uint256 usdPerUnit, uint256 ethPerUsd) internal pure returns (uint256) {
+        // return units * usdPerUnit * 1e18 / ethPerUsd;
         return (units * usdPerUnit).divWadUp(ethPerUsd);
     }
 

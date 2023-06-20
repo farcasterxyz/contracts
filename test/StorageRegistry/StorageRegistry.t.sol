@@ -519,6 +519,12 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(fcStorage.unitPrice(), uint256(usdUnitPrice) * 1e18 / cachedPrice);
     }
 
+    function testPriceRoundsUp() public {
+        fcStorage.setPrice(1);
+
+        assertEq(fcStorage.price(1), 5e6);
+    }
+
     function testFuzzPrice(uint48 usdUnitPrice, uint128 units, int256 ethUsdPrice) public {
         // Ensure Chainlink price is positive
         ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
@@ -551,7 +557,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.refreshPrice();
     }
 
-    function testPriceFeedRevertsStalePrice() public {
+    function testPriceFeedRevertsStaleAnswer() public {
         // Set stale answeredInRound value
         priceFeed.setRoundData(
             MockChainlinkFeed.RoundData({
@@ -563,7 +569,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.StalePrice.selector);
+        vm.expectRevert(StorageRegistry.StaleAnswer.selector);
         fcStorage.refreshPrice();
     }
 
@@ -597,6 +603,37 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
 
         vm.expectRevert(StorageRegistry.SequencerDown.selector);
+        fcStorage.refreshPrice();
+    }
+
+    function testUptimeFeedRevertsStaleAnswer() public {
+        // Set stale answeredInRound value
+        uptimeFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 2,
+                answer: 0,
+                startedAt: block.timestamp,
+                timeStamp: block.timestamp,
+                answeredInRound: 1
+            })
+        );
+
+        vm.expectRevert(StorageRegistry.StaleAnswer.selector);
+        fcStorage.refreshPrice();
+    }
+
+    function testUptimeFeedRevertsIncompleteRound() public {
+        // Set zero timeStamp value
+        uptimeFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 1,
+                answer: 0,
+                startedAt: block.timestamp,
+                timeStamp: 0,
+                answeredInRound: 1
+            })
+        );
+        vm.expectRevert(StorageRegistry.IncompleteRound.selector);
         fcStorage.refreshPrice();
     }
 
