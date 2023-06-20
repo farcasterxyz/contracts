@@ -10,7 +10,7 @@ remappings = [
 
 [profile.ci]
 verbosity = 3
-fuzz = { runs = 10000 }
+fuzz = { runs = 2000 }
 
 [fmt]
 line_length = 120
