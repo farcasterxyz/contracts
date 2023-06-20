@@ -18,6 +18,9 @@ contract StorageRegistry is Ownable2Step {
     /// @dev Revert if the caller attempts to rent more storage than is available.
     error ExceedsCapacity();
 
+    /// @dev Revert if the caller attempts to rent zero units.
+    error InvalidAmount();
+
     /// @dev Revert if the caller attempts a batch rent with mismatched input array lengths or an empty array.
     error InvalidBatchInput();
 
@@ -224,6 +227,7 @@ contract StorageRegistry is Ownable2Step {
      * @param units Number of storage units to rent.
      */
     function rent(uint256 fid, uint256 units) external payable whenNotDeprecated {
+        if (units == 0) revert InvalidAmount();
         if (msg.value != _price(units)) revert InvalidPayment();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 

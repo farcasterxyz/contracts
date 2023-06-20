@@ -74,6 +74,12 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         rentStorage(msgSender, id, units);
     }
 
+    function testFuzzRentRevertsZeroUnits(address msgSender, uint256 id) public {
+        vm.prank(msgSender);
+        vm.expectRevert(StorageRegistry.InvalidAmount.selector);
+        fcStorage.rent(id, 0);
+    }
+
     function testFuzzRentCachedPrice(
         address msgSender1,
         uint256 id1,
@@ -857,7 +863,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function rentStorage(address msgSender, uint256 id, uint256 units) public returns (uint256) {
         uint256 rented = fcStorage.rentedUnits();
-        units = bound(units, 0, fcStorage.maxUnits() - fcStorage.rentedUnits());
+        uint256 remaining = fcStorage.maxUnits() - rented;
+        vm.assume(remaining > 0);
+        units = bound(units, 1, remaining);
         uint256 price = fcStorage.price(units);
         vm.deal(msgSender, price);
 
