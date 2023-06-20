@@ -1,12 +1,18 @@
 # Contracts
 
-Implementation of the Farcaster ID Registry and Farcaster Name Registry contracts as specified in the
+Implementation of the Farcaster Contracts as specified in the
 [Farcaster protocol](https://github.com/farcasterxyz/protocol). Learn more about how the contracts work by reading the
 [docs](docs/docs.md) or [contributing guidelines](CONTRIBUTING.md).
 
 ## Location
 
-The contracts can be found at the following addresses on Goerli
+### v3 Contracts
+
+The v3 contracts in this repository have not yet been deployed. 
+
+### v2 Contracts
+
+The v2 contracts from an older version of this repository can be found at the following addresses on Goerli
 
 | Network        | Address                                                                                                                      |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
