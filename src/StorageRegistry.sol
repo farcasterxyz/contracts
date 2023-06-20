@@ -3,8 +3,11 @@ pragma solidity 0.8.18;
 
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
+import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 contract StorageRegistry is Ownable2Step {
+    using FixedPointMathLib for uint256;
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -324,7 +327,7 @@ contract StorageRegistry is Ownable2Step {
     }
 
     function _price(uint256 units, uint256 usdPerUnit, uint256 ethPerUsd) internal pure returns (uint256) {
-        return units * usdPerUnit * 1e18 / ethPerUsd;
+        return (units * usdPerUnit).divWadUp(ethPerUsd);
     }
 
     /*//////////////////////////////////////////////////////////////

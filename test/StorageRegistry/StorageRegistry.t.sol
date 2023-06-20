@@ -2,6 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
+import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import "../TestConstants.sol";
 
@@ -12,6 +13,8 @@ import {MockChainlinkFeed} from "../Utils.sol";
 /* solhint-disable state-visibility */
 
 contract StorageRegistryTest is StorageRegistryTestSuite {
+    using FixedPointMathLib for uint256;
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -501,7 +504,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.refreshPrice();
         fcStorage.setPrice(usdUnitPrice);
 
-        assertEq(fcStorage.unitPrice(), uint256(usdUnitPrice) * 1e18 / uint256(ethUsdPrice));
+        assertEq(fcStorage.unitPrice(), (uint256(usdUnitPrice)).divWadUp(uint256(ethUsdPrice)));
     }
 
     function testFuzzUnitPriceCached(uint48 usdUnitPrice, int256 ethUsdPrice) public {
@@ -524,7 +527,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.refreshPrice();
         fcStorage.setPrice(usdUnitPrice);
 
-        assertEq(fcStorage.price(units), uint256(usdUnitPrice) * units * 1e18 / uint256(ethUsdPrice));
+        assertEq(fcStorage.price(units), (uint256(usdUnitPrice) * units).divWadUp(uint256(ethUsdPrice)));
     }
 
     function testFuzzPriceCached(uint48 usdUnitPrice, uint128 units, int256 ethUsdPrice) public {
@@ -536,7 +539,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         priceFeed.setPrice(ethUsdPrice);
         fcStorage.setPrice(usdUnitPrice);
 
-        assertEq(fcStorage.price(units), uint256(usdUnitPrice) * units * 1e18 / cachedPrice);
+        assertEq(fcStorage.price(units), (uint256(usdUnitPrice) * units).divWadUp(cachedPrice));
     }
 
     function testFuzzPriceFeedRevertsInvalidPrice(int256 price) public {
@@ -691,6 +694,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzSetDeprecationTime(uint256 timestamp) public {
+        timestamp = bound(timestamp, block.timestamp, type(uint256).max);
         uint256 currentEnd = fcStorage.deprecationTimestamp();
 
         vm.expectEmit(false, false, false, true);
