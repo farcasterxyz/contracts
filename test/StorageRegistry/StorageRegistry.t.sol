@@ -23,6 +23,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
     event Withdraw(address indexed to, uint256 amount);
 
+    function testVersion() public {
+        assertEq(fcStorage.VERSION(), "2023.06.01");
+    }
+
     function testOwnerDefault() public {
         assertEq(fcStorage.owner(), owner);
     }
@@ -821,5 +825,6 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         return price;
     }
 
+    /* solhint-disable-next-line no-empty-blocks */
     receive() external payable {}
 }

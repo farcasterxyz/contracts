@@ -100,9 +100,14 @@ contract StorageRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @dev Contract version.
+     */
+    string public constant VERSION = "2023.06.01";
+
+    /**
      * @dev Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
      */
-    uint256 public constant L2_DOWNTIME_GRACE_PERIOD = 3600;
+    uint256 public constant L2_DOWNTIME_GRACE_PERIOD = 1 hours;
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
@@ -119,7 +124,7 @@ contract StorageRegistry is Ownable2Step {
     AggregatorV3Interface public immutable uptimeFeed;
 
     /*//////////////////////////////////////////////////////////////
-                                 STORAGE
+                              PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -141,6 +146,10 @@ contract StorageRegistry is Ownable2Step {
      * @dev Duration to cache ethUsdPrice before updating from the price feed.
      */
     uint256 public priceFeedCacheDuration;
+
+    /*//////////////////////////////////////////////////////////////
+                                STORAGE
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @dev Total number of storage units that have been rented.
