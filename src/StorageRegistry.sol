@@ -335,8 +335,14 @@ contract StorageRegistry is Ownable2Step {
         return _price(units, usdUnitPrice, _ethUsdPrice());
     }
 
+    /**
+     * @param units      Number of storage units. Integer, no decimals.
+     * @param usdPerUnit Unit price in USD. Fixed point with 8 decimals.
+     * @param ethPerUsd  ETH/USD price. Fixed point with 8 decimals.
+     *
+     * @return uint256 price in wei, i.e. 18 decimals.
+     */
     function _price(uint256 units, uint256 usdPerUnit, uint256 ethPerUsd) internal pure returns (uint256) {
-        // return units * usdPerUnit * 1e18 / ethPerUsd;
         return (units * usdPerUnit).divWadUp(ethPerUsd);
     }
 

@@ -520,9 +520,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testPriceRoundsUp() public {
+        priceFeed.setPrice(1e18 + 1);
+        fcStorage.refreshPrice();
         fcStorage.setPrice(1);
 
-        assertEq(fcStorage.price(1), 5e6);
+        assertEq(fcStorage.price(1), 1);
     }
 
     function testFuzzPrice(uint48 usdUnitPrice, uint128 units, int256 ethUsdPrice) public {
