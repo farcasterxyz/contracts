@@ -672,6 +672,40 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.refreshPrice();
     }
 
+    function testFuzzOnlyOwnerCanCredit(uint256 fid, uint256 units) public {
+        vm.prank(mallory);
+        vm.expectRevert("Ownable: caller is not the owner");
+        fcStorage.credit(fid, units);
+    }
+
+    function testFuzzCredit(uint256 fid, uint32 units) public {
+        credit(address(this), fid, units);
+    }
+
+    function testFuzzCreditRevertsExceedsCapacity(uint256 fid, uint32 units) public {
+        // Buy all the available units.
+        uint256 maxUnits = fcStorage.maxUnits();
+        uint256 maxUnitsPrice = fcStorage.price(maxUnits);
+        vm.deal(address(this), maxUnitsPrice);
+        fcStorage.rent{value: maxUnitsPrice}(0, maxUnits);
+        units = uint32(bound(units, 1, type(uint32).max));
+
+        vm.expectRevert(StorageRent.ExceedsCapacity.selector);
+        fcStorage.credit(fid, units);
+    }
+
+    function testFuzzCreditRevertsAfterDeadline(uint256 fid, uint32 units) public {
+        vm.warp(fcStorage.deprecationTimestamp() + 1);
+
+        vm.expectRevert(StorageRent.ContractDeprecated.selector);
+        fcStorage.credit(fid, units);
+    }
+
+    function testFuzzCreditRevertsZeroUnits(uint256 fid) public {
+        vm.expectRevert(StorageRent.InvalidAmount.selector);
+        fcStorage.credit(fid, 0);
+    }
+
     function testFuzzOnlyOwnerCanBatchCredit(uint256[] calldata fids, uint256 units) public {
         vm.prank(mallory);
         vm.expectRevert("Ownable: caller is not the owner");
@@ -881,6 +915,23 @@ contract StorageRentTest is StorageRentTestSuite {
         // Expect rented units to increase
         assertEq(fcStorage.rentedUnits(), rented + totalUnits);
         return totalCost;
+    }
+
+    function credit(address msgSender, uint256 id, uint256 units) public {
+        uint256 rented = fcStorage.rentedUnits();
+        uint256 remaining = fcStorage.maxUnits() - rented;
+        vm.assume(remaining > 0);
+        units = bound(units, 1, remaining);
+
+        // Expect emitted event
+        vm.expectEmit(true, true, false, true);
+        emit Rent(msgSender, id, units);
+
+        vm.prank(msgSender);
+        fcStorage.credit(id, units);
+
+        // Expect rented units to increase
+        assertEq(fcStorage.rentedUnits(), rented + units);
     }
 
     function rentStorage(address msgSender, uint256 id, uint256 units) public returns (uint256) {

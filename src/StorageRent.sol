@@ -367,6 +367,20 @@ contract StorageRent is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Credit a single fid with free storage units. Only callable by owner.
+     *
+     * @param fid   The fid that will receive the credit.
+     * @param units Number of storage units to credit.
+     */
+    function credit(uint256 fid, uint256 units) external onlyOwner whenNotDeprecated {
+        if (units == 0) revert InvalidAmount();
+        if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
+
+        rentedUnits += units;
+        emit Rent(msg.sender, fid, units);
+    }
+
+    /**
      * @notice Credit multiple fids with free storage units. Only callable by owner.
      *
      * @param fids  An array of fids.
