@@ -6,13 +6,13 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import "../TestConstants.sol";
 
-import {StorageRegistry} from "../../src/StorageRegistry.sol";
-import {StorageRegistryTestSuite} from "./StorageRegistryTestSuite.sol";
+import {StorageRent} from "../../src/StorageRent.sol";
+import {StorageRentTestSuite} from "./StorageRentTestSuite.sol";
 import {MockChainlinkFeed} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
-contract StorageRegistryTest is StorageRegistryTestSuite {
+contract StorageRentTest is StorageRentTestSuite {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -76,7 +76,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testFuzzRentRevertsZeroUnits(address msgSender, uint256 id) public {
         vm.prank(msgSender);
-        vm.expectRevert(StorageRegistry.InvalidAmount.selector);
+        vm.expectRevert(StorageRent.InvalidAmount.selector);
         fcStorage.rent(id, 0);
     }
 
@@ -138,7 +138,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
         vm.warp(fcStorage.deprecationTimestamp() + 1);
 
-        vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
+        vm.expectRevert(StorageRent.ContractDeprecated.selector);
         vm.prank(msgSender);
         fcStorage.rent(id, units);
     }
@@ -154,7 +154,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 value = price - bound(delta, 1, price);
         vm.deal(msgSender, value);
 
-        vm.expectRevert(StorageRegistry.InvalidPayment.selector);
+        vm.expectRevert(StorageRent.InvalidPayment.selector);
         vm.prank(msgSender);
         fcStorage.rent{value: value}(id, units);
     }
@@ -168,7 +168,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 value = price + bound(delta, 1, type(uint256).max - price);
         vm.deal(msgSender, value);
 
-        vm.expectRevert(StorageRegistry.InvalidPayment.selector);
+        vm.expectRevert(StorageRent.InvalidPayment.selector);
         vm.prank(msgSender);
         fcStorage.rent{value: value}(id, units);
     }
@@ -185,7 +185,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 price = fcStorage.unitPrice() * units;
         vm.deal(msgSender, price);
 
-        vm.expectRevert(StorageRegistry.ExceedsCapacity.selector);
+        vm.expectRevert(StorageRent.ExceedsCapacity.selector);
         vm.prank(msgSender);
         fcStorage.rent{value: price}(id, units);
     }
@@ -329,7 +329,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(totalUnits <= fcStorage.maxUnits() - fcStorage.rentedUnits());
         vm.deal(msgSender, totalCost);
         vm.prank(msgSender);
-        vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
+        vm.expectRevert(StorageRent.ContractDeprecated.selector);
         fcStorage.batchRent{value: totalCost}(ids, units);
     }
 
@@ -347,7 +347,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         }
 
         vm.prank(msgSender);
-        vm.expectRevert(StorageRegistry.InvalidBatchInput.selector);
+        vm.expectRevert(StorageRent.InvalidBatchInput.selector);
         fcStorage.batchRent{value: 0}(ids, units);
     }
 
@@ -379,7 +379,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.deal(msgSender, totalCost);
 
         vm.prank(msgSender);
-        vm.expectRevert(StorageRegistry.InvalidBatchInput.selector);
+        vm.expectRevert(StorageRent.InvalidBatchInput.selector);
         fcStorage.batchRent{value: totalCost}(ids, units);
     }
 
@@ -421,7 +421,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.deal(msgSender, totalCost);
 
         vm.prank(msgSender);
-        vm.expectRevert(StorageRegistry.InvalidPayment.selector);
+        vm.expectRevert(StorageRent.InvalidPayment.selector);
         fcStorage.batchRent{value: value}(ids, units);
     }
 
@@ -463,7 +463,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         vm.deal(msgSender, value);
         vm.prank(msgSender);
-        vm.expectRevert(StorageRegistry.InvalidPayment.selector);
+        vm.expectRevert(StorageRent.InvalidPayment.selector);
         fcStorage.batchRent{value: value}(ids, units);
     }
 
@@ -497,7 +497,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.deal(address(this), maxUnitsPrice);
         fcStorage.rent{value: maxUnitsPrice}(0, maxUnits);
 
-        vm.expectRevert(StorageRegistry.ExceedsCapacity.selector);
+        vm.expectRevert(StorageRent.ExceedsCapacity.selector);
         vm.prank(msgSender);
         fcStorage.batchRent(ids, units);
     }
@@ -561,7 +561,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         price = price > 0 ? -price : price;
         priceFeed.setPrice(price);
 
-        vm.expectRevert(StorageRegistry.InvalidPrice.selector);
+        vm.expectRevert(StorageRent.InvalidPrice.selector);
         fcStorage.refreshPrice();
     }
 
@@ -577,7 +577,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.StaleAnswer.selector);
+        vm.expectRevert(StorageRent.StaleAnswer.selector);
         fcStorage.refreshPrice();
     }
 
@@ -592,7 +592,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                 answeredInRound: 1
             })
         );
-        vm.expectRevert(StorageRegistry.IncompleteRound.selector);
+        vm.expectRevert(StorageRent.IncompleteRound.selector);
         fcStorage.refreshPrice();
     }
 
@@ -610,7 +610,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.SequencerDown.selector);
+        vm.expectRevert(StorageRent.SequencerDown.selector);
         fcStorage.refreshPrice();
     }
 
@@ -626,7 +626,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.StaleAnswer.selector);
+        vm.expectRevert(StorageRent.StaleAnswer.selector);
         fcStorage.refreshPrice();
     }
 
@@ -641,7 +641,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                 answeredInRound: 1
             })
         );
-        vm.expectRevert(StorageRegistry.IncompleteRound.selector);
+        vm.expectRevert(StorageRent.IncompleteRound.selector);
         fcStorage.refreshPrice();
     }
 
@@ -657,7 +657,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.GracePeriodNotOver.selector);
+        vm.expectRevert(StorageRent.GracePeriodNotOver.selector);
         fcStorage.refreshPrice();
     }
 
@@ -687,14 +687,14 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.rent{value: maxUnitsPrice}(0, maxUnits);
         units = uint32(bound(units, 1, type(uint32).max));
 
-        vm.expectRevert(StorageRegistry.ExceedsCapacity.selector);
+        vm.expectRevert(StorageRent.ExceedsCapacity.selector);
         fcStorage.batchCredit(fids, units);
     }
 
     function testFuzzBatchCreditRevertsAfterDeadline(uint256[] calldata fids, uint32 units) public {
         vm.warp(fcStorage.deprecationTimestamp() + 1);
 
-        vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
+        vm.expectRevert(StorageRent.ContractDeprecated.selector);
         fcStorage.batchCredit(fids, units);
     }
 
@@ -751,7 +751,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzSetDeprecationTimeRevertsInPast() public {
-        vm.expectRevert(StorageRegistry.InvalidDeprecationTimestamp.selector);
+        vm.expectRevert(StorageRent.InvalidDeprecationTimestamp.selector);
         fcStorage.setDeprecationTimestamp(block.timestamp - 1);
     }
 
@@ -797,7 +797,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         amount = bound(amount, 1, type(uint256).max);
 
         vm.prank(owner);
-        vm.expectRevert(StorageRegistry.InsufficientFunds.selector);
+        vm.expectRevert(StorageRent.InsufficientFunds.selector);
         fcStorage.withdraw(owner, amount);
     }
 
@@ -806,7 +806,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         fcStorage.rent{value: price}(1, 1);
 
         vm.prank(owner);
-        vm.expectRevert(StorageRegistry.CallFailed.selector);
+        vm.expectRevert(StorageRent.CallFailed.selector);
         fcStorage.withdraw(address(revertOnReceive), price);
     }
 

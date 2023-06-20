@@ -4,7 +4,7 @@ pragma solidity 0.8.18;
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {StorageRegistry} from "../src/StorageRegistry.sol";
+import {StorageRent} from "../src/StorageRent.sol";
 
 /* solhint-disable no-empty-blocks */
 
@@ -43,7 +43,7 @@ contract IdRegistryHarness is IdRegistry {
     }
 }
 
-contract StorageRegistryHarness is StorageRegistry {
+contract StorageRentHarness is StorageRent {
     constructor(
         AggregatorV3Interface _priceFeed,
         AggregatorV3Interface _uptimeFeed,
@@ -51,7 +51,7 @@ contract StorageRegistryHarness is StorageRegistry {
         uint256 _usdUnitPrice,
         uint256 _maxUnits,
         uint256 _priceFeedCacheDuration
-    ) StorageRegistry(_priceFeed, _uptimeFeed, _rentalPeriod, _usdUnitPrice, _maxUnits, _priceFeedCacheDuration) {}
+    ) StorageRent(_priceFeed, _uptimeFeed, _rentalPeriod, _usdUnitPrice, _maxUnits, _priceFeedCacheDuration) {}
 }
 
 contract MockChainlinkFeed is AggregatorV3Interface {

@@ -5,7 +5,7 @@ import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Inter
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
-contract StorageRegistry is Ownable2Step {
+contract StorageRent is Ownable2Step {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////

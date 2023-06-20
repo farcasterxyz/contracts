@@ -3,12 +3,12 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 
-import {StorageRegistryHarness, MockPriceFeed, MockUptimeFeed, MockChainlinkFeed, RevertOnReceive} from "../Utils.sol";
+import {StorageRentHarness, MockPriceFeed, MockUptimeFeed, MockChainlinkFeed, RevertOnReceive} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract StorageRegistryTestSuite is Test {
-    StorageRegistryHarness internal fcStorage;
+abstract contract StorageRentTestSuite is Test {
+    StorageRentHarness internal fcStorage;
     MockPriceFeed internal priceFeed;
     MockUptimeFeed internal uptimeFeed;
     RevertOnReceive internal revertOnReceive;
@@ -59,7 +59,7 @@ abstract contract StorageRegistryTestSuite is Test {
 
         vm.warp(DEPLOYED_AT);
 
-        fcStorage = new StorageRegistryHarness(
+        fcStorage = new StorageRentHarness(
             priceFeed,
             uptimeFeed,
             INITIAL_RENTAL_PERIOD,
