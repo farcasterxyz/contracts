@@ -305,7 +305,7 @@ contract StorageRegistry is Ownable2Step {
      * @dev Get the latest ETH/USD price from the price feed and update the cached price.
      */
     function _refreshPrice() internal returns (uint256 cachedPrice, uint256 newPrice) {
-        /* Ensure that the L2 sequencer is up. */
+        /* Get and validate the L2 sequencer status. */
         (
             uint80 uptimeRoundId,
             int256 sequencerUp,
