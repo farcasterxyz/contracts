@@ -42,6 +42,9 @@ contract StorageRegistry is Ownable2Step {
     /// @dev Revert if the L2 sequencer restarted less than L2_DOWNTIME_GRACE_PERIOD seconds ago.
     error GracePeriodNotOver();
 
+    /// @dev Revert if the depreaction timestamp parameter is in the past.
+    error InvalidDeprecationTimestamp();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -376,6 +379,7 @@ contract StorageRegistry is Ownable2Step {
      * @param timestamp The new deprecationTimestamp.
      */
     function setDeprecationTimestamp(uint256 timestamp) external onlyOwner {
+        if (timestamp < block.timestamp) revert InvalidDeprecationTimestamp();
         emit SetDeprecationTimestamp(deprecationTimestamp, timestamp);
         deprecationTimestamp = timestamp;
     }

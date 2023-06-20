@@ -701,6 +701,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(fcStorage.deprecationTimestamp(), timestamp);
     }
 
+    function testFuzzSetDeprecationTimeRevertsInPast() public {
+        vm.expectRevert(StorageRegistry.InvalidDeprecationTimestamp.selector);
+        fcStorage.setDeprecationTimestamp(block.timestamp - 1);
+    }
+
     function testFuzzOnlyOwnerCanSetCacheDuration(uint256 timestamp) public {
         vm.prank(mallory);
         vm.expectRevert("Ownable: caller is not the owner");
