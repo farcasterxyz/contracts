@@ -164,18 +164,48 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.rent{value: value}(id, units);
     }
 
-    function testFuzzRentRevertsExcessPayment(address msgSender, uint256 id, uint256 units, uint256 delta) public {
+    function testFuzzRentRefundsExcessPayment(uint256 id, uint256 units, uint256 delta) public {
         // Buy between 1 and maxUnits units.
         units = bound(units, 1, fcStorage.maxUnits());
 
+        // Ensure there are units remaining
+        uint256 rented = fcStorage.rentedUnits();
+        uint256 remaining = fcStorage.maxUnits() - rented;
+        vm.assume(remaining > 0);
+
+        units = bound(units, 1, remaining);
         // Add a fuzzed amount to the price.
         uint256 price = fcStorage.price(units);
-        uint256 value = price + bound(delta, 1, type(uint256).max - price);
-        vm.deal(msgSender, value);
+        uint256 extra = bound(delta, 1, type(uint256).max - price);
+        vm.deal(address(this), price + extra);
 
-        vm.expectRevert(StorageRent.InvalidPayment.selector);
-        vm.prank(msgSender);
-        fcStorage.rent{value: value}(id, units);
+        // Expect emitted event
+        vm.expectEmit(true, true, false, true);
+        emit Rent(address(this), id, units);
+
+        fcStorage.rent{value: price + extra}(id, units);
+
+        assertEq(address(this).balance, extra);
+    }
+
+    function testFuzzRentFailedRefundRevertsCallFailed(uint256 id, uint256 units, uint256 delta) public {
+        // Buy between 1 and maxUnits units.
+        units = bound(units, 1, fcStorage.maxUnits());
+
+        // Ensure there are units remaining
+        uint256 rented = fcStorage.rentedUnits();
+        uint256 remaining = fcStorage.maxUnits() - rented;
+        vm.assume(remaining > 0);
+
+        units = bound(units, 1, remaining);
+        // Add a fuzzed amount to the price.
+        uint256 price = fcStorage.price(units);
+        uint256 extra = bound(delta, 1, type(uint256).max - price);
+        vm.deal(address(revertOnReceive), price + extra);
+
+        vm.prank(address(revertOnReceive));
+        vm.expectRevert(StorageRent.CallFailed.selector);
+        fcStorage.rent{value: price + extra}(id, units);
     }
 
     function testFuzzRentRevertsExceedsCapacity(address msgSender, uint256 id, uint256 units) public {
@@ -430,8 +460,7 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.batchRent{value: value}(ids, units);
     }
 
-    function testFuzzBatchRentRevertsExcessPayment(
-        address msgSender,
+    function testFuzzBatchRentRefundsExcessPayment(
         uint256[] calldata _ids,
         uint16[] calldata _units,
         uint256 delta
@@ -464,11 +493,54 @@ contract StorageRentTest is StorageRentTestSuite {
 
         // Add an extra fuzzed amount to the required payment
         uint256 totalCost = fcStorage.price(totalUnits);
-        uint256 value = totalCost + bound(delta, 1, type(uint256).max - totalCost);
+        uint256 extra = bound(delta, 1, type(uint256).max - totalCost);
+        uint256 value = totalCost + extra;
 
-        vm.deal(msgSender, value);
-        vm.prank(msgSender);
-        vm.expectRevert(StorageRent.InvalidPayment.selector);
+        vm.deal(address(this), value);
+        fcStorage.batchRent{value: value}(ids, units);
+
+        assertEq(address(this).balance, extra);
+    }
+
+    function testFuzzBatchRentFailedRefundRevertsCallFailed(
+        uint256[] calldata _ids,
+        uint16[] calldata _units,
+        uint256 delta
+    ) public {
+        // Throw away runs with empty arrays.
+        vm.assume(_ids.length > 0);
+        vm.assume(_units.length > 0);
+
+        // Set a high max capacity to avoid overflow.
+        fcStorage.setMaxUnits(uint256(256) * type(uint16).max);
+        uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
+        uint256[] memory ids = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            ids[i] = _ids[i];
+        }
+        uint256[] memory units = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            units[i] = _units[i];
+        }
+
+        // Calculate the number of total units purchased
+        uint256 totalUnits;
+        for (uint256 i; i < units.length; ++i) {
+            totalUnits += units[i];
+        }
+
+        // Throw away the run if the total units is zero or exceed max capacity
+        vm.assume(totalUnits > 0);
+        vm.assume(totalUnits <= fcStorage.maxUnits() - fcStorage.rentedUnits());
+
+        // Add an extra fuzzed amount to the required payment
+        uint256 totalCost = fcStorage.price(totalUnits);
+        uint256 extra = bound(delta, 1, type(uint256).max - totalCost);
+        uint256 value = totalCost + extra;
+
+        vm.deal(address(revertOnReceive), value);
+        vm.prank(address(revertOnReceive));
+        vm.expectRevert(StorageRent.CallFailed.selector);
         fcStorage.batchRent{value: value}(ids, units);
     }
 

@@ -239,12 +239,18 @@ contract StorageRent is Ownable2Step {
      * @param units Number of storage units to rent.
      */
     function rent(uint256 fid, uint256 units) external payable whenNotDeprecated {
+        uint256 totalPrice = _price(units);
         if (units == 0) revert InvalidAmount();
-        if (msg.value != _price(units)) revert InvalidPayment();
+        if (msg.value < totalPrice) revert InvalidPayment();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 
         rentedUnits += units;
         emit Rent(msg.sender, fid, units);
+
+        if (msg.value > totalPrice) {
+            (bool success,) = payable(msg.sender).call{value: msg.value - totalPrice}("");
+            if (!success) revert CallFailed();
+        }
     }
 
     /**
@@ -271,7 +277,11 @@ contract StorageRent is Ownable2Step {
             emit Rent(msg.sender, fids[i], qty);
         }
 
-        if (msg.value != totalCost) revert InvalidPayment();
+        if (msg.value < totalCost) revert InvalidPayment();
+        if (msg.value > totalCost) {
+            (bool success,) = payable(msg.sender).call{value: msg.value - totalCost}("");
+            if (!success) revert CallFailed();
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
