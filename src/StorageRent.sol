@@ -243,10 +243,10 @@ contract StorageRent is Ownable2Step {
      */
     function rent(uint256 fid, uint256 units) external payable whenNotDeprecated {
         // Checks
-        uint256 totalPrice = _price(units);
         if (units == 0) revert InvalidAmount();
-        if (msg.value < totalPrice) revert InvalidPayment();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
+        uint256 totalPrice = _price(units);
+        if (msg.value < totalPrice) revert InvalidPayment();
 
         // Effects
         rentedUnits += units;
@@ -487,7 +487,6 @@ contract StorageRent is Ownable2Step {
      */
     function withdraw(address to, uint256 amount) external onlyOwner {
         emit Withdraw(to, amount);
-        if (address(this).balance < amount) revert InsufficientFunds();
         _sendNative(to, amount);
     }
 

@@ -581,6 +581,15 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.batchRent{value: totalPrice}(ids, units);
     }
 
+    function testBatchRentCheckedMath() public {
+        uint256[] memory fids = new uint256[](1);
+        uint256[] memory units = new uint256[](1);
+        units[0] = type(uint256).max;
+
+        vm.expectRevert(abi.encodeWithSignature("Panic(uint256)", 0x11));
+        fcStorage.batchRent(fids, units);
+    }
+
     function testFuzzUnitPriceRefresh(uint48 usdUnitPrice, int256 ethUsdPrice) public {
         // Ensure Chainlink price is positive
         ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
