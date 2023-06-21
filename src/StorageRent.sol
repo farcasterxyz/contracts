@@ -51,6 +51,9 @@ contract StorageRent is Ownable2Step {
     /// @dev Revert if the depreaction timestamp parameter is in the past.
     error InvalidDeprecationTimestamp();
 
+    /// @dev Revert if the max units parameter is above 1.6e7 (64TB @ 4MB/unit).
+    error InvalidMaxUnits();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -428,6 +431,8 @@ contract StorageRent is Ownable2Step {
      * @param max The new maximum supply of storage units.
      */
     function setMaxUnits(uint256 max) external onlyOwner {
+        /* 1.6e7 = 64TB @ 4MB/unit */
+        if (max > 1.6e7) revert InvalidMaxUnits();
         emit SetMaxUnits(maxUnits, max);
         maxUnits = max;
     }
