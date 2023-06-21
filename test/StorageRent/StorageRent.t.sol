@@ -574,9 +574,11 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.deal(address(this), maxUnitsPrice);
         fcStorage.rent{value: maxUnitsPrice}(0, maxUnits);
 
+        uint256 totalPrice = fcStorage.price(totalUnits);
+        vm.deal(msgSender, totalPrice);
         vm.expectRevert(StorageRent.ExceedsCapacity.selector);
         vm.prank(msgSender);
-        fcStorage.batchRent(ids, units);
+        fcStorage.batchRent{value: totalPrice}(ids, units);
     }
 
     function testFuzzUnitPriceRefresh(uint48 usdUnitPrice, int256 ethUsdPrice) public {

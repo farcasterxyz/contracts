@@ -242,17 +242,19 @@ contract StorageRent is Ownable2Step {
      * @param units Number of storage units to rent.
      */
     function rent(uint256 fid, uint256 units) external payable whenNotDeprecated {
+        // Checks
         uint256 totalPrice = _price(units);
         if (units == 0) revert InvalidAmount();
         if (msg.value < totalPrice) revert InvalidPayment();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 
+        // Effects
         rentedUnits += units;
         emit Rent(msg.sender, fid, units);
 
+        // Interactions
         if (msg.value > totalPrice) {
-            (bool success,) = payable(msg.sender).call{value: msg.value - totalPrice}("");
-            if (!success) revert CallFailed();
+            _sendNative(msg.sender, msg.value - totalPrice);
         }
     }
 
@@ -264,26 +266,35 @@ contract StorageRent is Ownable2Step {
      * @param units An array of storage unit quantities. Must be the same length as the fids array.
      */
     function batchRent(uint256[] calldata fids, uint256[] calldata units) external payable whenNotDeprecated {
+        // Pre-checks
         if (fids.length == 0 || units.length == 0) revert InvalidBatchInput();
         if (fids.length != units.length) revert InvalidBatchInput();
 
+        // Effects
         uint256 _usdPrice = usdUnitPrice;
         uint256 _ethPrice = _ethUsdPrice();
 
-        uint256 totalCost;
+        uint256 totalPrice;
+        uint256 totalQty;
+
         for (uint256 i; i < fids.length; ++i) {
             uint256 qty = units[i];
             if (qty == 0) continue;
-            if (rentedUnits + qty > maxUnits) revert ExceedsCapacity();
-            totalCost += _price(qty, _usdPrice, _ethPrice);
-            rentedUnits += qty;
+            totalPrice += _price(qty, _usdPrice, _ethPrice);
+            totalQty += qty;
             emit Rent(msg.sender, fids[i], qty);
         }
 
-        if (msg.value < totalCost) revert InvalidPayment();
-        if (msg.value > totalCost) {
-            (bool success,) = payable(msg.sender).call{value: msg.value - totalCost}("");
-            if (!success) revert CallFailed();
+        // Post-checks
+        if (msg.value < totalPrice) revert InvalidPayment();
+        if (rentedUnits + totalQty > maxUnits) revert ExceedsCapacity();
+
+        // Effects
+        rentedUnits += totalQty;
+
+        // Interactions
+        if (msg.value > totalPrice) {
+            _sendNative(msg.sender, msg.value - totalPrice);
         }
     }
 
@@ -475,8 +486,16 @@ contract StorageRent is Ownable2Step {
      * @param amount The amount of ether to withdraw.
      */
     function withdraw(address to, uint256 amount) external onlyOwner {
-        if (address(this).balance < amount) revert InsufficientFunds();
         emit Withdraw(to, amount);
+        if (address(this).balance < amount) revert InsufficientFunds();
+        _sendNative(to, amount);
+    }
+
+    /**
+     * @notice Native token transfer helper.
+     */
+    function _sendNative(address to, uint256 amount) internal {
+        if (address(this).balance < amount) revert InsufficientFunds();
         (bool success,) = payable(to).call{value: amount}("");
         if (!success) revert CallFailed();
     }
