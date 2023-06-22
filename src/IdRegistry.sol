@@ -20,20 +20,6 @@ import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Con
  */
 contract IdRegistry is ERC2771Context, Ownable {
     /*//////////////////////////////////////////////////////////////
-                                 STRUCTS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Contains the state of the most recent recovery attempt.
-     * @param destination Destination of the current recovery or address(0) if no active recovery.
-     * @param startTs Timestamp of the current recovery or zero if no active recovery.
-     */
-    struct RecoveryState {
-        address destination;
-        uint40 startTs;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
@@ -51,12 +37,6 @@ contract IdRegistry is ERC2771Context, Ownable {
 
     /// @dev Revert if register is invoked before trustedCallerOnly is disabled.
     error Seedable();
-
-    /// @dev Revert if a recovery operation is called when there is no active recovery.
-    error NoRecovery();
-
-    /// @dev Revert when completeRecovery() is called before the escrow period has elapsed.
-    error Escrow();
 
     /// @dev Revert when an invalid address is provided as input.
     error InvalidAddress();
@@ -92,23 +72,6 @@ contract IdRegistry is ERC2771Context, Ownable {
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
     /**
-     * @dev Emit an event when a recovery request is initiated for a Farcaster Id
-     *
-     * @param from The custody address of the fid being recovered.
-     * @param to   The destination address for the fid when the recovery is completed.
-     * @param id   The id being recovered.
-     */
-    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
-
-    /**
-     * @dev Emit an event when a recovery request is cancelled
-     *
-     * @param by  The address that cancelled the recovery request
-     * @param id  The id being recovered.
-     */
-    event CancelRecovery(address indexed by, uint256 indexed id);
-
-    /**
      * @dev Emit an event when the trusted caller is modified.
      *
      * @param trustedCaller The address of the new trusted caller.
@@ -119,12 +82,6 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @dev Emit an event when the trusted only state is disabled.
      */
     event DisableTrustedOnly();
-
-    /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    uint256 private constant ESCROW_PERIOD = 3 days;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -161,11 +118,6 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @dev Maps each fid to an address that can initiate a recovery.
      */
     mapping(uint256 => address) internal recoveryOf;
-
-    /**
-     * @dev Maps each fid to a RecoveryState.
-     */
-    mapping(uint256 => RecoveryState) internal recoveryStateOf;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -267,15 +219,14 @@ contract IdRegistry is ERC2771Context, Ownable {
     }
 
     /**
-     * @dev Transfer the fid to another address and reset recovery without checking invariants.
+     * @dev Transfer the fid to another address without checking invariants.
      */
     function _unsafeTransfer(uint256 id, address from, address to) internal {
-        /* Transfer ownership of the fid between addresses */
+        /* Effect: transfer ownership of the fid  */
         idOf[to] = id;
         delete idOf[from];
 
-        /* Clear the recovery address and reset active recovery requests */
-        delete recoveryStateOf[id];
+        /* Effect: clear the recovery address */
         delete recoveryOf[id];
 
         emit Transfer(from, to, id);
@@ -286,35 +237,15 @@ contract IdRegistry is ERC2771Context, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * INVARIANT 1: If msgSender() is a recovery address for an address, the latter must own an fid
+     * INVARIANT: If an address has a non-zero recovery address, it must own an fid.
      *
      * 1. idOf[addr] = 0 && recoveryOf[idOf[addr]] == address(0) ∀ addr
      *
-     * 2. _msgSender() != address(0) ∀ _msgSender()
-     *
-     * 3. recoveryOf[addr] != address(0) ↔ idOf[addr] != 0
+     * 2. recoveryOf[addr] != address(0) ↔ idOf[addr] != 0
      *    see register(), trustedRegister() and changeRecoveryAddress()
      *
-     * 4. idOf[addr] == 0 ↔ recoveryOf[addr] == address(0)
-     *    see transfer() and completeRecovery()
-     */
-
-    /**
-     * INVARIANT 2: If an address has a non-zero RecoveryState.startTs, it must own an fid
-     *
-     * 1. idOf[addr] == 0  && recoveryStateOf[idOf[addr]].startTs == 0 ∀ addr
-     *
-     * 2. recoveryStateOf[idOf[addr]].startTs != 0 requires idOf[addr] != 0
-     *    see requestRecovery()
-     *
-     * 3. idOf[addr] == 0 ↔ recoveryStateOf[id[addr]].startTs == 0
-     *    see transfer() and completeRecovery()
-     */
-
-    /**
-     * INVARIANT 3: RecoveryState.startTs and  RecoveryState.destination must both be zero or
-     *              non-zero for a given fid. See register(), trustedRegister(),
-     *              changeRecoveryAddress() and _unsafeTransfer() which enforce this.
+     * 3. idOf[addr] == 0 ↔ recoveryOf[addr] == address(0)
+     *    see transfer()
      */
 
     /**
@@ -328,94 +259,27 @@ contract IdRegistry is ERC2771Context, Ownable {
         uint256 id = idOf[_msgSender()];
         if (id == 0) revert HasNoId();
 
-        /* Change the recovery address and reset active recovery requests */
+        /* Change the recovery address */
         recoveryOf[id] = recovery;
-        delete recoveryStateOf[id];
 
         emit ChangeRecoveryAddress(id, recovery);
     }
 
-    /**
-     * @notice Request a recovery of an fid to a new address if the caller is the recovery address.
-     *         Supports ERC 2771 meta-transactions and can be called by a relayer.
-     *
-     * @param from The address that owns the fid
-     * @param to   The address where the fid should be sent
-     */
-    function requestRecovery(address from, address to) external {
-        /* Revert unless the caller is the recovery address */
-        uint256 id = idOf[from];
-        if (_msgSender() != recoveryOf[id]) revert Unauthorized();
-
-        /**
-         * Start the recovery by setting the startTs and destination of the request.
-         *
-         * Safety: id != 0 because of Invariant 1
-         */
-        recoveryStateOf[id].startTs = uint40(block.timestamp);
-        recoveryStateOf[id].destination = to;
-
-        emit RequestRecovery(from, to, id);
-    }
-
-    /**
-     * @notice Complete a recovery request and transfer the fid if the caller is the recovery
-     *         address and the escrow period has passed. Supports ERC 2771 meta-transactions and
-     *         can be called by a relayer.
-     *
-     * @param from The address that owns the fid.
-     */
-    function completeRecovery(address from) external {
-        /* Revert unless the caller is the recovery address */
-        uint256 id = idOf[from];
-        if (_msgSender() != recoveryOf[id]) revert Unauthorized();
-
-        /* Revert unless a recovery exists */
-        RecoveryState memory state = recoveryStateOf[id];
-        if (state.startTs == 0) revert NoRecovery();
-
-        /**
-         * Revert unless the escrow period has passed
-         * Safety: cannot overflow because state.startTs was a block.timestamp
-         */
-        unchecked {
-            if (block.timestamp < state.startTs + ESCROW_PERIOD) {
-                revert Escrow();
-            }
-        }
-
-        /* Revert if the destination already has an fid */
-        if (idOf[state.destination] != 0) revert HasId();
-
-        /**
-         * Assumption 1: we don't need to check that the id still lives in the address because a
-         * transfer would have reset startTs to zero causing a revert
-         *
-         * Assumption 2: id != 0 because of Invariant 1 and 2 (either asserts this)
-         */
-        _unsafeTransfer(id, from, state.destination);
-    }
-
-    /**
-     * @notice Cancel an active recovery request if the caller is the recovery address or the
-     *         custody address. Supports ERC 2771 meta-transactions and can be called by a relayer.
-     *
-     * @param from The address that owns the id.
-     */
-    function cancelRecovery(address from) external {
+    function recover(address from, address to) external {
         uint256 id = idOf[from];
         address sender = _msgSender();
+        address recoveryAddress = recoveryOf[id];
 
-        /* Revert unless the caller is the recovery address or the custody address */
-        if (sender != from && sender != recoveryOf[id]) revert Unauthorized();
+        /* Revert if from does not own an fid */
+        if (id == 0) revert HasNoId();
 
-        /* Revert unless an active recovery exists */
-        if (recoveryStateOf[id].startTs == 0) revert NoRecovery();
+        /* Revert if sender is not the recovery address */
+        if (recoveryAddress != sender) revert Unauthorized();
 
-        /* Assumption: id != 0 because of Invariant 1 */
-        delete recoveryStateOf[id];
+        /* Revert if destination(to) already has an fid */
+        if (idOf[to] != 0) revert HasId();
 
-        emit CancelRecovery(sender, id);
+        _unsafeTransfer(id, from, to);
     }
 
     /*//////////////////////////////////////////////////////////////

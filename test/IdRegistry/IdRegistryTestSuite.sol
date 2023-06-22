@@ -35,9 +35,4 @@ abstract contract IdRegistryTestSuite is Test {
         vm.prank(caller);
         idRegistry.register(caller, recovery);
     }
-
-    function _assertNoRecoveryState(uint256 fid) internal {
-        assertEq(idRegistry.getRecoveryTsOf(fid), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(fid), address(0));
-    }
 }

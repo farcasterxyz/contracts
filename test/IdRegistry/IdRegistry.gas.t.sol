@@ -22,23 +22,9 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
             idRegistry.register(alice, RECOVERY);
             assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
 
-            // Requesting a recovery should be done multiple times to get a good median value,
-            // since it adds new storage slots.
-            for (uint256 j = 0; j < 5; j++) {
-                vm.prank(RECOVERY);
-                idRegistry.requestRecovery(alice, RECOVERY);
-            }
-
-            // Cancelling and the recovery can be done once per user since it adds no new storage
-            vm.prank(alice);
-            idRegistry.cancelRecovery(alice);
-
-            vm.prank(RECOVERY);
-            idRegistry.requestRecovery(alice, address(uint160(i + 100)));
-
             vm.warp(block.timestamp + 7 days);
             vm.prank(RECOVERY);
-            idRegistry.completeRecovery(alice);
+            idRegistry.recover(alice, address(uint160(i + 100)));
         }
     }
 
