@@ -17,8 +17,12 @@ abstract contract StorageRentTestSuite is Test {
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    address internal owner = address(this);
+    address internal deployer = address(this);
     address internal mallory = makeAddr("mallory");
+    address internal vault = makeAddr("vault");
+    address internal admin = makeAddr("admin");
+    address internal operator = makeAddr("operator");
+    address internal treasurer = makeAddr("treasurer");
 
     uint256 internal immutable DEPLOYED_AT = block.timestamp + 3600;
 
@@ -67,7 +71,11 @@ abstract contract StorageRentTestSuite is Test {
             INITIAL_USD_UNIT_PRICE,
             INITIAL_MAX_UNITS,
             INITIAL_PRICE_FEED_CACHE_DURATION,
-            INITIAL_UPTIME_FEED_GRACE_PERIOD
+            INITIAL_UPTIME_FEED_GRACE_PERIOD,
+            vault,
+            admin,
+            operator,
+            treasurer
         );
     }
 }

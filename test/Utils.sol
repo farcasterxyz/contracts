@@ -51,7 +51,11 @@ contract StorageRentHarness is StorageRent {
         uint256 _usdUnitPrice,
         uint256 _maxUnits,
         uint256 _priceFeedCacheDuration,
-        uint256 _uptimeFeedGracePeriod
+        uint256 _uptimeFeedGracePeriod,
+        address _vault,
+        address _admin,
+        address _operator,
+        address _treasurer
     )
         StorageRent(
             _priceFeed,
@@ -60,9 +64,25 @@ contract StorageRentHarness is StorageRent {
             _usdUnitPrice,
             _maxUnits,
             _priceFeedCacheDuration,
-            _uptimeFeedGracePeriod
+            _uptimeFeedGracePeriod,
+            _vault,
+            _admin,
+            _operator,
+            _treasurer
         )
     {}
+
+    function adminRoleId() external pure returns (bytes32) {
+        return ADMIN_ROLE;
+    }
+
+    function operatorRoleId() external pure returns (bytes32) {
+        return OPERATOR_ROLE;
+    }
+
+    function treasurerRoleId() external pure returns (bytes32) {
+        return TREASURER_ROLE;
+    }
 }
 
 contract MockChainlinkFeed is AggregatorV3Interface {

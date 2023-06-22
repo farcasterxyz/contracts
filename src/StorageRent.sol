@@ -2,10 +2,10 @@
 pragma solidity 0.8.18;
 
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
+import {AccessControlEnumerable} from "openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
-contract StorageRent is Ownable2Step {
+contract StorageRent is AccessControlEnumerable {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -53,6 +53,18 @@ contract StorageRent is Ownable2Step {
 
     /// @dev Revert if the max units parameter is above 1.6e7 (64TB @ 4MB/unit).
     error InvalidMaxUnits();
+
+    /// @dev Revert if the caller is not an admin.
+    error NotAdmin();
+
+    /// @dev Revert if the caller is not an operator.
+    error NotOperator();
+
+    /// @dev Revert if the caller is not a treasurer.
+    error NotTreasurer();
+
+    /// @dev Revert if the caller does not have an authorized role.
+    error Unauthorized();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -108,6 +120,14 @@ contract StorageRent is Ownable2Step {
     event SetGracePeriod(uint256 oldPeriod, uint256 newPeriod);
 
     /**
+     * @dev Emit an event when an owner changes the vault.
+     *
+     * @param oldVault The previous vault.
+     * @param newVault The new vault.
+     */
+    event SetVault(address oldVault, address newVault);
+
+    /**
      * @dev Emit an event when an owner makes a withdrawal from the contract balance.
      *
      * @param to     Address of recipient.
@@ -123,6 +143,10 @@ contract StorageRent is Ownable2Step {
      * @dev Contract version. Follows Farcaster protocol version scheme.
      */
     string public constant VERSION = "2023.06.01";
+
+    bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 internal constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
@@ -168,6 +192,11 @@ contract StorageRent is Ownable2Step {
      */
     uint256 public uptimeFeedGracePeriod;
 
+    /**
+     * @dev Address to which the treasurer role can withdraw funds.
+     */
+    address public vault;
+
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -209,15 +238,37 @@ contract StorageRent is Ownable2Step {
         uint256 _initialUsdUnitPrice,
         uint256 _initialMaxUnits,
         uint256 _initialPriceFeedCacheDuration,
-        uint256 _initialUptimeFeedGracePeriod
-    ) Ownable2Step() {
+        uint256 _initialUptimeFeedGracePeriod,
+        address _initialVault,
+        address _initialAdmin,
+        address _initialOperator,
+        address _initialTreasurer
+    ) {
         priceFeed = _priceFeed;
         uptimeFeed = _uptimeFeed;
+
         deprecationTimestamp = block.timestamp + _initialDeprecationPeriod;
+        emit SetDeprecationTimestamp(0, deprecationTimestamp);
+
         usdUnitPrice = _initialUsdUnitPrice;
+        emit SetPrice(0, _initialUsdUnitPrice);
+
         maxUnits = _initialMaxUnits;
+        emit SetMaxUnits(0, _initialMaxUnits);
+
         priceFeedCacheDuration = _initialPriceFeedCacheDuration;
+        emit SetCacheDuration(0, _initialPriceFeedCacheDuration);
+
         uptimeFeedGracePeriod = _initialUptimeFeedGracePeriod;
+        emit SetGracePeriod(0, _initialUptimeFeedGracePeriod);
+
+        vault = _initialVault;
+        emit SetVault(address(0), _initialVault);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, _initialAdmin);
+        _grantRole(OPERATOR_ROLE, _initialOperator);
+        _grantRole(TREASURER_ROLE, _initialTreasurer);
 
         _refreshPrice();
     }
@@ -228,6 +279,21 @@ contract StorageRent is Ownable2Step {
 
     modifier whenNotDeprecated() {
         if (block.timestamp >= deprecationTimestamp) revert ContractDeprecated();
+        _;
+    }
+
+    modifier onlyAdmin() {
+        if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
+        _;
+    }
+
+    modifier onlyOperator() {
+        if (!hasRole(OPERATOR_ROLE, msg.sender)) revert NotOperator();
+        _;
+    }
+
+    modifier onlyTreasurer() {
+        if (!hasRole(TREASURER_ROLE, msg.sender)) revert NotTreasurer();
         _;
     }
 
@@ -396,7 +462,7 @@ contract StorageRent is Ownable2Step {
      * @param fid   The fid that will receive the credit.
      * @param units Number of storage units to credit.
      */
-    function credit(uint256 fid, uint256 units) external onlyOwner whenNotDeprecated {
+    function credit(uint256 fid, uint256 units) external onlyOperator whenNotDeprecated {
         if (units == 0) revert InvalidAmount();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 
@@ -410,7 +476,7 @@ contract StorageRent is Ownable2Step {
      * @param fids  An array of fids.
      * @param units Number of storage units per fid.
      */
-    function batchCredit(uint256[] calldata fids, uint256 units) external onlyOwner whenNotDeprecated {
+    function batchCredit(uint256[] calldata fids, uint256 units) external onlyOperator whenNotDeprecated {
         uint256 totalUnits = fids.length * units;
         if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
         rentedUnits += totalUnits;
@@ -422,7 +488,8 @@ contract StorageRent is Ownable2Step {
     /**
      * @notice Force refresh the cached Chainlink ETH/USD price.
      */
-    function refreshPrice() external onlyOwner {
+    function refreshPrice() external {
+        if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
         _refreshPrice();
     }
 
@@ -431,7 +498,8 @@ contract StorageRent is Ownable2Step {
      *
      * @param usdPrice The new unit price in USD. Fixed point value with 8 decimals.
      */
-    function setPrice(uint256 usdPrice) external onlyOwner {
+    function setPrice(uint256 usdPrice) external {
+        if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
         emit SetPrice(usdUnitPrice, usdPrice);
         usdUnitPrice = usdPrice;
     }
@@ -441,7 +509,7 @@ contract StorageRent is Ownable2Step {
      *
      * @param max The new maximum supply of storage units.
      */
-    function setMaxUnits(uint256 max) external onlyOwner {
+    function setMaxUnits(uint256 max) external onlyAdmin {
         /* 1.6e7 = 64TB @ 4MB/unit */
         if (max > 1.6e7) revert InvalidMaxUnits();
         emit SetMaxUnits(maxUnits, max);
@@ -453,7 +521,7 @@ contract StorageRent is Ownable2Step {
      *
      * @param timestamp The new deprecationTimestamp.
      */
-    function setDeprecationTimestamp(uint256 timestamp) external onlyOwner {
+    function setDeprecationTimestamp(uint256 timestamp) external onlyAdmin {
         if (timestamp < block.timestamp) revert InvalidDeprecationTimestamp();
         emit SetDeprecationTimestamp(deprecationTimestamp, timestamp);
         deprecationTimestamp = timestamp;
@@ -464,7 +532,7 @@ contract StorageRent is Ownable2Step {
      *
      * @param duration The new priceFeedCacheDuration.
      */
-    function setCacheDuration(uint256 duration) external onlyOwner {
+    function setCacheDuration(uint256 duration) external onlyAdmin {
         emit SetCacheDuration(priceFeedCacheDuration, duration);
         priceFeedCacheDuration = duration;
     }
@@ -474,20 +542,29 @@ contract StorageRent is Ownable2Step {
      *
      * @param period The new uptimeFeedGracePeriod.
      */
-    function setGracePeriod(uint256 period) external onlyOwner {
+    function setGracePeriod(uint256 period) external onlyAdmin {
         emit SetGracePeriod(uptimeFeedGracePeriod, period);
         uptimeFeedGracePeriod = period;
     }
 
     /**
-     * @notice Withdraw a specified amount of ether from the contract balance to a given address.
+     * @notice Set the vault address that can receive funds from this contract.
      *
-     * @param to     Address of recipient.
+     * @param vaultAddr The new vault address.
+     */
+    function setVault(address vaultAddr) external onlyAdmin {
+        emit SetVault(vault, vaultAddr);
+        vault = vaultAddr;
+    }
+
+    /**
+     * @notice Withdraw a specified amount of ether from the contract balance to the vault.
+     *
      * @param amount The amount of ether to withdraw.
      */
-    function withdraw(address to, uint256 amount) external onlyOwner {
-        emit Withdraw(to, amount);
-        _sendNative(to, amount);
+    function withdraw(uint256 amount) external onlyTreasurer {
+        emit Withdraw(vault, amount);
+        _sendNative(vault, amount);
     }
 
     /**
