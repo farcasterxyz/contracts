@@ -142,7 +142,7 @@ contract StorageRent is AccessControlEnumerable {
     /**
      * @dev Contract version. Follows Farcaster protocol version scheme.
      */
-    string public constant VERSION = "2023.06.01";
+    string public constant VERSION = "2023.07.12";
 
     bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");

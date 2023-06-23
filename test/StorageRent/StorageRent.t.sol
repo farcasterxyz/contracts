@@ -29,7 +29,7 @@ contract StorageRentTest is StorageRentTestSuite {
     event Withdraw(address indexed to, uint256 amount);
 
     function testVersion() public {
-        assertEq(fcStorage.VERSION(), "2023.06.01");
+        assertEq(fcStorage.VERSION(), "2023.07.12");
     }
 
     function testRoles() public {
