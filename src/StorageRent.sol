@@ -302,7 +302,9 @@ contract StorageRent is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Rent storage for a given fid. The caller must provide an exact payment amount.
+     * @notice Rent storage for a given fid. The caller must provide at
+     *         least price(units) wei of payment. Any excess payment will
+     *         be refunded to the caller.
      *
      * @param fid   The fid that will receive the storage allocation.
      * @param units Number of storage units to rent.
