@@ -87,6 +87,8 @@ contract StorageRentTest is StorageRentTestSuite {
     }
 
     function testFuzzRentRevertsZeroUnits(address msgSender, uint256 id) public {
+        vm.deal(msgSender, fcStorage.price(100));
+
         vm.prank(msgSender);
         vm.expectRevert(StorageRent.InvalidAmount.selector);
         fcStorage.rent(id, 0);
@@ -141,13 +143,20 @@ contract StorageRentTest is StorageRentTestSuite {
 
         vm.warp(block.timestamp + fcStorage.priceFeedCacheDuration() + 1);
 
-        rentStorage(msgSender2, id2, units2);
+        uint256 expectedPrice = fcStorage.unitPrice();
 
+        (, uint256 unitPrice,) = rentStorage(msgSender2, id2, units2);
+
+        assertEq(unitPrice, expectedPrice);
         assertEq(fcStorage.lastPriceFeedUpdate(), block.timestamp);
         assertEq(fcStorage.ethUsdPrice(), uint256(newEthUsdPrice));
     }
 
     function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
+        units = bound(units, 1, fcStorage.maxUnits());
+        uint256 price = fcStorage.price(units);
+        vm.deal(msgSender, price);
+
         vm.warp(fcStorage.deprecationTimestamp() + 1);
 
         vm.expectRevert(StorageRent.ContractDeprecated.selector);
@@ -1109,13 +1118,15 @@ contract StorageRentTest is StorageRentTestSuite {
         assertEq(fcStorage.rentedUnits(), rented + units);
     }
 
-    function rentStorage(address msgSender, uint256 id, uint256 units) public returns (uint256) {
+    function rentStorage(address msgSender, uint256 id, uint256 units) public returns (uint256, uint256, uint256) {
         uint256 rented = fcStorage.rentedUnits();
         uint256 remaining = fcStorage.maxUnits() - rented;
         vm.assume(remaining > 0);
         units = bound(units, 1, remaining);
         uint256 price = fcStorage.price(units);
+        uint256 unitPrice = fcStorage.unitPrice();
         vm.deal(msgSender, price);
+        uint256 balanceBefore = msgSender.balance;
 
         // Expect emitted event
         vm.expectEmit(true, true, false, true);
@@ -1124,9 +1135,12 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.prank(msgSender);
         fcStorage.rent{value: price}(id, units);
 
+        uint256 balanceAfter = msgSender.balance;
+        uint256 paid = balanceBefore - balanceAfter;
+
         // Expect rented units to increase
         assertEq(fcStorage.rentedUnits(), rented + units);
-        return price;
+        return (price, unitPrice, paid);
     }
 
     /* solhint-disable-next-line no-empty-blocks */
