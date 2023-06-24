@@ -212,9 +212,19 @@ contract StorageRent is AccessControlEnumerable {
     uint256 public ethUsdPrice;
 
     /**
+     * @dev Previous Chainlink ETH/USD price.
+     */
+    uint256 public prevEthUsdPrice;
+
+    /**
      * @dev Timestamp of the last update to ethUsdPrice.
      */
-    uint256 public lastPriceFeedUpdate;
+    uint256 public lastPriceFeedUpdateTime;
+
+    /**
+     * @dev Block number of the last update to ethUsdPrice.
+     */
+    uint256 public lastPriceFeedUpdateBlock;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -385,7 +395,8 @@ contract StorageRent is AccessControlEnumerable {
      * @return uint256 cost in wei.
      */
     function price(uint256 units) public view returns (uint256) {
-        return _price(units, usdUnitPrice, ethUsdPrice);
+        uint256 ethPrice = (lastPriceFeedUpdateBlock == block.number) ? prevEthUsdPrice : ethUsdPrice;
+        return _price(units, usdUnitPrice, ethPrice);
     }
 
     /**
@@ -393,22 +404,28 @@ contract StorageRent is AccessControlEnumerable {
      *      latest ETH/USD price from the price feed and update the cache.
      */
     function _ethUsdPrice() internal returns (uint256) {
-        if (block.timestamp - lastPriceFeedUpdate > priceFeedCacheDuration) {
-            /**
-             *  The call to _refreshPrice will cache the new price in storage
-             *  for the next call, but we honor the old price for this call.
-             */
-            (uint256 cachedPrice,) = _refreshPrice();
-            return cachedPrice;
-        } else {
-            return ethUsdPrice;
+        /**
+         *  If cache duration has expired, get the latest price from the price feed.
+         *  This updates prevEthUsdPrice, ethUsdPrice, lastPriceFeedUpdateTime, and
+         *  lastPriceFeedUpdateBlock.
+         */
+        if (block.timestamp - lastPriceFeedUpdateTime > priceFeedCacheDuration) {
+            _refreshPrice();
         }
+
+        /**
+         *  We want price changes to take effect in the first block after the price
+         *  refresh, rather than immediately, to keep the price from changing intra
+         *  block. If we updated the price in this block, use the previous price
+         *  until the next block. Otherwise, use the latest price.
+         */
+        return (lastPriceFeedUpdateBlock == block.number) ? prevEthUsdPrice : ethUsdPrice;
     }
 
     /**
      * @dev Get the latest ETH/USD price from the price feed and update the cached price.
      */
-    function _refreshPrice() internal returns (uint256 cachedPrice, uint256 newPrice) {
+    function _refreshPrice() internal {
         /* Get and validate the L2 sequencer status. */
         (
             uint80 uptimeRoundId,
@@ -432,11 +449,17 @@ contract StorageRent is AccessControlEnumerable {
         if (priceUpdatedAt == 0) revert IncompleteRound();
         if (priceAnsweredInRound < priceRoundId) revert StaleAnswer();
 
-        cachedPrice = ethUsdPrice;
-        newPrice = uint256(answer);
+        /* Set the last update timestamp and block. */
+        lastPriceFeedUpdateTime = block.timestamp;
+        lastPriceFeedUpdateBlock = block.number;
 
-        lastPriceFeedUpdate = block.timestamp;
-        ethUsdPrice = newPrice;
+        if (prevEthUsdPrice == 0 && ethUsdPrice == 0) {
+            /* If this is the very first price update, set previous equal to latest. */
+            prevEthUsdPrice = ethUsdPrice = uint256(answer);
+        } else {
+            prevEthUsdPrice = ethUsdPrice;
+            ethUsdPrice = uint256(answer);
+        }
     }
 
     function _price(uint256 units) internal returns (uint256) {
@@ -570,7 +593,7 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /**
-     * @notice Native token transfer helper.
+     * @dev Native token transfer helper.
      */
     function _sendNative(address to, uint256 amount) internal {
         if (address(this).balance < amount) revert InsufficientFunds();

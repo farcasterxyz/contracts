@@ -70,8 +70,16 @@ contract StorageRentTest is StorageRentTestSuite {
         assertEq(fcStorage.ethUsdPrice(), uint256(ETH_USD_PRICE));
     }
 
+    function testPrevEthUSDPriceDefault() public {
+        assertEq(fcStorage.prevEthUsdPrice(), uint256(ETH_USD_PRICE));
+    }
+
     function testLastPriceFeedUpdateDefault() public {
-        assertEq(fcStorage.lastPriceFeedUpdate(), block.timestamp);
+        assertEq(fcStorage.lastPriceFeedUpdateTime(), block.timestamp);
+    }
+
+    function testLastPriceFeedUpdateBlockDefault() public {
+        assertEq(fcStorage.lastPriceFeedUpdateBlock(), block.number);
     }
 
     function testPriceFeedCacheDurationDefault() public {
@@ -104,8 +112,10 @@ contract StorageRentTest is StorageRentTestSuite {
         int256 newEthUsdPrice,
         uint256 warp
     ) public {
-        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdate();
+        uint256 lastPriceFeedUpdateTime = fcStorage.lastPriceFeedUpdateTime();
+        uint256 lastPriceFeedUpdateBlock = fcStorage.lastPriceFeedUpdateBlock();
         uint256 ethUsdPrice = fcStorage.ethUsdPrice();
+        uint256 prevEthUsdPrice = fcStorage.prevEthUsdPrice();
 
         // Ensure Chainlink price is positive
         newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
@@ -120,8 +130,10 @@ contract StorageRentTest is StorageRentTestSuite {
 
         rentStorage(msgSender2, id2, units2);
 
-        assertEq(fcStorage.lastPriceFeedUpdate(), lastPriceFeedUpdate);
+        assertEq(fcStorage.lastPriceFeedUpdateTime(), lastPriceFeedUpdateTime);
+        assertEq(fcStorage.lastPriceFeedUpdateBlock(), lastPriceFeedUpdateBlock);
         assertEq(fcStorage.ethUsdPrice(), ethUsdPrice);
+        assertEq(fcStorage.prevEthUsdPrice(), prevEthUsdPrice);
     }
 
     function testFuzzRentPriceRefresh(
@@ -133,6 +145,8 @@ contract StorageRentTest is StorageRentTestSuite {
         uint200 units2,
         int256 newEthUsdPrice
     ) public {
+        uint256 ethUsdPrice = fcStorage.ethUsdPrice();
+
         // Ensure Chainlink price is positive
         newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
 
@@ -145,11 +159,78 @@ contract StorageRentTest is StorageRentTestSuite {
 
         uint256 expectedPrice = fcStorage.unitPrice();
 
-        (, uint256 unitPrice,) = rentStorage(msgSender2, id2, units2);
+        (, uint256 unitPrice,,) = rentStorage(msgSender2, id2, units2);
 
         assertEq(unitPrice, expectedPrice);
-        assertEq(fcStorage.lastPriceFeedUpdate(), block.timestamp);
+        assertEq(fcStorage.lastPriceFeedUpdateTime(), block.timestamp);
+        assertEq(fcStorage.lastPriceFeedUpdateBlock(), block.number);
+        assertEq(fcStorage.prevEthUsdPrice(), ethUsdPrice);
         assertEq(fcStorage.ethUsdPrice(), uint256(newEthUsdPrice));
+    }
+
+    function testFuzzRentIntraBlockPriceDecrease(
+        address msgSender1,
+        uint256 id1,
+        uint200 units1,
+        address msgSender2,
+        uint256 id2,
+        uint200 units2,
+        uint256 decrease
+    ) public {
+        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdateTime();
+        uint256 ethUsdPrice = fcStorage.ethUsdPrice();
+
+        decrease = bound(decrease, 1, ethUsdPrice);
+        uint256 newEthUsdPrice = ethUsdPrice - decrease;
+        vm.assume(newEthUsdPrice > 0);
+
+        // Set a new ETH/USD price
+        priceFeed.setPrice(int256(newEthUsdPrice));
+
+        vm.warp(block.timestamp + fcStorage.priceFeedCacheDuration() + 1);
+
+        (, uint256 unitPrice1,, uint256 unitPricePaid1) = rentStorage(msgSender1, id1, units1);
+        (, uint256 unitPrice2,, uint256 unitPricePaid2) = rentStorage(msgSender2, id2, units2);
+
+        assertEq(unitPrice1, unitPrice2);
+        assertEq(unitPricePaid1, unitPricePaid2);
+        assertEq(unitPricePaid1, unitPrice1);
+        assertEq(fcStorage.lastPriceFeedUpdateTime(), block.timestamp);
+        assertEq(fcStorage.lastPriceFeedUpdateBlock(), block.number);
+        assertEq(fcStorage.prevEthUsdPrice(), ethUsdPrice);
+        assertEq(fcStorage.ethUsdPrice(), newEthUsdPrice);
+    }
+
+    function testFuzzRentIntraBlockPriceIncrease(
+        address msgSender1,
+        uint256 id1,
+        uint200 units1,
+        address msgSender2,
+        uint256 id2,
+        uint200 units2,
+        uint256 increase
+    ) public {
+        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdateTime();
+        uint256 ethUsdPrice = fcStorage.ethUsdPrice();
+
+        increase = bound(increase, 1, uint256(type(int256).max) - ethUsdPrice);
+        uint256 newEthUsdPrice = ethUsdPrice + increase;
+
+        // Set a new ETH/USD price
+        priceFeed.setPrice(int256(newEthUsdPrice));
+
+        vm.warp(block.timestamp + fcStorage.priceFeedCacheDuration() + 1);
+
+        (, uint256 unitPrice1,, uint256 unitPricePaid1) = rentStorage(msgSender1, id1, units1);
+        (, uint256 unitPrice2,, uint256 unitPricePaid2) = rentStorage(msgSender2, id2, units2);
+
+        assertEq(unitPrice1, unitPrice2);
+        assertEq(unitPricePaid1, unitPricePaid2);
+        assertEq(unitPricePaid1, unitPrice1);
+        assertEq(fcStorage.lastPriceFeedUpdateTime(), block.timestamp);
+        assertEq(fcStorage.lastPriceFeedUpdateBlock(), block.number);
+        assertEq(fcStorage.prevEthUsdPrice(), ethUsdPrice);
+        assertEq(fcStorage.ethUsdPrice(), newEthUsdPrice);
     }
 
     function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
@@ -287,7 +368,7 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.prank(admin);
         fcStorage.setMaxUnits(1.6e7);
 
-        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdate();
+        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdateTime();
         uint256 ethUsdPrice = fcStorage.ethUsdPrice();
 
         // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
@@ -314,7 +395,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         batchRentStorage(msgSender, ids, units);
 
-        assertEq(fcStorage.lastPriceFeedUpdate(), lastPriceFeedUpdate);
+        assertEq(fcStorage.lastPriceFeedUpdateTime(), lastPriceFeedUpdate);
         assertEq(fcStorage.ethUsdPrice(), ethUsdPrice);
     }
 
@@ -355,7 +436,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         batchRentStorage(msgSender, ids, units);
 
-        assertEq(fcStorage.lastPriceFeedUpdate(), block.timestamp);
+        assertEq(fcStorage.lastPriceFeedUpdateTime(), block.timestamp);
         assertEq(fcStorage.ethUsdPrice(), uint256(newEthUsdPrice));
     }
 
@@ -624,6 +705,7 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.refreshPrice();
         fcStorage.setPrice(usdUnitPrice);
         vm.stopPrank();
+        vm.roll(block.number + 1);
 
         assertEq(fcStorage.unitPrice(), (uint256(usdUnitPrice)).divWadUp(uint256(ethUsdPrice)));
     }
@@ -649,6 +731,7 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.refreshPrice();
         fcStorage.setPrice(1);
         vm.stopPrank();
+        vm.roll(block.number + 1);
 
         assertEq(fcStorage.price(1), 1);
     }
@@ -662,6 +745,7 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.refreshPrice();
         fcStorage.setPrice(usdUnitPrice);
         vm.stopPrank();
+        vm.roll(block.number + 1);
 
         assertEq(fcStorage.price(units), (uint256(usdUnitPrice) * units).divWadUp(uint256(ethUsdPrice)));
     }
@@ -1118,7 +1202,11 @@ contract StorageRentTest is StorageRentTestSuite {
         assertEq(fcStorage.rentedUnits(), rented + units);
     }
 
-    function rentStorage(address msgSender, uint256 id, uint256 units) public returns (uint256, uint256, uint256) {
+    function rentStorage(
+        address msgSender,
+        uint256 id,
+        uint256 units
+    ) public returns (uint256, uint256, uint256, uint256) {
         uint256 rented = fcStorage.rentedUnits();
         uint256 remaining = fcStorage.maxUnits() - rented;
         vm.assume(remaining > 0);
@@ -1137,10 +1225,11 @@ contract StorageRentTest is StorageRentTestSuite {
 
         uint256 balanceAfter = msgSender.balance;
         uint256 paid = balanceBefore - balanceAfter;
+        uint256 unitPricePaid = paid / units;
 
         // Expect rented units to increase
         assertEq(fcStorage.rentedUnits(), rented + units);
-        return (price, unitPrice, paid);
+        return (price, unitPrice, paid, unitPricePaid);
     }
 
     /* solhint-disable-next-line no-empty-blocks */
