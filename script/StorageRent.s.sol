@@ -31,8 +31,6 @@ contract StorageRentScript is Script {
             INITIAL_RENTAL_PERIOD,
             INITIAL_USD_UNIT_PRICE,
             INITIAL_MAX_UNITS,
-            INITIAL_PRICE_FEED_CACHE_DURATION,
-            INITIAL_UPTIME_FEED_GRACE_PERIOD,
             vault,
             roleAdmin,
             admin,

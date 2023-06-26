@@ -238,8 +238,11 @@ contract StorageRent is AccessControlEnumerable {
      * @param _initialDeprecationPeriod      Initial deprecation period in seconds.
      * @param _initialUsdUnitPrice           Initial unit price in USD. Fixed point value with 8 decimals.
      * @param _initialMaxUnits               Initial maximum capacity in storage units.
-     * @param _initialPriceFeedCacheDuration Initial duration to cache ETH/USD price.
-     * @param _initialUptimeFeedGracePeriod  Initial L2 sequencer downtime grace period.
+     * @param _initialVault                  Initial vault address.
+     * @param _initialRoleAdmin              Initial role admin address.
+     * @param _initialAdmin                  Initial admin address.
+     * @param _initialOperator               Initial operator address.
+     * @param _initialTreasurer              Initial treasurer address.
      */
     constructor(
         AggregatorV3Interface _priceFeed,
@@ -247,8 +250,6 @@ contract StorageRent is AccessControlEnumerable {
         uint256 _initialDeprecationPeriod,
         uint256 _initialUsdUnitPrice,
         uint256 _initialMaxUnits,
-        uint256 _initialPriceFeedCacheDuration,
-        uint256 _initialUptimeFeedGracePeriod,
         address _initialVault,
         address _initialRoleAdmin,
         address _initialAdmin,
@@ -267,11 +268,11 @@ contract StorageRent is AccessControlEnumerable {
         maxUnits = _initialMaxUnits;
         emit SetMaxUnits(0, _initialMaxUnits);
 
-        priceFeedCacheDuration = _initialPriceFeedCacheDuration;
-        emit SetCacheDuration(0, _initialPriceFeedCacheDuration);
+        priceFeedCacheDuration = 1 days;
+        emit SetCacheDuration(0, 1 days);
 
-        uptimeFeedGracePeriod = _initialUptimeFeedGracePeriod;
-        emit SetGracePeriod(0, _initialUptimeFeedGracePeriod);
+        uptimeFeedGracePeriod = 1 hours;
+        emit SetGracePeriod(0, 1 hours);
 
         vault = _initialVault;
         emit SetVault(address(0), _initialVault);
