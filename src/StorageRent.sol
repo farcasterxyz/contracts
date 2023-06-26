@@ -355,16 +355,14 @@ contract StorageRent is AccessControlEnumerable {
         uint256 _usdPrice = usdUnitPrice;
         uint256 _ethPrice = _ethUsdPrice();
 
-        uint256 totalPrice;
         uint256 totalQty;
-
         for (uint256 i; i < fids.length; ++i) {
             uint256 qty = units[i];
             if (qty == 0) continue;
-            totalPrice += _price(qty, _usdPrice, _ethPrice);
             totalQty += qty;
             emit Rent(msg.sender, fids[i], qty);
         }
+        uint256 totalPrice = _price(totalQty, _usdPrice, _ethPrice);
 
         // Post-checks
         if (msg.value < totalPrice) revert InvalidPayment();
