@@ -955,6 +955,44 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.batchCredit(fids, units);
     }
 
+    function testOnlyOperatorCanContinuousCredit(address caller, uint16 start, uint256 n, uint32 units) public {
+        uint256 end = uint256(start) + bound(n, 1, 10000);
+        vm.assume(caller != operator);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRent.NotOperator.selector);
+        fcStorage.continuousCredit(start, end, units);
+    }
+
+    function testFuzzContinuousCredit(uint16 start, uint256 n, uint32 units) public {
+        uint256 end = uint256(start) + bound(n, 1, 10000);
+        continuousCredit(start, end, units);
+    }
+
+    function testFuzzContinuousCreditRevertsExceedsCapacity(uint16 start, uint256 n, uint32 units) public {
+        uint256 end = uint256(start) + bound(n, 1, 10000);
+
+        // Buy all the available units.
+        uint256 maxUnits = fcStorage.maxUnits();
+        uint256 maxUnitsPrice = fcStorage.price(maxUnits);
+        vm.deal(address(this), maxUnitsPrice);
+        fcStorage.rent{value: maxUnitsPrice}(0, maxUnits);
+        units = uint32(bound(units, 1, type(uint32).max));
+
+        vm.expectRevert(StorageRent.ExceedsCapacity.selector);
+        vm.prank(operator);
+        fcStorage.continuousCredit(start, end, units);
+    }
+
+    function testFuzzContinuousCreditRevertsAfterDeadline(uint16 start, uint256 n, uint32 units) public {
+        uint256 end = uint256(start) + bound(n, 0, 10000);
+        vm.warp(fcStorage.deprecationTimestamp() + 1);
+
+        vm.expectRevert(StorageRent.ContractDeprecated.selector);
+        vm.prank(operator);
+        fcStorage.continuousCredit(start, end, units);
+    }
+
     function testFuzzOnlyAdminOrTreasurerCanSetUSDUnitPrice(address caller, uint256 unitPrice) public {
         vm.assume(caller != admin && caller != treasurer);
 
@@ -1135,6 +1173,24 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.prank(caller);
         vm.expectRevert(StorageRent.NotTreasurer.selector);
         fcStorage.withdraw(amount);
+    }
+
+    function continuousCredit(uint256 start, uint256 end, uint256 units) public {
+        uint256 rented = fcStorage.rentedUnits();
+        uint256 len = end - start;
+        uint256 totalUnits = len * units;
+        vm.assume(totalUnits <= fcStorage.maxUnits() - fcStorage.rentedUnits());
+
+        // Expect emitted events
+        for (uint256 i; i < len; ++i) {
+            vm.expectEmit(true, true, false, true);
+            emit Rent(operator, start + i, units);
+        }
+        vm.prank(operator);
+        fcStorage.continuousCredit(start, end, units);
+
+        // Expect rented units to increase
+        assertEq(fcStorage.rentedUnits(), rented + totalUnits);
     }
 
     function batchCredit(uint256[] memory ids, uint256 units) public {

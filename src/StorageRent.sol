@@ -80,7 +80,7 @@ contract StorageRent is AccessControlEnumerable {
     event Rent(address indexed payer, uint256 indexed fid, uint256 units);
 
     /**
-     * @dev Emit an event when an owner changes the price of storage units.
+     * @dev Emit an event when an admin changes the price of storage units.
      *
      * @param oldPrice The previous unit price in USD. Fixed point value with 8 decimals.
      * @param newPrice The new unit price in USD. Fixed point value with 8 decimals.
@@ -88,7 +88,7 @@ contract StorageRent is AccessControlEnumerable {
     event SetPrice(uint256 oldPrice, uint256 newPrice);
 
     /**
-     * @dev Emit an event when an owner changes the maximum supply of storage units.
+     * @dev Emit an event when an admin changes the maximum supply of storage units.
      *
      * @param oldMax The previous maximum amount.
      * @param newMax The new maximum amount.
@@ -96,7 +96,7 @@ contract StorageRent is AccessControlEnumerable {
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
 
     /**
-     * @dev Emit an event when an owner changes the deprecationTimestamp.
+     * @dev Emit an event when an admin changes the deprecationTimestamp.
      *
      * @param oldTimestamp The previous deprecationTimestamp.
      * @param newTimestamp The new deprecationTimestamp.
@@ -104,7 +104,7 @@ contract StorageRent is AccessControlEnumerable {
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
 
     /**
-     * @dev Emit an event when an owner changes the priceFeedCacheDuration.
+     * @dev Emit an event when an admin changes the priceFeedCacheDuration.
      *
      * @param oldDuration The previous priceFeedCacheDuration.
      * @param newDuration The new priceFeedCacheDuration.
@@ -112,7 +112,7 @@ contract StorageRent is AccessControlEnumerable {
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
 
     /**
-     * @dev Emit an event when an owner changes the uptimeFeedGracePeriod.
+     * @dev Emit an event when an admin changes the uptimeFeedGracePeriod.
      *
      * @param oldPeriod The previous uptimeFeedGracePeriod.
      * @param newPeriod The new uptimeFeedGracePeriod.
@@ -120,7 +120,7 @@ contract StorageRent is AccessControlEnumerable {
     event SetGracePeriod(uint256 oldPeriod, uint256 newPeriod);
 
     /**
-     * @dev Emit an event when an owner changes the vault.
+     * @dev Emit an event when an admin changes the vault.
      *
      * @param oldVault The previous vault.
      * @param newVault The new vault.
@@ -128,7 +128,7 @@ contract StorageRent is AccessControlEnumerable {
     event SetVault(address oldVault, address newVault);
 
     /**
-     * @dev Emit an event when an owner makes a withdrawal from the contract balance.
+     * @dev Emit an event when a treasurer makes a withdrawal from the contract balance.
      *
      * @param to     Address of recipient.
      * @param amount The amount of ether withdrawn.
@@ -167,33 +167,33 @@ contract StorageRent is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Block timestamp at which this contract will no longer accept storage rent payments. Changeable by owner.
+     * @dev Block timestamp at which this contract will no longer accept storage rent payments. Changeable by admin.
      */
     uint256 public deprecationTimestamp;
 
     /**
-     * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD. Changeable by owner.
+     * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD. Changeable by admin.
      */
     uint256 public usdUnitPrice;
 
     /**
-     * @dev Total capacity of storage units. Changeable by owner.
+     * @dev Total capacity of storage units. Changeable by admin.
      */
     uint256 public maxUnits;
 
     /**
-     * @dev Duration to cache ethUsdPrice before updating from the price feed.
+     * @dev Duration to cache ethUsdPrice before updating from the price feed. Changeable by admin.
      */
     uint256 public priceFeedCacheDuration;
 
     /**
      * @dev Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
-     *      See: https://docs.chain.link/data-feeds/l2-sequencer-feeds
+     *      See: https://docs.chain.link/data-feeds/l2-sequencer-feeds. Changeable by admin.
      */
     uint256 public uptimeFeedGracePeriod;
 
     /**
-     * @dev Address to which the treasurer role can withdraw funds.
+     * @dev Address to which the treasurer role can withdraw funds. Changeable by admin.
      */
     address public vault;
 
@@ -479,11 +479,11 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              OWNER ACTIONS
+                         PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Credit a single fid with free storage units. Only callable by owner.
+     * @notice Credit a single fid with free storage units. Only callable by operator.
      *
      * @param fid   The fid that will receive the credit.
      * @param units Number of storage units to credit.
@@ -497,7 +497,7 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /**
-     * @notice Credit multiple fids with free storage units. Only callable by owner.
+     * @notice Credit multiple fids with free storage units. Only callable by operator.
      *
      * @param fids  An array of fids.
      * @param units Number of storage units per fid.
@@ -512,7 +512,24 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /**
-     * @notice Force refresh the cached Chainlink ETH/USD price.
+     * @notice Credit a continuous sequence of fids with free storage units. Only callable by operator.
+     *
+     * @param start Lowest fid in sequence (inclusive).
+     * @param end   Highest fid in sequence (inclusive).
+     * @param units Number of storage units per fid.
+     */
+    function continuousCredit(uint256 start, uint256 end, uint256 units) external onlyOperator whenNotDeprecated {
+        uint256 len = end - start;
+        uint256 totalUnits = len * units;
+        if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
+        rentedUnits += totalUnits;
+        for (uint256 i; i < len; ++i) {
+            emit Rent(msg.sender, start + i, units);
+        }
+    }
+
+    /**
+     * @notice Force refresh the cached Chainlink ETH/USD price. Callable by admin and treasurer.
      */
     function refreshPrice() external {
         if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
@@ -520,7 +537,7 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /**
-     * @notice Change the USD price per storage unit.
+     * @notice Change the USD price per storage unit. Callable by admin and treasurer.
      *
      * @param usdPrice The new unit price in USD. Fixed point value with 8 decimals.
      */
@@ -531,7 +548,7 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /**
-     * @notice Change the maximum supply of storage units.
+     * @notice Change the maximum supply of storage units. Only callable by admin.
      *
      * @param max The new maximum supply of storage units.
      */
@@ -543,7 +560,7 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /**
-     * @notice Change the deprecationTimestamp.
+     * @notice Change the deprecationTimestamp. Only callable by admin.
      *
      * @param timestamp The new deprecationTimestamp.
      */
@@ -554,7 +571,7 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /**
-     * @notice Change the priceFeedCacheDuration.
+     * @notice Change the priceFeedCacheDuration. Only callable by admin.
      *
      * @param duration The new priceFeedCacheDuration.
      */
@@ -564,7 +581,7 @@ contract StorageRent is AccessControlEnumerable {
     }
 
     /**
-     * @notice Change the uptimeFeedGracePeriod.
+     * @notice Change the uptimeFeedGracePeriod. Only callable by admin.
      *
      * @param period The new uptimeFeedGracePeriod.
      */
@@ -575,6 +592,7 @@ contract StorageRent is AccessControlEnumerable {
 
     /**
      * @notice Set the vault address that can receive funds from this contract.
+     *         Only callable by admin.
      *
      * @param vaultAddr The new vault address.
      */
@@ -585,6 +603,7 @@ contract StorageRent is AccessControlEnumerable {
 
     /**
      * @notice Withdraw a specified amount of ether from the contract balance to the vault.
+     *         Only callable by treasurer.
      *
      * @param amount The amount of ether to withdraw.
      */
