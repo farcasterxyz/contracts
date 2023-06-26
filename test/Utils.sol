@@ -53,6 +53,7 @@ contract StorageRentHarness is StorageRent {
         uint256 _priceFeedCacheDuration,
         uint256 _uptimeFeedGracePeriod,
         address _vault,
+        address _roleAdmin,
         address _admin,
         address _operator,
         address _treasurer
@@ -66,6 +67,7 @@ contract StorageRentHarness is StorageRent {
             _priceFeedCacheDuration,
             _uptimeFeedGracePeriod,
             _vault,
+            _roleAdmin,
             _admin,
             _operator,
             _treasurer

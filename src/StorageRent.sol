@@ -250,6 +250,7 @@ contract StorageRent is AccessControlEnumerable {
         uint256 _initialPriceFeedCacheDuration,
         uint256 _initialUptimeFeedGracePeriod,
         address _initialVault,
+        address _initialRoleAdmin,
         address _initialAdmin,
         address _initialOperator,
         address _initialTreasurer
@@ -275,10 +276,12 @@ contract StorageRent is AccessControlEnumerable {
         vault = _initialVault;
         emit SetVault(address(0), _initialVault);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, _initialRoleAdmin);
         _grantRole(ADMIN_ROLE, _initialAdmin);
         _grantRole(OPERATOR_ROLE, _initialOperator);
         _grantRole(TREASURER_ROLE, _initialTreasurer);
+
+        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         _refreshPrice();
     }

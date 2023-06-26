@@ -20,6 +20,7 @@ abstract contract StorageRentTestSuite is Test {
     address internal deployer = address(this);
     address internal mallory = makeAddr("mallory");
     address internal vault = makeAddr("vault");
+    address internal roleAdmin = makeAddr("roleAdmin");
     address internal admin = makeAddr("admin");
     address internal operator = makeAddr("operator");
     address internal treasurer = makeAddr("treasurer");
@@ -73,6 +74,7 @@ abstract contract StorageRentTestSuite is Test {
             INITIAL_PRICE_FEED_CACHE_DURATION,
             INITIAL_UPTIME_FEED_GRACE_PERIOD,
             vault,
+            roleAdmin,
             admin,
             operator,
             treasurer

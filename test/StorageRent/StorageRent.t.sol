@@ -39,7 +39,7 @@ contract StorageRentTest is StorageRentTestSuite {
     }
 
     function testDefaultAdmin() public {
-        assertTrue(fcStorage.hasRole(fcStorage.DEFAULT_ADMIN_ROLE(), deployer));
+        assertTrue(fcStorage.hasRole(fcStorage.DEFAULT_ADMIN_ROLE(), roleAdmin));
     }
 
     function testPriceFeedDefault() public {
@@ -177,7 +177,6 @@ contract StorageRentTest is StorageRentTestSuite {
         uint200 units2,
         uint256 decrease
     ) public {
-        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdateTime();
         uint256 ethUsdPrice = fcStorage.ethUsdPrice();
 
         decrease = bound(decrease, 1, ethUsdPrice);
@@ -210,7 +209,6 @@ contract StorageRentTest is StorageRentTestSuite {
         uint200 units2,
         uint256 increase
     ) public {
-        uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdateTime();
         uint256 ethUsdPrice = fcStorage.ethUsdPrice();
 
         increase = bound(increase, 1, uint256(type(int256).max) - ethUsdPrice);
