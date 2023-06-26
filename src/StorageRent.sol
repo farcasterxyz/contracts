@@ -503,6 +503,7 @@ contract StorageRent is AccessControlEnumerable {
      * @param units Number of storage units per fid.
      */
     function batchCredit(uint256[] calldata fids, uint256 units) external onlyOperator whenNotDeprecated {
+        if (units == 0) revert InvalidAmount();
         uint256 totalUnits = fids.length * units;
         if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
         rentedUnits += totalUnits;
@@ -519,6 +520,7 @@ contract StorageRent is AccessControlEnumerable {
      * @param units Number of storage units per fid.
      */
     function continuousCredit(uint256 start, uint256 end, uint256 units) external onlyOperator whenNotDeprecated {
+        if (units == 0) revert InvalidAmount();
         uint256 len = end - start;
         uint256 totalUnits = len * units;
         if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();

@@ -928,11 +928,19 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.batchCredit(fids, units);
     }
 
-    function testFuzzBatchCredit(uint256[] calldata fids, uint32 units) public {
+    function testFuzzBatchCredit(uint256[] calldata fids, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
         batchCredit(fids, units);
     }
 
-    function testFuzzBatchCreditRevertsExceedsCapacity(uint256[] calldata fids, uint32 units) public {
+    function testFuzzBatchCreditRevertsZeroAmount(uint256[] calldata fids) public {
+        vm.expectRevert(StorageRent.InvalidAmount.selector);
+        vm.prank(operator);
+        fcStorage.batchCredit(fids, 0);
+    }
+
+    function testFuzzBatchCreditRevertsExceedsCapacity(uint256[] calldata fids, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
         vm.assume(fids.length > 0);
 
         // Buy all the available units.
@@ -947,7 +955,8 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.batchCredit(fids, units);
     }
 
-    function testFuzzBatchCreditRevertsAfterDeadline(uint256[] calldata fids, uint32 units) public {
+    function testFuzzBatchCreditRevertsAfterDeadline(uint256[] calldata fids, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
         vm.warp(fcStorage.deprecationTimestamp() + 1);
 
         vm.expectRevert(StorageRent.ContractDeprecated.selector);
@@ -955,7 +964,8 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.batchCredit(fids, units);
     }
 
-    function testOnlyOperatorCanContinuousCredit(address caller, uint16 start, uint256 n, uint32 units) public {
+    function testOnlyOperatorCanContinuousCredit(address caller, uint16 start, uint256 n, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
         uint256 end = uint256(start) + bound(n, 1, 10000);
         vm.assume(caller != operator);
 
@@ -964,12 +974,22 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.continuousCredit(start, end, units);
     }
 
-    function testFuzzContinuousCredit(uint16 start, uint256 n, uint32 units) public {
+    function testFuzzContinuousCredit(uint16 start, uint256 n, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
         uint256 end = uint256(start) + bound(n, 1, 10000);
         continuousCredit(start, end, units);
     }
 
-    function testFuzzContinuousCreditRevertsExceedsCapacity(uint16 start, uint256 n, uint32 units) public {
+    function testFuzzContinuousCreditRevertsZeroAmount(uint16 start, uint256 n) public {
+        uint256 end = uint256(start) + bound(n, 1, 10000);
+
+        vm.expectRevert(StorageRent.InvalidAmount.selector);
+        vm.prank(operator);
+        fcStorage.continuousCredit(start, end, 0);
+    }
+
+    function testFuzzContinuousCreditRevertsExceedsCapacity(uint16 start, uint256 n, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
         uint256 end = uint256(start) + bound(n, 1, 10000);
 
         // Buy all the available units.
@@ -984,7 +1004,8 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.continuousCredit(start, end, units);
     }
 
-    function testFuzzContinuousCreditRevertsAfterDeadline(uint16 start, uint256 n, uint32 units) public {
+    function testFuzzContinuousCreditRevertsAfterDeadline(uint16 start, uint256 n, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
         uint256 end = uint256(start) + bound(n, 0, 10000);
         vm.warp(fcStorage.deprecationTimestamp() + 1);
 
