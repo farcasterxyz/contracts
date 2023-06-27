@@ -144,6 +144,11 @@ contract StorageRent is AccessControlEnumerable {
      */
     string public constant VERSION = "2023.07.12";
 
+    /**
+     * @dev Total possile storage unit capacity. 1.6e7 = 64TB @ 4MB/unit .
+     */
+    uint256 public constant TOTAL_STORAGE_UNIT_CAPACITY = 1.6e7;
+
     bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 internal constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
@@ -556,8 +561,7 @@ contract StorageRent is AccessControlEnumerable {
      * @param max The new maximum supply of storage units.
      */
     function setMaxUnits(uint256 max) external onlyAdmin {
-        /* 1.6e7 = 64TB @ 4MB/unit */
-        if (max > 1.6e7) revert InvalidMaxUnits();
+        if (max > TOTAL_STORAGE_UNIT_CAPACITY) revert InvalidMaxUnits();
         emit SetMaxUnits(maxUnits, max);
         maxUnits = max;
     }

@@ -334,8 +334,9 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
 
         // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
         // Truncate the longer one so their lengths match.
@@ -363,8 +364,9 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
 
         uint256 lastPriceFeedUpdate = fcStorage.lastPriceFeedUpdateTime();
         uint256 ethUsdPrice = fcStorage.ethUsdPrice();
@@ -408,8 +410,9 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
 
         // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
         // Truncate the longer one so their lengths match.
@@ -443,8 +446,10 @@ contract StorageRentTest is StorageRentTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
+
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
         for (uint256 i; i < length; ++i) {
@@ -490,8 +495,9 @@ contract StorageRentTest is StorageRentTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
@@ -529,8 +535,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
+
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
         for (uint256 i; i < length; ++i) {
@@ -571,8 +579,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
+
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
         for (uint256 i; i < length; ++i) {
@@ -614,8 +624,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
+
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
         for (uint256 i; i < length; ++i) {
@@ -657,8 +669,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.prank(admin);
-        fcStorage.setMaxUnits(1.6e7);
+        vm.startPrank(admin);
+        fcStorage.setMaxUnits(fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
+        vm.stopPrank();
+
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
         for (uint256 i; i < length; ++i) {
@@ -1043,7 +1057,7 @@ contract StorageRentTest is StorageRentTestSuite {
     }
 
     function testFuzzSetMaxUnitsEmitsEvent(uint256 maxUnits) public {
-        maxUnits = bound(maxUnits, 0, 1.6e7);
+        maxUnits = bound(maxUnits, 0, fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
         uint256 currentMax = fcStorage.maxUnits();
 
         vm.expectEmit(false, false, false, true);
@@ -1056,7 +1070,7 @@ contract StorageRentTest is StorageRentTestSuite {
     }
 
     function testFuzzSetMaxUnitsRevertsOverGlobalMax(uint256 maxUnits) public {
-        maxUnits = bound(maxUnits, 1.6e7 + 1, type(uint256).max);
+        maxUnits = bound(maxUnits, fcStorage.TOTAL_STORAGE_UNIT_CAPACITY() + 1, type(uint256).max);
         vm.expectRevert(StorageRent.InvalidMaxUnits.selector);
         vm.prank(admin);
         fcStorage.setMaxUnits(maxUnits);
