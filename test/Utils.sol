@@ -19,14 +19,6 @@ contract IdRegistryHarness is IdRegistry {
         return recoveryOf[id];
     }
 
-    function getRecoveryTsOf(uint256 id) public view returns (uint256) {
-        return uint256(recoveryStateOf[id].startTs);
-    }
-
-    function getRecoveryDestinationOf(uint256 id) public view returns (address) {
-        return recoveryStateOf[id].destination;
-    }
-
     function getTrustedCaller() public view returns (address) {
         return trustedCaller;
     }

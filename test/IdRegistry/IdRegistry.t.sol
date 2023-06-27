@@ -18,14 +18,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     event Register(address indexed to, uint256 indexed id, address recovery);
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
-    event RequestRecovery(address indexed from, address indexed to, uint256 indexed id);
-    event CancelRecovery(address indexed by, uint256 indexed id);
-
-    /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    uint256 constant ESCROW_PERIOD = 259_200;
 
     /*//////////////////////////////////////////////////////////////
                              REGISTER TESTS
@@ -185,11 +177,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
 
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, recoveryDestination);
-        assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), recoveryDestination);
-
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, 1);
@@ -198,7 +185,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
-        _assertNoRecoveryState(1);
     }
 
     function testFuzzCannotTransferToAddressWithId(address alice, address bob, address recovery) public {
@@ -266,29 +252,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), newRecovery);
     }
 
-    function testFuzzChangeRecoveryAddressResetsRecovery(
-        address alice,
-        address oldRecovery,
-        address recoveryDestination,
-        address newRecovery
-    ) public {
-        vm.assume(alice != FORWARDER && oldRecovery != FORWARDER);
-        vm.assume(alice != oldRecovery && alice != recoveryDestination);
-        _registerWithRecovery(alice, oldRecovery);
-
-        vm.prank(oldRecovery);
-        idRegistry.requestRecovery(alice, recoveryDestination);
-        assertEq(idRegistry.getRecoveryTsOf(1), 1);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), recoveryDestination);
-
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit ChangeRecoveryAddress(1, newRecovery);
-        idRegistry.changeRecoveryAddress(newRecovery);
-
-        _assertNoRecoveryState(1);
-    }
-
     function testFuzzCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
@@ -299,356 +262,68 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                         REQUEST RECOVERY TESTS
+                            RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzRequestRecovery(address alice, address bob, address recovery) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        _registerWithRecovery(alice, recovery);
-        assertEq(idRegistry.getRecoveryTsOf(1), 0);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), address(0));
+    function testFuzzRecover(address from, address to, address recovery) public {
+        vm.assume(from != FORWARDER && recovery != FORWARDER);
+        vm.assume(from != to);
+
+        _registerWithRecovery(from, recovery);
 
         vm.prank(recovery);
         vm.expectEmit(true, true, true, true);
-        emit RequestRecovery(alice, bob, 1);
-        idRegistry.requestRecovery(alice, bob);
+        emit Transfer(from, to, 1);
+        idRegistry.recover(from, to);
 
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
-    }
-
-    function testFuzzRequestRecoveryOverridesPreviousRecovery(
-        address alice,
-        address bob,
-        address charlie,
-        address recovery,
-        uint256 delay
-    ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        delay = bound(delay, 0, FUZZ_TIME_PERIOD);
-        _registerWithRecovery(alice, recovery);
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, bob);
-        assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
-
-        // Move forward in time and request another recovery
-        vm.warp(delay);
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, charlie);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryTsOf(1), block.timestamp);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), charlie);
-    }
-
-    function testFuzzCannotRequestRecoveryUnlessRecoveryAddress(
-        address alice,
-        address recovery,
-        address notRecovery,
-        address recoveryDestination
-    ) public {
-        vm.assume(alice != FORWARDER && notRecovery != FORWARDER);
-        vm.assume(alice != recoveryDestination);
-        vm.assume(notRecovery != recovery);
-        _registerWithRecovery(alice, recovery);
-
-        _assertNoRecoveryState(1);
-
-        vm.prank(notRecovery);
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
-        idRegistry.requestRecovery(alice, recoveryDestination);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        _assertNoRecoveryState(1);
-    }
-
-    function testFuzzCannotRequestRecoveryWithoutId(address alice, address bob, address recoveryDestination) public {
-        vm.assume(alice != FORWARDER && bob != FORWARDER);
-        vm.assume(alice != recoveryDestination);
-        vm.assume(bob != address(0));
-
-        vm.prank(bob);
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
-        idRegistry.requestRecovery(alice, recoveryDestination);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         COMPLETE RECOVERY TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzCompleteRecovery(
-        address alice,
-        address bob,
-        address recovery,
-        uint40 timestamp,
-        uint256 delay
-    ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        vm.assume(alice != bob);
-        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
-        delay = bound(delay, ESCROW_PERIOD + 1, FUZZ_TIME_PERIOD);
-
-        _registerWithRecovery(alice, recovery);
-
-        // Travel to an arbitrary time and then alice requests recovery of id 1 to bob
-        vm.warp(timestamp);
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, bob);
-
-        // Wait for the escrow period to complete and complete the recovery to bob
-        vm.prank(recovery);
-        vm.warp(timestamp + delay);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(alice, bob, 1);
-        idRegistry.completeRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 0);
-        assertEq(idRegistry.idOf(bob), 1);
+        assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.idOf(to), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
-        _assertNoRecoveryState(1);
     }
 
-    function testFuzzCannotCompleteRecoveryUnlessRecoveryAddress(
-        address alice,
-        address bob,
-        address recovery,
-        address notRecovery,
-        uint40 timestamp,
-        uint256 delay
-    ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER && notRecovery != FORWARDER);
-        vm.assume(recovery != notRecovery && alice != notRecovery);
-        vm.assume(alice != bob);
-        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
-        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
+    function testFuzzCannotRecoverWithoutId(address from, address recovery, address to) public {
+        vm.assume(from != FORWARDER && recovery != FORWARDER);
+        vm.assume(from != to);
+        vm.assume(recovery != address(0));
 
-        _registerWithRecovery(alice, recovery);
-
-        // recovery requests a recovery of alice's id to bob
-        vm.warp(timestamp);
         vm.prank(recovery);
-        idRegistry.requestRecovery(alice, bob);
+        vm.expectRevert(IdRegistry.HasNoId.selector);
+        idRegistry.recover(from, to);
+    }
 
-        // reverts when notRecovery tries to complete the recovery request
-        vm.warp(timestamp + delay);
+    function testFuzzCannotRecoverUnlessRecoveryAddress(
+        address from,
+        address to,
+        address recovery,
+        address notRecovery
+    ) public {
+        vm.assume(from != FORWARDER && recovery != FORWARDER && notRecovery != FORWARDER);
+        vm.assume(recovery != notRecovery && from != notRecovery);
+        vm.assume(from != to);
+
+        _registerWithRecovery(from, recovery);
+
         vm.prank(notRecovery);
         vm.expectRevert(IdRegistry.Unauthorized.selector);
-        idRegistry.completeRecovery(alice);
+        idRegistry.recover(from, to);
 
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(bob), 0);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
     }
 
-    function testFuzzCannotCompleteRecoveryIfNotRequested(address alice, address recovery, uint256 delay) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        vm.assume(alice != recovery);
-        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
-        _registerWithRecovery(alice, recovery);
+    function testFuzzCannotRecoverToAddressThatOwnsAnId(address from, address to, address recovery) public {
+        vm.assume(from != FORWARDER && recovery != FORWARDER && to != FORWARDER);
+        vm.assume(from != to);
+        _registerWithRecovery(from, recovery);
+        _register(to);
 
-        vm.warp(block.timestamp + delay);
         vm.prank(recovery);
-        vm.expectRevert(IdRegistry.NoRecovery.selector);
-        idRegistry.completeRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-        _assertNoRecoveryState(1);
-    }
-
-    function testFuzzCannotCompleteRecoveryWhenInEscrow(
-        address alice,
-        address bob,
-        address recovery,
-        uint40 timestamp,
-        uint256 delay
-    ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        vm.assume(alice != bob);
-        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
-        delay = bound(delay, 0, ESCROW_PERIOD - 1);
-        _registerWithRecovery(alice, recovery);
-
-        // recovery requests a recovery of alice's id to bob
-        vm.warp(timestamp);
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, bob);
-
-        // fast forward to a time before the escrow period ends and try to complete
-        vm.warp(timestamp + delay);
-        vm.prank(recovery);
-        vm.expectRevert(IdRegistry.Escrow.selector);
-        idRegistry.completeRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
-    }
-
-    function testFuzzCannotCompleteRecoveryToAddressThatOwnsAnId(
-        address alice,
-        address bob,
-        address recovery,
-        uint40 timestamp,
-        uint256 delay
-    ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
-        vm.assume(alice != bob);
-        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
-        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
-        _registerWithRecovery(alice, recovery);
-        _register(bob);
-
-        // request a recovery of alice's fid to bob
-        vm.warp(timestamp);
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, bob);
-
-        // fast forward past the escrow period and try to complete the recovery, which fails
-        vm.startPrank(recovery);
-        vm.warp(timestamp + delay);
         vm.expectRevert(IdRegistry.HasId.selector);
-        idRegistry.completeRecovery(alice);
-        vm.stopPrank();
+        idRegistry.recover(from, to);
 
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(bob), 2);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 2);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                          CANCEL RECOVERY TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzCancelRecoveryFromCustodyAddress(
-        address alice,
-        address bob,
-        address recovery,
-        uint40 timestamp,
-        uint256 delay
-    ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
-        vm.assume(alice != bob);
-        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
-        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
-        _registerWithRecovery(alice, recovery);
-
-        // 1. recovery requests a recovery of alice's id to bob
-        vm.warp(timestamp);
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, bob);
-
-        // 2. alice cancels the recovery
-        vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit CancelRecovery(alice, 1);
-        idRegistry.cancelRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-
-        // 3. after escrow period, recovery tries to recover to bob and fails
-        vm.warp(timestamp + delay);
-        vm.expectRevert(IdRegistry.NoRecovery.selector);
-        vm.prank(recovery);
-        idRegistry.completeRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-        _assertNoRecoveryState(1);
-    }
-
-    function testFuzzCancelRecoveryFromRecoveryAddress(
-        address alice,
-        address bob,
-        address recovery,
-        uint40 timestamp,
-        uint256 delay
-    ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER && bob != FORWARDER);
-        vm.assume(alice != bob);
-        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
-        delay = bound(delay, ESCROW_PERIOD, FUZZ_TIME_PERIOD);
-        _registerWithRecovery(alice, recovery);
-
-        // 1. recovery requests a recovery of alice's id to bob
-        vm.warp(timestamp);
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, bob);
-
-        // 2. recovery cancels the recovery
-        vm.prank(recovery);
-        vm.expectEmit(true, true, true, true);
-        emit CancelRecovery(recovery, 1);
-        idRegistry.cancelRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-
-        // 3. after escrow period, recovery tries to recover to bob and fails
-        vm.warp(timestamp + delay);
-        vm.expectRevert(IdRegistry.NoRecovery.selector);
-        vm.prank(recovery);
-        idRegistry.completeRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-        _assertNoRecoveryState(1);
-    }
-
-    function testFuzzCannotCancelRecoveryIfNotStarted(address alice, address recovery) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER);
-        vm.assume(alice != recovery);
-        _registerWithRecovery(alice, recovery);
-
-        vm.prank(alice);
-        vm.expectRevert(IdRegistry.NoRecovery.selector);
-        idRegistry.cancelRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-        _assertNoRecoveryState(1);
-    }
-
-    function testFuzzCannotCancelRecoveryIfUnauthorized(
-        address alice,
-        address bob,
-        address unauthorized,
-        address recovery,
-        uint40 timestamp
-    ) public {
-        vm.assume(alice != FORWARDER && recovery != FORWARDER && unauthorized != FORWARDER);
-        vm.assume(alice != bob);
-        vm.assume(unauthorized != alice && unauthorized != recovery);
-        timestamp = uint40(bound(timestamp, 1, type(uint40).max - ESCROW_PERIOD - 1));
-        _registerWithRecovery(alice, recovery);
-
-        // recovery requests a recovery of alice's id to bob
-        vm.warp(timestamp);
-        vm.prank(recovery);
-        idRegistry.requestRecovery(alice, bob);
-
-        // unauthorized cancels the recovery which fails
-        vm.prank(unauthorized);
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
-        idRegistry.cancelRecovery(alice);
-
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.idOf(bob), 0);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-        assertEq(idRegistry.getRecoveryTsOf(1), timestamp);
-        assertEq(idRegistry.getRecoveryDestinationOf(1), bob);
     }
 }
