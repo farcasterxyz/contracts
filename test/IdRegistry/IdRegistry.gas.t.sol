@@ -17,12 +17,10 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
         // initializes storage and has extra costs
 
         for (uint256 i = 0; i < 15; i++) {
-            // Register the name
             address alice = address(uint160(i));
             idRegistry.register(alice, RECOVERY);
             assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
 
-            vm.warp(block.timestamp + 7 days);
             vm.prank(RECOVERY);
             idRegistry.recover(alice, address(uint160(i + 100)));
         }
