@@ -16,7 +16,7 @@ import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Con
  *         The IdRegistry starts in the seedable state where only a trusted caller can register
  *         fids and later moves to an open state where any address can register an fid. The
  *         Registry implements a recovery system which lets the address that owns an fid nominate
- *         a recovery address that can transfer the fid to a new address after a delay.
+ *         a recovery address that can transfer the fid to a new address.
  */
 contract IdRegistry is ERC2771Context, Ownable {
     /*//////////////////////////////////////////////////////////////
@@ -93,7 +93,7 @@ contract IdRegistry is ERC2771Context, Ownable {
     uint256 internal idCounter;
 
     /**
-     * @dev The Farcaster Invite service address that is allowed to call trustedRegister.
+     * @dev The admin address that is allowed to call trustedRegister.
      */
     address internal trustedCaller;
 
@@ -249,8 +249,8 @@ contract IdRegistry is ERC2771Context, Ownable {
      */
 
     /**
-     * @notice Change the recovery address of the fid owned by the caller and reset active recovery
-     *         requests. Supports ERC 2771 meta-transactions and can be called by a relayer.
+     * @notice Change the recovery address of the fid owned by the caller. Supports ERC 2771
+     *         meta-transactions and can be called by a relayer.
      *
      * @param recovery The address which can recover the fid (set to 0x0 to disable recovery).
      */
