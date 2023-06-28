@@ -142,10 +142,11 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      * @param to       Address which will own the fid
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      */
-    function register(address to, address recovery) external {
+    function register(address to, address recovery) external returns (uint256 fid) {
         if (trustedOnly == 1) revert Seedable();
 
-        _unsafeRegister(to, recovery);
+        fid = _unsafeRegister(to, recovery);
+
         emit Register(to, idCounter, recovery);
     }
 
@@ -156,13 +157,14 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      * @param to       The address which will control the fid
      * @param recovery The address which can recover the fid
      */
-    function trustedRegister(address to, address recovery) external {
+    function trustedRegister(address to, address recovery) external returns (uint256 fid) {
         if (trustedOnly == 0) revert Registrable();
 
         /* Perf: Save 100 gas using msg.sender over msgSender() since meta-tx aren't needed. */
         if (msg.sender != trustedCaller) revert Unauthorized();
 
-        _unsafeRegister(to, recovery);
+        fid = _unsafeRegister(to, recovery);
+
         emit Register(to, idCounter, recovery);
     }
 
@@ -170,19 +172,19 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      * @dev Registers a new, unique fid and sets up a recovery address for a caller without
      *      checking all invariants or emitting events.
      */
-    function _unsafeRegister(address to, address recovery) internal whenNotPaused {
+    function _unsafeRegister(address to, address recovery) internal whenNotPaused()returns (uint256 fid) {
         /* Revert if the destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
         /* Safety: idCounter won't realistically overflow. */
         /* Incrementing before assignment ensures that no one gets the 0 fid. */
         unchecked {
-            idCounter++;
+            fid = ++idCounter;
         }
 
         /* Perf: Save 29 gas by avoiding to == address(0) check since 0x0 can only register 1 fid */
-        idOf[to] = idCounter;
-        recoveryOf[idCounter] = recovery;
+        idOf[to] = fid;
+        recoveryOf[fid] = recovery;
     }
 
     /*//////////////////////////////////////////////////////////////
