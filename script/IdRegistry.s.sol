@@ -2,16 +2,7 @@
 pragma solidity 0.8.19;
 
 import "forge-std/Script.sol";
-import "forge-std/console.sol";
-
-import {IdRegistry} from "../src/IdRegistry.sol";
-
-contract IdRegistryFab {
-    constructor(address trustedForwarder, address initialOwner, bytes32 salt) {
-        IdRegistry registry = new IdRegistry{ salt: salt }(trustedForwarder);
-        registry.requestTransferOwnership(initialOwner);
-    }
-}
+import {IdRegistryFab} from "./helpers/IdRegistryFab.sol";
 
 contract IdRegistryScript is Script {
     bytes32 internal constant CREATE2_SALT = "fc";
