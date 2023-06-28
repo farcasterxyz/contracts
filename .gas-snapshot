@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 IdRegistryGasUsageTest:testGasRegisterAndRecover() (gas: 928101)
 IdRegistryGasUsageTest:testGasRegisterFromTrustedCaller() (gas: 795536)
+=======
+IdRegistryGasUsageTest:testGasRegisterAndRecover() (gas: 931168)
+IdRegistryGasUsageTest:testGasRegisterFromTrustedCaller() (gas: 800729)
+>>>>>>> 034fb45 (chore(IdRegistry): allow registrations to be paused by admin)

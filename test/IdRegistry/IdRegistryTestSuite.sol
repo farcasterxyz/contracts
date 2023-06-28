@@ -35,4 +35,10 @@ abstract contract IdRegistryTestSuite is Test {
         vm.prank(caller);
         idRegistry.register(caller, recovery);
     }
+
+    function _pauseRegistrations() public {
+        vm.prank(owner);
+        idRegistry.pauseRegistration();
+        assertEq(idRegistry.paused(), true);
+    }
 }

@@ -66,6 +66,22 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
+    function testFuzzCannotRegisterIfPaused(address alice, address bob, address recovery) public {
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
+        assertEq(idRegistry.getIdCounter(), 0);
+
+        idRegistry.disableTrustedOnly();
+        _pauseRegistrations();
+
+        vm.prank(alice);
+        vm.expectRevert("Pausable: paused");
+        idRegistry.register(bob, recovery);
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(bob), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+    }
+
     /*//////////////////////////////////////////////////////////////
                          TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
@@ -144,6 +160,23 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
+    function testFuzzCannotTrustedRegisterWhenPaused(address alice, address trustedCaller, address recovery) public {
+        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
+        vm.assume(recovery != FORWARDER);
+        idRegistry.changeTrustedCaller(trustedCaller);
+        assertEq(idRegistry.getIdCounter(), 0);
+
+        _pauseRegistrations();
+
+        vm.prank(trustedCaller);
+        vm.expectRevert("Pausable: paused");
+        idRegistry.trustedRegister(alice, recovery);
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+    }
+
     /*//////////////////////////////////////////////////////////////
                              TRANSFER TESTS
     //////////////////////////////////////////////////////////////*/
@@ -154,6 +187,24 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.idOf(bob), 0);
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, 1);
+        idRegistry.transfer(bob);
+
+        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(bob), 1);
+    }
+
+    function testFuzzTransferWhenPaused(address alice, address bob) public {
+        vm.assume(alice != FORWARDER && alice != bob);
+        _register(alice);
+
+        assertEq(idRegistry.idOf(alice), 1);
+        assertEq(idRegistry.idOf(bob), 0);
+
+        _pauseRegistrations();
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
@@ -252,6 +303,19 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), newRecovery);
     }
 
+    function testFuzzChangeRecoveryAddressWhenPaused(address alice, address oldRecovery, address newRecovery) public {
+        vm.assume(alice != FORWARDER);
+        _registerWithRecovery(alice, oldRecovery);
+        _pauseRegistrations();
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit ChangeRecoveryAddress(1, newRecovery);
+        idRegistry.changeRecoveryAddress(newRecovery);
+
+        assertEq(idRegistry.getRecoveryOf(1), newRecovery);
+    }
+
     function testFuzzCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
         vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
@@ -270,6 +334,23 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.assume(from != to);
 
         _registerWithRecovery(from, recovery);
+
+        vm.prank(recovery);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(from, to, 1);
+        idRegistry.recover(from, to);
+
+        assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+    }
+
+    function testFuzzRecoverWhenPaused(address from, address to, address recovery) public {
+        vm.assume(from != FORWARDER && recovery != FORWARDER);
+        vm.assume(from != to);
+
+        _registerWithRecovery(from, recovery);
+        _pauseRegistrations();
 
         vm.prank(recovery);
         vm.expectEmit(true, true, true, true);
