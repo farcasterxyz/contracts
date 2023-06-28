@@ -226,9 +226,6 @@ contract IdRegistry is ERC2771Context, Ownable {
         idOf[to] = id;
         delete idOf[from];
 
-        /* Effect: clear the recovery address */
-        delete recoveryOf[id];
-
         emit Transfer(from, to, id);
     }
 

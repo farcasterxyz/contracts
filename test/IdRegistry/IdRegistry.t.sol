@@ -164,7 +164,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(bob), 1);
     }
 
-    function testFuzzTransferResetsRecoveryState(
+    function testFuzzTransferDoesntResetRecoveryState(
         address alice,
         address bob,
         address recovery,
@@ -184,7 +184,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.idOf(bob), 1);
-        assertEq(idRegistry.getRecoveryOf(1), address(0));
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
     function testFuzzCannotTransferToAddressWithId(address alice, address bob, address recovery) public {
@@ -278,7 +278,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idOf(from), 0);
         assertEq(idRegistry.idOf(to), 1);
-        assertEq(idRegistry.getRecoveryOf(1), address(0));
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
     function testFuzzCannotRecoverWithoutId(address from, address recovery, address to) public {
