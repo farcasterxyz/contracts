@@ -3,6 +3,8 @@ pragma solidity 0.8.19;
 
 import {Context} from "openzeppelin/contracts/utils/Context.sol";
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
+
 import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
 
 /**
@@ -18,7 +20,7 @@ import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Con
  *         Registry implements a recovery system which lets the address that owns an fid nominate
  *         a recovery address that can transfer the fid to a new address.
  */
-contract IdRegistry is ERC2771Context, Ownable {
+contract IdRegistry is ERC2771Context, Ownable, Pausable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -134,7 +136,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      *                   verify the authenticity of signed meta-transaction requests.
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _forwarder) ERC2771Context(_forwarder) Ownable() {}
+    constructor(address _forwarder) ERC2771Context(_forwarder) Ownable() Pausable() {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -168,7 +170,6 @@ contract IdRegistry is ERC2771Context, Ownable {
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         _unsafeRegister(to, recovery);
-
         emit Register(to, idCounter, recovery);
     }
 
@@ -176,7 +177,7 @@ contract IdRegistry is ERC2771Context, Ownable {
      * @dev Registers a new, unique fid and sets up a recovery address for a caller without
      *      checking all invariants or emitting events.
      */
-    function _unsafeRegister(address to, address recovery) internal {
+    function _unsafeRegister(address to, address recovery) internal whenNotPaused {
         /* Revert if the destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
@@ -322,6 +323,20 @@ contract IdRegistry is ERC2771Context, Ownable {
 
         /* Clear pending owner so that this cannot be called again without a new request */
         delete pendingOwner;
+    }
+
+    /**
+     * @notice Pause all registrations. Must be called by the owner.
+     */
+    function pauseRegistration() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Unpause all registrations. Must be called by the owner.
+     */
+    function unpauseRegistration() external onlyOwner {
+        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////

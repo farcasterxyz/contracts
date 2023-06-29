@@ -160,4 +160,44 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getPendingOwner(), newOwner);
     }
+
+    function testPauseRegistration() public {
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.paused(), false);
+
+        _pauseRegistrations();
+    }
+
+    function testFuzzCannotPauseRegistrationUnlessOwner(address alice) public {
+        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.paused(), false);
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.pauseRegistration();
+
+        assertEq(idRegistry.paused(), false);
+    }
+
+    function testUnpauseRegistration() public {
+        _pauseRegistrations();
+
+        vm.prank(owner);
+        idRegistry.unpauseRegistration();
+
+        assertEq(idRegistry.paused(), false);
+    }
+
+    function testFuzzCannotUnpauseUnlessOwner(address alice) public {
+        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        assertEq(idRegistry.owner(), owner);
+        _pauseRegistrations();
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.unpauseRegistration();
+
+        assertEq(idRegistry.paused(), true);
+    }
 }
