@@ -3,14 +3,14 @@ pragma solidity 0.8.19;
 
 import {MinimalForwarder} from "openzeppelin/contracts/metatx/MinimalForwarder.sol";
 
-import {IdRegistryHarness} from "./Utils.sol";
+import {IdRegistryHarness} from "../Utils.sol";
 
-import {TestSuiteSetup} from "./TestSuiteSetup.sol";
+import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable avoid-low-level-calls */
 
-contract MetaTxTest is TestSuiteSetup {
+contract IdRegistryMetaTxTest is TestSuiteSetup {
     IdRegistryHarness idRegistry;
     MinimalForwarder forwarder;
 
@@ -89,8 +89,8 @@ contract MetaTxTest is TestSuiteSetup {
             abi.encode(_TYPEHASH_FW_REQ, req.from, req.to, req.value, req.gas, req.nonce, keccak256(req.data))
         );
 
-        // Pack the prefix, domain separator and hashStruct into a bytestring, hash it, sign it, and pack the
-        // signature into a single value
+        // Pack the prefix, domain separator and hashStruct into a bytestring, hash it, sign it,
+        // and pack the signature into a single value
         bytes32 message = keccak256(abi.encodePacked("\x19\x01", _domainSeparator(), hashStruct));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, message);
         return abi.encodePacked(r, s, v);
