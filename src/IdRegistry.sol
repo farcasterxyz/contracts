@@ -172,7 +172,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      * @dev Registers a new, unique fid and sets up a recovery address for a caller without
      *      checking all invariants or emitting events.
      */
-    function _unsafeRegister(address to, address recovery) internal whenNotPaused()returns (uint256 fid) {
+    function _unsafeRegister(address to, address recovery) internal whenNotPaused returns (uint256 fid) {
         /* Revert if the destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
