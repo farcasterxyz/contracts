@@ -5,7 +5,7 @@ This repository contains all the contracts deployed by the [Farcaster protocol](
 1. **Registry** - issues identities to new users.
 2. **Storage** - allocates storage to users and collects rent.
 3. **Bundler** - allows calling registry and storage in a single transaction. 
-4. **Farcaster CCIP** - validates Farcaster ENS names which were issued off-chain. 
+4. **Fname Resolver** - validates Farcaster ENS names which were issued off-chain. 
 
 Read the [docs](docs/docs.md) for more details on how the contracts work. 
 
