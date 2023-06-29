@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import "../TestConstants.sol";
 import {FnameResolverTestSuite} from "./FnameResolverTestSuite.sol";
-import {FnameResolver, UsernameProof, USERNAME_PROOF_TYPEHASH} from "../../src/FnameResolver.sol";
+import {FnameResolver} from "../../src/FnameResolver.sol";
 
 /* solhint-disable state-visibility */
 
@@ -45,7 +45,8 @@ contract FnameResolverTest is FnameResolverTestSuite {
         address owner,
         bytes calldata result
     ) public {
-        UsernameProof memory proof = UsernameProof({name: name, timestamp: timestamp, owner: owner});
+        FnameResolver.UsernameProof memory proof =
+            FnameResolver.UsernameProof({name: name, timestamp: timestamp, owner: owner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
         bytes memory response = resolver.resolveWithProof(abi.encode(result, proof, signature), "");
@@ -59,7 +60,8 @@ contract FnameResolverTest is FnameResolverTestSuite {
         bytes calldata result
     ) public {
         address wrongOwner = address(~uint160(owner));
-        UsernameProof memory proof = UsernameProof({name: name, timestamp: timestamp, owner: wrongOwner});
+        FnameResolver.UsernameProof memory proof =
+            FnameResolver.UsernameProof({name: name, timestamp: timestamp, owner: wrongOwner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
@@ -73,7 +75,8 @@ contract FnameResolverTest is FnameResolverTestSuite {
         bytes calldata result
     ) public {
         uint256 wrongTimestamp = ~timestamp;
-        UsernameProof memory proof = UsernameProof({name: name, timestamp: wrongTimestamp, owner: owner});
+        FnameResolver.UsernameProof memory proof =
+            FnameResolver.UsernameProof({name: name, timestamp: wrongTimestamp, owner: owner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
@@ -87,7 +90,8 @@ contract FnameResolverTest is FnameResolverTestSuite {
         bytes calldata result
     ) public {
         string memory wrongName = string.concat("~", name);
-        UsernameProof memory proof = UsernameProof({name: wrongName, timestamp: timestamp, owner: owner});
+        FnameResolver.UsernameProof memory proof =
+            FnameResolver.UsernameProof({name: wrongName, timestamp: timestamp, owner: owner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
@@ -100,7 +104,8 @@ contract FnameResolverTest is FnameResolverTestSuite {
         address owner,
         bytes calldata result
     ) public {
-        UsernameProof memory proof = UsernameProof({name: name, timestamp: timestamp, owner: owner});
+        FnameResolver.UsernameProof memory proof =
+            FnameResolver.UsernameProof({name: name, timestamp: timestamp, owner: owner});
         bytes memory signature = _signProof(malloryPk, name, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
@@ -120,7 +125,8 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assembly {
             mstore(signature, length)
         } /* truncate signature length */
-        UsernameProof memory proof = UsernameProof({name: name, timestamp: timestamp, owner: owner});
+        FnameResolver.UsernameProof memory proof =
+            FnameResolver.UsernameProof({name: name, timestamp: timestamp, owner: owner});
 
         vm.expectRevert("ECDSA: invalid signature length");
         resolver.resolveWithProof(abi.encode(result, proof, signature), "");
@@ -182,7 +188,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
         address owner
     ) internal returns (bytes memory signature) {
         bytes32 eip712hash =
-            resolver.hashTypedDataV4(keccak256(abi.encode(USERNAME_PROOF_TYPEHASH, name, timestamp, owner)));
+            resolver.hashTypedDataV4(keccak256(abi.encode(resolver.usernameProofTypehash(), name, timestamp, owner)));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, eip712hash);
         signature = abi.encodePacked(r, s, v);
         assertEq(signature.length, 65);

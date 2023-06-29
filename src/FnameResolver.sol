@@ -5,14 +5,6 @@ import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-bytes32 constant USERNAME_PROOF_TYPEHASH = keccak256("UsernameProof(string name,uint256 timestamp,address owner)");
-
-struct UsernameProof {
-    string name;
-    uint256 timestamp;
-    address owner;
-}
-
 contract FnameResolver is EIP712, Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -64,6 +56,20 @@ contract FnameResolver is EIP712, Ownable2Step {
      */
     bytes32 internal constant _USERNAME_PROOF_TYPEHASH =
         keccak256("UsernameProof(string name,uint256 timestamp,address owner)");
+
+    /*//////////////////////////////////////////////////////////////
+                                STRUCTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice An FIP-90 username proof.
+     *         See: https://github.com/farcasterxyz/protocol/discussions/90
+     */
+    struct UsernameProof {
+        string name;
+        uint256 timestamp;
+        address owner;
+    }
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -119,7 +125,7 @@ contract FnameResolver is EIP712, Ownable2Step {
         (bytes memory result, UsernameProof memory proof, bytes memory signature) =
             abi.decode(response, (bytes, UsernameProof, bytes));
         bytes32 eip712hash =
-            _hashTypedDataV4(keccak256(abi.encode(USERNAME_PROOF_TYPEHASH, proof.name, proof.timestamp, proof.owner)));
+            _hashTypedDataV4(keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, proof.name, proof.timestamp, proof.owner)));
         address signer = ECDSA.recover(eip712hash, signature);
         if (!signers[signer]) revert InvalidSigner();
         return result;
