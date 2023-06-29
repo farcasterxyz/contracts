@@ -28,6 +28,10 @@ contract StorageRentTest is StorageRentTestSuite {
     event SetVault(address oldVault, address newVault);
     event Withdraw(address indexed to, uint256 amount);
 
+    /*//////////////////////////////////////////////////////////////
+                           INITIALIZED VALUES
+    //////////////////////////////////////////////////////////////*/
+
     function testVersion() public {
         assertEq(fcStorage.VERSION(), "2023.07.12");
     }
@@ -89,6 +93,18 @@ contract StorageRentTest is StorageRentTestSuite {
     function testUptimeFeedGracePeriodDefault() public {
         assertEq(fcStorage.uptimeFeedGracePeriod(), INITIAL_UPTIME_FEED_GRACE_PERIOD);
     }
+
+    function testFuzzInitialPrice(uint128 quantity) public {
+        assertEq(fcStorage.price(quantity), INITIAL_PRICE_IN_ETH * quantity);
+    }
+
+    function testInitialUnitPrice() public {
+        assertEq(fcStorage.unitPrice(), INITIAL_PRICE_IN_ETH);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                  RENT
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzRent(address msgSender, uint256 id, uint200 units) public {
         rentStorage(msgSender, id, units);
@@ -320,13 +336,9 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.rent{value: price}(id, units);
     }
 
-    function testFuzzInitialPrice(uint128 quantity) public {
-        assertEq(fcStorage.price(quantity), INITIAL_PRICE_IN_ETH * quantity);
-    }
-
-    function testInitialUnitPrice() public {
-        assertEq(fcStorage.unitPrice(), INITIAL_PRICE_IN_ETH);
-    }
+    /*//////////////////////////////////////////////////////////////
+                               BATCH RENT
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzBatchRent(address msgSender, uint256[] calldata _ids, uint16[] calldata _units) public {
         // Throw away runs with empty arrays.
@@ -708,6 +720,10 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.batchRent(fids, units);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                               UNIT PRICE
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzUnitPriceRefresh(uint48 usdUnitPrice, int256 ethUsdPrice) public {
         // Ensure Chainlink price is positive
         ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
@@ -735,6 +751,10 @@ contract StorageRentTest is StorageRentTestSuite {
 
         assertEq(fcStorage.unitPrice(), uint256(usdUnitPrice) * 1e18 / cachedPrice);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                  PRICE
+    //////////////////////////////////////////////////////////////*/
 
     function testPriceRoundsUp() public {
         priceFeed.setPrice(1e18 + 1);
@@ -774,6 +794,10 @@ contract StorageRentTest is StorageRentTestSuite {
 
         assertEq(fcStorage.price(units), (uint256(usdUnitPrice) * units).divWadUp(cachedPrice));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               PRICE FEED
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzPriceFeedRevertsInvalidPrice(int256 price) public {
         // Ensure price is zero or negative
@@ -817,6 +841,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.prank(admin);
         fcStorage.refreshPrice();
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               UPTIME FEED
+    //////////////////////////////////////////////////////////////*/
 
     function testUptimeFeedRevertsSequencerDown(int256 answer) public {
         if (answer == 0) ++answer;
@@ -887,6 +915,10 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.refreshPrice();
     }
 
+    /*//////////////////////////////////////////////////////////////
+                              REFRESH PRICE
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzOnlyAuthorizedCanRefreshPrice(address caller) public {
         vm.assume(caller != admin && caller != treasurer);
 
@@ -894,6 +926,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.expectRevert(StorageRent.Unauthorized.selector);
         fcStorage.refreshPrice();
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 CREDIT
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzOnlyOperatorCanCredit(address caller, uint256 fid, uint256 units) public {
         vm.assume(caller != operator);
@@ -933,6 +969,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.prank(operator);
         fcStorage.credit(fid, 0);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                              BATCH CREDIT
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzOnlyOperatorCanBatchCredit(address caller, uint256[] calldata fids, uint256 units) public {
         vm.assume(caller != operator);
@@ -977,6 +1017,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.prank(operator);
         fcStorage.batchCredit(fids, units);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                            CONTINUOUS CREDIT
+    //////////////////////////////////////////////////////////////*/
 
     function testOnlyOperatorCanContinuousCredit(address caller, uint16 start, uint256 n, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
@@ -1028,6 +1072,10 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.continuousCredit(start, end, units);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           SET USD UNIT PRICE
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzOnlyAdminOrTreasurerCanSetUSDUnitPrice(address caller, uint256 unitPrice) public {
         vm.assume(caller != admin && caller != treasurer);
 
@@ -1055,6 +1103,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.expectRevert(StorageRent.NotAdmin.selector);
         fcStorage.setMaxUnits(maxUnits);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                              SET MAX UNITS
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzSetMaxUnitsEmitsEvent(uint256 maxUnits) public {
         maxUnits = bound(maxUnits, 0, fcStorage.TOTAL_STORAGE_UNIT_CAPACITY());
@@ -1084,6 +1136,10 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.setDeprecationTimestamp(timestamp);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        SET DEPRECATION TIMESTAMP
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzSetDeprecationTime(uint256 timestamp) public {
         timestamp = bound(timestamp, block.timestamp, type(uint256).max);
         uint256 currentEnd = fcStorage.deprecationTimestamp();
@@ -1102,6 +1158,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.prank(admin);
         fcStorage.setDeprecationTimestamp(block.timestamp - 1);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                           SET CACHE DURATION
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzOnlyAdminCanSetCacheDuration(address caller, uint256 duration) public {
         vm.assume(caller != admin);
@@ -1123,6 +1183,10 @@ contract StorageRentTest is StorageRentTestSuite {
         assertEq(fcStorage.priceFeedCacheDuration(), duration);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            SET GRACE PERIOD
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzOnlyAdminCanSetGracePeriod(address caller, uint256 duration) public {
         vm.assume(caller != admin);
 
@@ -1143,6 +1207,10 @@ contract StorageRentTest is StorageRentTestSuite {
         assertEq(fcStorage.uptimeFeedGracePeriod(), duration);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                SET VAULT
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzOnlyAdminCanSetVault(address caller, address vault) public {
         vm.assume(caller != admin);
 
@@ -1160,6 +1228,10 @@ contract StorageRentTest is StorageRentTestSuite {
 
         assertEq(fcStorage.vault(), newVault);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               WITHDRAWAL
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzWithdrawal(address msgSender, uint256 id, uint200 units, uint256 amount) public {
         uint256 balanceBefore = address(vault).balance;
@@ -1209,6 +1281,10 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.expectRevert(StorageRent.NotTreasurer.selector);
         fcStorage.withdraw(amount);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 HELPERS
+    //////////////////////////////////////////////////////////////*/
 
     function continuousCredit(uint256 start, uint256 end, uint256 units) public {
         uint256 rented = fcStorage.rentedUnits();
