@@ -42,7 +42,6 @@ The fid state transitions when users take specific actions:
 - `transfer` - move an fid to a new custody address
 - `recover` - recover (move) an fid to a new custody address
 
-
 # 2. Storage
 
 The Storage contract lets users with an fid rent storage space on Farcaster Hubs. Users must make a payment in Ethereum to the contract to acquire units of storage for one year. Acquiring storage emits an event which is read off-chian by the Farcaster Hubs, which allocate the appropriate space to the user. There is a maximum number of storage units available for rent defined as tunable parameter. 
@@ -65,8 +64,12 @@ An `admin` address can modify many parameters including the total supply of stor
 
 # 3. Bundler
 
-In Progress
+The Bundler contract helps save gas by claiming fid and storage units in a single transaction. It exposes methods that call the Registry and then the Storage contracts in sequence. 
 
-# 4. CCIP
+# 4. Fname Resolver
 
-In Progress
+The Fname Resolver contract validates usernames issued under the *.farcaster.xyz domain on-chain by implementing [ERC-3668](https://eips.ethereum.org/EIPS/eip-3668) and [ENSIP-10](https://docs.ens.domains/ens-improvement-proposals/ensip-10-wildcard-resolution). The resolver contains the url of the server which issues the usernames and proofs. It maintains a list of valid signers for the server and also validates proofs returned by the server. 
+
+### Administration
+
+An `owner` can update the list of valid signers associated with the server.
