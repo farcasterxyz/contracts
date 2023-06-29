@@ -62,7 +62,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
         UsernameProof memory proof = UsernameProof({name: name, timestamp: timestamp, owner: wrongOwner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
-        vm.expectRevert(FnameResolver.InvalidSignature.selector);
+        vm.expectRevert(FnameResolver.InvalidSigner.selector);
         resolver.resolveWithProof(abi.encode(result, proof, signature), "");
     }
 
@@ -76,7 +76,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
         UsernameProof memory proof = UsernameProof({name: name, timestamp: wrongTimestamp, owner: owner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
-        vm.expectRevert(FnameResolver.InvalidSignature.selector);
+        vm.expectRevert(FnameResolver.InvalidSigner.selector);
         resolver.resolveWithProof(abi.encode(result, proof, signature), "");
     }
 
@@ -90,7 +90,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
         UsernameProof memory proof = UsernameProof({name: wrongName, timestamp: timestamp, owner: owner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
-        vm.expectRevert(FnameResolver.InvalidSignature.selector);
+        vm.expectRevert(FnameResolver.InvalidSigner.selector);
         resolver.resolveWithProof(abi.encode(result, proof, signature), "");
     }
 
@@ -103,11 +103,11 @@ contract FnameResolverTest is FnameResolverTestSuite {
         UsernameProof memory proof = UsernameProof({name: name, timestamp: timestamp, owner: owner});
         bytes memory signature = _signProof(malloryPk, name, timestamp, owner);
 
-        vm.expectRevert(FnameResolver.InvalidSignature.selector);
+        vm.expectRevert(FnameResolver.InvalidSigner.selector);
         resolver.resolveWithProof(abi.encode(result, proof, signature), "");
     }
 
-    function testFuzzResolveWithProofInvalidSignatureLength(
+    function testFuzzResolveWithProofInvalidSignerLength(
         string memory name,
         uint256 timestamp,
         address owner,
