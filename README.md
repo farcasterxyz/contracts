@@ -1,18 +1,28 @@
 # Contracts
 
-Implementation of the Farcaster Contracts as specified in the
-[Farcaster protocol](https://github.com/farcasterxyz/protocol). Learn more about how the contracts work by reading the
-[docs](docs/docs.md) or [contributing guidelines](CONTRIBUTING.md).
+This repository contains all the contracts deployed by the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are: 
+
+1. **Registry** - issues identities to new users.
+2. **Storage** - allocates storage to users and collects rent.
+3. **Bundler** - allows calling registry and storage in a single transaction. 
+4. **Farcaster CCIP** - validates Farcaster ENS names which were issued off-chain. 
+
+Read the [docs](docs/docs.md) for more details on how the contracts work. 
+
+
+## Contributing
+
+Please see the [contributing guidelines](CONTRIBUTING.md).
 
 ## Location
 
 ### v3 Contracts
 
-The v3 contracts in this repository have not yet been deployed. 
+The v3 contracts have not yet been deployed. 
 
 ### v2 Contracts
 
-The v2 contracts from an older version of this repository can be found at the following addresses on Goerli
+The [v2 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v2.0.0) can be found at the following addresses on L1 Goerli:
 
 | Network        | Address                                                                                                                      |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------- |

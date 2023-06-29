@@ -17,6 +17,10 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     event DisableTrustedOnly();
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
+    /*//////////////////////////////////////////////////////////////
+                             TRUSTED CALLER
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzChangeTrustedCaller(address alice) public {
         vm.assume(alice != FORWARDER && alice != address(0));
         assertEq(idRegistry.owner(), owner);
@@ -66,7 +70,11 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.getTrustedOnly(), 1);
     }
 
-    function testFuzzCannotTransferOwnershipWithoutRequestFlow(address newOwner) public {
+    /*//////////////////////////////////////////////////////////////
+                           TRANSFER OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzCannotTransferOwnership(address newOwner) public {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getPendingOwner(), address(0));
 
@@ -76,6 +84,10 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getPendingOwner(), address(0));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                       REQUEST TRANSFER OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzRequestTransferOwnership(address newOwner, address newOwner2) public {
         vm.assume(newOwner != address(0) && newOwner2 != address(0));
@@ -115,6 +127,10 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getPendingOwner(), address(0));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                       COMPLETE TRANSFER OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzCompleteTransferOwnership(address newOwner) public {
         vm.assume(newOwner != FORWARDER && newOwner != owner && newOwner != address(0));
