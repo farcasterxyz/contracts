@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import {Context} from "openzeppelin/contracts/utils/Context.sol";
-import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
-
+import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
+import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
+import {Context} from "openzeppelin/contracts/utils/Context.sol";
 
 /**
  * @title IdRegistry
@@ -20,7 +19,7 @@ import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Con
  *         Registry implements a recovery system which lets the address that owns an fid nominate
  *         a recovery address that can transfer the fid to a new address.
  */
-contract IdRegistry is ERC2771Context, Ownable, Pausable {
+contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -95,12 +94,6 @@ contract IdRegistry is ERC2771Context, Ownable, Pausable {
     address internal trustedCaller;
 
     /**
-     * @dev The address is allowed to call _completeTransferOwnership() and become the owner. Set to
-     *      address(0) when no ownership transfer is pending.
-     */
-    address internal pendingOwner;
-
-    /**
      * @dev Allows calling trustedRegister() when set 1, and register() when set to 0. The value is
      *      set to 1 and can be changed to 0, but never back to 1.
      */
@@ -136,7 +129,7 @@ contract IdRegistry is ERC2771Context, Ownable, Pausable {
      *                   verify the authenticity of signed meta-transaction requests.
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _forwarder) ERC2771Context(_forwarder) Ownable() Pausable() {}
+    constructor(address _forwarder) ERC2771Context(_forwarder) {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -292,37 +285,6 @@ contract IdRegistry is ERC2771Context, Ownable, Pausable {
     function disableTrustedOnly() external onlyOwner {
         delete trustedOnly;
         emit DisableTrustedOnly();
-    }
-
-    /**
-     * @notice Overriden to prevent a single-step transfer of ownership
-     */
-    function transferOwnership(address /*newOwner*/ ) public view override onlyOwner {
-        revert Unauthorized();
-    }
-
-    /**
-     * @notice Start a request to transfer ownership to a new address ("pendingOwner"). Must
-     *         be called by the owner. Can be cancelled by calling again with address(0).
-     */
-    function requestTransferOwnership(address newOwner) public onlyOwner {
-        if (newOwner == address(0)) revert InvalidAddress();
-
-        pendingOwner = newOwner;
-    }
-
-    /**
-     * @notice Complete a request to transfer ownership by calling from pendingOwner. Must be
-     *         called by the new owner.
-     */
-    function completeTransferOwnership() external {
-        if (msg.sender != pendingOwner) revert Unauthorized();
-
-        /* Safety: burning ownership is impossible since this can't be called from address(0) */
-        _transferOwnership(msg.sender);
-
-        /* Clear pending owner so that this cannot be called again without a new request */
-        delete pendingOwner;
     }
 
     /**

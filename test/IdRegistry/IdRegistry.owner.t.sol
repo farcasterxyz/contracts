@@ -74,92 +74,69 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
                            TRANSFER OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzCannotTransferOwnership(address newOwner) public {
+    function testFuzzTransferOwnership(address newOwner, address newOwner2) public {
+        vm.assume(newOwner != address(0) && newOwner2 != address(0));
         assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
+        assertEq(idRegistry.pendingOwner(), address(0));
 
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
         idRegistry.transferOwnership(newOwner);
-
         assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
+        assertEq(idRegistry.pendingOwner(), newOwner);
+
+        idRegistry.transferOwnership(newOwner2);
+        assertEq(idRegistry.owner(), owner);
+        assertEq(idRegistry.pendingOwner(), newOwner2);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                       REQUEST TRANSFER OWNERSHIP
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzRequestTransferOwnership(address newOwner, address newOwner2) public {
-        vm.assume(newOwner != address(0) && newOwner2 != address(0));
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-
-        idRegistry.requestTransferOwnership(newOwner);
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), newOwner);
-
-        idRegistry.requestTransferOwnership(newOwner2);
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), newOwner2);
-    }
-
-    function testFuzzCannotRequestTransferOwnershipToZeroAddr(address newOwner, address newOwner2) public {
-        vm.assume(newOwner != address(0) && newOwner2 != address(0));
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-
-        vm.expectRevert(IdRegistry.InvalidAddress.selector);
-        idRegistry.requestTransferOwnership(address(0));
-
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
-    }
-
-    function testFuzzCannotRequestTransferOwnershipUnlessOwner(address alice, address newOwner) public {
+    function testFuzzCannotTransferOwnershipUnlessOwner(address alice, address newOwner) public {
         vm.assume(alice != FORWARDER && alice != owner && newOwner != address(0));
         assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
+        assertEq(idRegistry.pendingOwner(), address(0));
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.requestTransferOwnership(newOwner);
+        idRegistry.transferOwnership(newOwner);
 
         assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
+        assertEq(idRegistry.pendingOwner(), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
-                       COMPLETE TRANSFER OWNERSHIP
+                            ACCEPT OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzCompleteTransferOwnership(address newOwner) public {
+    function testFuzzAcceptOwnership(address newOwner) public {
         vm.assume(newOwner != FORWARDER && newOwner != owner && newOwner != address(0));
         vm.prank(owner);
-        idRegistry.requestTransferOwnership(newOwner);
+        idRegistry.transferOwnership(newOwner);
 
         vm.expectEmit(true, true, true, true);
         emit OwnershipTransferred(owner, newOwner);
         vm.prank(newOwner);
-        idRegistry.completeTransferOwnership();
+        idRegistry.acceptOwnership();
 
         assertEq(idRegistry.owner(), newOwner);
-        assertEq(idRegistry.getPendingOwner(), address(0));
+        assertEq(idRegistry.pendingOwner(), address(0));
     }
 
-    function testFuzzCannotCompleteTransferOwnershipUnlessPendingOwner(address alice, address newOwner) public {
+    function testFuzzCannotAcceptOwnershipUnlessPendingOwner(address alice, address newOwner) public {
         vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
         vm.assume(newOwner != alice && newOwner != address(0));
 
         vm.prank(owner);
-        idRegistry.requestTransferOwnership(newOwner);
+        idRegistry.transferOwnership(newOwner);
 
         vm.prank(alice);
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
-        idRegistry.completeTransferOwnership();
+        vm.expectRevert("Ownable2Step: caller is not the new owner");
+        idRegistry.acceptOwnership();
 
         assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getPendingOwner(), newOwner);
+        assertEq(idRegistry.pendingOwner(), newOwner);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                           PAUSE REGISTRATION
+    //////////////////////////////////////////////////////////////*/
 
     function testPauseRegistration() public {
         assertEq(idRegistry.owner(), owner);

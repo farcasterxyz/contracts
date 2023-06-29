@@ -29,10 +29,6 @@ contract IdRegistryHarness is IdRegistry {
     function getTrustedOnly() public view returns (uint256) {
         return trustedOnly;
     }
-
-    function getPendingOwner() public view returns (address) {
-        return pendingOwner;
-    }
 }
 
 contract StorageRentHarness is StorageRent {
