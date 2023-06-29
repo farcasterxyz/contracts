@@ -136,7 +136,7 @@ contract IdRegistry is ERC2771Context, Ownable, Pausable {
      *                   verify the authenticity of signed meta-transaction requests.
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _forwarder) ERC2771Context(_forwarder) Ownable() {}
+    constructor(address _forwarder) ERC2771Context(_forwarder) Ownable() Pausable() {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -328,14 +328,14 @@ contract IdRegistry is ERC2771Context, Ownable, Pausable {
     /**
      * @notice Pause all registrations. Must be called by the owner.
      */
-    function pauseRegistration() public onlyOwner {
+    function pauseRegistration() external onlyOwner {
         _pause();
     }
 
     /**
      * @notice Unpause all registrations. Must be called by the owner.
      */
-    function unpauseRegistration() public onlyOwner {
+    function unpauseRegistration() external onlyOwner {
         _unpause();
     }
 
