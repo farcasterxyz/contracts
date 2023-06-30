@@ -25,7 +25,7 @@ contract FnameResolverHarness is FnameResolver {
         return _hashTypedDataV4(structHash);
     }
 
-    function usernameProofTypehash() public view returns (bytes32) {
+    function usernameProofTypehash() public pure returns (bytes32) {
         return _USERNAME_PROOF_TYPEHASH;
     }
 }

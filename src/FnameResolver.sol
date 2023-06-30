@@ -4,8 +4,26 @@ pragma solidity 0.8.19;
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {ERC165} from "openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-contract FnameResolver is EIP712, Ownable2Step {
+interface IExtendedResolver {
+    function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
+}
+
+interface IResolverService {
+    struct UsernameProof {
+        string name;
+        uint256 timestamp;
+        address owner;
+    }
+
+    function resolve(
+        bytes calldata name,
+        bytes calldata data
+    ) external view returns (bytes memory result, UsernameProof memory proof, bytes memory signature);
+}
+
+contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -109,7 +127,7 @@ contract FnameResolver is EIP712, Ownable2Step {
      * @notice Resolve the provided ENS name. This function will always revert to indicate an offchain lookup.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
-        bytes memory callData = abi.encodeCall(this.resolve, (name, data));
+        bytes memory callData = abi.encodeCall(IResolverService.resolve, (name, data));
         string[] memory urls = new string[](1);
         urls[0] = url;
         revert OffchainLookup(address(this), urls, callData, this.resolveWithProof.selector, callData);
@@ -153,5 +171,13 @@ contract FnameResolver is EIP712, Ownable2Step {
     function removeSigner(address signer) external onlyOwner {
         signers[signer] = false;
         emit RemoveSigner(signer);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         INTERFACE DETECTION
+    //////////////////////////////////////////////////////////////*/
+
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+        return interfaceId == type(IExtendedResolver).interfaceId || super.supportsInterface(interfaceId);
     }
 }

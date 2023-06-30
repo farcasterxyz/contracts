@@ -2,10 +2,11 @@
 pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
+import {IERC165} from "openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import "../TestConstants.sol";
 import {FnameResolverTestSuite} from "./FnameResolverTestSuite.sol";
-import {FnameResolver} from "../../src/FnameResolver.sol";
+import {FnameResolver, IExtendedResolver} from "../../src/FnameResolver.sol";
 
 /* solhint-disable state-visibility */
 
@@ -171,6 +172,19 @@ contract FnameResolverTest is FnameResolverTestSuite {
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
         resolver.removeSigner(signer);
+    }
+
+    function testInterfaceDetectionIExtendedResolver() public {
+        assertEq(resolver.supportsInterface(type(IExtendedResolver).interfaceId), true);
+    }
+
+    function testInterfaceDetectionERC165() public {
+        assertEq(resolver.supportsInterface(type(IERC165).interfaceId), true);
+    }
+
+    function testFuzzInterfaceDetectionUnsupportedInterface(bytes4 interfaceId) public {
+        vm.assume(interfaceId != type(IExtendedResolver).interfaceId && interfaceId != type(IERC165).interfaceId);
+        assertEq(resolver.supportsInterface(interfaceId), false);
     }
 
     function _signProof(
