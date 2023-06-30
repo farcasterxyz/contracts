@@ -1032,10 +1032,17 @@ contract StorageRentTest is StorageRentTestSuite {
         fcStorage.continuousCredit(start, end, units);
     }
 
+    function testContinuousCredit() public {
+        // Simulate the initial seeding of the contract and check that events are emitted.
+        continuousCredit(0, 20_000, 1, true);
+    }
+
     function testFuzzContinuousCredit(uint16 start, uint256 n, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
-        uint256 end = uint256(start) + bound(n, 1, 10000);
-        continuousCredit(start, end, units);
+        uint256 end = uint256(start) + bound(n, 1, 1_000);
+        // Avoid checking for events here since expectEmit can make the fuzzing
+        // very slow, rely on testContinuousCredit to validate that instead.
+        continuousCredit(start, end, units, false);
     }
 
     function testFuzzContinuousCreditRevertsZeroAmount(uint16 start, uint256 n) public {
@@ -1286,17 +1293,20 @@ contract StorageRentTest is StorageRentTestSuite {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function continuousCredit(uint256 start, uint256 end, uint256 units) public {
+    function continuousCredit(uint256 start, uint256 end, uint256 units, bool assertEvents) public {
         uint256 rented = fcStorage.rentedUnits();
         uint256 len = end - start;
         uint256 totalUnits = len * units;
         vm.assume(totalUnits <= fcStorage.maxUnits() - fcStorage.rentedUnits());
 
-        // Expect emitted events
-        for (uint256 i; i < len; ++i) {
-            vm.expectEmit(true, true, false, true);
-            emit Rent(operator, start + i, units);
+        if (assertEvents) {
+            // Expect emitted events
+            for (uint256 i; i < len; ++i) {
+                vm.expectEmit(true, true, false, true);
+                emit Rent(operator, start + i, units);
+            }
         }
+
         vm.prank(operator);
         fcStorage.continuousCredit(start, end, units);
 
