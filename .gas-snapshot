@@ -1,2 +1,2 @@
-IdRegistryGasUsageTest:testGasRegisterAndRecover() (gas: 931096)
-IdRegistryGasUsageTest:testGasRegisterFromTrustedCaller() (gas: 800729)
+IdRegistryGasUsageTest:testGasRegisterAndRecover() (gas: 932696)
+IdRegistryGasUsageTest:testGasRegisterFromTrustedCaller() (gas: 801586)
