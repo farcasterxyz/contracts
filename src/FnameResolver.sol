@@ -67,7 +67,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      * @dev EIP-712 typehash of the UsernameProof struct.
      */
     bytes32 internal constant _USERNAME_PROOF_TYPEHASH =
-        keccak256("UsernameProof(string name,uint256 timestamp,address owner)");
+        keccak256("UserNameProof(string name,uint256 timestamp,address owner)");
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -90,8 +90,8 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /**
      * @notice Set the lookup gateway URL, and initial signer.
      *
-     * @param _url                     Lookup gateway URL. This value is set permanently.
-     * @param _signer                  Initial authorized signer address.
+     * @param _url    Lookup gateway URL. This value is set permanently.
+     * @param _signer Initial authorized signer address.
      */
     constructor(string memory _url, address _signer) EIP712("Farcaster name verification", "1") {
         url = _url;
@@ -105,6 +105,10 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
 
     /**
      * @notice Resolve the provided ENS name. This function will always revert to indicate an offchain lookup.
+     *
+     * @param name DNS-encoded name to resolve.
+     * @param data Encoded calldata of an ENS resolver function. This resolver supports only address resolution
+     *             (Signature 0x3b3b57de). Calling the CCIP gateway with any other resolver function will error.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
         bytes memory callData = abi.encodeCall(IResolverService.resolve, (name, data));
@@ -115,6 +119,14 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
 
     /**
      * @notice Offchain lookup callback. The caller must provide the signed response returned by the lookup gateway.
+     *
+     * @param response Response data returned by the CCIP gateway. This consists of the following ABI-encoded fields:
+     *                 - string: Fname of the username proof.
+     *                 - uint256: Timestamp of the username proof.
+     *                 - address: Owner address that signed the username proof.
+     *                 - bytes: EIP-712 signature provided by the CCIP gateway server.
+     *
+     * @return ABI-encoded address of the fname owner.
      */
     function resolveWithProof(
         bytes calldata response,
@@ -122,7 +134,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     ) external view returns (bytes memory) {
         (string memory fname, uint256 timestamp, address owner, bytes memory signature) =
             abi.decode(response, (string, uint256, address, bytes));
-        bytes32 eip712hash = _hashTypedDataV4(keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, fname, timestamp, owner)));
+        bytes32 proofHash =
+            keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(abi.encodePacked(fname)), timestamp, owner));
+        bytes32 eip712hash = _hashTypedDataV4(proofHash);
         address signer = ECDSA.recover(eip712hash, signature);
         if (!signers[signer]) revert InvalidSigner();
         return abi.encode(owner);

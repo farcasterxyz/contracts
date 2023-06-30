@@ -27,7 +27,6 @@ contract FnameResolverTest is FnameResolverTestSuite {
         urls[0] = FNAME_SERVER_URL;
 
         bytes memory callData = abi.encodeCall(resolver.resolve, (name, data));
-
         bytes memory offchainLookup = abi.encodeWithSelector(
             FnameResolver.OffchainLookup.selector,
             address(resolver),
@@ -42,7 +41,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
 
     function testFuzzResolveWithProofValidSignature(string memory name, uint256 timestamp, address owner) public {
         bytes memory signature = _signProof(name, timestamp, owner);
-        bytes memory extraData = abi.encodeCall(IResolverService.resolve, ("dnsName", "queryCallData"));
+        bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_FUNCTION_CALL));
         bytes memory response = resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), extraData);
         assertEq(response, abi.encode(owner));
     }
@@ -163,8 +162,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
         uint256 timestamp,
         address owner
     ) internal returns (bytes memory signature) {
-        bytes32 eip712hash =
-            resolver.hashTypedDataV4(keccak256(abi.encode(resolver.usernameProofTypehash(), name, timestamp, owner)));
+        bytes32 eip712hash = resolver.hashTypedDataV4(
+            keccak256(abi.encode(resolver.usernameProofTypehash(), keccak256(abi.encodePacked(name)), timestamp, owner))
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, eip712hash);
         signature = abi.encodePacked(r, s, v);
         assertEq(signature.length, 65);
