@@ -6,7 +6,7 @@ import {IERC165} from "openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import "../TestConstants.sol";
 import {FnameResolverTestSuite} from "./FnameResolverTestSuite.sol";
-import {FnameResolver, IExtendedResolver} from "../../src/FnameResolver.sol";
+import {FnameResolver, IResolverService, IExtendedResolver} from "../../src/FnameResolver.sol";
 
 /* solhint-disable state-visibility */
 
@@ -40,84 +40,48 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.resolve(name, data);
     }
 
-    function testFuzzResolveWithProofValidSignature(
-        string memory name,
-        uint256 timestamp,
-        address owner,
-        bytes calldata result
-    ) public {
-        FnameResolver.UsernameProof memory proof =
-            FnameResolver.UsernameProof({name: name, timestamp: timestamp, owner: owner});
+    function testFuzzResolveWithProofValidSignature(string memory name, uint256 timestamp, address owner) public {
         bytes memory signature = _signProof(name, timestamp, owner);
-
-        bytes memory response = resolver.resolveWithProof(abi.encode(result, proof, signature), "");
-        assertEq(response, result);
+        bytes memory extraData = abi.encodeCall(IResolverService.resolve, ("dnsName", "queryCallData"));
+        bytes memory response = resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), extraData);
+        assertEq(response, abi.encode(owner));
     }
 
-    function testFuzzResolveWithProofInvalidOwner(
-        string memory name,
-        uint256 timestamp,
-        address owner,
-        bytes calldata result
-    ) public {
+    function testFuzzResolveWithProofInvalidOwner(string memory name, uint256 timestamp, address owner) public {
         address wrongOwner = address(~uint160(owner));
-        FnameResolver.UsernameProof memory proof =
-            FnameResolver.UsernameProof({name: name, timestamp: timestamp, owner: wrongOwner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(result, proof, signature), "");
+        resolver.resolveWithProof(abi.encode(name, timestamp, wrongOwner, signature), "");
     }
 
-    function testFuzzResolveWithProofInvalidTimestamp(
-        string memory name,
-        uint256 timestamp,
-        address owner,
-        bytes calldata result
-    ) public {
+    function testFuzzResolveWithProofInvalidTimestamp(string memory name, uint256 timestamp, address owner) public {
         uint256 wrongTimestamp = ~timestamp;
-        FnameResolver.UsernameProof memory proof =
-            FnameResolver.UsernameProof({name: name, timestamp: wrongTimestamp, owner: owner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(result, proof, signature), "");
+        resolver.resolveWithProof(abi.encode(name, wrongTimestamp, owner, signature), "");
     }
 
-    function testFuzzResolveWithProofInvalidName(
-        string memory name,
-        uint256 timestamp,
-        address owner,
-        bytes calldata result
-    ) public {
+    function testFuzzResolveWithProofInvalidName(string memory name, uint256 timestamp, address owner) public {
         string memory wrongName = string.concat("~", name);
-        FnameResolver.UsernameProof memory proof =
-            FnameResolver.UsernameProof({name: wrongName, timestamp: timestamp, owner: owner});
         bytes memory signature = _signProof(name, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(result, proof, signature), "");
+        resolver.resolveWithProof(abi.encode(wrongName, timestamp, owner, signature), "");
     }
 
-    function testFuzzResolveWithProofWrongSigner(
-        string memory name,
-        uint256 timestamp,
-        address owner,
-        bytes calldata result
-    ) public {
-        FnameResolver.UsernameProof memory proof =
-            FnameResolver.UsernameProof({name: name, timestamp: timestamp, owner: owner});
+    function testFuzzResolveWithProofWrongSigner(string memory name, uint256 timestamp, address owner) public {
         bytes memory signature = _signProof(malloryPk, name, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(result, proof, signature), "");
+        resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), "");
     }
 
     function testFuzzResolveWithProofInvalidSignerLength(
         string memory name,
         uint256 timestamp,
         address owner,
-        bytes calldata result,
         bytes memory signature,
         uint8 _length
     ) public {
@@ -126,11 +90,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assembly {
             mstore(signature, length)
         } /* truncate signature length */
-        FnameResolver.UsernameProof memory proof =
-            FnameResolver.UsernameProof({name: name, timestamp: timestamp, owner: owner});
 
         vm.expectRevert("ECDSA: invalid signature length");
-        resolver.resolveWithProof(abi.encode(result, proof, signature), "");
+        resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), "");
     }
 
     function testFuzzOwnerCanAddSigner(address signer) public {

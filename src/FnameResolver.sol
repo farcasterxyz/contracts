@@ -11,16 +11,10 @@ interface IExtendedResolver {
 }
 
 interface IResolverService {
-    struct UsernameProof {
-        string name;
-        uint256 timestamp;
-        address owner;
-    }
-
     function resolve(
         bytes calldata name,
         bytes calldata data
-    ) external view returns (bytes memory result, UsernameProof memory proof, bytes memory signature);
+    ) external view returns (string memory fname, uint256 timestamp, address owner, bytes memory signature);
 }
 
 contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
@@ -76,20 +70,6 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
         keccak256("UsernameProof(string name,uint256 timestamp,address owner)");
 
     /*//////////////////////////////////////////////////////////////
-                                STRUCTS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice An FIP-90 username proof.
-     *         See: https://github.com/farcasterxyz/protocol/discussions/90
-     */
-    struct UsernameProof {
-        string name;
-        uint256 timestamp;
-        address owner;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                               PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
@@ -140,13 +120,12 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
         bytes calldata response,
         bytes calldata /* extraData */
     ) external view returns (bytes memory) {
-        (bytes memory result, UsernameProof memory proof, bytes memory signature) =
-            abi.decode(response, (bytes, UsernameProof, bytes));
-        bytes32 eip712hash =
-            _hashTypedDataV4(keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, proof.name, proof.timestamp, proof.owner)));
+        (string memory fname, uint256 timestamp, address owner, bytes memory signature) =
+            abi.decode(response, (string, uint256, address, bytes));
+        bytes32 eip712hash = _hashTypedDataV4(keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, fname, timestamp, owner)));
         address signer = ECDSA.recover(eip712hash, signature);
         if (!signers[signer]) revert InvalidSigner();
-        return result;
+        return abi.encode(owner);
     }
 
     /*//////////////////////////////////////////////////////////////
