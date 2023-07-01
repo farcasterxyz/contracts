@@ -78,5 +78,10 @@ abstract contract StorageRentTestSuite is TestSuiteSetup {
             operator,
             treasurer
         );
+
+        addKnownContract(address(priceFeed));
+        addKnownContract(address(uptimeFeed));
+        addKnownContract(address(revertOnReceive));
+        addKnownContract(address(storageRent));
     }
 }
