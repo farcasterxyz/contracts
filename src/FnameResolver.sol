@@ -6,6 +6,10 @@ import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ERC165} from "openzeppelin/contracts/utils/introspection/ERC165.sol";
 
+interface IAddressQuery {
+    function addr(bytes32 node) external view returns (address);
+}
+
 interface IExtendedResolver {
     function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
 }
@@ -32,6 +36,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      * @param extraData        Additional data required by the callback function.
      */
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
+
+    /// @dev Revert queries for unimplemented resolver functions.
+    error ResolverFunctionNotSupported();
 
     /// @dev Revert if the recovered signer address is not an authorized signer.
     error InvalidSigner();
@@ -111,9 +118,12 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *             (Signature 0x3b3b57de). Calling the CCIP gateway with any other resolver function will error.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
+        if (bytes4(data[:4]) != IAddressQuery.addr.selector) revert ResolverFunctionNotSupported();
+
         bytes memory callData = abi.encodeCall(IResolverService.resolve, (name, data));
         string[] memory urls = new string[](1);
         urls[0] = url;
+
         revert OffchainLookup(address(this), urls, callData, this.resolveWithProof.selector, callData);
     }
 
@@ -134,11 +144,14 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     ) external view returns (bytes memory) {
         (string memory fname, uint256 timestamp, address owner, bytes memory signature) =
             abi.decode(response, (string, uint256, address, bytes));
+
         bytes32 proofHash =
             keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(abi.encodePacked(fname)), timestamp, owner));
         bytes32 eip712hash = _hashTypedDataV4(proofHash);
         address signer = ECDSA.recover(eip712hash, signature);
+
         if (!signers[signer]) revert InvalidSigner();
+
         return abi.encode(owner);
     }
 

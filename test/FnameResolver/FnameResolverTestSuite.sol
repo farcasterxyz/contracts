@@ -30,7 +30,7 @@ abstract contract FnameResolverTestSuite is Test {
      * @dev Encoded calldata for a call to addr(bytes32 node), where node is the ENS
      *      nameHash encoded value of "alice.farcaster.xyz"
      */
-    bytes internal constant ADDR_FUNCTION_CALL =
+    bytes internal constant ADDR_QUERY_CALLDATA =
         hex"3b3b57de00d4f449060ad2a07ff5ad355ae8da52281e95f6ad10fb923ae7cad9f2c43c2a";
 
     address internal signer;

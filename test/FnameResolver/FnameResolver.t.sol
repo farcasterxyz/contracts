@@ -6,7 +6,7 @@ import {IERC165} from "openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import "../TestConstants.sol";
 import {FnameResolverTestSuite} from "./FnameResolverTestSuite.sol";
-import {FnameResolver, IResolverService, IExtendedResolver} from "../../src/FnameResolver.sol";
+import {FnameResolver, IResolverService, IExtendedResolver, IAddressQuery} from "../../src/FnameResolver.sol";
 
 /* solhint-disable state-visibility */
 
@@ -22,7 +22,8 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assertEq(resolver.signers(signer), true);
     }
 
-    function testFuzzResolveRevertsWithOffchainLookup(bytes calldata name, bytes calldata data) public {
+    function testFuzzResolveRevertsWithOffchainLookup(bytes calldata name, bytes memory data) public {
+        data = bytes.concat(IAddressQuery.addr.selector, data);
         string[] memory urls = new string[](1);
         urls[0] = FNAME_SERVER_URL;
 
@@ -41,7 +42,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
 
     function testFuzzResolveWithProofValidSignature(string memory name, uint256 timestamp, address owner) public {
         bytes memory signature = _signProof(name, timestamp, owner);
-        bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_FUNCTION_CALL));
+        bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
         bytes memory response = resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), extraData);
         assertEq(response, abi.encode(owner));
     }
