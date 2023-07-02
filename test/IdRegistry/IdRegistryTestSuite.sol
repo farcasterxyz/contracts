@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "forge-std/Test.sol";
-
 import {IdRegistryHarness} from "../Utils.sol";
+import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract IdRegistryTestSuite is Test {
+abstract contract IdRegistryTestSuite is TestSuiteSetup {
     IdRegistryHarness idRegistry;
 
     /*//////////////////////////////////////////////////////////////
@@ -16,9 +15,9 @@ abstract contract IdRegistryTestSuite is Test {
 
     address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
 
-    address owner = address(this);
+    function setUp() public virtual override {
+        super.setUp();
 
-    function setUp() public {
         idRegistry = new IdRegistryHarness(FORWARDER);
     }
 

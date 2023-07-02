@@ -5,8 +5,17 @@ import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Inter
 
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {StorageRent} from "../src/StorageRent.sol";
+import {Bundler} from "../src/Bundler.sol";
 
 /* solhint-disable no-empty-blocks */
+
+contract BundlerHarness is Bundler {
+    constructor(
+        address _idRegistry,
+        address _storageRent,
+        address _trustedCaller
+    ) Bundler(_idRegistry, _storageRent, _trustedCaller) {}
+}
 
 /**
  * @dev IdRegistryHarness exposes IdRegistry's private methods for test assertions.

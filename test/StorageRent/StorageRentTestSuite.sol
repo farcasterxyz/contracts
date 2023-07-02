@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "forge-std/Test.sol";
-
 import {StorageRentHarness, MockPriceFeed, MockUptimeFeed, MockChainlinkFeed, RevertOnReceive} from "../Utils.sol";
+import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract StorageRentTestSuite is Test {
-    StorageRentHarness internal fcStorage;
+abstract contract StorageRentTestSuite is TestSuiteSetup {
+    StorageRentHarness internal storageRent;
     MockPriceFeed internal priceFeed;
     MockUptimeFeed internal uptimeFeed;
     RevertOnReceive internal revertOnReceive;
@@ -38,7 +37,9 @@ abstract contract StorageRentTestSuite is Test {
     uint256 internal constant INITIAL_UPTIME_FEED_GRACE_PERIOD = 1 hours;
     uint256 internal constant INITIAL_PRICE_IN_ETH = 0.0025 ether;
 
-    function setUp() public {
+    function setUp() public virtual override {
+        super.setUp();
+
         priceFeed = new MockPriceFeed();
         uptimeFeed = new MockUptimeFeed();
         revertOnReceive = new RevertOnReceive();
@@ -65,7 +66,7 @@ abstract contract StorageRentTestSuite is Test {
 
         vm.warp(DEPLOYED_AT);
 
-        fcStorage = new StorageRentHarness(
+        storageRent = new StorageRentHarness(
             priceFeed,
             uptimeFeed,
             INITIAL_RENTAL_PERIOD,
