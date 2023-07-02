@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
 import {IdRegistry} from "./IdRegistry.sol";
 import {StorageRent} from "./StorageRent.sol";
 
-contract Bundler is Ownable {
+contract Bundler is Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Revert when the caller does not have the authority to perform the action
+    /// @dev Revert when the caller does not have the authority to perform the action.
     error Unauthorized();
 
-    /// @dev Revert when excess funds could not be sent back to the caller
+    /// @dev Revert when excess funds could not be sent back to the caller.
     error CallFailed();
+
+    /// @dev Revert if there aren't enough funds to return to the caller.
     error InsufficientFunds();
 
     /// @dev Revert when an invalid address is provided as input.
@@ -25,12 +27,18 @@ contract Bundler is Ownable {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Emit when the trustedCaller is changed by the owner after the contract is deployed
+    /// @dev Emit when the trustedCaller is changed by the owner after the contract is deployed.
     event ChangeTrustedCaller(address indexed trustedCaller, address indexed owner);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice The data required to trustedBatchRegister a single user
+    struct UserData {
+        address to;
+        uint256 units;
+    }
 
     /// @dev The only address that can call trustedRegister and partialTrustedRegister
     address public trustedCaller;
@@ -53,7 +61,7 @@ contract Bundler is Ownable {
      * @param _storageRent The address of the StorageRent contract
      * @param _trustedCaller The address that can call trustedRegister and partialTrustedRegister
      */
-    constructor(address _idRegistry, address _storageRent, address _trustedCaller) Ownable() {
+    constructor(address _idRegistry, address _storageRent, address _trustedCaller) Ownable2Step() {
         idRegistry = IdRegistry(_idRegistry);
         storageRent = StorageRent(_storageRent);
         trustedCaller = _trustedCaller;
@@ -85,7 +93,22 @@ contract Bundler is Ownable {
     }
 
     /**
-     * @notice Change the trusted caller that can call trustedRegister
+     * @notice Register multiple fids with storage during a migration to a new network, where
+     *         registration can only be performed by the Farcaster Bootstrap Server (trustedCaller).
+     *         Recovery address is initialized to a default value, which will be the Warpcast server.
+     */
+    function trustedBatchRegister(UserData[] calldata users, address recovery) external {
+        // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
+        if (msg.sender != trustedCaller) revert Unauthorized();
+
+        for (uint256 i = 0; i < users.length; i++) {
+            uint256 fid = idRegistry.trustedRegister(users[i].to, recovery);
+            storageRent.credit(fid, users[i].units);
+        }
+    }
+
+    /**
+     * @notice Change the trusted caller that can call trustedRegister functions
      */
     function changeTrustedCaller(address _trustedCaller) external onlyOwner {
         if (_trustedCaller == address(0)) revert InvalidAddress();

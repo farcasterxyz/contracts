@@ -34,8 +34,8 @@ abstract contract BundlerTestSuite is IdRegistryTestSuite, StorageRentTestSuite 
     }
 
     // Assert that a given fname was not registered and the contracts have no registrations
-    function _assertUnsuccessfulRegistration(address alice) internal {
-        assertEq(idRegistry.idOf(alice), 0);
+    function _assertUnsuccessfulRegistration(address account) internal {
+        assertEq(idRegistry.idOf(account), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 }
