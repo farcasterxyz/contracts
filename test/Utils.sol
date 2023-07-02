@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 
+import {FnameResolver} from "../src/FnameResolver.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {StorageRent} from "../src/StorageRent.sol";
 import {Bundler} from "../src/Bundler.sol";
@@ -15,6 +16,18 @@ contract BundlerHarness is Bundler {
         address _storageRent,
         address _trustedCaller
     ) Bundler(_idRegistry, _storageRent, _trustedCaller) {}
+}
+
+contract FnameResolverHarness is FnameResolver {
+    constructor(string memory _url, address _signer) FnameResolver(_url, _signer) {}
+
+    function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
+        return _hashTypedDataV4(structHash);
+    }
+
+    function usernameProofTypehash() public pure returns (bytes32) {
+        return _USERNAME_PROOF_TYPEHASH;
+    }
 }
 
 /**

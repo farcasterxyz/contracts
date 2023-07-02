@@ -13,7 +13,7 @@ contract IdRegistryFab {
 
     constructor(address trustedForwarder, address initialOwner, bytes32 salt) {
         IdRegistry registry = new IdRegistry{ salt: salt }(trustedForwarder);
-        registry.requestTransferOwnership(initialOwner);
+        registry.transferOwnership(initialOwner);
         registryAddr = address(registry);
     }
 }
