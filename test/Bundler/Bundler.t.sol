@@ -17,6 +17,12 @@ contract BundlerTest is BundlerTestSuite {
 
     event Register(address indexed to, uint256 indexed id, address recovery);
 
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /*//////////////////////////////////////////////////////////////
+                               PARAMETERS
+    //////////////////////////////////////////////////////////////*/
+
     function testHasIDRegistry() public {
         assertEq(address(bundler.idRegistry()), address(idRegistry));
     }
@@ -265,7 +271,7 @@ contract BundlerTest is BundlerTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               OWNER TESTS
+                                  OWNER
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzChangeTrustedCaller(address alice) public {
@@ -296,5 +302,70 @@ contract BundlerTest is BundlerTestSuite {
         vm.expectRevert("Ownable: caller is not the owner");
         bundler.changeTrustedCaller(bob);
         assertEq(bundler.trustedCaller(), owner);
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
+                           TRANSFER OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzTransferOwnership(address newOwner, address newOwner2) public {
+        vm.assume(newOwner != address(0) && newOwner2 != address(0));
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), address(0));
+
+        bundler.transferOwnership(newOwner);
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), newOwner);
+
+        bundler.transferOwnership(newOwner2);
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), newOwner2);
+    }
+
+    function testFuzzCannotTransferOwnershipUnlessOwner(address alice, address newOwner) public {
+        vm.assume(alice != FORWARDER && alice != owner && newOwner != address(0));
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), address(0));
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable: caller is not the owner");
+        bundler.transferOwnership(newOwner);
+
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ACCEPT OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzAcceptOwnership(address newOwner) public {
+        vm.assume(newOwner != FORWARDER && newOwner != owner && newOwner != address(0));
+        vm.prank(owner);
+        bundler.transferOwnership(newOwner);
+
+        vm.expectEmit(true, true, true, true);
+        emit OwnershipTransferred(owner, newOwner);
+        vm.prank(newOwner);
+        bundler.acceptOwnership();
+
+        assertEq(bundler.owner(), newOwner);
+        assertEq(bundler.pendingOwner(), address(0));
+    }
+
+    function testFuzzCannotAcceptOwnershipUnlessPendingOwner(address alice, address newOwner) public {
+        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        vm.assume(newOwner != alice && newOwner != address(0));
+
+        vm.prank(owner);
+        bundler.transferOwnership(newOwner);
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable2Step: caller is not the new owner");
+        bundler.acceptOwnership();
+
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), newOwner);
     }
 }
