@@ -328,7 +328,7 @@ contract StorageRent is AccessControlEnumerable {
      * @param fid   The fid that will receive the storage allocation.
      * @param units Number of storage units to rent.
      */
-    function rent(uint256 fid, uint256 units) external payable whenNotDeprecated {
+    function rent(uint256 fid, uint256 units) external payable whenNotDeprecated returns (uint256 overpayment) {
         // Checks
         if (units == 0) revert InvalidAmount();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
@@ -340,8 +340,10 @@ contract StorageRent is AccessControlEnumerable {
         emit Rent(msg.sender, fid, units);
 
         // Interactions
-        if (msg.value > totalPrice) {
-            _sendNative(msg.sender, msg.value - totalPrice);
+        // Safety: overpayment is guaranteed to be >=0 because of checks
+        overpayment = msg.value - totalPrice;
+        if (overpayment > 0) {
+            _sendNative(msg.sender, overpayment);
         }
     }
 

@@ -73,10 +73,10 @@ contract Bundler is Ownable2Step {
      */
     function register(address to, address recovery, uint256 storageUnits) external payable {
         uint256 fid = idRegistry.register(to, recovery);
-        storageRent.rent{value: msg.value}(fid, storageUnits);
+        uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
 
-        if (address(this).balance > 0) {
-            _sendNative(msg.sender, address(this).balance);
+        if (overpayment > 0) {
+            _sendNative(msg.sender, overpayment);
         }
     }
 
