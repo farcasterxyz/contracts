@@ -73,10 +73,10 @@ contract Bundler is Ownable2Step {
      */
     function register(address to, address recovery, uint256 storageUnits) external payable {
         uint256 fid = idRegistry.register(to, recovery);
-        storageRent.rent{value: msg.value}(fid, storageUnits);
+        uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
 
-        if (address(this).balance > 0) {
-            _sendNative(msg.sender, address(this).balance);
+        if (overpayment > 0) {
+            _sendNative(msg.sender, overpayment);
         }
     }
 
@@ -101,6 +101,7 @@ contract Bundler is Ownable2Step {
         // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
+        // Safety: calls inside a loop are safe since caller is trusted
         for (uint256 i = 0; i < users.length; i++) {
             uint256 fid = idRegistry.trustedRegister(users[i].to, recovery);
             storageRent.credit(fid, users[i].units);

@@ -142,17 +142,17 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
         bytes calldata response,
         bytes calldata /* extraData */
     ) external view returns (bytes memory) {
-        (string memory fname, uint256 timestamp, address owner, bytes memory signature) =
+        (string memory fname, uint256 timestamp, address fnameOwner, bytes memory signature) =
             abi.decode(response, (string, uint256, address, bytes));
 
         bytes32 proofHash =
-            keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(abi.encodePacked(fname)), timestamp, owner));
+            keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(abi.encodePacked(fname)), timestamp, fnameOwner));
         bytes32 eip712hash = _hashTypedDataV4(proofHash);
         address signer = ECDSA.recover(eip712hash, signature);
 
         if (!signers[signer]) revert InvalidSigner();
 
-        return abi.encode(owner);
+        return abi.encode(fnameOwner);
     }
 
     /*//////////////////////////////////////////////////////////////

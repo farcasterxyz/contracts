@@ -1218,6 +1218,17 @@ contract StorageRentTest is StorageRentTestSuite {
                                 SET VAULT
     //////////////////////////////////////////////////////////////*/
 
+    function testFuzzSetVault(address newVault) public {
+        vm.assume(newVault != address(0));
+        vm.expectEmit(false, false, false, true);
+        emit SetVault(vault, newVault);
+
+        vm.prank(admin);
+        storageRent.setVault(newVault);
+
+        assertEq(storageRent.vault(), newVault);
+    }
+
     function testFuzzOnlyAdminCanSetVault(address caller, address vault) public {
         vm.assume(caller != admin);
 
@@ -1226,14 +1237,10 @@ contract StorageRentTest is StorageRentTestSuite {
         storageRent.setVault(vault);
     }
 
-    function testFuzzSetVault(address newVault) public {
-        vm.expectEmit(false, false, false, true);
-        emit SetVault(vault, newVault);
-
+    function testSetVaultCannotBeZeroAddress() public {
         vm.prank(admin);
-        storageRent.setVault(newVault);
-
-        assertEq(storageRent.vault(), newVault);
+        vm.expectRevert(StorageRent.InvalidAddress.selector);
+        storageRent.setVault(address(0));
     }
 
     /*//////////////////////////////////////////////////////////////

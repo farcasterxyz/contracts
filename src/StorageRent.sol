@@ -66,6 +66,9 @@ contract StorageRent is AccessControlEnumerable {
     /// @dev Revert if the caller does not have an authorized role.
     error Unauthorized();
 
+    /// @dev Revert if transferred to the zero address.
+    error InvalidAddress();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -328,7 +331,7 @@ contract StorageRent is AccessControlEnumerable {
      * @param fid   The fid that will receive the storage allocation.
      * @param units Number of storage units to rent.
      */
-    function rent(uint256 fid, uint256 units) external payable whenNotDeprecated {
+    function rent(uint256 fid, uint256 units) external payable whenNotDeprecated returns (uint256 overpayment) {
         // Checks
         if (units == 0) revert InvalidAmount();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
@@ -340,8 +343,10 @@ contract StorageRent is AccessControlEnumerable {
         emit Rent(msg.sender, fid, units);
 
         // Interactions
-        if (msg.value > totalPrice) {
-            _sendNative(msg.sender, msg.value - totalPrice);
+        // Safety: overpayment is guaranteed to be >=0 because of checks
+        overpayment = msg.value - totalPrice;
+        if (overpayment > 0) {
+            _sendNative(msg.sender, overpayment);
         }
     }
 
@@ -604,6 +609,7 @@ contract StorageRent is AccessControlEnumerable {
      * @param vaultAddr The new vault address.
      */
     function setVault(address vaultAddr) external onlyAdmin {
+        if (vaultAddr == address(0)) revert InvalidAddress();
         emit SetVault(vault, vaultAddr);
         vault = vaultAddr;
     }
