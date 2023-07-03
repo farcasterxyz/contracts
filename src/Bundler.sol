@@ -44,6 +44,7 @@ contract Bundler is Ownable2Step {
     struct UserData {
         address to;
         uint256 units;
+        address recovery;
     }
 
     /**
@@ -123,13 +124,13 @@ contract Bundler is Ownable2Step {
      *
      * @param users  Array of UserData structs to register
      */
-    function trustedBatchRegister(UserData[] calldata users, address recovery) external {
+    function trustedBatchRegister(UserData[] calldata users) external {
         // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         // Safety: calls inside a loop are safe since caller is trusted
         for (uint256 i = 0; i < users.length; i++) {
-            uint256 fid = idRegistry.trustedRegister(users[i].to, recovery);
+            uint256 fid = idRegistry.trustedRegister(users[i].to, users[i].recovery);
             storageRent.credit(fid, users[i].units);
         }
     }
