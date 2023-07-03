@@ -17,6 +17,14 @@ contract BundlerTest is BundlerTestSuite {
 
     event Register(address indexed to, uint256 indexed id, address recovery);
 
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    event Rent(address indexed buyer, uint256 indexed id, uint256 units);
+
+    /*//////////////////////////////////////////////////////////////
+                               PARAMETERS
+    //////////////////////////////////////////////////////////////*/
+
     function testHasIDRegistry() public {
         assertEq(address(bundler.idRegistry()), address(idRegistry));
     }
@@ -171,17 +179,10 @@ contract BundlerTest is BundlerTestSuite {
                          TRUSTED BATCH REGISTER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzTrustedBatchRegister(
-        address alice,
-        address bob,
-        address charlie,
-        uint256 storageUnits,
-        address recovery
-    ) public {
-        vm.assume((alice != bob) && (alice != charlie) && (bob != charlie));
-
+    function testFuzzTrustedBatchRegister(uint256 registrations, uint256 storageUnits, address recovery) public {
         uint256 storageBefore = storageRent.rentedUnits();
-        storageUnits = bound(storageUnits, 1, (storageRent.maxUnits() - storageBefore) / 3);
+        registrations = bound(registrations, 1, 100);
+        storageUnits = bound(storageUnits, 1, (storageRent.maxUnits() - storageBefore) / registrations);
 
         // Configure the trusted callers correctly
         idRegistry.changeTrustedCaller(address(bundler));
@@ -190,43 +191,39 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
-        Bundler.UserData[] memory batchArray = new Bundler.UserData[](3);
-        batchArray[0] = Bundler.UserData({to: alice, units: storageUnits});
-        batchArray[1] = Bundler.UserData({to: bob, units: storageUnits});
-        batchArray[2] = Bundler.UserData({to: charlie, units: storageUnits});
+        Bundler.UserData[] memory batchArray = new Bundler.UserData[](registrations);
 
-        vm.expectEmit(true, true, true, true);
-        emit Register(alice, 1, recovery);
+        for (uint256 i = 0; i < registrations; i++) {
+            uint160 fid = uint160(i + 1);
+            address account = address(fid);
+            batchArray[i] = Bundler.UserData({to: account, units: storageUnits});
 
-        vm.expectEmit(true, true, true, true);
-        emit Register(bob, 2, recovery);
+            vm.expectEmit(true, true, true, true);
+            emit Register(account, fid, recovery);
 
-        vm.expectEmit(true, true, true, true);
-        emit Register(charlie, 3, recovery);
+            vm.expectEmit(true, true, true, true);
+            emit Rent(address(bundler), fid, storageUnits);
+        }
 
         bundler.trustedBatchRegister(batchArray, recovery);
 
-        // Check that alice was set up correctly
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
-
-        // Check that bob was set up correctly
-        assertEq(idRegistry.idOf(bob), 2);
-        assertEq(idRegistry.getRecoveryOf(2), recovery);
-
-        // Check that charlie was set up correctly
-        assertEq(idRegistry.idOf(charlie), 3);
-        assertEq(idRegistry.getRecoveryOf(3), recovery);
+        for (uint256 i = 0; i < registrations; i++) {
+            uint160 fid = uint160(i + 1);
+            assertEq(idRegistry.idOf(address(fid)), fid);
+            assertEq(idRegistry.getRecoveryOf(fid), recovery);
+        }
 
         // Check that the correct amount of storage was rented
         uint256 storageAfter = storageRent.rentedUnits();
-        assertEq(storageAfter - storageBefore, storageUnits * 3);
+        assertEq(storageAfter - storageBefore, storageUnits * registrations);
         assertEq(address(storageRent).balance, 0);
         assertEq(address(bundler).balance, 0 ether);
     }
 
     function testFuzzCannotTrustedBatchRegisterFromUntrustedCaller(address alice, address untrustedCaller) public {
-        vm.assume(untrustedCaller != address(this)); // guarantees call from untrusted caller
+        // Call is made from an address that is not address(this), since address(this) is the deployer
+        // and therefore the trusted caller for Bundler
+        vm.assume(untrustedCaller != address(this));
 
         // Configure the trusted callers correctly
         idRegistry.changeTrustedCaller(address(bundler));
@@ -238,8 +235,6 @@ contract BundlerTest is BundlerTestSuite {
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
         batchArray[0] = Bundler.UserData({to: alice, units: 1});
 
-        // Call is made from an address that is not address(this), since address(this) is the deployer
-        // and therefore the trusted caller for Bundler
         vm.prank(untrustedCaller);
         vm.expectRevert(Bundler.Unauthorized.selector);
         bundler.trustedBatchRegister(batchArray, address(0));
@@ -265,7 +260,7 @@ contract BundlerTest is BundlerTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               OWNER TESTS
+                                  OWNER
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzChangeTrustedCaller(address alice) public {
@@ -296,5 +291,69 @@ contract BundlerTest is BundlerTestSuite {
         vm.expectRevert("Ownable: caller is not the owner");
         bundler.changeTrustedCaller(bob);
         assertEq(bundler.trustedCaller(), owner);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           TRANSFER OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzTransferOwnership(address newOwner, address newOwner2) public {
+        vm.assume(newOwner != address(0) && newOwner2 != address(0));
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), address(0));
+
+        bundler.transferOwnership(newOwner);
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), newOwner);
+
+        bundler.transferOwnership(newOwner2);
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), newOwner2);
+    }
+
+    function testFuzzCannotTransferOwnershipUnlessOwner(address alice, address newOwner) public {
+        vm.assume(alice != FORWARDER && alice != owner && newOwner != address(0));
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), address(0));
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable: caller is not the owner");
+        bundler.transferOwnership(newOwner);
+
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ACCEPT OWNERSHIP
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzAcceptOwnership(address newOwner) public {
+        vm.assume(newOwner != FORWARDER && newOwner != owner && newOwner != address(0));
+        vm.prank(owner);
+        bundler.transferOwnership(newOwner);
+
+        vm.expectEmit(true, true, true, true);
+        emit OwnershipTransferred(owner, newOwner);
+        vm.prank(newOwner);
+        bundler.acceptOwnership();
+
+        assertEq(bundler.owner(), newOwner);
+        assertEq(bundler.pendingOwner(), address(0));
+    }
+
+    function testFuzzCannotAcceptOwnershipUnlessPendingOwner(address alice, address newOwner) public {
+        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        vm.assume(newOwner != alice && newOwner != address(0));
+
+        vm.prank(owner);
+        bundler.transferOwnership(newOwner);
+
+        vm.prank(alice);
+        vm.expectRevert("Ownable2Step: caller is not the new owner");
+        bundler.acceptOwnership();
+
+        assertEq(bundler.owner(), owner);
+        assertEq(bundler.pendingOwner(), newOwner);
     }
 }
