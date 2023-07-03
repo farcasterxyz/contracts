@@ -7,6 +7,7 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import "../TestConstants.sol";
 
 import {StorageRent} from "../../src/StorageRent.sol";
+import {TransferHelper} from "../../src/lib/TransferHelper.sol";
 import {StorageRentTestSuite} from "./StorageRentTestSuite.sol";
 import {MockChainlinkFeed} from "../Utils.sol";
 
@@ -315,7 +316,7 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.deal(address(revertOnReceive), price + extra);
 
         vm.prank(address(revertOnReceive));
-        vm.expectRevert(StorageRent.CallFailed.selector);
+        vm.expectRevert(TransferHelper.CallFailed.selector);
         storageRent.rent{value: price + extra}(id, units);
     }
 
@@ -667,7 +668,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         vm.deal(address(revertOnReceive), value);
         vm.prank(address(revertOnReceive));
-        vm.expectRevert(StorageRent.CallFailed.selector);
+        vm.expectRevert(TransferHelper.CallFailed.selector);
         storageRent.batchRent{value: value}(ids, units);
     }
 
@@ -1272,7 +1273,7 @@ contract StorageRentTest is StorageRentTestSuite {
         amount = bound(amount, 1, type(uint256).max);
 
         vm.prank(treasurer);
-        vm.expectRevert(StorageRent.InsufficientFunds.selector);
+        vm.expectRevert(TransferHelper.InsufficientFunds.selector);
         storageRent.withdraw(amount);
     }
 
@@ -1284,7 +1285,7 @@ contract StorageRentTest is StorageRentTestSuite {
         storageRent.setVault(address(revertOnReceive));
 
         vm.prank(treasurer);
-        vm.expectRevert(StorageRent.CallFailed.selector);
+        vm.expectRevert(TransferHelper.CallFailed.selector);
         storageRent.withdraw(price);
     }
 

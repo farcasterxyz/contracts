@@ -5,8 +5,11 @@ import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Inter
 import {AccessControlEnumerable} from "openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
+import {TransferHelper} from "./lib/TransferHelper.sol";
+
 contract StorageRent is AccessControlEnumerable {
     using FixedPointMathLib for uint256;
+    using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -26,12 +29,6 @@ contract StorageRent is AccessControlEnumerable {
 
     /// @dev Revert if the caller provides the wrong payment amount.
     error InvalidPayment();
-
-    /// @dev Revert when there are not enough funds for a native token transfer.
-    error InsufficientFunds();
-
-    /// @dev Revert when a native token transfer fails.
-    error CallFailed();
 
     /// @dev Revert if a data feed returns a stale answer.
     error StaleAnswer();
@@ -205,6 +202,11 @@ contract StorageRent is AccessControlEnumerable {
      */
     address public vault;
 
+    /**
+     * @dev Fixed ETH/USD price. Settable by admin in the event of a price feed failure.
+     */
+    uint256 public fixedEthUsdPrice;
+
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -346,7 +348,7 @@ contract StorageRent is AccessControlEnumerable {
         // Safety: overpayment is guaranteed to be >=0 because of checks
         overpayment = msg.value - totalPrice;
         if (overpayment > 0) {
-            _sendNative(msg.sender, overpayment);
+            msg.sender.sendNative(overpayment);
         }
     }
 
@@ -384,7 +386,7 @@ contract StorageRent is AccessControlEnumerable {
 
         // Interactions
         if (msg.value > totalPrice) {
-            _sendNative(msg.sender, msg.value - totalPrice);
+            msg.sender.sendNative(msg.value - totalPrice);
         }
     }
 
@@ -407,6 +409,13 @@ contract StorageRent is AccessControlEnumerable {
      * @return uint256 cost in wei.
      */
     function price(uint256 units) public view returns (uint256) {
+        /**
+         *  Slither flags the following line as a dangerous strict equality, but we want to
+         *  make an exact comparison here and are not using this value in the context
+         *  this detector rule describes.
+         */
+
+        // slither-disable-next-line incorrect-equality
         uint256 ethPrice = (lastPriceFeedUpdateBlock == block.number) ? prevEthUsdPrice : ethUsdPrice;
         return _price(units, usdUnitPrice, ethPrice);
     }
@@ -430,7 +439,14 @@ contract StorageRent is AccessControlEnumerable {
          *  refresh, rather than immediately, to keep the price from changing intra
          *  block. If we updated the price in this block, use the previous price
          *  until the next block. Otherwise, use the latest price.
+         *
+         *  Slither flags this line as a dangerous strict equality, but we want to
+         *  make an exact comparison here and are not using this value in the context
+         *  this detector rule describes.
+         *
          */
+
+        // slither-disable-next-line incorrect-equality
         return (lastPriceFeedUpdateBlock == block.number) ? prevEthUsdPrice : ethUsdPrice;
     }
 
@@ -454,7 +470,18 @@ contract StorageRent is AccessControlEnumerable {
         uint256 timeSinceUp = block.timestamp - uptimeStartedAt;
         if (timeSinceUp < uptimeFeedGracePeriod) revert GracePeriodNotOver();
 
-        /* Get and validate the Chainlink ETH/USD price. */
+        /**
+         *  Get and validate the Chainlink ETH/USD price. We validate that the answer is
+         *  a positive value, the round is complete, and the answer is not stale by round.
+         *
+         *  We ignore the price feed startedAt value, which we don't use in validations,
+         *  since the priceUpdatedAt timestamp is more meaningful.
+         *
+         *  Slither flags this as an unused return value error, but this is safe since
+         *  we use priceUpdatedAt and are interested in the latest value.
+         */
+
+        // slither-disable-next-line unused-return
         (uint80 priceRoundId, int256 answer,, uint256 priceUpdatedAt, uint80 priceAnsweredInRound) =
             priceFeed.latestRoundData();
         if (answer <= 0) revert InvalidPrice();
@@ -622,15 +649,6 @@ contract StorageRent is AccessControlEnumerable {
      */
     function withdraw(uint256 amount) external onlyTreasurer {
         emit Withdraw(vault, amount);
-        _sendNative(vault, amount);
-    }
-
-    /**
-     * @dev Native token transfer helper.
-     */
-    function _sendNative(address to, uint256 amount) internal {
-        if (address(this).balance < amount) revert InsufficientFunds();
-        (bool success,) = payable(to).call{value: amount}("");
-        if (!success) revert CallFailed();
+        vault.sendNative(amount);
     }
 }

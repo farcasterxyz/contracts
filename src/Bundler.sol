@@ -5,20 +5,17 @@ import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
 import {IdRegistry} from "./IdRegistry.sol";
 import {StorageRent} from "./StorageRent.sol";
+import {TransferHelper} from "./lib/TransferHelper.sol";
 
 contract Bundler is Ownable2Step {
+    using TransferHelper for address;
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Revert when the caller does not have the authority to perform the action.
     error Unauthorized();
-
-    /// @dev Revert when excess funds could not be sent back to the caller.
-    error CallFailed();
-
-    /// @dev Revert if there aren't enough funds to return to the caller.
-    error InsufficientFunds();
 
     /// @dev Revert when an invalid address is provided as input.
     error InvalidAddress();
@@ -76,7 +73,7 @@ contract Bundler is Ownable2Step {
         uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
 
         if (overpayment > 0) {
-            _sendNative(msg.sender, overpayment);
+            msg.sender.sendNative(overpayment);
         }
     }
 
@@ -116,15 +113,6 @@ contract Bundler is Ownable2Step {
 
         trustedCaller = _trustedCaller;
         emit ChangeTrustedCaller(_trustedCaller, msg.sender);
-    }
-
-    /**
-     * @dev Native token transfer helper.
-     */
-    function _sendNative(address to, uint256 amount) internal {
-        if (address(this).balance < amount) revert InsufficientFunds();
-        (bool success,) = payable(to).call{value: amount}("");
-        if (!success) revert CallFailed();
     }
 
     // solhint-disable-next-line no-empty-blocks
