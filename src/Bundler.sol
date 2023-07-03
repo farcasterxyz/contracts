@@ -11,7 +11,7 @@ contract Bundler is Ownable2Step {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Revert when the caller does not have the authority to perform the action.
+    /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
 
     /// @dev Revert when excess funds could not be sent back to the caller.
@@ -40,34 +40,44 @@ contract Bundler is Ownable2Step {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The data required to trustedBatchRegister a single user
+    /// @notice Data needed to register a user with the fid and storage contracts.
     struct UserData {
         address to;
         uint256 units;
     }
 
-    /// @dev The only address that can call trustedRegister and partialTrustedRegister
+    /**
+     * @dev Address that can call trustedRegister and trustedBatchRegister
+     */
     address public trustedCaller;
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev The address of the IdRegistry contract
+    /**
+     * @dev Address of the IdRegistry contract
+     */
     IdRegistry public immutable idRegistry;
 
-    /// @dev The address of the NameRegistry UUPS Proxy contract
+    /**
+     * @dev Address of the StorageRent contract
+     */
     StorageRent public immutable storageRent;
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Configure the addresses of the Registry contracts and the trusted caller which is
      *        allowed to register during the bootstrap phase.
      *
-     * @param _idRegistry The address of the IdRegistry contract
-     * @param _storageRent The address of the StorageRent contract
-     * @param _trustedCaller The address that can call trustedRegister and trustedBatchRegister
+     * @param _idRegistry    Address of the IdRegistry contract
+     * @param _storageRent   Address of the StorageRent contract
+     * @param _trustedCaller Address that can call trustedRegister and trustedBatchRegister
      */
-    constructor(address _idRegistry, address _storageRent, address _trustedCaller) Ownable2Step() {
+    constructor(address _idRegistry, address _storageRent, address _trustedCaller) {
         idRegistry = IdRegistry(_idRegistry);
         storageRent = StorageRent(_storageRent);
         trustedCaller = _trustedCaller;
@@ -75,8 +85,11 @@ contract Bundler is Ownable2Step {
     }
 
     /**
-     * @notice Register an fid and rent storage during the final Mainnet phase, where registration is
-     *         open to everyone.
+     * @notice Register an fid and rent storage to an address in a single transaction.
+     *
+     * @param to           Address of the fid to register
+     * @param recovery     Address that is allowed to perform a recovery
+     * @param storageUnits Number of storage units to rent
      */
     function register(address to, address recovery, uint256 storageUnits) external payable {
         uint256 fid = idRegistry.register(to, recovery);
@@ -88,21 +101,27 @@ contract Bundler is Ownable2Step {
     }
 
     /**
-     * @notice Register an fid and credit storage during the testnet phase, where registration can only be
-     *         performed by the Farcaster Bootstrap Server (trustedCaller)
+     * @notice Register an fid and credit storage to an address in a single transaction. Can only
+     *         be called by the trustedCaller during the Seedable phase.
+     *
+     * @param to           Address of the fid to register
+     * @param recovery     Address that is allowed to perform a recovery
+     * @param storageUnits Number of storage units to rent
      */
     function trustedRegister(address to, address recovery, uint256 storageUnits) external {
-        // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
         if (msg.sender != trustedCaller) revert Unauthorized();
 
+        // Will revert unless IdRegistry is in the Seedable phase
         uint256 fid = idRegistry.trustedRegister(to, recovery);
         storageRent.credit(fid, storageUnits);
     }
 
     /**
-     * @notice Register multiple fids with storage during a migration to a new network, where
-     *         registration can only be performed by the Farcaster Bootstrap Server (trustedCaller).
-     *         Recovery address is initialized to a default value, which will be the Warpcast server.
+     * @notice Register multiple fids and credit storage to an address in a single transaction. Can
+     *         only be called by the trustedCaller during the Seedable phase. Will be used when
+     *         migrating across Ethereum networks to bootstrap a new contract with existing data.
+     *
+     * @param users  Array of UserData structs to register
      */
     function trustedBatchRegister(UserData[] calldata users, address recovery) external {
         // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
@@ -116,7 +135,7 @@ contract Bundler is Ownable2Step {
     }
 
     /**
-     * @notice Change the trusted caller that can call trustedRegister functions
+     * @notice Change the trusted caller that can call trusted* functions
      */
     function setTrustedCaller(address _trustedCaller) external onlyOwner {
         if (_trustedCaller == address(0)) revert InvalidAddress();
