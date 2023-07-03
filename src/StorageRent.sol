@@ -66,6 +66,9 @@ contract StorageRent is AccessControlEnumerable {
     /// @dev Revert if the caller does not have an authorized role.
     error Unauthorized();
 
+    /// @dev Revert if transferred to the zero address.
+    error InvalidAddress();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -606,6 +609,7 @@ contract StorageRent is AccessControlEnumerable {
      * @param vaultAddr The new vault address.
      */
     function setVault(address vaultAddr) external onlyAdmin {
+        if (vaultAddr == address(0)) revert InvalidAddress();
         emit SetVault(vault, vaultAddr);
         vault = vaultAddr;
     }
