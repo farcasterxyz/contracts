@@ -89,7 +89,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzTrustedRegister(address alice, address trustedCaller, address recovery) public {
         vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.assume(recovery != FORWARDER);
-        idRegistry.changeTrustedCaller(trustedCaller);
+        idRegistry.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
 
         vm.prank(trustedCaller);
@@ -128,7 +128,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.assume(untrustedCaller != FORWARDER && recovery != FORWARDER);
         vm.assume(untrustedCaller != trustedCaller);
         vm.assume(trustedCaller != address(0));
-        idRegistry.changeTrustedCaller(trustedCaller);
+        idRegistry.setTrustedCaller(trustedCaller);
 
         vm.prank(untrustedCaller);
         vm.expectRevert(IdRegistry.Unauthorized.selector);
@@ -145,7 +145,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recovery
     ) public {
         vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
-        idRegistry.changeTrustedCaller(trustedCaller);
+        idRegistry.setTrustedCaller(trustedCaller);
 
         vm.prank(trustedCaller);
         idRegistry.trustedRegister(alice, address(0));
@@ -163,7 +163,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzCannotTrustedRegisterWhenPaused(address alice, address trustedCaller, address recovery) public {
         vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
         vm.assume(recovery != FORWARDER);
-        idRegistry.changeTrustedCaller(trustedCaller);
+        idRegistry.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
 
         _pauseRegistrations();

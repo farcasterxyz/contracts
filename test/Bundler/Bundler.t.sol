@@ -13,7 +13,7 @@ contract BundlerTest is BundlerTestSuite {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event ChangeTrustedCaller(address indexed trustedCaller, address indexed owner);
+    event SetTrustedCaller(address indexed oldCaller, address indexed newCaller, address owner);
 
     event Register(address indexed to, uint256 indexed id, address recovery);
 
@@ -137,7 +137,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
-        idRegistry.changeTrustedCaller(address(bundler));
+        idRegistry.setTrustedCaller(address(bundler));
 
         vm.prank(bundler.trustedCaller());
         bundler.trustedRegister(account, recovery, storageUnits);
@@ -166,7 +166,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
-        idRegistry.changeTrustedCaller(address(bundler));
+        idRegistry.setTrustedCaller(address(bundler));
 
         vm.prank(caller);
         vm.expectRevert(Bundler.Unauthorized.selector);
@@ -185,7 +185,7 @@ contract BundlerTest is BundlerTestSuite {
         storageUnits = bound(storageUnits, 1, (storageRent.maxUnits() - storageBefore) / registrations);
 
         // Configure the trusted callers correctly
-        idRegistry.changeTrustedCaller(address(bundler));
+        idRegistry.setTrustedCaller(address(bundler));
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
         vm.prank(roleAdmin);
@@ -226,7 +226,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(untrustedCaller != address(this));
 
         // Configure the trusted callers correctly
-        idRegistry.changeTrustedCaller(address(bundler));
+        idRegistry.setTrustedCaller(address(bundler));
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
         vm.prank(roleAdmin);
@@ -263,33 +263,33 @@ contract BundlerTest is BundlerTestSuite {
                                   OWNER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzChangeTrustedCaller(address alice) public {
+    function testFuzzSetTrustedCaller(address alice) public {
         vm.assume(alice != FORWARDER && alice != address(0));
         assertEq(bundler.owner(), owner);
 
         vm.expectEmit(true, true, true, true);
-        emit ChangeTrustedCaller(alice, address(this));
-        bundler.changeTrustedCaller(alice);
+        emit SetTrustedCaller(bundler.trustedCaller(), alice, address(this));
+        bundler.setTrustedCaller(alice);
         assertEq(bundler.trustedCaller(), alice);
     }
 
-    function testFuzzCannotChangeTrustedCallerToZeroAddress(address alice) public {
+    function testFuzzCannotSetTrustedCallerToZeroAddress(address alice) public {
         vm.assume(alice != FORWARDER);
         assertEq(bundler.owner(), owner);
 
         vm.expectRevert(Bundler.InvalidAddress.selector);
-        bundler.changeTrustedCaller(address(0));
+        bundler.setTrustedCaller(address(0));
 
         assertEq(bundler.trustedCaller(), owner);
     }
 
-    function testFuzzCannotChangeTrustedCallerUnlessOwner(address alice, address bob) public {
+    function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
         vm.assume(alice != FORWARDER && alice != address(0));
         vm.assume(bundler.owner() != alice);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        bundler.changeTrustedCaller(bob);
+        bundler.setTrustedCaller(bob);
         assertEq(bundler.trustedCaller(), owner);
     }
 

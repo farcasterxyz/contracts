@@ -27,8 +27,14 @@ contract Bundler is Ownable2Step {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Emit when the trustedCaller is changed by the owner after the contract is deployed.
-    event ChangeTrustedCaller(address indexed trustedCaller, address indexed owner);
+    /**
+     * @dev Emit an event when the trustedCaller is set
+     *
+     * @param oldCaller The previous trusted caller.
+     * @param newCaller The new trusted caller.
+     * @param owner The address of the owner making the change.
+     */
+    event SetTrustedCaller(address indexed oldCaller, address indexed newCaller, address owner);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -59,12 +65,13 @@ contract Bundler is Ownable2Step {
      *
      * @param _idRegistry The address of the IdRegistry contract
      * @param _storageRent The address of the StorageRent contract
-     * @param _trustedCaller The address that can call trustedRegister and partialTrustedRegister
+     * @param _trustedCaller The address that can call trustedRegister and trustedBatchRegister
      */
     constructor(address _idRegistry, address _storageRent, address _trustedCaller) Ownable2Step() {
         idRegistry = IdRegistry(_idRegistry);
         storageRent = StorageRent(_storageRent);
         trustedCaller = _trustedCaller;
+        emit SetTrustedCaller(address(0), _trustedCaller, msg.sender);
     }
 
     /**
@@ -111,11 +118,10 @@ contract Bundler is Ownable2Step {
     /**
      * @notice Change the trusted caller that can call trustedRegister functions
      */
-    function changeTrustedCaller(address _trustedCaller) external onlyOwner {
+    function setTrustedCaller(address _trustedCaller) external onlyOwner {
         if (_trustedCaller == address(0)) revert InvalidAddress();
-
+        emit SetTrustedCaller(trustedCaller, _trustedCaller, msg.sender);
         trustedCaller = _trustedCaller;
-        emit ChangeTrustedCaller(_trustedCaller, msg.sender);
     }
 
     /**
