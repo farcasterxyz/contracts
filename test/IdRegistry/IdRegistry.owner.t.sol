@@ -13,7 +13,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event ChangeTrustedCaller(address indexed trustedCaller);
+    event SetTrustedCaller(address indexed trustedCaller);
     event DisableTrustedOnly();
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
@@ -21,32 +21,32 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
                              TRUSTED CALLER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzChangeTrustedCaller(address alice) public {
+    function testFuzzSetTrustedCaller(address alice) public {
         vm.assume(alice != FORWARDER && alice != address(0));
         assertEq(idRegistry.owner(), owner);
 
         vm.expectEmit(true, true, true, true);
-        emit ChangeTrustedCaller(alice);
-        idRegistry.changeTrustedCaller(alice);
+        emit SetTrustedCaller(alice);
+        idRegistry.setTrustedCaller(alice);
         assertEq(idRegistry.getTrustedCaller(), alice);
     }
 
-    function testFuzzCannotChangeTrustedCallerToZeroAddr() public {
+    function testFuzzCannotSetTrustedCallerToZeroAddr() public {
         assertEq(idRegistry.owner(), owner);
 
         vm.expectRevert(IdRegistry.InvalidAddress.selector);
-        idRegistry.changeTrustedCaller(address(0));
+        idRegistry.setTrustedCaller(address(0));
 
         assertEq(idRegistry.getTrustedCaller(), address(0));
     }
 
-    function testFuzzCannotChangeTrustedCallerUnlessOwner(address alice, address bob) public {
+    function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
         vm.assume(alice != FORWARDER && bob != address(0));
         vm.assume(idRegistry.owner() != alice);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.changeTrustedCaller(bob);
+        idRegistry.setTrustedCaller(bob);
         assertEq(idRegistry.getTrustedCaller(), address(0));
     }
 

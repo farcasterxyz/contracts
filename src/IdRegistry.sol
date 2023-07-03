@@ -77,7 +77,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      *
      * @param trustedCaller The address of the new trusted caller.
      */
-    event ChangeTrustedCaller(address indexed trustedCaller);
+    event SetTrustedCaller(address indexed trustedCaller);
 
     /**
      * @dev Emit an event when the trusted only state is disabled.
@@ -273,11 +273,11 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      *
      * @param _trustedCaller The address of the new trusted caller
      */
-    function changeTrustedCaller(address _trustedCaller) external onlyOwner {
+    function setTrustedCaller(address _trustedCaller) external onlyOwner {
         if (_trustedCaller == address(0)) revert InvalidAddress();
 
         trustedCaller = _trustedCaller;
-        emit ChangeTrustedCaller(_trustedCaller);
+        emit SetTrustedCaller(_trustedCaller);
     }
 
     /**
