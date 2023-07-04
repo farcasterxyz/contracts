@@ -128,6 +128,8 @@ contract StorageRentTest is StorageRentTestSuite {
         int256 newEthUsdPrice,
         uint256 warp
     ) public {
+        _assumeClean(msgSender1);
+        _assumeClean(msgSender2);
         uint256 lastPriceFeedUpdateTime = storageRent.lastPriceFeedUpdateTime();
         uint256 lastPriceFeedUpdateBlock = storageRent.lastPriceFeedUpdateBlock();
         uint256 ethUsdPrice = storageRent.ethUsdPrice();
@@ -161,6 +163,8 @@ contract StorageRentTest is StorageRentTestSuite {
         uint200 units2,
         int256 newEthUsdPrice
     ) public {
+        _assumeClean(msgSender1);
+        _assumeClean(msgSender2);
         uint256 ethUsdPrice = storageRent.ethUsdPrice();
 
         // Ensure Chainlink price is positive
@@ -193,6 +197,8 @@ contract StorageRentTest is StorageRentTestSuite {
         uint200 units2,
         uint256 decrease
     ) public {
+        _assumeClean(msgSender1);
+        _assumeClean(msgSender2);
         uint256 ethUsdPrice = storageRent.ethUsdPrice();
 
         decrease = bound(decrease, 1, ethUsdPrice);
@@ -225,6 +231,8 @@ contract StorageRentTest is StorageRentTestSuite {
         uint200 units2,
         uint256 increase
     ) public {
+        _assumeClean(msgSender1);
+        _assumeClean(msgSender2);
         uint256 ethUsdPrice = storageRent.ethUsdPrice();
 
         increase = bound(increase, 1, uint256(type(int256).max) - ethUsdPrice);

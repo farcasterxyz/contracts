@@ -46,6 +46,10 @@ abstract contract TestSuiteSetup is Test {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
+    function addKnownContract(address contractAddress) public {
+        isKnownContract[contractAddress] = true;
+    }
+
     // Ensures that a fuzzed address input does not match a known contract address
     function _assumeClean(address a) internal {
         assumeNoPrecompiles(a);
