@@ -88,6 +88,15 @@ contract StorageRent is AccessControlEnumerable {
     event SetPrice(uint256 oldPrice, uint256 newPrice);
 
     /**
+     * @dev Emit an event when an admin changes the fixed ETH/USD price.
+     *      Setting this value to zero means the fixed price is disabled.
+     *
+     * @param oldPrice The previous ETH price in USD. Fixed point value with 8 decimals.
+     * @param newPrice The new ETH price in USD. Fixed point value with 8 decimals.
+     */
+    event SetFixedEthUsdPrice(uint256 oldPrice, uint256 newPrice);
+
+    /**
      * @dev Emit an event when an admin changes the maximum supply of storage units.
      *
      * @param oldMax The previous maximum amount.
@@ -182,6 +191,12 @@ contract StorageRent is AccessControlEnumerable {
     uint256 public usdUnitPrice;
 
     /**
+     * @dev A fixed ETH/USD price, to be used in the event of a price feed failure. If this value
+     *      is nonzero, we disable external calls to the price feed and use this price. Changeable by admin.
+     */
+    uint256 public fixedEthUsdPrice;
+
+    /**
      * @dev Total capacity of storage units. Changeable by admin.
      */
     uint256 public maxUnits;
@@ -201,11 +216,6 @@ contract StorageRent is AccessControlEnumerable {
      * @dev Address to which the treasurer role can withdraw funds. Changeable by admin.
      */
     address public vault;
-
-    /**
-     * @dev Fixed ETH/USD price. Settable by admin in the event of a price feed failure.
-     */
-    uint256 public fixedEthUsdPrice;
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
@@ -409,14 +419,22 @@ contract StorageRent is AccessControlEnumerable {
      * @return uint256 cost in wei.
      */
     function price(uint256 units) public view returns (uint256) {
-        /**
-         *  Slither flags the following line as a dangerous strict equality, but we want to
-         *  make an exact comparison here and are not using this value in the context
-         *  this detector rule describes.
-         */
+        uint256 ethPrice;
+        if (fixedEthUsdPrice != 0) {
+            ethPrice = fixedEthUsdPrice;
 
-        // slither-disable-next-line incorrect-equality
-        uint256 ethPrice = (lastPriceFeedUpdateBlock == block.number) ? prevEthUsdPrice : ethUsdPrice;
+            /**
+             *  Slither flags the following line as a dangerous strict equality, but we want to
+             *  make an exact comparison here and are not using this value in the context
+             *  this detector rule describes.
+             */
+
+            // slither-disable-next-line incorrect-equality
+        } else if (lastPriceFeedUpdateBlock == block.number) {
+            ethPrice = prevEthUsdPrice;
+        } else {
+            ethPrice = ethUsdPrice;
+        }
         return _price(units, usdUnitPrice, ethPrice);
     }
 
@@ -425,6 +443,12 @@ contract StorageRent is AccessControlEnumerable {
      *      latest ETH/USD price from the price feed and update the cache.
      */
     function _ethUsdPrice() internal returns (uint256) {
+        /**
+         *  If a fixed ETH/USD price is set, use it. This disables external calls
+         *  to the price feed in case of emergency.
+         */
+        if (fixedEthUsdPrice != 0) return fixedEthUsdPrice;
+
         /**
          *  If cache duration has expired, get the latest price from the price feed.
          *  This updates prevEthUsdPrice, ethUsdPrice, lastPriceFeedUpdateTime, and
@@ -508,12 +532,12 @@ contract StorageRent is AccessControlEnumerable {
     /**
      * @param units      Number of storage units. Integer, no decimals.
      * @param usdPerUnit Unit price in USD. Fixed point with 8 decimals.
-     * @param ethPerUsd  ETH/USD price. Fixed point with 8 decimals.
+     * @param usdPerEth  ETH/USD price. Fixed point with 8 decimals.
      *
      * @return uint256 price in wei, i.e. 18 decimals.
      */
-    function _price(uint256 units, uint256 usdPerUnit, uint256 ethPerUsd) internal pure returns (uint256) {
-        return (units * usdPerUnit).divWadUp(ethPerUsd);
+    function _price(uint256 units, uint256 usdPerUnit, uint256 usdPerEth) internal pure returns (uint256) {
+        return (units * usdPerUnit).divWadUp(usdPerEth);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -585,6 +609,20 @@ contract StorageRent is AccessControlEnumerable {
         if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
         emit SetPrice(usdUnitPrice, usdPrice);
         usdUnitPrice = usdPrice;
+    }
+
+    /**
+     * @notice Set the fixed ETH/USD price, disabling the price feed if the value is
+     *         nonzero. This is an emergency fallback in case of a price feed failure.
+     *         Only callable by admin.
+     *
+     * @param fixedPrice The new fixed ETH/USD price. Fixed point value with 8 decimals.
+     *                   Setting this value back to zero from a nonzero value will
+     *                   re-enable the price feed.
+     */
+    function setFixedEthUsdPrice(uint256 fixedPrice) external onlyAdmin {
+        emit SetFixedEthUsdPrice(fixedEthUsdPrice, fixedPrice);
+        fixedEthUsdPrice = fixedPrice;
     }
 
     /**

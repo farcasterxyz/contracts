@@ -108,9 +108,15 @@ contract MockChainlinkFeed is AggregatorV3Interface {
     string public description;
     uint256 public version = 1;
 
+    bool public shouldRevert;
+
     constructor(uint8 _decimals, string memory _description) {
         decimals = _decimals;
         description = _description;
+    }
+
+    function setShouldRevert(bool _shouldRevert) external {
+        shouldRevert = _shouldRevert;
     }
 
     function setAnswer(int256 value) external {
@@ -126,6 +132,7 @@ contract MockChainlinkFeed is AggregatorV3Interface {
     }
 
     function latestRoundData() public view returns (uint80, int256, uint256, uint256, uint80) {
+        if (shouldRevert) revert("MockChainLinkFeed: Call failed");
         return
             (roundData.roundId, roundData.answer, roundData.startedAt, roundData.timeStamp, roundData.answeredInRound);
     }
