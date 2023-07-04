@@ -22,6 +22,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
     event Rent(address indexed buyer, uint256 indexed id, uint256 units);
     event SetPrice(uint256 oldPrice, uint256 newPrice);
+    event SetFixedEthUsdPrice(uint256 oldPrice, uint256 newPrice);
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
@@ -254,6 +255,51 @@ contract StorageRentTest is StorageRentTestSuite {
         assertEq(storageRent.lastPriceFeedUpdateBlock(), block.number);
         assertEq(storageRent.prevEthUsdPrice(), ethUsdPrice);
         assertEq(storageRent.ethUsdPrice(), newEthUsdPrice);
+    }
+
+    function testFuzzRentFixedPrice(
+        address msgSender1,
+        uint256 id1,
+        uint200 units1,
+        address msgSender2,
+        uint256 id2,
+        uint200 units2,
+        int256 newEthUsdPrice,
+        uint256 fixedPrice
+    ) public {
+        uint256 lastPriceFeedUpdateTime = storageRent.lastPriceFeedUpdateTime();
+        uint256 lastPriceFeedUpdateBlock = storageRent.lastPriceFeedUpdateBlock();
+        uint256 prevEthUsdPrice = storageRent.prevEthUsdPrice();
+        uint256 ethUsdPrice = storageRent.ethUsdPrice();
+
+        // Ensure Chainlink price is positive
+        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        fixedPrice = bound(fixedPrice, 10e8, 100_000e8);
+
+        rentStorage(msgSender1, id1, units1);
+
+        // Update the Chainlink price and fake a failure
+        priceFeed.setPrice(newEthUsdPrice);
+        priceFeed.setShouldRevert(true);
+
+        // Set a fixed ETH/USD price, disabling price feeds
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(fixedPrice);
+
+        vm.warp(block.timestamp + storageRent.priceFeedCacheDuration() + 1);
+
+        uint256 expectedPrice = storageRent.unitPrice();
+
+        // Rent succeeds even though price feed is reverting
+        (, uint256 unitPrice,,) = rentStorage(msgSender2, id2, units2);
+
+        assertEq(unitPrice, expectedPrice);
+
+        // Price feed parameters do not change, since it's not refreshed
+        assertEq(storageRent.lastPriceFeedUpdateTime(), lastPriceFeedUpdateTime);
+        assertEq(storageRent.lastPriceFeedUpdateBlock(), lastPriceFeedUpdateBlock);
+        assertEq(storageRent.prevEthUsdPrice(), prevEthUsdPrice);
+        assertEq(storageRent.ethUsdPrice(), ethUsdPrice);
     }
 
     function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
@@ -851,6 +897,47 @@ contract StorageRentTest is StorageRentTestSuite {
         storageRent.refreshPrice();
     }
 
+    function testFuzzPriceFeedFailure(address msgSender, uint256 id, uint256 units) public {
+        units = bound(units, 1, storageRent.maxUnits());
+        uint256 price = storageRent.price(units);
+        vm.deal(msgSender, price);
+
+        // Fake a price feed error and ensure the next call will refresh the price.
+        priceFeed.setShouldRevert(true);
+        vm.warp(block.timestamp + storageRent.priceFeedCacheDuration() + 1);
+
+        // Calling rent reverts.
+        vm.expectRevert("MockChainLinkFeed: Call failed");
+        vm.prank(msgSender);
+        storageRent.rent{value: price}(id, units);
+
+        // Admin can set a failsafe fixed price.
+        vm.expectEmit(false, false, false, true);
+        emit SetFixedEthUsdPrice(0, 4000e8);
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(4000e8);
+
+        // ETH doubled in USD terms, so we need
+        // half as much for the same USD price.
+        uint256 newPrice = storageRent.price(units);
+        assertEq(newPrice, price / 2);
+
+        // Calling rent now succeeds.
+        vm.prank(msgSender);
+        storageRent.rent{value: newPrice}(id, units);
+
+        // Setting fixed price back to zero re-enables the price feed.
+        vm.expectEmit(false, false, false, true);
+        emit SetFixedEthUsdPrice(4000e8, 0);
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(0);
+
+        // Calls revert again, since price feed is re-enabled.
+        vm.expectRevert("MockChainLinkFeed: Call failed");
+        vm.prank(admin);
+        storageRent.refreshPrice();
+    }
+
     /*//////////////////////////////////////////////////////////////
                                UPTIME FEED
     //////////////////////////////////////////////////////////////*/
@@ -920,6 +1007,47 @@ contract StorageRentTest is StorageRentTestSuite {
         );
 
         vm.expectRevert(StorageRent.GracePeriodNotOver.selector);
+        vm.prank(admin);
+        storageRent.refreshPrice();
+    }
+
+    function testFuzzUptimeFeedFailure(address msgSender, uint256 id, uint256 units) public {
+        units = bound(units, 1, storageRent.maxUnits());
+        uint256 price = storageRent.price(units);
+        vm.deal(msgSender, price);
+
+        // Fake an uptime feed error and ensure the next call will refresh the price.
+        uptimeFeed.setShouldRevert(true);
+        vm.warp(block.timestamp + storageRent.priceFeedCacheDuration() + 1);
+
+        // Calling rent reverts
+        vm.expectRevert("MockChainLinkFeed: Call failed");
+        vm.prank(msgSender);
+        storageRent.rent{value: price}(id, units);
+
+        // Admin can set a failsafe fixed price.
+        vm.expectEmit(false, false, false, true);
+        emit SetFixedEthUsdPrice(0, 4000e8);
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(4000e8);
+
+        // ETH doubled in USD terms, so we need
+        // half as much for the same USD price.
+        uint256 newPrice = storageRent.price(units);
+        assertEq(newPrice, price / 2);
+
+        // Calling rent now succeeds.
+        vm.prank(msgSender);
+        storageRent.rent{value: newPrice}(id, units);
+
+        // Setting fixed price back to zero re-enables the price feed.
+        vm.expectEmit(false, false, false, true);
+        emit SetFixedEthUsdPrice(4000e8, 0);
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(0);
+
+        // Calls revert again, since price feed is re-enabled.
+        vm.expectRevert("MockChainLinkFeed: Call failed");
         vm.prank(admin);
         storageRent.refreshPrice();
     }
@@ -1112,6 +1240,73 @@ contract StorageRentTest is StorageRentTestSuite {
         assertEq(storageRent.usdUnitPrice(), unitPrice);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           SET FIXED ETH PRICE
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyAdminCanSetFixedEthUsdPrice(address caller, uint256 fixedPrice) public {
+        vm.assume(caller != admin);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRent.NotAdmin.selector);
+        storageRent.setFixedEthUsdPrice(fixedPrice);
+    }
+
+    function testFuzzSetFixedEthUsdPrice(uint256 fixedPrice) public {
+        assertEq(storageRent.fixedEthUsdPrice(), 0);
+
+        vm.expectEmit(false, false, false, true);
+        emit SetFixedEthUsdPrice(0, fixedPrice);
+
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(fixedPrice);
+
+        assertEq(storageRent.fixedEthUsdPrice(), fixedPrice);
+    }
+
+    function testFuzzSetFixedEthUsdPriceOverridesPriceFeed(uint256 fixedPrice) public {
+        vm.assume(fixedPrice != storageRent.ethUsdPrice());
+        fixedPrice = bound(fixedPrice, 1, type(uint256).max);
+
+        uint256 usdUnitPrice = storageRent.usdUnitPrice();
+        uint256 priceBefore = storageRent.unitPrice();
+
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(fixedPrice);
+
+        uint256 priceAfter = storageRent.unitPrice();
+
+        assertTrue(priceBefore != priceAfter);
+        assertEq(priceAfter, usdUnitPrice.divWadUp(fixedPrice));
+    }
+
+    function testFuzzRemoveFixedEthUsdPriceReenablesPriceFeed(uint256 fixedPrice) public {
+        vm.assume(fixedPrice != storageRent.ethUsdPrice());
+        fixedPrice = bound(fixedPrice, 1, type(uint256).max);
+
+        uint256 usdUnitPrice = storageRent.usdUnitPrice();
+        uint256 priceBefore = storageRent.unitPrice();
+
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(fixedPrice);
+
+        uint256 priceAfter = storageRent.unitPrice();
+
+        assertTrue(priceBefore != priceAfter);
+        assertEq(priceAfter, usdUnitPrice.divWadUp(fixedPrice));
+
+        vm.prank(admin);
+        storageRent.setFixedEthUsdPrice(0);
+        assertEq(storageRent.fixedEthUsdPrice(), 0);
+
+        uint256 priceFinal = storageRent.unitPrice();
+        assertEq(priceBefore, priceFinal);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              SET MAX UNITS
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzOnlyAdminCanSetMaxUnits(address caller, uint256 maxUnits) public {
         vm.assume(caller != admin);
 
@@ -1119,10 +1314,6 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.expectRevert(StorageRent.NotAdmin.selector);
         storageRent.setMaxUnits(maxUnits);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                              SET MAX UNITS
-    //////////////////////////////////////////////////////////////*/
 
     function testFuzzSetMaxUnitsEmitsEvent(uint256 maxUnits) public {
         maxUnits = bound(maxUnits, 0, storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
