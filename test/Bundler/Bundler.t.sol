@@ -222,6 +222,25 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(bundler).balance, 0 ether);
     }
 
+    function testFuzzCannotTrustedBatchRegisterWithInvalidBatch(address account) public {
+        vm.assume(account != address(0));
+
+        // Configure the trusted callers correctly
+        idRegistry.setTrustedCaller(address(bundler));
+
+        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        vm.prank(roleAdmin);
+        storageRent.grantRole(operatorRoleId, address(bundler));
+
+        Bundler.UserData[] memory batchArray = new Bundler.UserData[](2);
+        batchArray[0] = Bundler.UserData({to: account, units: 1, recovery: address(0)});
+
+        vm.expectRevert(StorageRent.InvalidAmount.selector);
+        bundler.trustedBatchRegister(batchArray);
+
+        _assertUnsuccessfulRegistration(account);
+    }
+
     function testFuzzCannotTrustedBatchRegisterFromUntrustedCaller(address alice, address untrustedCaller) public {
         // Call is made from an address that is not address(this), since address(this) is the deployer
         // and therefore the trusted caller for Bundler
