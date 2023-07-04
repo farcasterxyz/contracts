@@ -64,7 +64,7 @@ contract StorageRentGasUsageTest is StorageRentTestSuite {
     function testGasContinuousCredit() public {
         for (uint256 i = 0; i < 10; i++) {
             vm.prank(operator);
-            storageRent.continuousCredit(1, 10, 1);
+            storageRent.continuousCredit(1, 5, 1);
         }
     }
 
