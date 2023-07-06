@@ -5,6 +5,7 @@ import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Inter
 
 import {FnameResolver} from "../src/FnameResolver.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
+import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {StorageRent} from "../src/StorageRent.sol";
 import {Bundler} from "../src/Bundler.sol";
 
@@ -63,6 +64,10 @@ contract IdRegistryHarness is IdRegistry {
     function transferTypehash() public pure returns (bytes32) {
         return _TRANSFER_TYPEHASH;
     }
+}
+
+contract KeyRegistryHarness is KeyRegistry {
+    constructor(address _idRegistry) KeyRegistry(_idRegistry) {}
 }
 
 contract StorageRentHarness is StorageRent {
