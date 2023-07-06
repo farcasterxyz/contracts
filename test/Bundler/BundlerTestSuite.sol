@@ -23,7 +23,8 @@ abstract contract BundlerTestSuite is IdRegistryTestSuite, StorageRentTestSuite 
         bundler = new BundlerHarness(
             address(idRegistry),
             address(storageRent),
-            address(this)
+            address(this),
+            owner
         );
     }
 

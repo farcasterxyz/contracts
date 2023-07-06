@@ -11,9 +11,11 @@ import {KeyRegistryHarness} from "../Utils.sol";
 abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     KeyRegistryHarness internal keyRegistry;
 
+    address admin = makeAddr("admin");
+
     function setUp() public override {
         super.setUp();
         idRegistry.disableTrustedOnly();
-        keyRegistry = new KeyRegistryHarness(address(idRegistry));
+        keyRegistry = new KeyRegistryHarness(address(idRegistry), admin);
     }
 }

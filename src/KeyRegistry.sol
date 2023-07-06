@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {IdRegistry} from "./IdRegistry.sol";
 
-contract KeyRegistry {
+contract KeyRegistry is Ownable2Step {
     enum SignerState {
         UNINITIALIZED,
         AUTHORIZED,
@@ -24,10 +25,13 @@ contract KeyRegistry {
     event Freeze(uint256 indexed fid, uint256 indexed scope, bytes indexed key);
 
     IdRegistry public idRegistry;
+    uint40 public signersMigratedAt;
 
     mapping(uint256 fid => mapping(uint256 scope => mapping(bytes key => Signer signer))) public signers;
 
-    constructor(address _idRegistry) {
+    constructor(address _idRegistry, address _owner) {
+        _transferOwnership(_owner);
+
         idRegistry = IdRegistry(_idRegistry);
     }
 
@@ -38,6 +42,10 @@ contract KeyRegistry {
 
     function signerOf(uint256 fid, uint256 scope, bytes calldata key) public view returns (Signer memory) {
         return signers[fid][scope][key];
+    }
+
+    function isMigrated() public view returns (bool) {
+        return signersMigratedAt != 0;
     }
 
     function register(uint256 fid, uint256 scope, bytes calldata key) public onlyFidOwner(fid) {

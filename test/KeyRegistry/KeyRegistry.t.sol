@@ -12,8 +12,20 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event Revoke(uint256 indexed fid, uint256 indexed scope, bytes indexed key);
     event Freeze(uint256 indexed fid, uint256 indexed scope, bytes indexed key);
 
-    function testHasIdRegistry() public {
-        assertEq(address(idRegistry), address(keyRegistry.idRegistry()));
+    function testInitialIdRegistry() public {
+        assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
+    }
+
+    function testInitialMigrationTimestamp() public {
+        assertEq(keyRegistry.signersMigratedAt(), 0);
+    }
+
+    function testInitialOwner() public {
+        assertEq(keyRegistry.owner(), admin);
+    }
+
+    function testInitialStateIsNotMigrated() public {
+        assertEq(keyRegistry.isMigrated(), false);
     }
 
     function testFuzzAddRevokeSigner(address to, address recovery, uint256 scope, bytes calldata key) public {

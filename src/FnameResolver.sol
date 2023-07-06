@@ -100,7 +100,8 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      * @param _url    Lookup gateway URL. This value is set permanently.
      * @param _signer Initial authorized signer address.
      */
-    constructor(string memory _url, address _signer) EIP712("Farcaster name verification", "1") {
+    constructor(string memory _url, address _signer, address _owner) EIP712("Farcaster name verification", "1") {
+        _transferOwnership(_owner);
         url = _url;
         signers[_signer] = true;
         emit AddSigner(_signer);

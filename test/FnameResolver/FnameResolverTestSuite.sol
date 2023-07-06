@@ -39,11 +39,11 @@ abstract contract FnameResolverTestSuite is Test {
     address internal mallory;
     uint256 internal malloryPk;
 
-    address internal owner = address(this);
+    address internal admin = makeAddr("admin");
 
     function setUp() public {
         (signer, signerPk) = makeAddrAndKey("signer");
         (mallory, malloryPk) = makeAddrAndKey("mallory");
-        resolver = new FnameResolverHarness(FNAME_SERVER_URL, signer);
+        resolver = new FnameResolverHarness(FNAME_SERVER_URL, signer, admin);
     }
 }

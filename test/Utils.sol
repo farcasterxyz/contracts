@@ -15,12 +15,13 @@ contract BundlerHarness is Bundler {
     constructor(
         address _idRegistry,
         address _storageRent,
-        address _trustedCaller
-    ) Bundler(_idRegistry, _storageRent, _trustedCaller) {}
+        address _trustedCaller,
+        address _owner
+    ) Bundler(_idRegistry, _storageRent, _trustedCaller, _owner) {}
 }
 
 contract FnameResolverHarness is FnameResolver {
-    constructor(string memory _url, address _signer) FnameResolver(_url, _signer) {}
+    constructor(string memory _url, address _signer, address _owner) FnameResolver(_url, _signer, _owner) {}
 
     function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
         return _hashTypedDataV4(structHash);
@@ -35,7 +36,7 @@ contract FnameResolverHarness is FnameResolver {
  * @dev IdRegistryHarness exposes IdRegistry's private methods for test assertions.
  */
 contract IdRegistryHarness is IdRegistry {
-    constructor() IdRegistry() {}
+    constructor(address owner) IdRegistry(owner) {}
 
     function getIdCounter() public view returns (uint256) {
         return idCounter;
@@ -67,7 +68,7 @@ contract IdRegistryHarness is IdRegistry {
 }
 
 contract KeyRegistryHarness is KeyRegistry {
-    constructor(address _idRegistry) KeyRegistry(_idRegistry) {}
+    constructor(address _idRegistry, address _owner) KeyRegistry(_idRegistry, _owner) {}
 }
 
 contract StorageRentHarness is StorageRent {
