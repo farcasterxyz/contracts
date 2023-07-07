@@ -19,10 +19,12 @@ contract KeyRegistry is Ownable2Step {
 
     error InvalidState();
     error Unauthorized();
+    error AlreadyMigrated();
 
     event Register(uint256 indexed fid, uint256 indexed scope, bytes indexed key);
     event Revoke(uint256 indexed fid, uint256 indexed scope, bytes indexed key);
     event Freeze(uint256 indexed fid, uint256 indexed scope, bytes indexed key);
+    event SignersMigrated();
 
     IdRegistry public idRegistry;
     uint40 public signersMigratedAt;
@@ -71,5 +73,11 @@ contract KeyRegistry is Ownable2Step {
         signer.state = SignerState.FROZEN;
         signer.merkleRoot = merkleRoot;
         emit Freeze(fid, scope, key);
+    }
+
+    function migrateSigners() external onlyOwner {
+        if (isMigrated()) revert AlreadyMigrated();
+        signersMigratedAt = uint40(block.timestamp);
+        emit SignersMigrated();
     }
 }

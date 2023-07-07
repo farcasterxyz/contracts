@@ -294,6 +294,36 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
+    function testFuzzMigration(uint40 timestamp) public {
+        vm.assume(timestamp != 0);
+
+        vm.warp(timestamp);
+        vm.prank(admin);
+        keyRegistry.migrateSigners();
+
+        assertEq(keyRegistry.isMigrated(), true);
+        assertEq(keyRegistry.signersMigratedAt(), timestamp);
+    }
+
+    function testFuzzOnlyOwnerCanMigrate(address caller) public {
+        vm.assume(caller != admin);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        keyRegistry.migrateSigners();
+    }
+
+    function testFuzzCannotMigrateTwice() public {
+        vm.startPrank(admin);
+
+        keyRegistry.migrateSigners();
+
+        vm.expectRevert(KeyRegistry.AlreadyMigrated.selector);
+        keyRegistry.migrateSigners();
+
+        vm.stopPrank();
+    }
+
     function _registerFid(address to, address recovery) internal returns (uint256) {
         return idRegistry.register(to, recovery);
     }
