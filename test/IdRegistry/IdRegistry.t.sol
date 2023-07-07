@@ -23,8 +23,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
                              REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzRegister(address alice, address bob, address recovery) public {
+    function testFuzzRegister(address alice, uint256 bobPk, address recovery, uint40 _deadline) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
+        uint256 deadline = _boundDeadline(_deadline);
+        bobPk = _boundPk(bobPk);
+
+        address bob = vm.addr(bobPk);
+        bytes memory sig = _signRegister(bobPk, bob, recovery, deadline);
+
         assertEq(idRegistry.getIdCounter(), 0);
 
         idRegistry.disableTrustedOnly();
@@ -32,50 +38,118 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit Register(bob, 1, recovery);
-        idRegistry.register(bob, recovery);
+        idRegistry.register(bob, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 1);
         assertEq(idRegistry.idOf(bob), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testFuzzCannotRegisterIfSeedable(address alice, address bob, address recovery) public {
+    function testFuzzRegisterRevertsBadSig(address alice, uint256 bobPk, address recovery, uint40 _deadline) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
+        bobPk = _boundPk(bobPk);
+
+        address bob = vm.addr(bobPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
+
         assertEq(idRegistry.getIdCounter(), 0);
+
+        idRegistry.disableTrustedOnly();
+
+        vm.prank(alice);
+        vm.expectRevert("ECDSA: invalid signature");
+        idRegistry.register(bob, recovery, deadline + 1, sig);
+    }
+
+    function testFuzzRegisterRevertsExpiredSig(
+        address alice,
+        uint256 bobPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
+        bobPk = _boundPk(bobPk);
+
+        address bob = vm.addr(bobPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
+
+        assertEq(idRegistry.getIdCounter(), 0);
+
+        idRegistry.disableTrustedOnly();
+
+        vm.warp(deadline + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(IdRegistry.SignatureExpired.selector);
+        idRegistry.register(bob, recovery, deadline, sig);
+    }
+
+    function testFuzzCannotRegisterIfSeedable(
+        address alice,
+        uint256 bobPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        vm.assume(alice != FORWARDER && recovery != FORWARDER);
+        bobPk = _boundPk(bobPk);
+        address bob = vm.addr(bobPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        assertEq(idRegistry.getIdCounter(), 0);
+
+        bytes memory sig = _signRegister(bobPk, bob, recovery, deadline);
 
         vm.prank(alice);
         vm.expectRevert(IdRegistry.Seedable.selector);
-        idRegistry.register(bob, recovery);
+        idRegistry.register(bob, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(bob), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testFuzzCannotRegisterToAnAddressThatOwnsAnId(address alice, address bob, address recovery) public {
+    function testFuzzCannotRegisterToAnAddressThatOwnsAnId(
+        uint256 alicePk,
+        address bob,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        alicePk = _boundPk(alicePk);
+        address alice = vm.addr(alicePk);
+        uint256 deadline = _boundDeadline(_deadline);
         vm.assume(alice != FORWARDER);
+
         _register(alice);
         assertEq(idRegistry.getIdCounter(), 1);
 
+        bytes memory sig = _signRegister(alicePk, alice, recovery, deadline);
+
         vm.prank(bob);
         vm.expectRevert(IdRegistry.HasId.selector);
-        idRegistry.register(alice, recovery);
+        idRegistry.register(alice, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 1);
         assertEq(idRegistry.idOf(alice), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testFuzzCannotRegisterIfPaused(address alice, address bob, address recovery) public {
+    function testFuzzCannotRegisterIfPaused(address alice, uint256 bobPk, address recovery, uint40 _deadline) public {
         vm.assume(alice != FORWARDER && recovery != FORWARDER);
+        bobPk = _boundPk(bobPk);
+        address bob = vm.addr(bobPk);
+        uint256 deadline = _boundDeadline(_deadline);
+
         assertEq(idRegistry.getIdCounter(), 0);
 
         idRegistry.disableTrustedOnly();
         _pauseRegistrations();
 
+        bytes memory sig = _signRegister(bobPk, bob, recovery, deadline);
+
         vm.prank(alice);
         vm.expectRevert("Pausable: paused");
-        idRegistry.register(bob, recovery);
+        idRegistry.register(bob, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(bob), 0);

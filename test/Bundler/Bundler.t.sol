@@ -41,7 +41,14 @@ contract BundlerTest is BundlerTestSuite {
                                 REGISTER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzRegister(address account, address caller, address recovery, uint256 storageUnits) public {
+    function testFuzzRegister(
+        address caller,
+        uint256 accountPk,
+        address recovery,
+        uint40 _deadline,
+        uint256 storageUnits
+    ) public {
+        accountPk = _boundPk(accountPk);
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
 
@@ -52,10 +59,13 @@ contract BundlerTest is BundlerTestSuite {
         idRegistry.disableTrustedOnly();
 
         uint256 price = storageRent.price(storageUnits);
+        address account = vm.addr(accountPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
 
         vm.deal(caller, price);
         vm.prank(caller);
-        bundler.register{value: price}(account, recovery, storageUnits);
+        bundler.register{value: price}(account, recovery, deadline, sig, storageUnits);
 
         _assertSuccessfulRegistration(account, recovery);
 
@@ -68,12 +78,14 @@ contract BundlerTest is BundlerTestSuite {
     }
 
     function testFuzzRegisterRevertsInsufficientPayment(
-        address account,
         address caller,
+        uint256 accountPk,
         address recovery,
+        uint40 _deadline,
         uint256 storageUnits,
         uint256 delta
     ) public {
+        accountPk = _boundPk(accountPk);
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
 
@@ -84,21 +96,26 @@ contract BundlerTest is BundlerTestSuite {
         idRegistry.disableTrustedOnly();
 
         uint256 price = storageRent.price(storageUnits);
+        address account = vm.addr(accountPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, price - 1);
 
         vm.deal(caller, price);
         vm.prank(caller);
         vm.expectRevert(StorageRent.InvalidPayment.selector);
-        bundler.register{value: price - delta}(account, recovery, storageUnits);
+        bundler.register{value: price - delta}(account, recovery, deadline, sig, storageUnits);
     }
 
     function testFuzzRegisterReturnsExcessPayment(
-        address account,
         address caller,
+        uint256 accountPk,
         address recovery,
+        uint40 _deadline,
         uint256 storageUnits,
         uint256 delta
     ) public {
+        accountPk = _boundPk(accountPk);
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
 
@@ -109,11 +126,14 @@ contract BundlerTest is BundlerTestSuite {
         idRegistry.disableTrustedOnly();
 
         uint256 price = storageRent.price(storageUnits);
+        address account = vm.addr(accountPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, type(uint256).max - price);
 
         vm.deal(caller, price + delta);
         vm.prank(caller);
-        bundler.register{value: price + delta}(account, recovery, storageUnits);
+        bundler.register{value: price + delta}(account, recovery, deadline, sig, storageUnits);
 
         _assertSuccessfulRegistration(account, recovery);
 

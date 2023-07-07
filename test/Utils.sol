@@ -51,6 +51,14 @@ contract IdRegistryHarness is IdRegistry {
     function getTrustedOnly() public view returns (uint256) {
         return trustedOnly;
     }
+
+    function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
+        return _hashTypedDataV4(structHash);
+    }
+
+    function registerTypehash() public pure returns (bytes32) {
+        return _REGISTER_TYPEHASH;
+    }
 }
 
 contract StorageRentHarness is StorageRent {

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
-import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
-import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import {Context} from "openzeppelin/contracts/utils/Context.sol";
-
+import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
+import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
+import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
+import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 /**
  * @title IdRegistry
  * @author @v
@@ -19,7 +21,8 @@ import {Context} from "openzeppelin/contracts/utils/Context.sol";
  *         Registry implements a recovery system which lets the address that owns an fid nominate
  *         a recovery address that can transfer the fid to a new address.
  */
-contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
+
+contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -41,6 +44,9 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
 
     /// @dev Revert when an invalid address is provided as input.
     error InvalidAddress();
+
+    error InvalidSigner();
+    error SignatureExpired();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -83,6 +89,40 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      * @dev Emit an event when the trusted only state is disabled.
      */
     event DisableTrustedOnly();
+
+    /*//////////////////////////////////////////////////////////////
+                              CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    bytes32 internal constant _REGISTER_TYPEHASH =
+        keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
+
+    bytes32 internal constant _TRANSFER_TYPEHASH =
+        keccak256("Transfer(address from,address to,uint256 nonce,uint256 deadline)");
+
+    function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
+        if (block.timestamp >= deadline) revert SignatureExpired();
+        bytes32 digest =
+            _hashTypedDataV4(keccak256(abi.encode(_REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline)));
+
+        address recovered = ECDSA.recover(digest, sig);
+        if (recovered != to) revert InvalidSigner();
+    }
+
+    function _verifyTransferSig(
+        address from,
+        address to,
+        uint256 deadline,
+        bytes memory sig,
+        address signer
+    ) internal {
+        if (block.timestamp >= deadline) revert SignatureExpired();
+        bytes32 digest =
+            _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, from, to, _useNonce(signer), deadline)));
+
+        address recovered = ECDSA.recover(digest, sig);
+        if (recovered != signer) revert InvalidSigner();
+    }
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -129,7 +169,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      *                   verify the authenticity of signed meta-transaction requests.
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _forwarder) ERC2771Context(_forwarder) {}
+    constructor(address _forwarder) EIP712("Farcaster IdRegistry", "1") ERC2771Context(_forwarder) {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -142,7 +182,22 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable {
      * @param to       Address which will own the fid
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      */
+    function register(
+        address to,
+        address recovery,
+        uint256 deadline,
+        bytes calldata sig
+    ) external returns (uint256 fid) {
+        _verifyRegisterSig(to, recovery, deadline, sig);
+        return _register(to, recovery);
+    }
+
     function register(address to, address recovery) external returns (uint256 fid) {
+        if (_msgSender() != to) revert Unauthorized();
+        return _register(to, recovery);
+    }
+
+    function _register(address to, address recovery) internal returns (uint256 fid) {
         if (trustedOnly == 1) revert Seedable();
 
         fid = _unsafeRegister(to, recovery);

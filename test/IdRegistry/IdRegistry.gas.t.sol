@@ -16,13 +16,14 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
         // Perform each action at least 5 times to get a good median value, since the first action
         // initializes storage and has extra costs
 
-        for (uint256 i = 0; i < 15; i++) {
-            address alice = address(uint160(i));
-            idRegistry.register(alice, RECOVERY);
-            assertEq(idRegistry.idOf(address(uint160(i))), i + 1);
+        for (uint256 i = 1; i < 15; i++) {
+            address account = vm.addr(i);
+            bytes memory sig = _signRegister(i, account, RECOVERY, type(uint40).max);
+            idRegistry.register(account, RECOVERY, type(uint40).max, sig);
+            assertEq(idRegistry.idOf(account), i);
 
             vm.prank(RECOVERY);
-            idRegistry.recover(alice, address(uint160(i + 100)));
+            idRegistry.recover(account, address(uint160(i + 100)));
         }
     }
 
