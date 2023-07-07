@@ -324,6 +324,146 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
+    function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
+        vm.assume(_ids.length > 0);
+        uint256 len = bound(_ids.length, 1, 100);
+        uint256 numKeys = bound(_numKeys, 1, 10);
+
+        // bound and deduplicate fuzzed _ids
+        uint256[] memory ids = new uint256[](len);
+        uint256 idsLength;
+        for (uint256 i; i < len; ++i) {
+            bool found;
+            for (uint256 j; j < idsLength; ++j) {
+                if (ids[j] == _ids[i]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                ids[idsLength++] = _ids[i];
+            }
+        }
+        assembly {
+            mstore(ids, idsLength)
+        }
+
+        // construct keys
+        bytes[][] memory keys = new bytes[][](idsLength);
+        for (uint256 i; i < idsLength; ++i) {
+            keys[i] = new bytes[](numKeys);
+            for (uint256 j; j < numKeys; ++j) {
+                keys[i][j] = abi.encodePacked(j);
+            }
+        }
+
+        vm.prank(admin);
+        keyRegistry.bulkAddSignersForMigration(ids, keys);
+
+        for (uint256 i; i < idsLength; ++i) {
+            for (uint256 j; j < numKeys; ++j) {
+                assertEq(keyRegistry.signerOf(ids[i], 1, keys[i][j]).state, KeyRegistry.SignerState.AUTHORIZED);
+            }
+        }
+    }
+
+    function testFuzzBulkAddSignerForMigrationRevertsAlreadyMigrated() public {
+        uint256[] memory ids = new uint256[](1);
+        bytes[][] memory keys = new bytes[][](1);
+
+        vm.startPrank(admin);
+
+        keyRegistry.migrateSigners();
+
+        vm.expectRevert(KeyRegistry.AlreadyMigrated.selector);
+        keyRegistry.bulkAddSignersForMigration(ids, keys);
+
+        vm.stopPrank();
+    }
+
+    function testFuzzBulkAddSignerForMigrationRevertsMismatchedInput() public {
+        uint256[] memory ids = new uint256[](2);
+        bytes[][] memory keys = new bytes[][](1);
+
+        vm.startPrank(admin);
+        vm.expectRevert(KeyRegistry.InvalidBatchInput.selector);
+        keyRegistry.bulkAddSignersForMigration(ids, keys);
+
+        vm.stopPrank();
+    }
+
+    function testFuzzBulkRemoveSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
+        vm.assume(_ids.length > 0);
+        uint256 len = bound(_ids.length, 1, 100);
+        uint256 numKeys = bound(_numKeys, 1, 10);
+
+        // bound and deduplicate fuzzed _ids
+        uint256[] memory ids = new uint256[](len);
+        uint256 idsLength;
+        for (uint256 i; i < len; ++i) {
+            bool found;
+            for (uint256 j; j < idsLength; ++j) {
+                if (ids[j] == _ids[i]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                ids[idsLength++] = _ids[i];
+            }
+        }
+        assembly {
+            mstore(ids, idsLength)
+        }
+
+        // construct keys
+        bytes[][] memory keys = new bytes[][](idsLength);
+        for (uint256 i; i < idsLength; ++i) {
+            keys[i] = new bytes[](numKeys);
+            for (uint256 j; j < numKeys; ++j) {
+                keys[i][j] = abi.encodePacked(j);
+            }
+        }
+
+        vm.startPrank(admin);
+
+        keyRegistry.bulkAddSignersForMigration(ids, keys);
+        keyRegistry.bulkRemoveSignersForMigration(ids, keys);
+
+        for (uint256 i; i < idsLength; ++i) {
+            for (uint256 j; j < numKeys; ++j) {
+                assertEq(keyRegistry.signerOf(ids[i], 1, keys[i][j]).state, KeyRegistry.SignerState.UNINITIALIZED);
+            }
+        }
+
+        vm.stopPrank();
+    }
+
+    function testFuzzBulkRemoveSignerForMigrationRevertsAlreadyMigrated() public {
+        uint256[] memory ids = new uint256[](1);
+        bytes[][] memory keys = new bytes[][](1);
+
+        vm.startPrank(admin);
+
+        keyRegistry.migrateSigners();
+
+        vm.expectRevert(KeyRegistry.AlreadyMigrated.selector);
+        keyRegistry.bulkRemoveSignersForMigration(ids, keys);
+
+        vm.stopPrank();
+    }
+
+    function testFuzzBulkRemoveSignerForMigrationRevertsMismatchedInput() public {
+        uint256[] memory ids = new uint256[](2);
+        bytes[][] memory keys = new bytes[][](1);
+
+        vm.startPrank(admin);
+        vm.expectRevert(KeyRegistry.InvalidBatchInput.selector);
+        keyRegistry.bulkRemoveSignersForMigration(ids, keys);
+
+        vm.stopPrank();
+    }
+
     function _registerFid(address to, address recovery) internal returns (uint256) {
         return idRegistry.register(to, recovery);
     }
