@@ -68,7 +68,11 @@ contract IdRegistryHarness is IdRegistry {
 }
 
 contract KeyRegistryHarness is KeyRegistry {
-    constructor(address _idRegistry, address _owner) KeyRegistry(_idRegistry, _owner) {}
+    constructor(
+        address _idRegistry,
+        uint24 _gracePeriod,
+        address _owner
+    ) KeyRegistry(_idRegistry, _gracePeriod, _owner) {}
 }
 
 contract StorageRentHarness is StorageRent {

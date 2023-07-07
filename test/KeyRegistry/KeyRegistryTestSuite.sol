@@ -16,6 +16,6 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     function setUp() public override {
         super.setUp();
         idRegistry.disableTrustedOnly();
-        keyRegistry = new KeyRegistryHarness(address(idRegistry), admin);
+        keyRegistry = new KeyRegistryHarness(address(idRegistry), 1 days, admin);
     }
 }
