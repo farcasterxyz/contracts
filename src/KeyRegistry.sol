@@ -9,13 +9,11 @@ contract KeyRegistry is Ownable2Step {
      *  @notice Authorization state enum for a signer.
      *          - UNINITIALIZED: The signer's key is not registered.
      *          - AUTHORIZED: The signer's is registered.
-     *          - FROZEN: The signer's key was registered, but is now frozen.
      *          - REVOKED: The signer's key was registered, but is now revoked.
      */
     enum SignerState {
         UNINITIALIZED,
         AUTHORIZED,
-        FROZEN,
         REVOKED
     }
 
@@ -23,12 +21,9 @@ contract KeyRegistry is Ownable2Step {
      *  @notice Authorization state of a signer.
      *
      *  @param state      Authorization state of the signer.
-     *  @param merkleRoot Merkle root of valid messages produced by the signer.
-     *                    Used to freeze a signer but preserve past valid messages.
      */
     struct Signer {
         SignerState state;
-        bytes32 merkleRoot;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -36,7 +31,7 @@ contract KeyRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     *  @dev Revert if a register/revoke/freeze attempts an invalid state transition.
+     *  @dev Revert if a register/revoke attempts an invalid state transition.
      *       - Register: key must be UNINITIALIZED.
      *       - Freeze: key must be AUTHORIZED.
      *       - Revoke: key must be AUTHORIZED or FROZEN.
@@ -51,9 +46,6 @@ contract KeyRegistry is Ownable2Step {
 
     /// @dev Revert if migration batch input arrays are not the same length.
     error InvalidBatchInput();
-
-    /// @dev Revert if a caller attempts to freeze a key without providing a merkle root.
-    error InvalidMerkleRoot();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -88,17 +80,6 @@ contract KeyRegistry is Ownable2Step {
      * @param keyBytes  The bytes of the public key being registered.
      */
     event Revoke(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
-
-    /**
-     * @dev Emit an event when an FID freezes a key.
-     *
-     * @param fid        The fid revoking the key.
-     * @param keyType      The keyType of the key.
-     * @param key        The public key being registered. (indexed as hash)
-     * @param keyBytes   The bytes of the public key being registered.
-     * @param merkleRoot The merkle root of valid messages produced by the signer.
-     */
-    event Freeze(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes, bytes32 merkleRoot);
 
     /**
      * @dev Emit an event when the admin calls migrateSigners.
@@ -137,7 +118,7 @@ contract KeyRegistry is Ownable2Step {
      * @custom:param fid    The fid associated with the key.
      * @custom:param keyType  The key's keyType. In the initial migration all keys will have keyType 1.
      * @custom:param key    Bytes of the signer's public key.
-     * @custom:param signer Signer struct including state and merkle root for frozen signers.
+     * @custom:param signer Signer struct with the state.
      */
     mapping(uint256 fid => mapping(uint256 keyType => mapping(bytes key => Signer signer))) public signers;
 
@@ -182,7 +163,7 @@ contract KeyRegistry is Ownable2Step {
      * @param keyType The key's numeric keyType. In the initial migration all keys will have keyType 1.
      * @param key   Bytes of the signer's public key.
      *
-     * @return Signer struct including state and message merkle root for frozen signers.
+     * @return Signer struct including state .
      */
     function signerOf(uint256 fid, uint256 keyType, bytes calldata key) external view returns (Signer memory) {
         return signers[fid][keyType][key];
@@ -222,31 +203,10 @@ contract KeyRegistry is Ownable2Step {
      */
     function revoke(uint256 fid, uint256 keyType, bytes calldata key) external onlyFidOwner(fid) {
         Signer storage signer = signers[fid][keyType][key];
-        if (signer.state != SignerState.AUTHORIZED && signer.state != SignerState.FROZEN) revert InvalidState();
+        if (signer.state != SignerState.AUTHORIZED) revert InvalidState();
 
         signer.state = SignerState.REVOKED;
         emit Revoke(fid, keyType, key, key);
-    }
-
-    /**
-     * @notice Freeze a public key associated with a fid/keyType pair, setting the signer state to FROZEN.
-     *         The key must be in the AUTHORIZED state. Freezing a key will retain past valid messages
-     *         signed by the key, while revoking a key will delete them. Caller must provide a merkle root
-     *         of valid messages produced by the signer.
-     *
-     * @param fid        The fid associated with the key. Caller must own the provided fid.
-     * @param keyType      The key's numeric keyType.
-     * @param key        Bytes of the signer's public key to freeze.
-     * @param merkleRoot The merkle root of valid messages produced by the signer.
-     */
-    function freeze(uint256 fid, uint256 keyType, bytes calldata key, bytes32 merkleRoot) external onlyFidOwner(fid) {
-        if (merkleRoot == bytes32(0)) revert InvalidMerkleRoot();
-        Signer storage signer = signers[fid][keyType][key];
-        if (signer.state != SignerState.AUTHORIZED) revert InvalidState();
-
-        signer.state = SignerState.FROZEN;
-        signer.merkleRoot = merkleRoot;
-        emit Freeze(fid, keyType, key, key, merkleRoot);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -317,7 +277,7 @@ contract KeyRegistry is Ownable2Step {
 
     function _remove(uint256 fid, uint256 keyType, bytes calldata key) internal {
         Signer storage signer = signers[fid][keyType][key];
-        if (signer.state != SignerState.AUTHORIZED && signer.state != SignerState.FROZEN) revert InvalidState();
+        if (signer.state != SignerState.AUTHORIZED) revert InvalidState();
 
         signer.state = SignerState.UNINITIALIZED;
         emit Remove(fid, keyType, key, key);

@@ -11,7 +11,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event Register(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
     event Revoke(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
     event Remove(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
-    event Freeze(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes, bytes32 merkleRoot);
 
     function testInitialIdRegistry() public {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
@@ -70,27 +69,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testFuzzFreezeEmitsEvent(
-        address to,
-        address recovery,
-        uint256 keyType,
-        bytes calldata key,
-        bytes32 merkleRoot
-    ) public {
-        vm.assume(merkleRoot != bytes32(0));
-
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
-
-        keyRegistry.register(fid, keyType, key);
-
-        vm.expectEmit();
-        emit Freeze(fid, keyType, key, key, merkleRoot);
-        keyRegistry.freeze(fid, keyType, key, merkleRoot);
-
-        vm.stopPrank();
-    }
-
     function testFuzzAddRevertsNonOwner(
         address to,
         address recovery,
@@ -114,27 +92,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.startPrank(to);
 
         keyRegistry.register(fid, keyType, key);
-
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.register(fid, keyType, key);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzAddRevertsFrozen(
-        address to,
-        address recovery,
-        uint256 keyType,
-        bytes calldata key,
-        bytes32 merkleRoot
-    ) public {
-        vm.assume(merkleRoot != bytes32(0));
-
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
-
-        keyRegistry.register(fid, keyType, key);
-        keyRegistry.freeze(fid, keyType, key, merkleRoot);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
         keyRegistry.register(fid, keyType, key);
@@ -197,129 +154,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
         keyRegistry.revoke(fid, keyType, key);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzAddFreezeSigner(
-        address to,
-        address recovery,
-        uint256 keyType,
-        bytes calldata key,
-        bytes32 merkleRoot
-    ) public {
-        vm.assume(merkleRoot != bytes32(0));
-
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
-
-        keyRegistry.register(fid, keyType, key);
-        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.AUTHORIZED);
-
-        keyRegistry.freeze(fid, keyType, key, merkleRoot);
-        KeyRegistry.Signer memory signer = keyRegistry.signerOf(fid, keyType, key);
-        assertEq(signer.state, KeyRegistry.SignerState.FROZEN);
-        assertEq(signer.merkleRoot, merkleRoot);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzFreezeRevertsEmptyRoot(address to, address recovery, uint256 keyType, bytes calldata key) public {
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
-
-        keyRegistry.register(fid, keyType, key);
-
-        vm.expectRevert(KeyRegistry.InvalidMerkleRoot.selector);
-        keyRegistry.freeze(fid, keyType, key, bytes32(0));
-
-        vm.stopPrank();
-    }
-
-    function testFuzzFreezeRevertsNonOwner(
-        address to,
-        address recovery,
-        address caller,
-        uint256 keyType,
-        bytes calldata key,
-        bytes32 merkleRoot
-    ) public {
-        vm.assume(merkleRoot != bytes32(0));
-        vm.assume(to != caller);
-
-        uint256 fid = _registerFid(to, recovery);
-        vm.prank(to);
-        keyRegistry.register(fid, keyType, key);
-
-        vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        vm.prank(caller);
-        keyRegistry.freeze(fid, keyType, key, merkleRoot);
-    }
-
-    function testFuzzFreezeRevertsUninitialized(
-        address to,
-        address recovery,
-        uint256 keyType,
-        bytes calldata key,
-        bytes32 merkleRoot
-    ) public {
-        vm.assume(merkleRoot != bytes32(0));
-
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
-
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.freeze(fid, keyType, key, merkleRoot);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzFreezeRevertsFrozen(
-        address to,
-        address recovery,
-        uint256 keyType,
-        bytes calldata key,
-        bytes32 merkleRoot
-    ) public {
-        vm.assume(merkleRoot != bytes32(0));
-
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
-
-        keyRegistry.register(fid, keyType, key);
-        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.AUTHORIZED);
-
-        keyRegistry.freeze(fid, keyType, key, merkleRoot);
-        KeyRegistry.Signer memory signer = keyRegistry.signerOf(fid, keyType, key);
-        assertEq(signer.state, KeyRegistry.SignerState.FROZEN);
-        assertEq(signer.merkleRoot, merkleRoot);
-
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.freeze(fid, keyType, key, merkleRoot);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzFreezeRevertsRevoked(
-        address to,
-        address recovery,
-        uint256 keyType,
-        bytes calldata key,
-        bytes32 merkleRoot
-    ) public {
-        vm.assume(merkleRoot != bytes32(0));
-
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
-
-        keyRegistry.register(fid, keyType, key);
-        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.AUTHORIZED);
-
-        keyRegistry.revoke(fid, keyType, key);
-        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.REVOKED);
-
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.freeze(fid, keyType, key, merkleRoot);
 
         vm.stopPrank();
     }
