@@ -8,10 +8,10 @@ import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 /* solhint-disable state-visibility */
 
 contract KeyRegistryTest is KeyRegistryTestSuite {
-    event Register(uint256 indexed fid, uint256 indexed scope, bytes indexed key, bytes keyBytes);
-    event Revoke(uint256 indexed fid, uint256 indexed scope, bytes indexed key, bytes keyBytes);
-    event Remove(uint256 indexed fid, uint256 indexed scope, bytes indexed key, bytes keyBytes);
-    event Freeze(uint256 indexed fid, uint256 indexed scope, bytes indexed key, bytes keyBytes, bytes32 merkleRoot);
+    event Register(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
+    event Revoke(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
+    event Remove(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
+    event Freeze(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes, bytes32 merkleRoot);
 
     function testInitialIdRegistry() public {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
@@ -33,39 +33,39 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.isMigrated(), false);
     }
 
-    function testFuzzAddRevokeSigner(address to, address recovery, uint256 scope, bytes calldata key) public {
+    function testFuzzAddRevokeSigner(address to, address recovery, uint256 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
-        assertEq(keyRegistry.signerOf(fid, scope, key).state, KeyRegistry.SignerState.AUTHORIZED);
+        keyRegistry.register(fid, keyType, key);
+        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.AUTHORIZED);
 
-        keyRegistry.revoke(fid, scope, key);
-        assertEq(keyRegistry.signerOf(fid, scope, key).state, KeyRegistry.SignerState.REVOKED);
+        keyRegistry.revoke(fid, keyType, key);
+        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.REVOKED);
 
         vm.stopPrank();
     }
 
-    function testFuzzAddEmitsEvent(address to, address recovery, uint256 scope, bytes calldata key) public {
+    function testFuzzAddEmitsEvent(address to, address recovery, uint256 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         vm.expectEmit();
-        emit Register(fid, scope, key, key);
-        keyRegistry.register(fid, scope, key);
+        emit Register(fid, keyType, key, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
     }
 
-    function testFuzzRevokeEmitsEvent(address to, address recovery, uint256 scope, bytes calldata key) public {
+    function testFuzzRevokeEmitsEvent(address to, address recovery, uint256 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.expectEmit();
-        emit Revoke(fid, scope, key, key);
-        keyRegistry.revoke(fid, scope, key);
+        emit Revoke(fid, keyType, key, key);
+        keyRegistry.revoke(fid, keyType, key);
 
         vm.stopPrank();
     }
@@ -73,7 +73,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzFreezeEmitsEvent(
         address to,
         address recovery,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key,
         bytes32 merkleRoot
     ) public {
@@ -82,11 +82,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.expectEmit();
-        emit Freeze(fid, scope, key, key, merkleRoot);
-        keyRegistry.freeze(fid, scope, key, merkleRoot);
+        emit Freeze(fid, keyType, key, key, merkleRoot);
+        keyRegistry.freeze(fid, keyType, key, merkleRoot);
 
         vm.stopPrank();
     }
@@ -95,7 +95,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address to,
         address recovery,
         address caller,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key
     ) public {
         vm.assume(to != caller);
@@ -104,19 +104,19 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.startPrank(caller);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
     }
 
-    function testFuzzAddRevertsAuthorized(address to, address recovery, uint256 scope, bytes calldata key) public {
+    function testFuzzAddRevertsAuthorized(address to, address recovery, uint256 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
     }
@@ -124,7 +124,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzAddRevertsFrozen(
         address to,
         address recovery,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key,
         bytes32 merkleRoot
     ) public {
@@ -133,24 +133,24 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
-        keyRegistry.freeze(fid, scope, key, merkleRoot);
+        keyRegistry.register(fid, keyType, key);
+        keyRegistry.freeze(fid, keyType, key, merkleRoot);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
     }
 
-    function testFuzzAddRevertsRevoked(address to, address recovery, uint256 scope, bytes calldata key) public {
+    function testFuzzAddRevertsRevoked(address to, address recovery, uint256 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
-        keyRegistry.revoke(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
+        keyRegistry.revoke(fid, keyType, key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
     }
@@ -159,44 +159,44 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address to,
         address recovery,
         address caller,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key
     ) public {
         vm.assume(to != caller);
 
         uint256 fid = _registerFid(to, recovery);
         vm.prank(to);
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
         vm.prank(caller);
-        keyRegistry.revoke(fid, scope, key);
+        keyRegistry.revoke(fid, keyType, key);
     }
 
     function testFuzzRevokeRevertsUninitialized(
         address to,
         address recovery,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key
     ) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.revoke(fid, scope, key);
+        keyRegistry.revoke(fid, keyType, key);
 
         vm.stopPrank();
     }
 
-    function testFuzzRevokeRevertsRevoked(address to, address recovery, uint256 scope, bytes calldata key) public {
+    function testFuzzRevokeRevertsRevoked(address to, address recovery, uint256 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
-        keyRegistry.revoke(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
+        keyRegistry.revoke(fid, keyType, key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.revoke(fid, scope, key);
+        keyRegistry.revoke(fid, keyType, key);
 
         vm.stopPrank();
     }
@@ -204,7 +204,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzAddFreezeSigner(
         address to,
         address recovery,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key,
         bytes32 merkleRoot
     ) public {
@@ -213,25 +213,25 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
-        assertEq(keyRegistry.signerOf(fid, scope, key).state, KeyRegistry.SignerState.AUTHORIZED);
+        keyRegistry.register(fid, keyType, key);
+        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.AUTHORIZED);
 
-        keyRegistry.freeze(fid, scope, key, merkleRoot);
-        KeyRegistry.Signer memory signer = keyRegistry.signerOf(fid, scope, key);
+        keyRegistry.freeze(fid, keyType, key, merkleRoot);
+        KeyRegistry.Signer memory signer = keyRegistry.signerOf(fid, keyType, key);
         assertEq(signer.state, KeyRegistry.SignerState.FROZEN);
         assertEq(signer.merkleRoot, merkleRoot);
 
         vm.stopPrank();
     }
 
-    function testFuzzFreezeRevertsEmptyRoot(address to, address recovery, uint256 scope, bytes calldata key) public {
+    function testFuzzFreezeRevertsEmptyRoot(address to, address recovery, uint256 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.expectRevert(KeyRegistry.InvalidMerkleRoot.selector);
-        keyRegistry.freeze(fid, scope, key, bytes32(0));
+        keyRegistry.freeze(fid, keyType, key, bytes32(0));
 
         vm.stopPrank();
     }
@@ -240,7 +240,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address to,
         address recovery,
         address caller,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key,
         bytes32 merkleRoot
     ) public {
@@ -249,17 +249,17 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         uint256 fid = _registerFid(to, recovery);
         vm.prank(to);
-        keyRegistry.register(fid, scope, key);
+        keyRegistry.register(fid, keyType, key);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
         vm.prank(caller);
-        keyRegistry.freeze(fid, scope, key, merkleRoot);
+        keyRegistry.freeze(fid, keyType, key, merkleRoot);
     }
 
     function testFuzzFreezeRevertsUninitialized(
         address to,
         address recovery,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key,
         bytes32 merkleRoot
     ) public {
@@ -269,7 +269,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.startPrank(to);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.freeze(fid, scope, key, merkleRoot);
+        keyRegistry.freeze(fid, keyType, key, merkleRoot);
 
         vm.stopPrank();
     }
@@ -277,7 +277,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzFreezeRevertsFrozen(
         address to,
         address recovery,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key,
         bytes32 merkleRoot
     ) public {
@@ -286,16 +286,16 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
-        assertEq(keyRegistry.signerOf(fid, scope, key).state, KeyRegistry.SignerState.AUTHORIZED);
+        keyRegistry.register(fid, keyType, key);
+        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.AUTHORIZED);
 
-        keyRegistry.freeze(fid, scope, key, merkleRoot);
-        KeyRegistry.Signer memory signer = keyRegistry.signerOf(fid, scope, key);
+        keyRegistry.freeze(fid, keyType, key, merkleRoot);
+        KeyRegistry.Signer memory signer = keyRegistry.signerOf(fid, keyType, key);
         assertEq(signer.state, KeyRegistry.SignerState.FROZEN);
         assertEq(signer.merkleRoot, merkleRoot);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.freeze(fid, scope, key, merkleRoot);
+        keyRegistry.freeze(fid, keyType, key, merkleRoot);
 
         vm.stopPrank();
     }
@@ -303,7 +303,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzFreezeRevertsRevoked(
         address to,
         address recovery,
-        uint256 scope,
+        uint256 keyType,
         bytes calldata key,
         bytes32 merkleRoot
     ) public {
@@ -312,14 +312,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, scope, key);
-        assertEq(keyRegistry.signerOf(fid, scope, key).state, KeyRegistry.SignerState.AUTHORIZED);
+        keyRegistry.register(fid, keyType, key);
+        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.AUTHORIZED);
 
-        keyRegistry.revoke(fid, scope, key);
-        assertEq(keyRegistry.signerOf(fid, scope, key).state, KeyRegistry.SignerState.REVOKED);
+        keyRegistry.revoke(fid, keyType, key);
+        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.REVOKED);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.freeze(fid, scope, key, merkleRoot);
+        keyRegistry.freeze(fid, keyType, key, merkleRoot);
 
         vm.stopPrank();
     }

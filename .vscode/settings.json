@@ -3,7 +3,7 @@
     ".git": true,
     "out": true,
     "cache": true,
-    "lib": true,
+    "lib": true
   },
   "editor.formatOnSave": true,
   "editor.rulers": [119],
@@ -14,12 +14,6 @@
     "editor.defaultFormatter": "JuanBlanco.solidity"
   },
   "solidity.formatter": "forge",
-  "cSpell.words": [
-    "curr",
-    "Fname",
-    "Seedable",
-    "Pausable",
-    "UUPS"
-  ],
-  "solidity.compileUsingRemoteVersion": "v0.8.18+commit.87f61d96"
+  "cSpell.words": ["curr", "Fname", "Seedable", "Pausable", "UUPS"],
+  "solidity.compileUsingRemoteVersion": "v0.8.19+commit.7dd6d404"
 }

@@ -63,42 +63,42 @@ contract KeyRegistry is Ownable2Step {
      * @dev Emit an event when an admin or FID registers a new key.
      *
      * @param fid       The fid associated with the key.
-     * @param scope     The scope of the key.
+     * @param keyType     The keyType of the key.
      * @param key       The public key being registered. (indexed as hash)
      * @param keyBytes  The bytes of the public key being registered.
      */
-    event Register(uint256 indexed fid, uint256 indexed scope, bytes indexed key, bytes keyBytes);
+    event Register(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
 
     /**
      * @dev Emit an event when an admin removes a new key.
      *
      * @param fid       The fid associated with the key.
-     * @param scope     The scope of the key.
+     * @param keyType     The keyType of the key.
      * @param key       The public key being registered. (indexed as hash)
      * @param keyBytes  The bytes of the public key being registered.
      */
-    event Remove(uint256 indexed fid, uint256 indexed scope, bytes indexed key, bytes keyBytes);
+    event Remove(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
 
     /**
      * @dev Emit an event when an FID revokes a new key.
      *
      * @param fid       The fid revoking the key.
-     * @param scope     The scope of the key.
+     * @param keyType     The keyType of the key.
      * @param key       The public key being registered. (indexed as hash)
      * @param keyBytes  The bytes of the public key being registered.
      */
-    event Revoke(uint256 indexed fid, uint256 indexed scope, bytes indexed key, bytes keyBytes);
+    event Revoke(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
 
     /**
      * @dev Emit an event when an FID freezes a key.
      *
      * @param fid        The fid revoking the key.
-     * @param scope      The scope of the key.
+     * @param keyType      The keyType of the key.
      * @param key        The public key being registered. (indexed as hash)
      * @param keyBytes   The bytes of the public key being registered.
      * @param merkleRoot The merkle root of valid messages produced by the signer.
      */
-    event Freeze(uint256 indexed fid, uint256 indexed scope, bytes indexed key, bytes keyBytes, bytes32 merkleRoot);
+    event Freeze(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes, bytes32 merkleRoot);
 
     /**
      * @dev Emit an event when the admin calls migrateSigners.
@@ -132,14 +132,14 @@ contract KeyRegistry is Ownable2Step {
     uint40 public signersMigratedAt;
 
     /**
-     * @dev Mapping of FID to scope to key to signer state.
+     * @dev Mapping of FID to keyType to key to signer state.
      *
      * @custom:param fid    The fid associated with the key.
-     * @custom:param scope  The key's scope. In the initial migration all keys will have scope 1.
+     * @custom:param keyType  The key's keyType. In the initial migration all keys will have keyType 1.
      * @custom:param key    Bytes of the signer's public key.
      * @custom:param signer Signer struct including state and merkle root for frozen signers.
      */
-    mapping(uint256 fid => mapping(uint256 scope => mapping(bytes key => Signer signer))) public signers;
+    mapping(uint256 fid => mapping(uint256 keyType => mapping(bytes key => Signer signer))) public signers;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -176,16 +176,16 @@ contract KeyRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Retrieve signer state for a fid/scope/key tuple.
+     * @notice Retrieve signer state for a fid/keyType/key tuple.
      *
      * @param fid   The fid associated with the key.
-     * @param scope The key's numeric scope. In the initial migration all keys will have scope 1.
+     * @param keyType The key's numeric keyType. In the initial migration all keys will have keyType 1.
      * @param key   Bytes of the signer's public key.
      *
      * @return Signer struct including state and message merkle root for frozen signers.
      */
-    function signerOf(uint256 fid, uint256 scope, bytes calldata key) external view returns (Signer memory) {
-        return signers[fid][scope][key];
+    function signerOf(uint256 fid, uint256 keyType, bytes calldata key) external view returns (Signer memory) {
+        return signers[fid][keyType][key];
     }
 
     /**
@@ -202,51 +202,51 @@ contract KeyRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Register a public key to a fid/scope pair, setting the signer state to AUTHORIZED.
+     * @notice Register a public key to a fid/keyType pair, setting the signer state to AUTHORIZED.
      *
      * @param fid   The fid associated with the key. Caller must own the provided fid.
-     * @param scope The key's numeric scope.
+     * @param keyType The key's numeric keyType.
      * @param key   Bytes of the signer's public key to authorize.
      */
-    function register(uint256 fid, uint256 scope, bytes calldata key) external onlyFidOwner(fid) {
-        _register(fid, scope, key);
+    function register(uint256 fid, uint256 keyType, bytes calldata key) external onlyFidOwner(fid) {
+        _register(fid, keyType, key);
     }
 
     /**
-     * @notice Revoke a public key associated with a fid/scope pair, setting the signer state to REVOKED.
+     * @notice Revoke a public key associated with a fid/keyType pair, setting the signer state to REVOKED.
      *         The key must be in the AUTHORIZED or FROZEN state.
      *
      * @param fid   The fid associated with the key. Caller must own the provided fid.
-     * @param scope The key's numeric scope.
+     * @param keyType The key's numeric keyType.
      * @param key   Bytes of the signer's public key to revoke.
      */
-    function revoke(uint256 fid, uint256 scope, bytes calldata key) external onlyFidOwner(fid) {
-        Signer storage signer = signers[fid][scope][key];
+    function revoke(uint256 fid, uint256 keyType, bytes calldata key) external onlyFidOwner(fid) {
+        Signer storage signer = signers[fid][keyType][key];
         if (signer.state != SignerState.AUTHORIZED && signer.state != SignerState.FROZEN) revert InvalidState();
 
         signer.state = SignerState.REVOKED;
-        emit Revoke(fid, scope, key, key);
+        emit Revoke(fid, keyType, key, key);
     }
 
     /**
-     * @notice Freeze a public key associated with a fid/scope pair, setting the signer state to FROZEN.
+     * @notice Freeze a public key associated with a fid/keyType pair, setting the signer state to FROZEN.
      *         The key must be in the AUTHORIZED state. Freezing a key will retain past valid messages
      *         signed by the key, while revoking a key will delete them. Caller must provide a merkle root
      *         of valid messages produced by the signer.
      *
      * @param fid        The fid associated with the key. Caller must own the provided fid.
-     * @param scope      The key's numeric scope.
+     * @param keyType      The key's numeric keyType.
      * @param key        Bytes of the signer's public key to freeze.
      * @param merkleRoot The merkle root of valid messages produced by the signer.
      */
-    function freeze(uint256 fid, uint256 scope, bytes calldata key, bytes32 merkleRoot) external onlyFidOwner(fid) {
+    function freeze(uint256 fid, uint256 keyType, bytes calldata key, bytes32 merkleRoot) external onlyFidOwner(fid) {
         if (merkleRoot == bytes32(0)) revert InvalidMerkleRoot();
-        Signer storage signer = signers[fid][scope][key];
+        Signer storage signer = signers[fid][keyType][key];
         if (signer.state != SignerState.AUTHORIZED) revert InvalidState();
 
         signer.state = SignerState.FROZEN;
         signer.merkleRoot = merkleRoot;
-        emit Freeze(fid, scope, key, key, merkleRoot);
+        emit Freeze(fid, keyType, key, key, merkleRoot);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -307,19 +307,19 @@ contract KeyRegistry is Ownable2Step {
         }
     }
 
-    function _register(uint256 fid, uint256 scope, bytes calldata key) internal {
-        Signer storage signer = signers[fid][scope][key];
+    function _register(uint256 fid, uint256 keyType, bytes calldata key) internal {
+        Signer storage signer = signers[fid][keyType][key];
         if (signer.state != SignerState.UNINITIALIZED) revert InvalidState();
 
         signer.state = SignerState.AUTHORIZED;
-        emit Register(fid, scope, key, key);
+        emit Register(fid, keyType, key, key);
     }
 
-    function _remove(uint256 fid, uint256 scope, bytes calldata key) internal {
-        Signer storage signer = signers[fid][scope][key];
+    function _remove(uint256 fid, uint256 keyType, bytes calldata key) internal {
+        Signer storage signer = signers[fid][keyType][key];
         if (signer.state != SignerState.AUTHORIZED && signer.state != SignerState.FROZEN) revert InvalidState();
 
         signer.state = SignerState.UNINITIALIZED;
-        emit Remove(fid, scope, key, key);
+        emit Remove(fid, keyType, key, key);
     }
 }
