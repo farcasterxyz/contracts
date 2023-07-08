@@ -32,20 +32,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.isMigrated(), false);
     }
 
-    function testFuzzAddRevokeSigner(address to, address recovery, uint200 keyType, bytes calldata key) public {
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
+    /*//////////////////////////////////////////////////////////////
+                                REGISTER
+    //////////////////////////////////////////////////////////////*/
 
-        keyRegistry.register(fid, keyType, key);
-        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.AUTHORIZED);
-
-        keyRegistry.revoke(fid, key);
-        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.REVOKED);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzAddEmitsEvent(address to, address recovery, uint200 keyType, bytes calldata key) public {
+    function testFuzzRegister(address to, address recovery, uint200 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
@@ -54,22 +45,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
+        assertActive(fid, key, keyType);
     }
 
-    function testFuzzRevokeEmitsEvent(address to, address recovery, uint200 keyType, bytes calldata key) public {
-        uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(to);
-
-        keyRegistry.register(fid, keyType, key);
-
-        vm.expectEmit();
-        emit Revoke(fid, key, key);
-        keyRegistry.revoke(fid, key);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzAddRevertsNonOwner(
+    function testFuzzRegisterRevertsUnlessFidOwner(
         address to,
         address recovery,
         address caller,
@@ -79,15 +58,20 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.assume(to != caller);
 
         uint256 fid = _registerFid(to, recovery);
-        vm.startPrank(caller);
 
+        vm.prank(caller);
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
         keyRegistry.register(fid, keyType, key);
 
-        vm.stopPrank();
+        assertInactive(fid, key);
     }
 
-    function testFuzzAddRevertsAuthorized(address to, address recovery, uint200 keyType, bytes calldata key) public {
+    function testFuzzRegisterRevertsIfInitialized(
+        address to,
+        address recovery,
+        uint200 keyType,
+        bytes calldata key
+    ) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
@@ -97,6 +81,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
+        assertActive(fid, key, keyType);
     }
 
     function testFuzzAddRevertsRevoked(address to, address recovery, uint200 keyType, bytes calldata key) public {
@@ -110,9 +95,30 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
+        assertRevoked(fid, key, keyType);
     }
 
-    function testFuzzRevokeRevertsNonOwner(
+    /*//////////////////////////////////////////////////////////////
+                                 REVOKE
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzRevoke(address to, address recovery, uint200 keyType, bytes calldata key) public {
+        uint256 fid = _registerFid(to, recovery);
+        vm.startPrank(to);
+
+        keyRegistry.register(fid, keyType, key);
+        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.AUTHORIZED);
+
+        vm.expectEmit();
+        emit Revoke(fid, key, key);
+        keyRegistry.revoke(fid, key);
+        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.REVOKED);
+
+        vm.stopPrank();
+        assertRevoked(fid, key, keyType);
+    }
+
+    function testFuzzRevokeRevertsUnlessFidOwner(
         address to,
         address recovery,
         address caller,
@@ -128,9 +134,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
         vm.prank(caller);
         keyRegistry.revoke(fid, key);
+
+        assertActive(fid, key, keyType);
     }
 
-    function testFuzzRevokeRevertsUninitialized(address to, address recovery, bytes calldata key) public {
+    function testFuzzRevokeRevertsUnlessInitialized(address to, address recovery, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
@@ -138,9 +146,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.revoke(fid, key);
 
         vm.stopPrank();
+        assertInactive(fid, key);
     }
 
-    function testFuzzRevokeRevertsRevoked(address to, address recovery, uint200 keyType, bytes calldata key) public {
+    function testFuzzRevokeRevertsIfRevoked(address to, address recovery, uint200 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
@@ -151,7 +160,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.revoke(fid, key);
 
         vm.stopPrank();
+        assertRevoked(fid, key, keyType);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                MIGRATION
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzMigration(uint40 timestamp) public {
         vm.assume(timestamp != 0);
@@ -182,6 +196,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.stopPrank();
     }
+
+    /*//////////////////////////////////////////////////////////////
+                              BULK REGISTER
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
         vm.assume(_ids.length > 0);
@@ -222,7 +240,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         for (uint256 i; i < idsLength; ++i) {
             for (uint256 j; j < numKeys; ++j) {
                 assertEq(keyRegistry.signerOf(ids[i], keys[i][j]).state, KeyRegistry.SignerState.AUTHORIZED);
-                // TODO : asser the key type as well her
+                assertEq(keyRegistry.signerOf(ids[i], keys[i][j]).keyType, 1);
             }
         }
     }
@@ -270,6 +288,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
+    /*//////////////////////////////////////////////////////////////
+                               BULK REMOVE
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzBulkRemoveSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
@@ -311,7 +333,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         for (uint256 i; i < idsLength; ++i) {
             for (uint256 j; j < numKeys; ++j) {
                 assertEq(keyRegistry.signerOf(ids[i], keys[i][j]).state, KeyRegistry.SignerState.UNINITIALIZED);
-                // TODO: assert the key type as well
+                assertEq(keyRegistry.signerOf(ids[i], keys[i][j]).keyType, 1);
             }
         }
 
@@ -400,11 +422,30 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 HELPERS
+    //////////////////////////////////////////////////////////////*/
+
     function _registerFid(address to, address recovery) internal returns (uint256) {
         return idRegistry.register(to, recovery);
     }
 
     function assertEq(KeyRegistry.SignerState a, KeyRegistry.SignerState b) internal {
         assertEq(uint8(a), uint8(b));
+    }
+
+    function assertInactive(uint256 fid, bytes memory key) internal {
+        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.UNINITIALIZED);
+        assertEq(keyRegistry.signerOf(fid, key).keyType, 0);
+    }
+
+    function assertActive(uint256 fid, bytes memory key, uint200 keyType) internal {
+        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.AUTHORIZED);
+        assertEq(keyRegistry.signerOf(fid, key).keyType, keyType);
+    }
+
+    function assertRevoked(uint256 fid, bytes memory key, uint200 keyType) internal {
+        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.REVOKED);
+        assertEq(keyRegistry.signerOf(fid, key).keyType, keyType);
     }
 }
