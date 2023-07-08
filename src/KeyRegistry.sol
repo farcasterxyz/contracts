@@ -18,12 +18,14 @@ contract KeyRegistry is Ownable2Step {
     }
 
     /**
-     *  @notice Authorization state of a signer.
+     *  @notice Metadata about a signer.
      *
      *  @param state      Authorization state of the signer.
+     *  @param keyType    Type of signer key being added.
      */
     struct Signer {
         SignerState state;
+        uint200 keyType;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -55,31 +57,29 @@ contract KeyRegistry is Ownable2Step {
      * @dev Emit an event when an admin or FID registers a new key.
      *
      * @param fid       The fid associated with the key.
-     * @param keyType     The keyType of the key.
+     * @param keyType   The type of the key.
      * @param key       The public key being registered. (indexed as hash)
      * @param keyBytes  The bytes of the public key being registered.
      */
-    event Register(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
+    event Register(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed keyType);
 
     /**
      * @dev Emit an event when an admin removes a new key.
      *
      * @param fid       The fid associated with the key.
-     * @param keyType     The keyType of the key.
      * @param key       The public key being registered. (indexed as hash)
      * @param keyBytes  The bytes of the public key being registered.
      */
-    event Remove(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
+    event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
 
     /**
      * @dev Emit an event when an FID revokes a new key.
      *
      * @param fid       The fid revoking the key.
-     * @param keyType     The keyType of the key.
      * @param key       The public key being registered. (indexed as hash)
      * @param keyBytes  The bytes of the public key being registered.
      */
-    event Revoke(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
+    event Revoke(uint256 indexed fid, bytes indexed key, bytes keyBytes);
 
     /**
      * @dev Emit an event when the admin calls migrateSigners.
@@ -115,12 +115,13 @@ contract KeyRegistry is Ownable2Step {
     /**
      * @dev Mapping of FID to keyType to key to signer state.
      *
-     * @custom:param fid    The fid associated with the key.
-     * @custom:param keyType  The key's keyType. In the initial migration all keys will have keyType 1.
-     * @custom:param key    Bytes of the signer's public key.
-     * @custom:param signer Signer struct with the state.
+     * @custom:param fid     The fid associated with the key.
+     * @custom:param keyType The key's keyType.
+     * @custom:param key     Bytes of the signer's public key.
+     * @custom:param signer  Signer struct with the state and key type. In the initial migration
+     *                       all keys will have keyType 1.
      */
-    mapping(uint256 fid => mapping(uint256 keyType => mapping(bytes key => Signer signer))) public signers;
+    mapping(uint256 fid => mapping(bytes key => Signer signer)) public signers;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -160,13 +161,12 @@ contract KeyRegistry is Ownable2Step {
      * @notice Retrieve signer state for a fid/keyType/key tuple.
      *
      * @param fid   The fid associated with the key.
-     * @param keyType The key's numeric keyType. In the initial migration all keys will have keyType 1.
      * @param key   Bytes of the signer's public key.
      *
-     * @return Signer struct including state .
+     * @return Signer struct including state.
      */
-    function signerOf(uint256 fid, uint256 keyType, bytes calldata key) external view returns (Signer memory) {
-        return signers[fid][keyType][key];
+    function signerOf(uint256 fid, bytes calldata key) external view returns (Signer memory) {
+        return signers[fid][key];
     }
 
     /**
@@ -189,7 +189,7 @@ contract KeyRegistry is Ownable2Step {
      * @param keyType The key's numeric keyType.
      * @param key   Bytes of the signer's public key to authorize.
      */
-    function register(uint256 fid, uint256 keyType, bytes calldata key) external onlyFidOwner(fid) {
+    function register(uint256 fid, uint200 keyType, bytes calldata key) external onlyFidOwner(fid) {
         _register(fid, keyType, key);
     }
 
@@ -198,15 +198,14 @@ contract KeyRegistry is Ownable2Step {
      *         The key must be in the AUTHORIZED or FROZEN state.
      *
      * @param fid   The fid associated with the key. Caller must own the provided fid.
-     * @param keyType The key's numeric keyType.
      * @param key   Bytes of the signer's public key to revoke.
      */
-    function revoke(uint256 fid, uint256 keyType, bytes calldata key) external onlyFidOwner(fid) {
-        Signer storage signer = signers[fid][keyType][key];
+    function revoke(uint256 fid, bytes calldata key) external onlyFidOwner(fid) {
+        Signer storage signer = signers[fid][key];
         if (signer.state != SignerState.AUTHORIZED) revert InvalidState();
 
         signer.state = SignerState.REVOKED;
-        emit Revoke(fid, keyType, key, key);
+        emit Revoke(fid, key, key);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -261,25 +260,26 @@ contract KeyRegistry is Ownable2Step {
             for (uint256 i = 0; i < fids.length; i++) {
                 uint256 fid = fids[i];
                 for (uint256 j = 0; j < keys[i].length; j++) {
-                    _remove(fid, 1, keys[i][j]);
+                    _remove(fid, keys[i][j]);
                 }
             }
         }
     }
 
-    function _register(uint256 fid, uint256 keyType, bytes calldata key) internal {
-        Signer storage signer = signers[fid][keyType][key];
+    function _register(uint256 fid, uint200 keyType, bytes calldata key) internal {
+        Signer storage signer = signers[fid][key];
         if (signer.state != SignerState.UNINITIALIZED) revert InvalidState();
 
         signer.state = SignerState.AUTHORIZED;
-        emit Register(fid, keyType, key, key);
+        signer.keyType = keyType;
+        emit Register(fid, key, key, keyType);
     }
 
-    function _remove(uint256 fid, uint256 keyType, bytes calldata key) internal {
-        Signer storage signer = signers[fid][keyType][key];
+    function _remove(uint256 fid, bytes calldata key) internal {
+        Signer storage signer = signers[fid][key];
         if (signer.state != SignerState.AUTHORIZED) revert InvalidState();
 
         signer.state = SignerState.UNINITIALIZED;
-        emit Remove(fid, keyType, key, key);
+        emit Remove(fid, key, key);
     }
 }

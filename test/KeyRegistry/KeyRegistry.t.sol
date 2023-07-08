@@ -8,9 +8,9 @@ import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 /* solhint-disable state-visibility */
 
 contract KeyRegistryTest is KeyRegistryTestSuite {
-    event Register(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
-    event Revoke(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
-    event Remove(uint256 indexed fid, uint256 indexed keyType, bytes indexed key, bytes keyBytes);
+    event Register(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed keyType);
+    event Revoke(uint256 indexed fid, bytes indexed key, bytes keyBytes);
+    event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
 
     function testInitialIdRegistry() public {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
@@ -32,39 +32,39 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.isMigrated(), false);
     }
 
-    function testFuzzAddRevokeSigner(address to, address recovery, uint256 keyType, bytes calldata key) public {
+    function testFuzzAddRevokeSigner(address to, address recovery, uint200 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         keyRegistry.register(fid, keyType, key);
-        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.AUTHORIZED);
+        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.AUTHORIZED);
 
-        keyRegistry.revoke(fid, keyType, key);
-        assertEq(keyRegistry.signerOf(fid, keyType, key).state, KeyRegistry.SignerState.REVOKED);
+        keyRegistry.revoke(fid, key);
+        assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.REVOKED);
 
         vm.stopPrank();
     }
 
-    function testFuzzAddEmitsEvent(address to, address recovery, uint256 keyType, bytes calldata key) public {
+    function testFuzzAddEmitsEvent(address to, address recovery, uint200 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         vm.expectEmit();
-        emit Register(fid, keyType, key, key);
+        emit Register(fid, key, key, keyType);
         keyRegistry.register(fid, keyType, key);
 
         vm.stopPrank();
     }
 
-    function testFuzzRevokeEmitsEvent(address to, address recovery, uint256 keyType, bytes calldata key) public {
+    function testFuzzRevokeEmitsEvent(address to, address recovery, uint200 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         keyRegistry.register(fid, keyType, key);
 
         vm.expectEmit();
-        emit Revoke(fid, keyType, key, key);
-        keyRegistry.revoke(fid, keyType, key);
+        emit Revoke(fid, key, key);
+        keyRegistry.revoke(fid, key);
 
         vm.stopPrank();
     }
@@ -73,7 +73,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address to,
         address recovery,
         address caller,
-        uint256 keyType,
+        uint200 keyType,
         bytes calldata key
     ) public {
         vm.assume(to != caller);
@@ -87,7 +87,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testFuzzAddRevertsAuthorized(address to, address recovery, uint256 keyType, bytes calldata key) public {
+    function testFuzzAddRevertsAuthorized(address to, address recovery, uint200 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
@@ -99,12 +99,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testFuzzAddRevertsRevoked(address to, address recovery, uint256 keyType, bytes calldata key) public {
+    function testFuzzAddRevertsRevoked(address to, address recovery, uint200 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         keyRegistry.register(fid, keyType, key);
-        keyRegistry.revoke(fid, keyType, key);
+        keyRegistry.revoke(fid, key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
         keyRegistry.register(fid, keyType, key);
@@ -116,7 +116,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address to,
         address recovery,
         address caller,
-        uint256 keyType,
+        uint200 keyType,
         bytes calldata key
     ) public {
         vm.assume(to != caller);
@@ -127,33 +127,28 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
         vm.prank(caller);
-        keyRegistry.revoke(fid, keyType, key);
+        keyRegistry.revoke(fid, key);
     }
 
-    function testFuzzRevokeRevertsUninitialized(
-        address to,
-        address recovery,
-        uint256 keyType,
-        bytes calldata key
-    ) public {
+    function testFuzzRevokeRevertsUninitialized(address to, address recovery, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.revoke(fid, keyType, key);
+        keyRegistry.revoke(fid, key);
 
         vm.stopPrank();
     }
 
-    function testFuzzRevokeRevertsRevoked(address to, address recovery, uint256 keyType, bytes calldata key) public {
+    function testFuzzRevokeRevertsRevoked(address to, address recovery, uint200 keyType, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         keyRegistry.register(fid, keyType, key);
-        keyRegistry.revoke(fid, keyType, key);
+        keyRegistry.revoke(fid, key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.revoke(fid, keyType, key);
+        keyRegistry.revoke(fid, key);
 
         vm.stopPrank();
     }
@@ -226,7 +221,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         for (uint256 i; i < idsLength; ++i) {
             for (uint256 j; j < numKeys; ++j) {
-                assertEq(keyRegistry.signerOf(ids[i], 1, keys[i][j]).state, KeyRegistry.SignerState.AUTHORIZED);
+                assertEq(keyRegistry.signerOf(ids[i], keys[i][j]).state, KeyRegistry.SignerState.AUTHORIZED);
+                // TODO : asser the key type as well her
             }
         }
     }
@@ -314,7 +310,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         for (uint256 i; i < idsLength; ++i) {
             for (uint256 j; j < numKeys; ++j) {
-                assertEq(keyRegistry.signerOf(ids[i], 1, keys[i][j]).state, KeyRegistry.SignerState.UNINITIALIZED);
+                assertEq(keyRegistry.signerOf(ids[i], keys[i][j]).state, KeyRegistry.SignerState.UNINITIALIZED);
+                // TODO: assert the key type as well
             }
         }
 
@@ -343,16 +340,16 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.bulkAddSignersForMigration(ids, keys);
 
         vm.expectEmit();
-        emit Remove(ids[0], 1, keys[0][0], keys[0][0]);
+        emit Remove(ids[0], keys[0][0], keys[0][0]);
 
         vm.expectEmit();
-        emit Remove(ids[1], 1, keys[1][0], keys[1][0]);
+        emit Remove(ids[1], keys[1][0], keys[1][0]);
 
         vm.expectEmit();
-        emit Remove(ids[2], 1, keys[2][0], keys[2][0]);
+        emit Remove(ids[2], keys[2][0], keys[2][0]);
 
         vm.expectEmit();
-        emit Remove(ids[2], 1, keys[2][1], keys[2][1]);
+        emit Remove(ids[2], keys[2][1], keys[2][1]);
 
         keyRegistry.bulkRemoveSignersForMigration(ids, keys);
 
