@@ -8,7 +8,7 @@ import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 /* solhint-disable state-visibility */
 
 contract KeyRegistryTest is KeyRegistryTestSuite {
-    event Register(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed keyType);
+    event Register(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed keyType, bytes metadata);
     event Revoke(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
 
@@ -36,13 +36,19 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                 REGISTER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzRegister(address to, address recovery, uint200 keyType, bytes calldata key) public {
+    function testFuzzRegister(
+        address to,
+        address recovery,
+        uint200 keyType,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
         vm.expectEmit();
-        emit Register(fid, key, key, keyType);
-        keyRegistry.register(fid, keyType, key);
+        emit Register(fid, key, key, keyType, metadata);
+        keyRegistry.register(fid, keyType, key, metadata);
 
         vm.stopPrank();
         assertActive(fid, key, keyType);
@@ -53,7 +59,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         address caller,
         uint200 keyType,
-        bytes calldata key
+        bytes calldata key,
+        bytes calldata metadata
     ) public {
         vm.assume(to != caller);
 
@@ -61,7 +68,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(caller);
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        keyRegistry.register(fid, keyType, key);
+        keyRegistry.register(fid, keyType, key, metadata);
 
         assertInactive(fid, key);
     }
@@ -70,29 +77,36 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address to,
         address recovery,
         uint200 keyType,
-        bytes calldata key
+        bytes calldata key,
+        bytes calldata metadata
     ) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, keyType, key);
+        keyRegistry.register(fid, keyType, key, metadata);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.register(fid, keyType, key);
+        keyRegistry.register(fid, keyType, key, metadata);
 
         vm.stopPrank();
         assertActive(fid, key, keyType);
     }
 
-    function testFuzzAddRevertsRevoked(address to, address recovery, uint200 keyType, bytes calldata key) public {
+    function testFuzzAddRevertsRevoked(
+        address to,
+        address recovery,
+        uint200 keyType,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, keyType, key);
+        keyRegistry.register(fid, keyType, key, metadata);
         keyRegistry.revoke(fid, key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.register(fid, keyType, key);
+        keyRegistry.register(fid, keyType, key, metadata);
 
         vm.stopPrank();
         assertRevoked(fid, key, keyType);
@@ -102,11 +116,17 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                  REVOKE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzRevoke(address to, address recovery, uint200 keyType, bytes calldata key) public {
+    function testFuzzRevoke(
+        address to,
+        address recovery,
+        uint200 keyType,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, keyType, key);
+        keyRegistry.register(fid, keyType, key, metadata);
         assertEq(keyRegistry.signerOf(fid, key).state, KeyRegistry.SignerState.AUTHORIZED);
 
         vm.expectEmit();
@@ -123,13 +143,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         address caller,
         uint200 keyType,
-        bytes calldata key
+        bytes calldata key,
+        bytes calldata metadata
     ) public {
         vm.assume(to != caller);
 
         uint256 fid = _registerFid(to, recovery);
         vm.prank(to);
-        keyRegistry.register(fid, keyType, key);
+        keyRegistry.register(fid, keyType, key, metadata);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
         vm.prank(caller);
@@ -149,11 +170,17 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertInactive(fid, key);
     }
 
-    function testFuzzRevokeRevertsIfRevoked(address to, address recovery, uint200 keyType, bytes calldata key) public {
+    function testFuzzRevokeRevertsIfRevoked(
+        address to,
+        address recovery,
+        uint200 keyType,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.register(fid, keyType, key);
+        keyRegistry.register(fid, keyType, key, metadata);
         keyRegistry.revoke(fid, key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
@@ -201,7 +228,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                               BULK REGISTER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
+    function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys, bytes calldata metadata) public {
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
@@ -235,7 +262,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         }
 
         vm.prank(admin);
-        keyRegistry.bulkAddSignersForMigration(ids, keys);
+        keyRegistry.bulkAddSignersForMigration(ids, keys, metadata);
 
         for (uint256 i; i < idsLength; ++i) {
             for (uint256 j; j < numKeys; ++j) {
@@ -245,7 +272,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         }
     }
 
-    function testFuzzBulkAddSignerForMigrationDuringGracePeriod(uint40 _warpForward) public {
+    function testFuzzBulkAddSignerForMigrationDuringGracePeriod(uint40 _warpForward, bytes calldata metadata) public {
         uint256[] memory ids = new uint256[](1);
         bytes[][] memory keys = new bytes[][](1);
         uint256 warpForward = bound(_warpForward, 1, keyRegistry.gracePeriod() - 1);
@@ -255,12 +282,15 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.migrateSigners();
         vm.warp(keyRegistry.signersMigratedAt() + warpForward);
 
-        keyRegistry.bulkAddSignersForMigration(ids, keys);
+        keyRegistry.bulkAddSignersForMigration(ids, keys, metadata);
 
         vm.stopPrank();
     }
 
-    function testFuzzBulkAddSignerForMigrationAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
+    function testFuzzBulkAddSignerForMigrationAfterGracePeriodRevertsUnauthorized(
+        uint40 _warpForward,
+        bytes calldata metadata
+    ) public {
         uint256[] memory ids = new uint256[](1);
         bytes[][] memory keys = new bytes[][](1);
         uint256 warpForward =
@@ -272,7 +302,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(keyRegistry.signersMigratedAt() + keyRegistry.gracePeriod() + warpForward);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        keyRegistry.bulkAddSignersForMigration(ids, keys);
+        keyRegistry.bulkAddSignersForMigration(ids, keys, metadata);
 
         vm.stopPrank();
     }
@@ -280,10 +310,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzBulkAddSignerForMigrationRevertsMismatchedInput() public {
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](1);
+        bytes memory metadata = new bytes(1);
 
         vm.startPrank(admin);
         vm.expectRevert(KeyRegistry.InvalidBatchInput.selector);
-        keyRegistry.bulkAddSignersForMigration(ids, keys);
+        keyRegistry.bulkAddSignersForMigration(ids, keys, metadata);
 
         vm.stopPrank();
     }
@@ -292,7 +323,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                BULK REMOVE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkRemoveSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
+    function testFuzzBulkRemoveSignerForMigration(
+        uint256[] memory _ids,
+        uint8 _numKeys,
+        bytes calldata metadata
+    ) public {
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
@@ -327,7 +362,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.startPrank(admin);
 
-        keyRegistry.bulkAddSignersForMigration(ids, keys);
+        keyRegistry.bulkAddSignersForMigration(ids, keys, metadata);
         keyRegistry.bulkRemoveSignersForMigration(ids, keys);
 
         for (uint256 i; i < idsLength; ++i) {
@@ -343,6 +378,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testBulkRemoveEmitsEvent() public {
         uint256[] memory ids = new uint256[](3);
         bytes[][] memory keys = new bytes[][](3);
+        bytes memory metadata = new bytes(1);
 
         ids[0] = 1;
         ids[1] = 2;
@@ -359,7 +395,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.startPrank(admin);
 
-        keyRegistry.bulkAddSignersForMigration(ids, keys);
+        keyRegistry.bulkAddSignersForMigration(ids, keys, metadata);
 
         vm.expectEmit();
         emit Remove(ids[0], keys[0][0], keys[0][0]);

@@ -59,8 +59,9 @@ contract KeyRegistry is Ownable2Step {
      * @param keyType   The type of the key.
      * @param key       The public key being registered. (indexed as hash)
      * @param keyBytes  The bytes of the public key being registered.
+     * @param metadata  Metadata about the signer key (e.g. application identifier)
      */
-    event Register(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed keyType);
+    event Register(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed keyType, bytes metadata);
 
     /**
      * @dev Emit an event when an admin removes a new key.
@@ -184,12 +185,18 @@ contract KeyRegistry is Ownable2Step {
     /**
      * @notice Register a public key to a fid/keyType pair, setting the signer state to AUTHORIZED.
      *
-     * @param fid   The fid associated with the key. Caller must own the provided fid.
-     * @param keyType The key's numeric keyType.
-     * @param key   Bytes of the signer's public key to authorize.
+     * @param fid      The fid associated with the key. Caller must own the provided fid.
+     * @param keyType  The key's numeric keyType.
+     * @param key      Bytes of the signer's public key to authorize.
+     * @param metadata Metadata about the key (e.g. application identifiers)
      */
-    function register(uint256 fid, uint200 keyType, bytes calldata key) external onlyFidOwner(fid) {
-        _register(fid, keyType, key);
+    function register(
+        uint256 fid,
+        uint200 keyType,
+        bytes calldata key,
+        bytes calldata metadata
+    ) external onlyFidOwner(fid) {
+        _register(fid, keyType, key, metadata);
     }
 
     /**
@@ -228,7 +235,11 @@ contract KeyRegistry is Ownable2Step {
      * @param fids  A list of fids to associate with keys.
      * @param keys  A list of public keys to register for each fid, in the same order as the fids array.
      */
-    function bulkAddSignersForMigration(uint256[] calldata fids, bytes[][] calldata keys) external onlyOwner {
+    function bulkAddSignersForMigration(
+        uint256[] calldata fids,
+        bytes[][] calldata keys,
+        bytes calldata metadata
+    ) external onlyOwner {
         if (isMigrated() && block.timestamp > signersMigratedAt + gracePeriod) revert Unauthorized();
         if (fids.length != keys.length) revert InvalidBatchInput();
 
@@ -236,7 +247,7 @@ contract KeyRegistry is Ownable2Step {
             for (uint256 i = 0; i < fids.length; i++) {
                 uint256 fid = fids[i];
                 for (uint256 j = 0; j < keys[i].length; j++) {
-                    _register(fid, 1, keys[i][j]);
+                    _register(fid, 1, keys[i][j], metadata);
                 }
             }
         }
@@ -265,13 +276,13 @@ contract KeyRegistry is Ownable2Step {
         }
     }
 
-    function _register(uint256 fid, uint200 keyType, bytes calldata key) internal {
+    function _register(uint256 fid, uint200 keyType, bytes calldata key, bytes calldata metadata) internal {
         Signer storage signer = signers[fid][key];
         if (signer.state != SignerState.UNINITIALIZED) revert InvalidState();
 
         signer.state = SignerState.AUTHORIZED;
         signer.keyType = keyType;
-        emit Register(fid, key, key, keyType);
+        emit Register(fid, key, key, keyType, metadata);
     }
 
     function _remove(uint256 fid, bytes calldata key) internal {
