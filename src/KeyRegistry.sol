@@ -35,8 +35,7 @@ contract KeyRegistry is Ownable2Step {
     /**
      *  @dev Revert if a register/revoke attempts an invalid state transition.
      *       - Register: key must be UNINITIALIZED.
-     *       - Freeze: key must be AUTHORIZED.
-     *       - Revoke: key must be AUTHORIZED or FROZEN.
+     *       - Revoke: key must be AUTHORIZED.
      */
     error InvalidState();
 
@@ -195,7 +194,7 @@ contract KeyRegistry is Ownable2Step {
 
     /**
      * @notice Revoke a public key associated with a fid/keyType pair, setting the signer state to REVOKED.
-     *         The key must be in the AUTHORIZED or FROZEN state.
+     *         The key must be in the AUTHORIZED state.
      *
      * @param fid   The fid associated with the key. Caller must own the provided fid.
      * @param key   Bytes of the signer's public key to revoke.
