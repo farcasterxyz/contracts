@@ -6,43 +6,42 @@ import {IdRegistry} from "./IdRegistry.sol";
 
 contract KeyRegistry is Ownable2Step {
     /**
-     *  @notice Authorization state enum for a signer.
-     *          - UNINITIALIZED: The signer's key is not registered.
-     *          - AUTHORIZED: The signer's is registered.
-     *          - REVOKED: The signer's key was registered, but is now revoked.
+     *  @notice State enumeration for a key in the registry. During migration, an admin can change
+     *          the state of any fids key from NULL to ADDED or ADDED to NULL. After migration, an
+     *          fid can change the state of a key from NULL to ADDED or ADDED to REMOVED only.
+     *
+     *          - NULL: The key is not in the registry.
+     *          - ADDED: The key has been added to the registry.
+     *          - REMOVED: The key was added to the registry, but is now removed.
      */
-    enum SignerState {
-        UNINITIALIZED,
-        AUTHORIZED,
-        REVOKED
+    enum KeyState {
+        NULL,
+        ADDED,
+        REMOVED
     }
 
     /**
-     *  @notice Metadata about a signer.
+     *  @notice Data about a key.
      *
-     *  @param state      Authorization state of the signer.
-     *  @param keyType    Type of signer key being added.
+     *  @param state   The current state of the key.
+     *  @param scheme  The manner in which the key should be used.
      */
-    struct Signer {
-        SignerState state;
-        uint200 keyType;
+    struct KeyData {
+        KeyState state;
+        uint200 scheme;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     *  @dev Revert if a register/revoke attempts an invalid state transition.
-     *       - Register: key must be UNINITIALIZED.
-     *       - Revoke: key must be AUTHORIZED.
-     */
+    /// @dev Revert if a key violates KeyState transition rules.
     error InvalidState();
 
-    /// @dev Revert if owner attempts a bulk add/remove after the migration grace period.
+    /// @dev Revert if owner attempts a bulk add or reset after the migration grace period.
     error Unauthorized();
 
-    /// @dev Revert if owner calls migrateSigners more than once.
+    /// @dev Revert if owner calls migrateKeys more than once.
     error AlreadyMigrated();
 
     /// @dev Revert if migration batch input arrays are not the same length.
@@ -53,38 +52,38 @@ contract KeyRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Emit an event when an admin or FID registers a new key.
+     * @dev Emit an event when an admin or fid adds a new key.
      *
      * @param fid       The fid associated with the key.
-     * @param keyType   The type of the key.
-     * @param key       The public key being registered. (indexed as hash)
-     * @param keyBytes  The bytes of the public key being registered.
-     * @param metadata  Metadata about the signer key (e.g. application identifier)
+     * @param scheme    The type of the key.
+     * @param key       The key being registered. (indexed as hash)
+     * @param keyBytes  The bytes of the key being registered.
+     * @param metadata  Metadata about the key.
      */
-    event Register(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed keyType, bytes metadata);
+    event Add(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed scheme, bytes metadata);
 
     /**
-     * @dev Emit an event when an admin removes a new key.
+     * @dev Emit an event when an fid removes an added key.
      *
      * @param fid       The fid associated with the key.
-     * @param key       The public key being registered. (indexed as hash)
-     * @param keyBytes  The bytes of the public key being registered.
+     * @param key       The key being registered. (indexed as hash)
+     * @param keyBytes  The bytes of the key being registered.
      */
     event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
 
     /**
-     * @dev Emit an event when an FID revokes a new key.
+     * @dev Emit an event when an admin resets an added key.
      *
-     * @param fid       The fid revoking the key.
-     * @param key       The public key being registered. (indexed as hash)
-     * @param keyBytes  The bytes of the public key being registered.
+     * @param fid       The fid associated with the key.
+     * @param key       The key being reset. (indexed as hash)
+     * @param keyBytes  The bytes of the key being registered.
      */
-    event Revoke(uint256 indexed fid, bytes indexed key, bytes keyBytes);
+    event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
 
     /**
-     * @dev Emit an event when the admin calls migrateSigners.
+     * @dev Emit an event when the admin calls migrateKeys.
      */
-    event SignersMigrated();
+    event Migrated();
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
@@ -96,9 +95,9 @@ contract KeyRegistry is Ownable2Step {
     IdRegistry public immutable idRegistry;
 
     /**
-     * @dev Period in seconds after migration during which admin can bulk add/remove signers.
-     *      This grace period allows the admin to make corrections to the migrated data during
-     *      the grace period if necessary, but prevents any changes after it expires.
+     * @dev Period in seconds after migration during which admin can bulk add/reset keys.
+     *      Admins can make corrections to the migrated data during the grace period if necessary,
+     *      but cannot make changes after it expires.
      */
     uint24 public immutable gracePeriod;
 
@@ -107,21 +106,20 @@ contract KeyRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Timestamp at which signer data was migrated. Hubs will cut over to use the onchain
-     *      registry as their source of truth after this timestamp.
+     * @dev Timestamp at which keys migrated. Hubs will cut over to use this key registry as their
+     *      source of truth after this timestamp.
      */
-    uint40 public signersMigratedAt;
+    uint40 public keysMigratedAt;
 
     /**
-     * @dev Mapping of FID to keyType to key to signer state.
+     * @dev Mapping of fid to a key to the key's metadata.
      *
-     * @custom:param fid     The fid associated with the key.
-     * @custom:param keyType The key's keyType.
-     * @custom:param key     Bytes of the signer's public key.
-     * @custom:param signer  Signer struct with the state and key type. In the initial migration
-     *                       all keys will have keyType 1.
+     * @custom:param fid       The fid associated with the key.
+     * @custom:param key       Bytes of the key.
+     * @custom:param data      Struct with the state and key type. In the initial migration
+     *                         all keys will have data.scheme == 1.
      */
-    mapping(uint256 fid => mapping(bytes key => Signer signer)) public signers;
+    mapping(uint256 fid => mapping(bytes key => KeyData data)) public keys;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -142,7 +140,7 @@ contract KeyRegistry is Ownable2Step {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
+                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -154,19 +152,19 @@ contract KeyRegistry is Ownable2Step {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              VIEWS
+                                  VIEWS
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Retrieve signer state for a fid/keyType/key tuple.
+     * @notice Retrieve state and type data for a given key.
      *
      * @param fid   The fid associated with the key.
-     * @param key   Bytes of the signer's public key.
+     * @param key   Bytes of the key.
      *
-     * @return Signer struct including state.
+     * @return KeyData struct that contains the state and scheme.
      */
-    function signerOf(uint256 fid, bytes calldata key) external view returns (Signer memory) {
-        return signers[fid][key];
+    function keyDataOf(uint256 fid, bytes calldata key) external view returns (KeyData memory) {
+        return keys[fid][key];
     }
 
     /**
@@ -175,121 +173,120 @@ contract KeyRegistry is Ownable2Step {
      * @return true if the contract has been migrated, false otherwise.
      */
     function isMigrated() public view returns (bool) {
-        return signersMigratedAt != 0;
+        return keysMigratedAt != 0;
     }
 
     /*//////////////////////////////////////////////////////////////
-                    EXTERNAL KEY REGISTRATION
+                              REGISTRATION
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Register a public key to a fid/keyType pair, setting the signer state to AUTHORIZED.
+     * @notice Add a key to an fid, setting the key state to ADDED.
      *
-     * @param fid      The fid associated with the key. Caller must own the provided fid.
-     * @param keyType  The key's numeric keyType.
-     * @param key      Bytes of the signer's public key to authorize.
-     * @param metadata Metadata about the key (e.g. application identifiers)
+     * @param fid      The fid associated with the key. Caller must own the fid.
+     * @param scheme   The key's numeric scheme.
+     * @param key      Bytes of the key to add.
+     * @param metadata Metadata about the key, which is not stored and only emitted in an event.
      */
-    function register(
-        uint256 fid,
-        uint200 keyType,
-        bytes calldata key,
-        bytes calldata metadata
-    ) external onlyFidOwner(fid) {
-        _register(fid, keyType, key, metadata);
+    function add(uint256 fid, uint200 scheme, bytes calldata key, bytes calldata metadata) external onlyFidOwner(fid) {
+        _add(fid, scheme, key, metadata);
     }
 
     /**
-     * @notice Revoke a public key associated with a fid/keyType pair, setting the signer state to REVOKED.
-     *         The key must be in the AUTHORIZED state.
+     * @notice Remove a key associated with an fid, setting the key state to REMOVED.
+     *         The key must be in the ADDED state.
      *
-     * @param fid   The fid associated with the key. Caller must own the provided fid.
-     * @param key   Bytes of the signer's public key to revoke.
+     * @param fid   The fid associated with the key. Caller must own the fid.
+     * @param key   Bytes of the key to remove.
      */
-    function revoke(uint256 fid, bytes calldata key) external onlyFidOwner(fid) {
-        Signer storage signer = signers[fid][key];
-        if (signer.state != SignerState.AUTHORIZED) revert InvalidState();
+    function remove(uint256 fid, bytes calldata key) external onlyFidOwner(fid) {
+        KeyData storage keyData = keys[fid][key];
+        if (keyData.state != KeyState.ADDED) revert InvalidState();
 
-        signer.state = SignerState.REVOKED;
-        emit Revoke(fid, key, key);
+        keyData.state = KeyState.REMOVED;
+        emit Remove(fid, key, key);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        INITIAL MIGRATION
+                                MIGRATION
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the time of the signer migration and emit an event. Hubs will watch this event and
+     * @notice Set the time of the key migration and emit an event. Hubs will watch this event and
      *         cut over to use the onchain registry as their source of truth after this timestamp.
      *         Only callable by the contract owner.
      */
-    function migrateSigners() external onlyOwner {
+    function migrateKeys() external onlyOwner {
         if (isMigrated()) revert AlreadyMigrated();
-        signersMigratedAt = uint40(block.timestamp);
-        emit SignersMigrated();
+        keysMigratedAt = uint40(block.timestamp);
+        emit Migrated();
     }
 
     /**
-     * @notice Register multiple signers as part of the initial migration. Only callable by the contract owner.
+     * @notice Add multiple keys as part of the initial migration. Only callable by the contract owner.
      *
-     * @param fids  A list of fids to associate with keys.
-     * @param keys  A list of public keys to register for each fid, in the same order as the fids array.
+     * @param fids    A list of fids to associate with keys.
+     * @param fidKeys A list of public keys to register for each fid, in the same order as the fids array.
      */
-    function bulkAddSignersForMigration(
+    function bulkAddKeysForMigration(
         uint256[] calldata fids,
-        bytes[][] calldata keys,
+        bytes[][] calldata fidKeys,
         bytes calldata metadata
     ) external onlyOwner {
-        if (isMigrated() && block.timestamp > signersMigratedAt + gracePeriod) revert Unauthorized();
-        if (fids.length != keys.length) revert InvalidBatchInput();
+        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) revert Unauthorized();
+        if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
         unchecked {
             for (uint256 i = 0; i < fids.length; i++) {
                 uint256 fid = fids[i];
-                for (uint256 j = 0; j < keys[i].length; j++) {
-                    _register(fid, 1, keys[i][j], metadata);
+                for (uint256 j = 0; j < fidKeys[i].length; j++) {
+                    _add(fid, 1, fidKeys[i][j], metadata);
                 }
             }
         }
     }
 
     /**
-     * @notice Remove multiple signers as part of the initial migration. Only callable by the contract owner.
-     *         Removal is not the same as revocation: this function sets the signer state back to UNINITIALIZED,
-     *         rather than REVOKED. This allows the owner to correct any errors in the initial migration until
+     * @notice Reset multiple keys as part of the initial migration. Only callable by the contract owner.
+     *         Reset is not the same as removal: this function sets the key state back to NULL,
+     *         rather than REMOVED. This allows the owner to correct any errors in the initial migration until
      *         the grace period expires.
      *
-     * @param fids  A list of fids to whose registered keys should be removed.
-     * @param keys  A list of public keys to remove for each fid, in the same order as the fids array.
+     * @param fids    A list of fids whose added keys should be removed.
+     * @param fidKeys A list of keys to remove for each fid, in the same order as the fids array.
      */
-    function bulkRemoveSignersForMigration(uint256[] calldata fids, bytes[][] calldata keys) external onlyOwner {
-        if (isMigrated() && block.timestamp > signersMigratedAt + uint40(gracePeriod)) revert Unauthorized();
-        if (fids.length != keys.length) revert InvalidBatchInput();
+    function bulkResetKeysForMigration(uint256[] calldata fids, bytes[][] calldata fidKeys) external onlyOwner {
+        if (isMigrated() && block.timestamp > keysMigratedAt + uint40(gracePeriod)) revert Unauthorized();
+        if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
         unchecked {
             for (uint256 i = 0; i < fids.length; i++) {
                 uint256 fid = fids[i];
-                for (uint256 j = 0; j < keys[i].length; j++) {
-                    _remove(fid, keys[i][j]);
+                for (uint256 j = 0; j < fidKeys[i].length; j++) {
+                    _reset(fid, fidKeys[i][j]);
                 }
             }
         }
     }
 
-    function _register(uint256 fid, uint200 keyType, bytes calldata key, bytes calldata metadata) internal {
-        Signer storage signer = signers[fid][key];
-        if (signer.state != SignerState.UNINITIALIZED) revert InvalidState();
+    /*//////////////////////////////////////////////////////////////
+                                 HELPERS
+    //////////////////////////////////////////////////////////////*/
 
-        signer.state = SignerState.AUTHORIZED;
-        signer.keyType = keyType;
-        emit Register(fid, key, key, keyType, metadata);
+    function _add(uint256 fid, uint200 scheme, bytes calldata key, bytes calldata metadata) internal {
+        KeyData storage keyData = keys[fid][key];
+        if (keyData.state != KeyState.NULL) revert InvalidState();
+
+        keyData.state = KeyState.ADDED;
+        keyData.scheme = scheme;
+        emit Add(fid, key, key, scheme, metadata);
     }
 
-    function _remove(uint256 fid, bytes calldata key) internal {
-        Signer storage signer = signers[fid][key];
-        if (signer.state != SignerState.AUTHORIZED) revert InvalidState();
+    function _reset(uint256 fid, bytes calldata key) internal {
+        KeyData storage keyData = keys[fid][key];
+        if (keyData.state != KeyState.ADDED) revert InvalidState();
 
-        signer.state = SignerState.UNINITIALIZED;
-        emit Remove(fid, key, key);
+        keyData.state = KeyState.NULL;
+        emit AdminReset(fid, key, key);
     }
 }
