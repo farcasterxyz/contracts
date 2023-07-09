@@ -236,10 +236,13 @@ contract KeyRegistry is Ownable2Step {
         if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) revert Unauthorized();
         if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
+        // Safety: i and j can be incremented unchecked since they are bound by fids.length and
+        // fidKeys[i].length respectively.
         unchecked {
             for (uint256 i = 0; i < fids.length; i++) {
                 uint256 fid = fids[i];
                 for (uint256 j = 0; j < fidKeys[i].length; j++) {
+                    // TODO: add note about griefing during migration
                     _add(fid, 1, fidKeys[i][j], metadata);
                 }
             }
@@ -256,13 +259,16 @@ contract KeyRegistry is Ownable2Step {
      * @param fidKeys A list of keys to remove for each fid, in the same order as the fids array.
      */
     function bulkResetKeysForMigration(uint256[] calldata fids, bytes[][] calldata fidKeys) external onlyOwner {
-        if (isMigrated() && block.timestamp > keysMigratedAt + uint40(gracePeriod)) revert Unauthorized();
+        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) revert Unauthorized();
         if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
+        // Safety: i and j can be incremented unchecked since they are bound by fids.length and
+        // fidKeys[i].length respectively.
         unchecked {
             for (uint256 i = 0; i < fids.length; i++) {
                 uint256 fid = fids[i];
                 for (uint256 j = 0; j < fidKeys[i].length; j++) {
+                    // TODO: add note about griefing during migration
                     _reset(fid, fidKeys[i][j]);
                 }
             }
@@ -287,6 +293,7 @@ contract KeyRegistry is Ownable2Step {
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
         keyData.state = KeyState.NULL;
+        delete keyData.scheme;
         emit AdminReset(fid, key, key);
     }
 }
