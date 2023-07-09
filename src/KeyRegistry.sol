@@ -28,7 +28,7 @@ contract KeyRegistry is Ownable2Step {
      */
     struct KeyData {
         KeyState state;
-        uint200 scheme;
+        uint32 scheme;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -60,7 +60,7 @@ contract KeyRegistry is Ownable2Step {
      * @param keyBytes  The bytes of the key being registered.
      * @param metadata  Metadata about the key.
      */
-    event Add(uint256 indexed fid, uint200 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
+    event Add(uint256 indexed fid, uint32 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
 
     /**
      * @dev Emit an event when an fid removes an added key.
@@ -188,7 +188,7 @@ contract KeyRegistry is Ownable2Step {
      * @param key      Bytes of the key to add.
      * @param metadata Metadata about the key, which is not stored and only emitted in an event.
      */
-    function add(uint256 fid, uint200 scheme, bytes calldata key, bytes calldata metadata) external onlyFidOwner(fid) {
+    function add(uint256 fid, uint32 scheme, bytes calldata key, bytes calldata metadata) external onlyFidOwner(fid) {
         _add(fid, scheme, key, metadata);
     }
 
@@ -279,7 +279,7 @@ contract KeyRegistry is Ownable2Step {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _add(uint256 fid, uint200 scheme, bytes calldata key, bytes calldata metadata) internal {
+    function _add(uint256 fid, uint32 scheme, bytes calldata key, bytes calldata metadata) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
 

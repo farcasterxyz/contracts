@@ -8,7 +8,7 @@ import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 /* solhint-disable state-visibility */
 
 contract KeyRegistryTest is KeyRegistryTestSuite {
-    event Add(uint256 indexed fid, uint200 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
+    event Add(uint256 indexed fid, uint32 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
     event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event Migrated();
@@ -40,7 +40,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzRegister(
         address to,
         address recovery,
-        uint200 scheme,
+        uint32 scheme,
         bytes calldata key,
         bytes calldata metadata
     ) public {
@@ -58,7 +58,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address to,
         address recovery,
         address caller,
-        uint200 scheme,
+        uint32 scheme,
         bytes calldata key,
         bytes calldata metadata
     ) public {
@@ -76,7 +76,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzRegisterRevertsIfStateNotNull(
         address to,
         address recovery,
-        uint200 scheme,
+        uint32 scheme,
         bytes calldata key,
         bytes calldata metadata
     ) public {
@@ -95,7 +95,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzAddRevertsIfRemoved(
         address to,
         address recovery,
-        uint200 scheme,
+        uint32 scheme,
         bytes calldata key,
         bytes calldata metadata
     ) public {
@@ -119,7 +119,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzRemove(
         address to,
         address recovery,
-        uint200 scheme,
+        uint32 scheme,
         bytes calldata key,
         bytes calldata metadata
     ) public {
@@ -144,7 +144,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address to,
         address recovery,
         address caller,
-        uint200 scheme,
+        uint32 scheme,
         bytes calldata key,
         bytes calldata metadata
     ) public {
@@ -174,7 +174,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzRemoveRevertsIfRemoved(
         address to,
         address recovery,
-        uint200 scheme,
+        uint32 scheme,
         bytes calldata key,
         bytes calldata metadata
     ) public {
@@ -538,12 +538,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).scheme, 0);
     }
 
-    function assertAdded(uint256 fid, bytes memory key, uint200 scheme) internal {
+    function assertAdded(uint256 fid, bytes memory key, uint32 scheme) internal {
         assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
     }
 
-    function assertRemoved(uint256 fid, bytes memory key, uint200 scheme) internal {
+    function assertRemoved(uint256 fid, bytes memory key, uint32 scheme) internal {
         assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
     }
