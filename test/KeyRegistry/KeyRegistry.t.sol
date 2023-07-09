@@ -8,7 +8,7 @@ import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 /* solhint-disable state-visibility */
 
 contract KeyRegistryTest is KeyRegistryTestSuite {
-    event Add(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed scheme, bytes metadata);
+    event Add(uint256 indexed fid, uint200 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
     event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event Migrated();
@@ -47,7 +47,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
 
         vm.expectEmit();
-        emit Add(fid, key, key, scheme, metadata);
+        emit Add(fid, scheme, key, key, metadata);
         vm.prank(to);
         keyRegistry.add(fid, scheme, key, metadata);
 
@@ -276,16 +276,16 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keys[2][1] = abi.encodePacked(uint256(4));
 
         vm.expectEmit();
-        emit Add(ids[0], keys[0][0], keys[0][0], 1, metadata);
+        emit Add(ids[0], 1, keys[0][0], keys[0][0], metadata);
 
         vm.expectEmit();
-        emit Add(ids[1], keys[1][0], keys[1][0], 1, metadata);
+        emit Add(ids[1], 1, keys[1][0], keys[1][0], metadata);
 
         vm.expectEmit();
-        emit Add(ids[2], keys[2][0], keys[2][0], 1, metadata);
+        emit Add(ids[2], 1, keys[2][0], keys[2][0], metadata);
 
         vm.expectEmit();
-        emit Add(ids[2], keys[2][1], keys[2][1], 1, metadata);
+        emit Add(ids[2], 1, keys[2][1], keys[2][1], metadata);
 
         vm.prank(admin);
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);

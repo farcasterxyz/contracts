@@ -60,7 +60,7 @@ contract KeyRegistry is Ownable2Step {
      * @param keyBytes  The bytes of the key being registered.
      * @param metadata  Metadata about the key.
      */
-    event Add(uint256 indexed fid, bytes indexed key, bytes keyBytes, uint200 indexed scheme, bytes metadata);
+    event Add(uint256 indexed fid, uint200 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
 
     /**
      * @dev Emit an event when an fid removes an added key.
@@ -285,7 +285,7 @@ contract KeyRegistry is Ownable2Step {
 
         keyData.state = KeyState.ADDED;
         keyData.scheme = scheme;
-        emit Add(fid, key, key, scheme, metadata);
+        emit Add(fid, scheme, key, key, metadata);
     }
 
     function _reset(uint256 fid, bytes calldata key) internal {
