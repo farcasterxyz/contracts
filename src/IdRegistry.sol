@@ -100,6 +100,9 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
     bytes32 internal constant _TRANSFER_TYPEHASH =
         keccak256("Transfer(address from,address to,uint256 nonce,uint256 deadline)");
 
+    bytes32 internal constant _RECOVER_TYPEHASH =
+        keccak256("Recover(address from,address to,uint256 nonce,uint256 deadline)");
+
     function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
         if (block.timestamp >= deadline) revert SignatureExpired();
         bytes32 digest =
@@ -109,6 +112,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         if (recovered != to) revert InvalidSigner();
     }
 
+    // TODO: check if these parameters are correct
     function _verifyTransferSig(
         address from,
         address to,
@@ -119,6 +123,16 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         if (block.timestamp >= deadline) revert SignatureExpired();
         bytes32 digest =
             _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, from, to, _useNonce(signer), deadline)));
+
+        address recovered = ECDSA.recover(digest, sig);
+        if (recovered != signer) revert InvalidSigner();
+    }
+
+    // TODO: Check if these parameters are correct
+    function _verifyRecoverSig(address from, address to, uint256 deadline, bytes memory sig, address signer) internal {
+        if (block.timestamp >= deadline) revert SignatureExpired();
+        bytes32 digest =
+            _hashTypedDataV4(keccak256(abi.encode(_RECOVER_TYPEHASH, from, to, _useNonce(signer), deadline)));
 
         address recovered = ECDSA.recover(digest, sig);
         if (recovered != signer) revert InvalidSigner();
@@ -175,12 +189,28 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // TODO: Add lots of test coverage for this method, similar to registerOnBehalfOf
+
+    /**
+     * @notice Register a new Farcaster ID (fid) to an address. The address must not have an fid
+     *         and the contract must not be in the Registrable (trustedOnly = 0) state.
+     *
+     * @param recovery Address which can recover the fid. Set to zero to disable recovery.
+     */
+    function register(address recovery) external returns (uint256 fid) {
+        return _register(_msgSender(), recovery);
+    }
+
+    // TODO: Rename to registerOnBehalfOf
+
     /**
      * @notice Register a new Farcaster ID (fid) to an address. The address must not have an fid
      *         and the contract must not be in the Registrable (trustedOnly = 0) state.
      *
      * @param to       Address which will own the fid
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
+     * @param deadline Expiration timestamp of the signature.
+     * @param sig      EIP-712 signature signed by the to address.
      */
     function register(
         address to,
@@ -192,10 +222,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         return _register(to, recovery);
     }
 
-    function register(address to, address recovery) external returns (uint256 fid) {
-        if (_msgSender() != to) revert Unauthorized();
-        return _register(to, recovery);
-    }
+    // TODO: Document and move to the correct location
 
     function _register(address to, address recovery) internal returns (uint256 fid) {
         if (trustedOnly == 1) revert Seedable();

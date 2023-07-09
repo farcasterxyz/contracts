@@ -69,7 +69,7 @@ contract IdRegistryMetaTxTest is TestSuiteSetup {
             // deadline at which this request is no longer valid
             deadline: 1,
             // the call data that should be forwarded to the contract
-            data: abi.encodeWithSelector(bytes4(keccak256("register(address,address)")), alice, recovery),
+            data: abi.encodeWithSelector(bytes4(keccak256("register(address)")), recovery),
             // empty signature, added with _signReq
             signature: ""
         });
