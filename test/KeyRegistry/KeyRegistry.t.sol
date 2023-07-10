@@ -11,7 +11,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event Add(uint256 indexed fid, uint32 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
     event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
-    event Migrated();
+    event Migrated(uint256 indexed keysMigratedAt);
 
     function testInitialIdRegistry() public {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
@@ -200,7 +200,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.warp(timestamp);
         vm.expectEmit();
-        emit Migrated();
+        emit Migrated(timestamp);
         vm.prank(admin);
         keyRegistry.migrateKeys();
 

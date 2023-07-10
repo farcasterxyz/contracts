@@ -82,8 +82,10 @@ contract KeyRegistry is Ownable2Step {
 
     /**
      * @dev Emit an event when the admin calls migrateKeys.
+     *
+     * @param keysMigratedAt  The timestamp at which the migration occurred.
      */
-    event Migrated();
+    event Migrated(uint256 indexed keysMigratedAt);
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
@@ -219,7 +221,7 @@ contract KeyRegistry is Ownable2Step {
     function migrateKeys() external onlyOwner {
         if (isMigrated()) revert AlreadyMigrated();
         keysMigratedAt = uint40(block.timestamp);
-        emit Migrated();
+        emit Migrated(keysMigratedAt);
     }
 
     /**
