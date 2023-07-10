@@ -4,7 +4,6 @@ pragma solidity 0.8.19;
 import {Context} from "openzeppelin/contracts/utils/Context.sol";
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {ERC2771Context} from "openzeppelin-contracts/contracts/metatx/ERC2771Context.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
@@ -22,7 +21,7 @@ import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
  *         a recovery address that can transfer the fid to a new address.
  */
 
-contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
+contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -145,7 +144,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
      *                   verify the authenticity of signed meta-transaction requests.
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _forwarder) EIP712("Farcaster IdRegistry", "1") ERC2771Context(_forwarder) {}
+    constructor(address _forwarder) EIP712("Farcaster IdRegistry", "1") {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -158,7 +157,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      */
     function register(address recovery) external returns (uint256 fid) {
-        return _register(_msgSender(), recovery);
+        return _register(msg.sender, recovery);
     }
 
     /**
@@ -191,7 +190,6 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
     function trustedRegister(address to, address recovery) external returns (uint256 fid) {
         if (trustedOnly == 0) revert Registrable();
 
-        /* Perf: Save 100 gas using msg.sender over msgSender() since meta-tx aren't needed. */
         if (msg.sender != trustedCaller) revert Unauthorized();
 
         fid = _unsafeRegister(to, recovery);
@@ -245,7 +243,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
      * @param sig      EIP-712 signature signed by the to address.
      */
     function transfer(address to, uint256 deadline, bytes calldata sig) external {
-        address from = _msgSender();
+        address from = msg.sender;
         uint256 fromId = idOf[from];
 
         /* Revert if the sender has no id or receipient has an id */
@@ -288,7 +286,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
      */
     function changeRecoveryAddress(address recovery) external {
         /* Revert if the caller does not own an fid */
-        uint256 ownerId = idOf[_msgSender()];
+        uint256 ownerId = idOf[msg.sender];
         if (ownerId == 0) revert HasNoId();
 
         /* Change the recovery address */
@@ -313,7 +311,7 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         if (fromId == 0) revert HasNoId();
 
         /* Revert if the caller is not the recovery address */
-        address caller = _msgSender();
+        address caller = msg.sender;
         address recoveryAddress = recoveryOf[fromId];
         if (recoveryAddress != caller) revert Unauthorized();
 
@@ -362,18 +360,6 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
      */
     function unpauseRegistration() external onlyOwner {
         _unpause();
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        OPEN ZEPPELIN OVERRIDES
-    //////////////////////////////////////////////////////////////*/
-
-    function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
-        return ERC2771Context._msgSender();
-    }
-
-    function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
-        return ERC2771Context._msgData();
     }
 
     /*//////////////////////////////////////////////////////////////
