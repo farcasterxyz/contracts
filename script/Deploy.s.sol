@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 
-import {IdRegistryFab} from "./helpers/IdRegistryFab.sol";
+import {IdRegistry} from "../src/IdRegistry.sol";
 import {StorageRent} from "../src/StorageRent.sol";
 import {MockPriceFeed, MockUptimeFeed, MockChainlinkFeed} from "../test/Utils.sol";
 
@@ -32,7 +32,7 @@ contract Deploy is Script {
 
         vm.startBroadcast();
         (AggregatorV3Interface priceFeed, AggregatorV3Interface uptimeFeed) = _getOrDeployPriceFeeds();
-        IdRegistryFab idRegistry = new IdRegistryFab(initialOwner, ID_REGISTRY_CREATE2_SALT);
+        IdRegistry idRegistry = new IdRegistry{ salt: ID_REGISTRY_CREATE2_SALT }(initialOwner);
         StorageRent storageRent = new StorageRent{ salt: STORAGE_RENT_CREATE2_SALT }(
             priceFeed,
             uptimeFeed,
@@ -46,7 +46,7 @@ contract Deploy is Script {
             treasurer
         );
         vm.stopBroadcast();
-        console.log("ID Registry: %s", idRegistry.registryAddr());
+        console.log("ID Registry: %s", address(idRegistry));
         console.log("Storage Rent: %s", address(storageRent));
     }
 

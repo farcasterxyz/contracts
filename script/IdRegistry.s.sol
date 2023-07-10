@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import "forge-std/Script.sol";
-import {IdRegistryFab} from "./helpers/IdRegistryFab.sol";
+import {IdRegistry} from "../src/IdRegistry.sol";
 
 contract IdRegistryScript is Script {
     bytes32 internal constant CREATE2_SALT = "fc";
@@ -11,6 +11,6 @@ contract IdRegistryScript is Script {
         address initialOwner = vm.envAddress("ID_REGISTRY_OWNER_ADDRESS");
 
         vm.broadcast();
-        new IdRegistryFab(initialOwner, CREATE2_SALT);
+        new IdRegistry{ salt: CREATE2_SALT }(initialOwner);
     }
 }

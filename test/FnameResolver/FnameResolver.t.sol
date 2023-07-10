@@ -18,6 +18,10 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assertEq(resolver.url(), FNAME_SERVER_URL);
     }
 
+    function testInitialOwner() public {
+        assertEq(resolver.owner(), admin);
+    }
+
     function testSignerIsAuthorized() public {
         assertEq(resolver.signers(signer), true);
     }
@@ -99,14 +103,14 @@ contract FnameResolverTest is FnameResolverTestSuite {
         vm.expectEmit(true, false, false, false);
         emit AddSigner(signer);
 
-        vm.prank(owner);
+        vm.prank(admin);
         resolver.addSigner(signer);
 
         assertEq(resolver.signers(signer), true);
     }
 
     function testFuzzOnlyOwnerCanAddSigner(address caller, address signer) public {
-        vm.assume(caller != owner);
+        vm.assume(caller != admin);
 
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
@@ -114,7 +118,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
     }
 
     function testFuzzOwnerCanRemoveSigner(address signer) public {
-        vm.prank(owner);
+        vm.prank(admin);
         resolver.addSigner(signer);
 
         assertEq(resolver.signers(signer), true);
@@ -122,14 +126,14 @@ contract FnameResolverTest is FnameResolverTestSuite {
         vm.expectEmit(true, false, false, false);
         emit RemoveSigner(signer);
 
-        vm.prank(owner);
+        vm.prank(admin);
         resolver.removeSigner(signer);
 
         assertEq(resolver.signers(signer), false);
     }
 
     function testFuzzOnlyOwnerCanRemoveSigner(address caller, address signer) public {
-        vm.assume(caller != owner);
+        vm.assume(caller != admin);
 
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");

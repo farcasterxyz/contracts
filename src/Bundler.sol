@@ -75,7 +75,9 @@ contract Bundler is Ownable2Step {
      * @param _storageRent   Address of the StorageRent contract
      * @param _trustedCaller Address that can call trustedRegister and trustedBatchRegister
      */
-    constructor(address _idRegistry, address _storageRent, address _trustedCaller) {
+    constructor(address _idRegistry, address _storageRent, address _trustedCaller, address _owner) {
+        _transferOwnership(_owner);
+
         idRegistry = IdRegistry(_idRegistry);
         storageRent = StorageRent(_storageRent);
         trustedCaller = _trustedCaller;

@@ -18,7 +18,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     function setUp() public virtual override {
         super.setUp();
 
-        idRegistry = new IdRegistryHarness();
+        idRegistry = new IdRegistryHarness(owner);
     }
 
     /*//////////////////////////////////////////////////////////////

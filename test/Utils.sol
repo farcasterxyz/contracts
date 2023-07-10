@@ -5,6 +5,7 @@ import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Inter
 
 import {FnameResolver} from "../src/FnameResolver.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
+import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {StorageRent} from "../src/StorageRent.sol";
 import {Bundler} from "../src/Bundler.sol";
 
@@ -14,12 +15,13 @@ contract BundlerHarness is Bundler {
     constructor(
         address _idRegistry,
         address _storageRent,
-        address _trustedCaller
-    ) Bundler(_idRegistry, _storageRent, _trustedCaller) {}
+        address _trustedCaller,
+        address _owner
+    ) Bundler(_idRegistry, _storageRent, _trustedCaller, _owner) {}
 }
 
 contract FnameResolverHarness is FnameResolver {
-    constructor(string memory _url, address _signer) FnameResolver(_url, _signer) {}
+    constructor(string memory _url, address _signer, address _owner) FnameResolver(_url, _signer, _owner) {}
 
     function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
         return _hashTypedDataV4(structHash);
@@ -34,7 +36,7 @@ contract FnameResolverHarness is FnameResolver {
  * @dev IdRegistryHarness exposes IdRegistry's private methods for test assertions.
  */
 contract IdRegistryHarness is IdRegistry {
-    constructor() IdRegistry() {}
+    constructor(address owner) IdRegistry(owner) {}
 
     function getIdCounter() public view returns (uint256) {
         return idCounter;
@@ -63,6 +65,14 @@ contract IdRegistryHarness is IdRegistry {
     function transferTypehash() public pure returns (bytes32) {
         return _TRANSFER_TYPEHASH;
     }
+}
+
+contract KeyRegistryHarness is KeyRegistry {
+    constructor(
+        address _idRegistry,
+        uint24 _gracePeriod,
+        address _owner
+    ) KeyRegistry(_idRegistry, _gracePeriod, _owner) {}
 }
 
 contract StorageRentHarness is StorageRent {
