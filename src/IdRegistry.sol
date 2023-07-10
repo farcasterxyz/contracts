@@ -44,7 +44,10 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
     /// @dev Revert when an invalid address is provided as input.
     error InvalidAddress();
 
-    error InvalidSigner();
+    /// @dev Revert when the signature provided is invalid.
+    error InvalidSignature();
+
+    /// @dev Revert when the block.timestamp is ahead of the signature deadline.
     error SignatureExpired();
 
     /*//////////////////////////////////////////////////////////////
@@ -369,7 +372,7 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
             _hashTypedDataV4(keccak256(abi.encode(_REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline)));
 
         address recovered = ECDSA.recover(digest, sig);
-        if (recovered != to) revert InvalidSigner();
+        if (recovered != to) revert InvalidSignature();
     }
 
     function _verifyTransferSig(uint256 fid, address to, uint256 deadline, bytes memory sig) internal {
@@ -377,6 +380,6 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline)));
 
         address recovered = ECDSA.recover(digest, sig);
-        if (recovered != to) revert InvalidSigner();
+        if (recovered != to) revert InvalidSignature();
     }
 }

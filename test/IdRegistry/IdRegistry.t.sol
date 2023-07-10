@@ -123,6 +123,33 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
+    function testFuzzRegisterForRevertsInvalidSig(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        recipientPk = _boundPk(recipientPk);
+        uint256 deadline = _boundDeadline(_deadline);
+
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline + 1);
+
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.prank(registrar);
+        vm.expectRevert(IdRegistry.InvalidSignature.selector);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+    }
+
     function testFuzzRegisterForRevertsBadSig(
         address registrar,
         uint256 recipientPk,
@@ -143,7 +170,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert("ECDSA: invalid signature");
-        idRegistry.registerFor(recipient, recovery, deadline + 1, sig);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -382,6 +409,28 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 1);
     }
 
+    function testFuzzTransferRevertsInvalidSig(address from, uint256 toPk, uint40 _deadline) public {
+        toPk = _boundPk(toPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+
+        uint256 deadline = _boundDeadline(_deadline);
+        uint256 fid = _register(from);
+        bytes memory sig = _signTransfer(toPk, fid, to, deadline + 1);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.prank(from);
+        vm.expectRevert(IdRegistry.InvalidSignature.selector);
+        idRegistry.transfer(to, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
     function testFuzzTransferRevertsBadSig(address from, uint256 toPk, uint40 _deadline) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
@@ -618,6 +667,28 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(from), 0);
         assertEq(idRegistry.idOf(to), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
+    }
+
+    function testFuzzRecoverRevertsInvalidSig(address from, uint256 toPk, uint40 _deadline, address recovery) public {
+        toPk = _boundPk(toPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+
+        uint256 deadline = _boundDeadline(_deadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+        bytes memory sig = _signTransfer(toPk, fid, to, deadline + 1);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.expectRevert(IdRegistry.InvalidSignature.selector);
+        vm.prank(recovery);
+        idRegistry.recover(from, to, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
     }
 
     function testFuzzRecoverRevertsBadSig(address from, uint256 toPk, uint40 _deadline, address recovery) public {
