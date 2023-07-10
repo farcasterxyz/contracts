@@ -34,7 +34,7 @@ contract FnameResolverHarness is FnameResolver {
  * @dev IdRegistryHarness exposes IdRegistry's private methods for test assertions.
  */
 contract IdRegistryHarness is IdRegistry {
-    constructor(address forwarder) IdRegistry(forwarder) {}
+    constructor() IdRegistry() {}
 
     function getIdCounter() public view returns (uint256) {
         return idCounter;
@@ -50,6 +50,18 @@ contract IdRegistryHarness is IdRegistry {
 
     function getTrustedOnly() public view returns (uint256) {
         return trustedOnly;
+    }
+
+    function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
+        return _hashTypedDataV4(structHash);
+    }
+
+    function registerTypehash() public pure returns (bytes32) {
+        return _REGISTER_TYPEHASH;
+    }
+
+    function transferTypehash() public pure returns (bytes32) {
+        return _TRANSFER_TYPEHASH;
     }
 }
 

@@ -11,8 +11,8 @@ import {IdRegistry} from "../../src/IdRegistry.sol";
 contract IdRegistryFab {
     address public immutable registryAddr;
 
-    constructor(address trustedForwarder, address initialOwner, bytes32 salt) {
-        IdRegistry registry = new IdRegistry{ salt: salt }(trustedForwarder);
+    constructor(address initialOwner, bytes32 salt) {
+        IdRegistry registry = new IdRegistry{ salt: salt }();
         registry.transferOwnership(initialOwner);
         registryAddr = address(registry);
     }

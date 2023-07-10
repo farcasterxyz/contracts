@@ -9,16 +9,17 @@ import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 /* solhint-disable state-visibility */
 
 contract BundleRegistryGasUsageTest is BundlerTestSuite {
-    function testGasRegister() public {
+    function testGasRegisterWithSig() public {
         idRegistry.disableTrustedOnly();
 
-        for (uint256 i = 0; i < 10; i++) {
-            address account = address(uint160(i));
+        for (uint256 i = 1; i < 10; i++) {
+            address account = vm.addr(i);
+            bytes memory sig = _signRegister(i, account, address(0), type(uint40).max);
             uint256 price = storageRent.price(1);
 
             vm.deal(account, 10_000 ether);
             vm.prank(account);
-            bundler.register{value: price}(account, address(0), 1);
+            bundler.register{value: price}(account, address(0), type(uint40).max, sig, 1);
         }
     }
 

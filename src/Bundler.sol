@@ -89,8 +89,14 @@ contract Bundler is Ownable2Step {
      * @param recovery     Address that is allowed to perform a recovery
      * @param storageUnits Number of storage units to rent
      */
-    function register(address to, address recovery, uint256 storageUnits) external payable {
-        uint256 fid = idRegistry.register(to, recovery);
+    function register(
+        address to,
+        address recovery,
+        uint256 deadline,
+        bytes calldata sig,
+        uint256 storageUnits
+    ) external payable {
+        uint256 fid = idRegistry.registerFor(to, recovery, deadline, sig);
         uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
 
         if (overpayment > 0) {

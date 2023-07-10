@@ -14,7 +14,6 @@ abstract contract TestSuiteSetup is Test {
     address[] internal knownContracts = [
         address(0xCe71065D4017F316EC606Fe4422e11eB2c47c246), // FuzzerDict
         address(0x4e59b44847b379578588920cA78FbF26c0B4956C), // CREATE2 Factory
-        address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A), // FORWARDER
         address(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D), // Vm cheatcode address
         address(0x000000000000000000636F6e736F6c652e6c6f67), // console.sol
         address(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f), // Default test contract

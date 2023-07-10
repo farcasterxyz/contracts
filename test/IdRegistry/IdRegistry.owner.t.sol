@@ -22,7 +22,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzSetTrustedCaller(address alice) public {
-        vm.assume(alice != FORWARDER && alice != address(0));
+        vm.assume(alice != address(0));
         assertEq(idRegistry.owner(), owner);
 
         vm.expectEmit(true, true, true, true);
@@ -41,7 +41,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
-        vm.assume(alice != FORWARDER && bob != address(0));
+        vm.assume(bob != address(0));
         vm.assume(idRegistry.owner() != alice);
 
         vm.prank(alice);
@@ -61,7 +61,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotDisableTrustedCallerUnlessOwner(address alice) public {
-        vm.assume(alice != FORWARDER && alice != address(0));
+        vm.assume(alice != address(0));
         vm.assume(idRegistry.owner() != alice);
 
         vm.prank(alice);
@@ -89,7 +89,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotTransferOwnershipUnlessOwner(address alice, address newOwner) public {
-        vm.assume(alice != FORWARDER && alice != owner && newOwner != address(0));
+        vm.assume(alice != owner && newOwner != address(0));
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.pendingOwner(), address(0));
 
@@ -106,7 +106,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzAcceptOwnership(address newOwner) public {
-        vm.assume(newOwner != FORWARDER && newOwner != owner && newOwner != address(0));
+        vm.assume(newOwner != owner && newOwner != address(0));
         vm.prank(owner);
         idRegistry.transferOwnership(newOwner);
 
@@ -120,7 +120,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotAcceptOwnershipUnlessPendingOwner(address alice, address newOwner) public {
-        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        vm.assume(alice != owner && alice != address(0));
         vm.assume(newOwner != alice && newOwner != address(0));
 
         vm.prank(owner);
@@ -146,7 +146,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotPauseRegistrationUnlessOwner(address alice) public {
-        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        vm.assume(alice != owner && alice != address(0));
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.paused(), false);
 
@@ -167,7 +167,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotUnpauseUnlessOwner(address alice) public {
-        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        vm.assume(alice != owner && alice != address(0));
         assertEq(idRegistry.owner(), owner);
         _pauseRegistrations();
 
