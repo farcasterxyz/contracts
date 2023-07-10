@@ -100,25 +100,6 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
     bytes32 internal constant _TRANSFER_TYPEHASH =
         keccak256("Transfer(address from,address to,uint256 nonce,uint256 deadline)");
 
-    // TODO: move to a helper section
-
-    function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
-        if (block.timestamp >= deadline) revert SignatureExpired();
-        bytes32 digest =
-            _hashTypedDataV4(keccak256(abi.encode(_REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline)));
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != to) revert InvalidSigner();
-    }
-
-    function _verifyTransferSig(uint256 fid, address to, uint256 deadline, bytes memory sig) internal {
-        if (block.timestamp >= deadline) revert SignatureExpired();
-        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline)));
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != to) revert InvalidSigner();
-    }
-
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
     //////////////////////////////////////////////////////////////*/
@@ -202,22 +183,12 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         return _register(to, recovery);
     }
 
-    // TODO: Document and move to the correct location
-
-    function _register(address to, address recovery) internal returns (uint256 fid) {
-        if (trustedOnly == 1) revert Seedable();
-
-        fid = _unsafeRegister(to, recovery);
-
-        emit Register(to, idCounter, recovery);
-    }
-
     /**
-     * @notice Register a new unique Farcaster ID (fid) for an address that does not have one. This
-     *         can only be invoked by the trusted caller when trustedOnly is set to 1.
+     * @notice Register a new Farcaster ID (fid) to any address. The address must not have an fid.
+     *         The contract must be in the Seedable (trustedOnly = 1) state.
      *
-     * @param to       The address which will control the fid
-     * @param recovery The address which can recover the fid
+     * @param to       The address which will own the fid.
+     * @param recovery The address which can recover the fid.
      */
     function trustedRegister(address to, address recovery) external returns (uint256 fid) {
         if (trustedOnly == 0) revert Registrable();
@@ -231,16 +202,29 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
     }
 
     /**
-     * @dev Registers a new, unique fid and sets up a recovery address for a caller without
-     *      checking all invariants or emitting events.
+     * @dev Registers an fid and sets up a recovery address for a target. The contract must not be
+     *      in the Seedable (trustedOnly = 1) state and the target must not have an fid.
+     */
+    function _register(address to, address recovery) internal returns (uint256 fid) {
+        if (trustedOnly == 1) revert Seedable();
+
+        fid = _unsafeRegister(to, recovery);
+
+        emit Register(to, idCounter, recovery);
+    }
+
+    /**
+     * @dev Registers an fid and sets up a recovery address for a target. Does not check all
+     *      invariants or emit events. The contract must not be in the Seedable (trustedOnly = 1)
+     *      state and the target must not have an fid.
      */
     function _unsafeRegister(address to, address recovery) internal whenNotPaused returns (uint256 fid) {
-        /* Revert if the destination(to) already has an fid */
+        /* Revert if the target(to) has an fid */
         if (idOf[to] != 0) revert HasId();
 
         /* Safety: idCounter won't realistically overflow. */
-        /* Incrementing before assignment ensures that no one gets the 0 fid. */
         unchecked {
+            /* Incrementing before assignment ensures that no one gets the 0 fid. */
             fid = ++idCounter;
         }
 
@@ -255,9 +239,12 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
 
     /**
      * @notice Transfer the fid owned by this address to another address that does not have an fid.
-     *         Supports ERC 2771 meta-transactions and can be called via a relayer.
+     *         Supports ERC 2771 meta-transactions and can be called via a relayer. A signed message
+     *         from the destination address must be provided.
      *
      * @param to The address to transfer the fid to.
+     * @param deadline Expiration timestamp of the signature.
+     * @param sig      EIP-712 signature signed by the to address.
      */
     function transfer(address to, uint256 deadline, bytes calldata sig) external {
         address from = _msgSender();
@@ -312,6 +299,16 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         emit ChangeRecoveryAddress(ownerId, recovery);
     }
 
+    /**
+     * @notice Transfer the fid from the from address to the to address. Must be called by the
+     *         recovery address. Supports ERC 2771 meta-transactions and can be called via a
+     *         relayer. A signed message from the to address must be provided.
+     *
+     * @param from     The address that currently owns the fid.
+     * @param to       The address to transfer the fid to.
+     * @param deadline Expiration timestamp of the signature.
+     * @param sig      EIP-712 signature signed by the to address.
+     */
     function recover(address from, address to, uint256 deadline, bytes calldata sig) external {
         /* Revert if from does not own an fid */
         uint256 fromId = idOf[from];
@@ -379,5 +376,26 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
 
     function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
         return ERC2771Context._msgData();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     SIGNATURE VERIFICATION HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
+        if (block.timestamp >= deadline) revert SignatureExpired();
+        bytes32 digest =
+            _hashTypedDataV4(keccak256(abi.encode(_REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline)));
+
+        address recovered = ECDSA.recover(digest, sig);
+        if (recovered != to) revert InvalidSigner();
+    }
+
+    function _verifyTransferSig(uint256 fid, address to, uint256 deadline, bytes memory sig) internal {
+        if (block.timestamp >= deadline) revert SignatureExpired();
+        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline)));
+
+        address recovered = ECDSA.recover(digest, sig);
+        if (recovered != to) revert InvalidSigner();
     }
 }
