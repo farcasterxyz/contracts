@@ -1,14 +1,14 @@
 # Contracts
 
-This repository contains all the contracts deployed by the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are: 
+This repository contains all the contracts deployed by the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are:
 
-1. **Registry** - issues identities to new users.
-2. **Storage** - allocates storage to users and collects rent.
-3. **Bundler** - allows calling registry and storage in a single transaction. 
-4. **Fname Resolver** - validates Farcaster ENS names which were issued off-chain. 
+1. **Registry** - issues farcaster identities (fids) to new users.
+2. **Storage** - allocates storage to fids and collects rent.
+3. **KeyRegistry** - allows users with an fid to register key pairs for signing messages.
+4. **Bundler** - allows calling registry and storage in a single transaction.
+5. **Fname Resolver** - validates Farcaster ENS names which were issued off-chain.
 
-Read the [docs](docs/docs.md) for more details on how the contracts work. 
-
+Read the [docs](docs/docs.md) for more details on how the contracts work.
 
 ## Contributing
 
@@ -18,7 +18,7 @@ Please see the [contributing guidelines](CONTRIBUTING.md).
 
 ### v3 Contracts
 
-The v3 contracts have not yet been deployed. 
+The v3 contracts have not yet been deployed.
 
 ### v2 Contracts
 
