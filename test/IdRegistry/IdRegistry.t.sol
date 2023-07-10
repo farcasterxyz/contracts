@@ -40,12 +40,11 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testFuzzRegisterWithSig(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
+    /*//////////////////////////////////////////////////////////////
+                           REGISTER FOR TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzRegisterFor(address registrar, uint256 recipientPk, address recovery, uint40 _deadline) public {
         vm.assume(registrar != FORWARDER && recovery != FORWARDER);
         uint256 deadline = _boundDeadline(_deadline);
         recipientPk = _boundPk(recipientPk);
@@ -60,14 +59,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.expectEmit(true, true, true, true);
         emit Register(recipient, 1, recovery);
         vm.prank(registrar);
-        idRegistry.register(recipient, recovery, deadline, sig);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 1);
         assertEq(idRegistry.idOf(recipient), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testFuzzRegisterRevertsBadSig(
+    function testFuzzRegisterForRevertsBadSig(
         address registrar,
         uint256 recipientPk,
         address recovery,
@@ -86,14 +85,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert("ECDSA: invalid signature");
-        idRegistry.register(recipient, recovery, deadline + 1, sig);
+        idRegistry.registerFor(recipient, recovery, deadline + 1, sig);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testFuzzRegisterRevertsExpiredSig(
+    function testFuzzRegisterForRevertsExpiredSig(
         address registrar,
         uint256 recipientPk,
         address recovery,
@@ -114,14 +113,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(IdRegistry.SignatureExpired.selector);
-        idRegistry.register(recipient, recovery, deadline, sig);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testFuzzCannotRegisterIfSeedable(
+    function testFuzzCannotRegisterForIfSeedable(
         address registrar,
         uint256 recipientPk,
         address recovery,
@@ -137,14 +136,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(IdRegistry.Seedable.selector);
-        idRegistry.register(recipient, recovery, deadline, sig);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testFuzzCannotRegisterToAnAddressThatOwnsAnId(
+    function testFuzzCannotRegisterForToAnAddressThatOwnsAnId(
         address registrar,
         uint256 recipientPk,
         address recovery,
@@ -162,14 +161,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(IdRegistry.HasId.selector);
-        idRegistry.register(recipient, recovery, deadline, sig);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 1);
         assertEq(idRegistry.idOf(recipient), 1);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
-    function testFuzzCannotRegisterIfPaused(
+    function testFuzzCannotRegisterForIfPaused(
         address registrar,
         uint256 recipientPk,
         address recovery,
@@ -189,7 +188,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert("Pausable: paused");
-        idRegistry.register(recipient, recovery, deadline, sig);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);

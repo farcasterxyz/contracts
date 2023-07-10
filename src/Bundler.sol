@@ -96,7 +96,7 @@ contract Bundler is Ownable2Step {
         bytes calldata sig,
         uint256 storageUnits
     ) external payable {
-        uint256 fid = idRegistry.register(to, recovery, deadline, sig);
+        uint256 fid = idRegistry.registerFor(to, recovery, deadline, sig);
         uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
 
         if (overpayment > 0) {

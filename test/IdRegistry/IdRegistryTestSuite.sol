@@ -37,11 +37,11 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         fid = idRegistry.register(recovery);
     }
 
-    function _registerWithSig(uint256 callerPk, uint40 _deadline) internal {
-        _registerWithSigWithRecovery(callerPk, address(0), _deadline);
+    function _registerFor(uint256 callerPk, uint40 _deadline) internal {
+        _registerForWithRecovery(callerPk, address(0), _deadline);
     }
 
-    function _registerWithSigWithRecovery(uint256 callerPk, address recovery, uint40 _deadline) internal {
+    function _registerForWithRecovery(uint256 callerPk, address recovery, uint40 _deadline) internal {
         uint256 deadline = _boundDeadline(_deadline);
         callerPk = _boundPk(callerPk);
 
@@ -50,7 +50,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
 
         idRegistry.disableTrustedOnly();
         vm.prank(caller);
-        idRegistry.register(caller, recovery, deadline, sig);
+        idRegistry.registerFor(caller, recovery, deadline, sig);
     }
 
     function _pauseRegistrations() public {

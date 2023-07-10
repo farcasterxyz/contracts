@@ -173,8 +173,8 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
     // TODO: Add lots of test coverage for this method, similar to registerOnBehalfOf
 
     /**
-     * @notice Register a new Farcaster ID (fid) to an address. The address must not have an fid
-     *         and the contract must not be in the Registrable (trustedOnly = 0) state.
+     * @notice Register a new Farcaster ID (fid) to the caller. The caller must not have an fid.
+     *         Rthe contract must not be in the Registrable (trustedOnly = 0) state.
      *
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      */
@@ -182,18 +182,17 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         return _register(_msgSender(), recovery);
     }
 
-    // TODO: Rename to registerOnBehalfOf
-
     /**
-     * @notice Register a new Farcaster ID (fid) to an address. The address must not have an fid
-     *         and the contract must not be in the Registrable (trustedOnly = 0) state.
+     * @notice Register a new Farcaster ID (fid) to any address. A signed message from the address
+     *         must be provided. The address must not have an fid. The contract must be in the
+     *         Registrable (trustedOnly = 0) state.
      *
-     * @param to       Address which will own the fid
+     * @param to       Address which will own the fid.
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      * @param deadline Expiration timestamp of the signature.
      * @param sig      EIP-712 signature signed by the to address.
      */
-    function register(
+    function registerFor(
         address to,
         address recovery,
         uint256 deadline,
