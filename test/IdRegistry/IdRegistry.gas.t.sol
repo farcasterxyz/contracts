@@ -10,10 +10,21 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     address constant TRUSTED_SENDER = address(0x123);
     address constant RECOVERY = address(0x6D1217BD164119E2ddE6ce1723879844FD73114e);
 
-    function testGasRegisterForAndRecover() public {
+    // Perform actions many times to get a good median, since the first run initializes storage
+
+    function testGasRegister() public {
         idRegistry.disableTrustedOnly();
 
-        // Perform actions many times to get a good median, since the first run initializes storage
+        for (uint256 i = 1; i < 15; i++) {
+            address caller = vm.addr(i);
+            vm.prank(caller);
+            idRegistry.register(RECOVERY);
+            assertEq(idRegistry.idOf(caller), i);
+        }
+    }
+
+    function testGasRegisterForAndRecover() public {
+        idRegistry.disableTrustedOnly();
 
         for (uint256 i = 1; i < 15; i++) {
             address registrationRecipient = vm.addr(i);
@@ -31,8 +42,6 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
             idRegistry.recover(registrationRecipient, recoveryRecipient, deadline, transferSig);
         }
     }
-
-    // TODO: write gas test for plain old register
 
     function testGasRegisterFromTrustedCaller() public {
         idRegistry.setTrustedCaller(TRUSTED_SENDER);

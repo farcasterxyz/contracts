@@ -151,8 +151,6 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: Add lots of test coverage for this method, similar to registerOnBehalfOf
-
     /**
      * @notice Register a new Farcaster ID (fid) to the caller. The caller must not have an fid.
      *         Rthe contract must not be in the Registrable (trustedOnly = 0) state.
