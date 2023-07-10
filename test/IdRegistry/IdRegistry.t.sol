@@ -107,9 +107,11 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
-        assertEq(idRegistry.getIdCounter(), 0);
-
         idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         vm.expectEmit(true, true, true, true);
         emit Register(recipient, 1, recovery);
@@ -128,14 +130,16 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint40 _deadline
     ) public {
         recipientPk = _boundPk(recipientPk);
+        uint256 deadline = _boundDeadline(_deadline);
 
         address recipient = vm.addr(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
-        assertEq(idRegistry.getIdCounter(), 0);
-
         idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         vm.prank(registrar);
         vm.expectRevert("ECDSA: invalid signature");
@@ -153,12 +157,16 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint40 _deadline
     ) public {
         recipientPk = _boundPk(recipientPk);
+        uint256 deadline = _boundDeadline(_deadline);
 
         address recipient = vm.addr(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
+        idRegistry.disableTrustedOnly();
+
         assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         idRegistry.disableTrustedOnly();
 
@@ -180,13 +188,15 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint40 _deadline
     ) public {
         recipientPk = _boundPk(recipientPk);
-        address recipient = vm.addr(recipientPk);
         uint256 deadline = _boundDeadline(_deadline);
+
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
         assertEq(idRegistry.getTrustedOnly(), 1);
         assertEq(idRegistry.getIdCounter(), 0);
-
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         vm.prank(registrar);
         vm.expectRevert(IdRegistry.Seedable.selector);
@@ -204,13 +214,17 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint40 _deadline
     ) public {
         recipientPk = _boundPk(recipientPk);
-        address recipient = vm.addr(recipientPk);
         uint256 deadline = _boundDeadline(_deadline);
 
-        _register(recipient);
-        assertEq(idRegistry.getIdCounter(), 1);
-
+        address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
+
+        idRegistry.disableTrustedOnly();
+        _register(recipient);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(recipient), 1);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         vm.prank(registrar);
         vm.expectRevert(IdRegistry.HasId.selector);
@@ -228,15 +242,18 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint40 _deadline
     ) public {
         recipientPk = _boundPk(recipientPk);
-        address recipient = vm.addr(recipientPk);
         uint256 deadline = _boundDeadline(_deadline);
 
-        assertEq(idRegistry.getIdCounter(), 0);
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
         idRegistry.disableTrustedOnly();
+
         _pauseRegistrations();
 
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         vm.prank(registrar);
         vm.expectRevert("Pausable: paused");
