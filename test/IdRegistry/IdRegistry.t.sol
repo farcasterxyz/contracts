@@ -24,8 +24,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzRegister(address caller, address recovery) public {
-        vm.assume(caller != FORWARDER && recovery != FORWARDER);
-
         assertEq(idRegistry.getIdCounter(), 0);
 
         idRegistry.disableTrustedOnly();
@@ -45,8 +43,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotRegisterIfSeedable(address caller, address recovery) public {
-        vm.assume(caller != FORWARDER && recovery != FORWARDER);
-
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.getTrustedOnly(), 1);
 
@@ -64,8 +60,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotRegisterToAnAddressThatOwnsAnId(address caller, address recovery) public {
-        vm.assume(caller != FORWARDER);
-
         _register(caller);
 
         assertEq(idRegistry.getIdCounter(), 1);
@@ -84,8 +78,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotRegisterIfPaused(address caller, address recovery) public {
-        vm.assume(caller != FORWARDER && recovery != FORWARDER);
-
         assertEq(idRegistry.getIdCounter(), 0);
 
         idRegistry.disableTrustedOnly();
@@ -109,7 +101,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzRegisterFor(address registrar, uint256 recipientPk, address recovery, uint40 _deadline) public {
-        vm.assume(registrar != FORWARDER && recovery != FORWARDER);
         uint256 deadline = _boundDeadline(_deadline);
         recipientPk = _boundPk(recipientPk);
 
@@ -136,7 +127,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recovery,
         uint40 _deadline
     ) public {
-        vm.assume(registrar != FORWARDER && recovery != FORWARDER);
         recipientPk = _boundPk(recipientPk);
 
         address recipient = vm.addr(recipientPk);
@@ -162,7 +152,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recovery,
         uint40 _deadline
     ) public {
-        vm.assume(registrar != FORWARDER && recovery != FORWARDER);
         recipientPk = _boundPk(recipientPk);
 
         address recipient = vm.addr(recipientPk);
@@ -190,7 +179,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recovery,
         uint40 _deadline
     ) public {
-        vm.assume(registrar != FORWARDER && recovery != FORWARDER);
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
         uint256 deadline = _boundDeadline(_deadline);
@@ -218,7 +206,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
         uint256 deadline = _boundDeadline(_deadline);
-        vm.assume(recipient != FORWARDER);
 
         _register(recipient);
         assertEq(idRegistry.getIdCounter(), 1);
@@ -240,7 +227,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recovery,
         uint40 _deadline
     ) public {
-        vm.assume(registrar != FORWARDER && recovery != FORWARDER);
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
         uint256 deadline = _boundDeadline(_deadline);
@@ -266,8 +252,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzTrustedRegister(address recipient, address trustedCaller, address recovery) public {
-        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
-        vm.assume(recovery != FORWARDER);
+        vm.assume(trustedCaller != address(0));
         idRegistry.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
 
@@ -286,7 +271,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address trustedCaller,
         address recovery
     ) public {
-        vm.assume(trustedCaller != FORWARDER && recovery != FORWARDER);
         idRegistry.disableTrustedOnly();
 
         vm.prank(trustedCaller);
@@ -304,7 +288,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address untrustedCaller,
         address recovery
     ) public {
-        vm.assume(untrustedCaller != FORWARDER && recovery != FORWARDER);
         vm.assume(untrustedCaller != trustedCaller);
         vm.assume(trustedCaller != address(0));
         idRegistry.setTrustedCaller(trustedCaller);
@@ -323,7 +306,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address trustedCaller,
         address recovery
     ) public {
-        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
+        vm.assume(trustedCaller != address(0));
         idRegistry.setTrustedCaller(trustedCaller);
 
         vm.prank(trustedCaller);
@@ -340,8 +323,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotTrustedRegisterWhenPaused(address alice, address trustedCaller, address recovery) public {
-        vm.assume(trustedCaller != FORWARDER && trustedCaller != address(0));
-        vm.assume(recovery != FORWARDER);
+        vm.assume(trustedCaller != address(0));
         idRegistry.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
 
@@ -363,7 +345,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzTransfer(address from, uint256 toPk, uint40 _deadline) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && from != to);
+        vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
         uint256 fid = _register(from);
@@ -386,7 +368,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzTransferRevertsBadSig(address from, uint256 toPk, uint40 _deadline) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && from != to);
+        vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
         _register(from);
@@ -408,7 +390,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzTransferRevertsExpiredSig(address from, uint256 toPk, uint40 _deadline) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && from != to);
+        vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
         uint256 fid = _register(from);
@@ -432,7 +414,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzTransferWhenPaused(address from, uint256 toPk, uint40 _deadline) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && from != to);
+        vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
         uint256 fid = _register(from);
@@ -462,7 +444,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && from != to);
+        vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
         uint256 fid = _registerWithRecovery(from, recovery);
@@ -492,8 +474,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && from != to);
-        vm.assume(to != FORWARDER);
+        vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
         uint256 fid = _registerWithRecovery(from, recovery);
@@ -516,7 +497,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzCannotTransferIfNoId(address from, uint256 toPk, uint40 _deadline) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && to != FORWARDER);
 
         uint256 deadline = _boundDeadline(_deadline);
         uint256 fid = 1;
@@ -538,7 +518,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzTransferReregister(address from, uint256 toPk, uint40 _deadline) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && from != to);
+        vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
         uint256 fid = _register(from);
@@ -566,7 +546,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzChangeRecoveryAddress(address alice, address oldRecovery, address newRecovery) public {
-        vm.assume(alice != FORWARDER);
         _registerWithRecovery(alice, oldRecovery);
 
         vm.prank(alice);
@@ -578,7 +557,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     function testFuzzChangeRecoveryAddressWhenPaused(address alice, address oldRecovery, address newRecovery) public {
-        vm.assume(alice != FORWARDER);
         _registerWithRecovery(alice, oldRecovery);
         _pauseRegistrations();
 
@@ -591,7 +569,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     function testFuzzCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
-        vm.assume(alice != FORWARDER && bob != FORWARDER);
         vm.assume(alice != bob);
 
         vm.prank(alice);
@@ -606,7 +583,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzRecover(address from, uint256 toPk, uint40 _deadline, address recovery) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && recovery != FORWARDER);
         vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
@@ -630,7 +606,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzRecoverRevertsBadSig(address from, uint256 toPk, uint40 _deadline, address recovery) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && recovery != FORWARDER);
         vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
@@ -653,7 +628,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzRecoverRevertsExpiredSig(address from, uint256 toPk, uint40 _deadline, address recovery) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && recovery != FORWARDER);
         vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
@@ -678,7 +652,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzRecoverWhenPaused(address from, uint256 toPk, uint40 _deadline, address recovery) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && recovery != FORWARDER);
         vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
@@ -704,7 +677,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzCannotRecoverWithoutId(address from, uint256 toPk, uint40 _deadline, address recovery) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && recovery != FORWARDER);
         vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);
@@ -733,7 +705,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && recovery != FORWARDER);
         vm.assume(from != to);
         vm.assume(recovery != notRecovery && from != notRecovery);
 
@@ -762,7 +733,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
-        vm.assume(from != FORWARDER && recovery != FORWARDER && to != FORWARDER);
         vm.assume(from != to);
 
         uint256 deadline = _boundDeadline(_deadline);

@@ -22,7 +22,6 @@ contract Deploy is Script {
     function run() public {
         _etchCreate2Deployer();
 
-        address trustedForwarder = vm.envAddress("ID_REGISTRY_TRUSTED_FORWARDER_ADDRESS");
         address initialOwner = vm.envAddress("ID_REGISTRY_OWNER_ADDRESS");
 
         address vault = vm.envAddress("STORAGE_RENT_VAULT_ADDRESS");
@@ -33,7 +32,7 @@ contract Deploy is Script {
 
         vm.startBroadcast();
         (AggregatorV3Interface priceFeed, AggregatorV3Interface uptimeFeed) = _getOrDeployPriceFeeds();
-        IdRegistryFab idRegistry = new IdRegistryFab(trustedForwarder, initialOwner, ID_REGISTRY_CREATE2_SALT);
+        IdRegistryFab idRegistry = new IdRegistryFab(initialOwner, ID_REGISTRY_CREATE2_SALT);
         StorageRent storageRent = new StorageRent{ salt: STORAGE_RENT_CREATE2_SALT }(
             priceFeed,
             uptimeFeed,

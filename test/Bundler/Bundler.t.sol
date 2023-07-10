@@ -305,7 +305,7 @@ contract BundlerTest is BundlerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzSetTrustedCaller(address alice) public {
-        vm.assume(alice != FORWARDER && alice != address(0));
+        vm.assume(alice != address(0));
         assertEq(bundler.owner(), owner);
 
         vm.expectEmit(true, true, true, true);
@@ -314,8 +314,7 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(bundler.trustedCaller(), alice);
     }
 
-    function testFuzzCannotSetTrustedCallerToZeroAddress(address alice) public {
-        vm.assume(alice != FORWARDER);
+    function testFuzzCannotSetTrustedCallerToZeroAddress() public {
         assertEq(bundler.owner(), owner);
 
         vm.expectRevert(Bundler.InvalidAddress.selector);
@@ -325,7 +324,7 @@ contract BundlerTest is BundlerTestSuite {
     }
 
     function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
-        vm.assume(alice != FORWARDER && alice != address(0));
+        vm.assume(alice != address(0));
         vm.assume(bundler.owner() != alice);
 
         vm.prank(alice);
@@ -353,7 +352,7 @@ contract BundlerTest is BundlerTestSuite {
     }
 
     function testFuzzCannotTransferOwnershipUnlessOwner(address alice, address newOwner) public {
-        vm.assume(alice != FORWARDER && alice != owner && newOwner != address(0));
+        vm.assume(alice != owner && newOwner != address(0));
         assertEq(bundler.owner(), owner);
         assertEq(bundler.pendingOwner(), address(0));
 
@@ -370,7 +369,7 @@ contract BundlerTest is BundlerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzAcceptOwnership(address newOwner) public {
-        vm.assume(newOwner != FORWARDER && newOwner != owner && newOwner != address(0));
+        vm.assume(newOwner != owner && newOwner != address(0));
         vm.prank(owner);
         bundler.transferOwnership(newOwner);
 
@@ -384,7 +383,7 @@ contract BundlerTest is BundlerTestSuite {
     }
 
     function testFuzzCannotAcceptOwnershipUnlessPendingOwner(address alice, address newOwner) public {
-        vm.assume(alice != FORWARDER && alice != owner && alice != address(0));
+        vm.assume(alice != owner && alice != address(0));
         vm.assume(newOwner != alice && newOwner != address(0));
 
         vm.prank(owner);

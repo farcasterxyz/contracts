@@ -8,10 +8,9 @@ contract IdRegistryScript is Script {
     bytes32 internal constant CREATE2_SALT = "fc";
 
     function run() public {
-        address trustedForwarder = vm.envAddress("ID_REGISTRY_TRUSTED_FORWARDER_ADDRESS");
         address initialOwner = vm.envAddress("ID_REGISTRY_OWNER_ADDRESS");
 
         vm.broadcast();
-        new IdRegistryFab(trustedForwarder, initialOwner, CREATE2_SALT);
+        new IdRegistryFab(initialOwner, CREATE2_SALT);
     }
 }

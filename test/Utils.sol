@@ -34,7 +34,7 @@ contract FnameResolverHarness is FnameResolver {
  * @dev IdRegistryHarness exposes IdRegistry's private methods for test assertions.
  */
 contract IdRegistryHarness is IdRegistry {
-    constructor(address forwarder) IdRegistry(forwarder) {}
+    constructor() IdRegistry() {}
 
     function getIdCounter() public view returns (uint256) {
         return idCounter;

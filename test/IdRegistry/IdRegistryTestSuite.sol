@@ -13,14 +13,12 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    address constant FORWARDER = address(0xC8223c8AD514A19Cc10B0C94c39b52D4B43ee61A);
-
     uint256 constant SECP_256K1_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
 
     function setUp() public virtual override {
         super.setUp();
 
-        idRegistry = new IdRegistryHarness(FORWARDER);
+        idRegistry = new IdRegistryHarness();
     }
 
     /*//////////////////////////////////////////////////////////////

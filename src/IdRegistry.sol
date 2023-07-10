@@ -138,13 +138,10 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the owner of the contract to the deployer and configure the trusted forwarder.
-     *
-     * @param _forwarder The address of the ERC2771 forwarder contract that this contract trusts to
-     *                   verify the authenticity of signed meta-transaction requests.
+     * @notice Set the owner of the contract to the deployer.
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _forwarder) EIP712("Farcaster IdRegistry", "1") {}
+    constructor() EIP712("Farcaster IdRegistry", "1") {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
