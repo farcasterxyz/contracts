@@ -526,7 +526,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
-        return idRegistry.register(to, recovery);
+        vm.prank(to);
+        return idRegistry.register(recovery);
     }
 
     function assertEq(KeyRegistry.KeyState a, KeyRegistry.KeyState b) internal {
