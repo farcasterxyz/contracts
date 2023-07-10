@@ -100,9 +100,6 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
     bytes32 internal constant _TRANSFER_TYPEHASH =
         keccak256("Transfer(address from,address to,uint256 nonce,uint256 deadline)");
 
-    bytes32 internal constant _RECOVER_TYPEHASH =
-        keccak256("Recover(address from,address to,uint256 nonce,uint256 deadline)");
-
     // TODO: move to a helper section
 
     function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
@@ -316,20 +313,22 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         emit ChangeRecoveryAddress(ownerId, recovery);
     }
 
-    function recover(address from, address to) external {
+    function recover(address from, address to, uint256 deadline, bytes calldata sig) external {
         /* Revert if from does not own an fid */
-        uint256 ownerId = idOf[from];
-        if (ownerId == 0) revert HasNoId();
+        uint256 fromId = idOf[from];
+        if (fromId == 0) revert HasNoId();
 
         /* Revert if the caller is not the recovery address */
         address caller = _msgSender();
-        address recoveryAddress = recoveryOf[ownerId];
+        address recoveryAddress = recoveryOf[fromId];
         if (recoveryAddress != caller) revert Unauthorized();
 
         /* Revert if destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
-        _unsafeTransfer(ownerId, from, to);
+        _verifyTransferSig(fromId, to, deadline, sig);
+
+        _unsafeTransfer(fromId, from, to);
     }
 
     /*//////////////////////////////////////////////////////////////

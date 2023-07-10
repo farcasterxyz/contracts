@@ -13,17 +13,22 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     function testGasRegisterAndRecover() public {
         idRegistry.disableTrustedOnly();
 
-        // Perform each action at least 5 times to get a good median value, since the first action
-        // initializes storage and has extra costs
+        // Perform actions many times to get a good median, since the first run initializes storage
 
         for (uint256 i = 1; i < 15; i++) {
-            address account = vm.addr(i);
-            bytes memory sig = _signRegister(i, account, RECOVERY, type(uint40).max);
-            idRegistry.register(account, RECOVERY, type(uint40).max, sig);
-            assertEq(idRegistry.idOf(account), i);
+            address registrationRecipient = vm.addr(i);
+            uint40 deadline = type(uint40).max;
 
+            uint256 recoveryRecipientPk = i + 100;
+            address recoveryRecipient = vm.addr(recoveryRecipientPk);
+
+            bytes memory registerSig = _signRegister(i, registrationRecipient, RECOVERY, deadline);
+            uint256 fid = idRegistry.register(registrationRecipient, RECOVERY, deadline, registerSig);
+            assertEq(idRegistry.idOf(registrationRecipient), i);
+
+            bytes memory transferSig = _signTransfer(recoveryRecipientPk, fid, recoveryRecipient, deadline);
             vm.prank(RECOVERY);
-            idRegistry.recover(account, address(uint160(i + 100)));
+            idRegistry.recover(registrationRecipient, recoveryRecipient, deadline, transferSig);
         }
     }
 
