@@ -27,14 +27,14 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _register(address caller) internal {
-        _registerWithRecovery(caller, address(0));
+    function _register(address caller) internal returns (uint256 fid) {
+        fid = _registerWithRecovery(caller, address(0));
     }
 
-    function _registerWithRecovery(address caller, address recovery) internal {
+    function _registerWithRecovery(address caller, address recovery) internal returns (uint256 fid) {
         idRegistry.disableTrustedOnly();
         vm.prank(caller);
-        idRegistry.register(recovery);
+        fid = idRegistry.register(recovery);
     }
 
     function _registerWithSig(uint256 callerPk, uint40 _deadline) internal {
@@ -75,6 +75,20 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     ) internal returns (bytes memory signature) {
         bytes32 digest = idRegistry.hashTypedDataV4(
             keccak256(abi.encode(idRegistry.registerTypehash(), to, recovery, idRegistry.nonces(to), deadline))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        signature = abi.encodePacked(r, s, v);
+        assertEq(signature.length, 65);
+    }
+
+    function _signTransfer(
+        uint256 pk,
+        uint256 fid,
+        address to,
+        uint256 deadline
+    ) internal returns (bytes memory signature) {
+        bytes32 digest = idRegistry.hashTypedDataV4(
+            keccak256(abi.encode(idRegistry.transferTypehash(), fid, to, idRegistry.nonces(to), deadline))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);

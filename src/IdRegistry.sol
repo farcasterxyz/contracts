@@ -103,6 +103,8 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
     bytes32 internal constant _RECOVER_TYPEHASH =
         keccak256("Recover(address from,address to,uint256 nonce,uint256 deadline)");
 
+    // TODO: move to a helper section
+
     function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
         if (block.timestamp >= deadline) revert SignatureExpired();
         bytes32 digest =
@@ -112,30 +114,12 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
         if (recovered != to) revert InvalidSigner();
     }
 
-    // TODO: check if these parameters are correct
-    function _verifyTransferSig(
-        address from,
-        address to,
-        uint256 deadline,
-        bytes memory sig,
-        address signer
-    ) internal {
+    function _verifyTransferSig(uint256 fid, address to, uint256 deadline, bytes memory sig) internal {
         if (block.timestamp >= deadline) revert SignatureExpired();
-        bytes32 digest =
-            _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, from, to, _useNonce(signer), deadline)));
+        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline)));
 
         address recovered = ECDSA.recover(digest, sig);
-        if (recovered != signer) revert InvalidSigner();
-    }
-
-    // TODO: Check if these parameters are correct
-    function _verifyRecoverSig(address from, address to, uint256 deadline, bytes memory sig, address signer) internal {
-        if (block.timestamp >= deadline) revert SignatureExpired();
-        bytes32 digest =
-            _hashTypedDataV4(keccak256(abi.encode(_RECOVER_TYPEHASH, from, to, _useNonce(signer), deadline)));
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != signer) revert InvalidSigner();
+        if (recovered != to) revert InvalidSigner();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -279,13 +263,15 @@ contract IdRegistry is ERC2771Context, Ownable2Step, Pausable, EIP712, Nonces {
      *
      * @param to The address to transfer the fid to.
      */
-    function transfer(address to) external {
+    function transfer(address to, uint256 deadline, bytes calldata sig) external {
         address from = _msgSender();
         uint256 fromId = idOf[from];
 
         /* Revert if the sender has no id or receipient has an id */
         if (fromId == 0) revert HasNoId();
         if (idOf[to] != 0) revert HasId();
+
+        _verifyTransferSig(fromId, to, deadline, sig);
 
         _unsafeTransfer(fromId, from, to);
     }
