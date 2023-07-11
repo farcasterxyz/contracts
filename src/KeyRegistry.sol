@@ -54,6 +54,18 @@ contract KeyRegistry is Ownable2Step {
     /**
      * @dev Emit an event when an admin or fid adds a new key.
      *
+     *      Hubs listen for this, validate that keyBytes is an EdDSA pub key and scheme == 1 and
+     *      add keyBytes to its SignerStore. Messages signed by keyBytes with `fid` are now valid
+     *      and accepted over gossip, sync and client apis. Hubs assume the invariants:
+     *
+     *      1. Add(fid, ..., key, keyBytes, ...) cannot emit if there is an earlier emit with
+     *         Add(fid, ..., key, keyBytes, ...)
+     *
+     *      2. Add(fid, ..., key, keyBytes, ...) cannot emit if there is an earlier emit with
+     *         Remove(fid, key, keyBytes)
+     *
+     *      3. For all Add(..., ..., key, keyBytes, ...) key = keccack(keyBytes)
+     *
      * @param fid       The fid associated with the key.
      * @param scheme    The type of the key.
      * @param key       The key being registered. (indexed as hash)
@@ -65,6 +77,19 @@ contract KeyRegistry is Ownable2Step {
     /**
      * @dev Emit an event when an fid removes an added key.
      *
+     *      Hubs listen for this, validate that keyBytes is an EdDSA pub key, that scheme == 1 and
+     *      that keyBytes exists in its SignerStore.  keyBytes is marked as removed, messages signed
+     *      by keyBytes with `fid` areinvalid, dropped immediately and no longer accepted. Hubs
+     *      assume the invariants:
+     *
+     *      1. Remove(fid, key, keyBytes cannot emit if there is no earlier emit with
+     *         Add(fid, ..., key, keyBytes, ...)
+     *
+     *      2. Remove(fid, key, keyBytes, ...) cannot emit if there is an earlier emit with
+     *         Remove(fid, key, keyBytes)
+     *
+     *      3. For all Remove(..., key, keyBytes), key = keccack(keyBytes)
+     *
      * @param fid       The fid associated with the key.
      * @param key       The key being registered. (indexed as hash)
      * @param keyBytes  The bytes of the key being registered.
@@ -74,6 +99,11 @@ contract KeyRegistry is Ownable2Step {
     /**
      * @dev Emit an event when an admin resets an added key.
      *
+     *      Hubs listen for this, validate that keyBytes is an EdDSA pub key, that scheme == 1 and
+     *      that keyBytes exists in its SignerStore. keyBytes is no longer tracked, messages signed
+     *      by keyBytes with `fid` are invalid, dropped immediately and not accepted. Unlike Remove
+     *      keyBytes can be added to the SignerStore if an Add() event is observed.
+     *
      * @param fid       The fid associated with the key.
      * @param key       The key being reset. (indexed as hash)
      * @param keyBytes  The bytes of the key being registered.
@@ -81,7 +111,22 @@ contract KeyRegistry is Ownable2Step {
     event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
 
     /**
-     * @dev Emit an event when the admin calls migrateKeys.
+     * @dev Emit an event when the admin calls migrateKeys. Used to migrate Hubs from using
+     *      off-chain signers to on-chain signers.
+     *
+     *      Hubs listen for this and:
+     *      1. Stop accepting Farcaster Signer messages with a timestamp >= keysMigratedAt.
+     *      2. After grace period (24 hours), stop accepting all Farcaster Signer messages.
+     *      3. Drop any messages created by off-chain Farcaster Signers whose pub key was
+     *         not emitted as an Add event.
+     *
+     *      If SignerMessages are not correctly migrated by an admin during the migration,
+     *      there is a chance that there is some data loss, which is considered an acceptable
+     *      risk for this migration.
+     *
+     *      If this event is emitted incorrectly ahead of schedule, new users could not post
+     *      and existing users could not add new apps. A protocol upgrade will be necessary
+     *      which could take up to 6 weeks to roll out correctly.
      *
      * @param keysMigratedAt  The timestamp at which the migration occurred.
      */

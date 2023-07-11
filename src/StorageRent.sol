@@ -73,6 +73,10 @@ contract StorageRent is AccessControlEnumerable {
     /**
      * @dev Emit an event when caller pays rent for an fid's storage.
      *
+     *      Hubs listen for this event and increment the units assigned to the fid by 1 for exactly
+     *      395 days from the timestamp of this event (1 year + 30 day grace period). Hubs respect
+     *      this even if the fid is not yet issued.
+     *
      * @param payer     Address of the account paying the storage rent.
      * @param fid       The fid that will receive the storage allocation.
      * @param units     The number of storage units being rented.
@@ -98,6 +102,10 @@ contract StorageRent is AccessControlEnumerable {
 
     /**
      * @dev Emit an event when an admin changes the maximum supply of storage units.
+     *
+     *      Hubs do not actively listen for this event, though the owner of the contract is
+     *      responsible for ensuring that Hub operators are aware of the new storage requirements,
+     *      since that may cause Hubs to fail if they do not allocate sufficient storage.
      *
      * @param oldMax The previous maximum amount.
      * @param newMax The new maximum amount.
@@ -336,9 +344,14 @@ contract StorageRent is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Rent storage for a given fid. The caller must provide at
-     *         least price(units) wei of payment. Any excess payment will
-     *         be refunded to the caller.
+     * @notice Rent storage for a given fid for a year. The caller must provide at least
+     *         price(units) wei of payment. Any excess payment will be refunded to the caller. Hubs
+     *         will issue storage for 365 days + 30 day grace period after which it expires.
+     *
+     *         RentedUnits is never decremented on the contract even as the assigned storage expires
+     *         on the hubs. This is done to keep the contract simple since we expect to launch a new
+     *         storage contract within the year and deprecate this one. Even if that does not occur,
+     *         the existing maxUnits parameter can be tweaked to account for expired units.
      *
      * @param fid   The fid that will receive the storage allocation.
      * @param units Number of storage units to rent.
