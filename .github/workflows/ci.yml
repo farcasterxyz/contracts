@@ -22,6 +22,10 @@ jobs:
         with:
           submodules: recursive
 
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -40,6 +44,12 @@ jobs:
 
       - name: Check forge snapshots
         run: forge snapshot --check --match-contract Gas
+
+      - name: Install halmos
+        run: python3 -m pip install --upgrade git+https://github.com/a16z/halmos
+
+      - name: Run halmos
+        run: halmos --solver-parallel --solver-timeout-assertion 60000
 
   coverage:
     runs-on: ubuntu-latest
