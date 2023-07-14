@@ -399,4 +399,16 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline)));
         if (!SignatureChecker.isValidSignatureNow(to, digest, sig)) revert InvalidSignature();
     }
+
+    /*//////////////////////////////////////////////////////////////
+                     VIEW FUNCTIONS FOR SIGNATURE
+    //////////////////////////////////////////////////////////////*/
+
+    function verifyIdOwnerSignature(
+        uint256 fid,
+        bytes32 digest,
+        bytes memory sig
+    ) external view returns (bool isValid) {
+        return SignatureChecker.isValidSignatureNow(recoveryOf[fid], digest, sig);
+    }
 }
