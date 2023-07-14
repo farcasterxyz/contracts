@@ -7,6 +7,7 @@ import "../TestConstants.sol";
 
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
+import {ERC1271WalletMock, ERC1271MaliciousMock} from "../SignatureChecker/SignatureChecker.Mock.sol";
 
 /* solhint-disable state-visibility */
 
@@ -842,5 +843,59 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 2);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryOf(2), address(0));
+    }
+
+    //TODO: Fix test
+    // function testFuzzRegisterForSmartContractWalletSig(address registrar, uint256 recipientPk, address recovery, uint40 _deadline) public {
+    //         uint256 deadline = _boundDeadline(_deadline);
+    //         recipientPk = _boundPk(recipientPk);
+
+    //         address recipient = vm.addr(recipientPk);
+    //         ERC1271WalletMock mock = new ERC1271WalletMock(recipient);
+    //         address walletAddress = address(mock);
+    //         bytes memory sig = _signRegister(recipientPk, walletAddress, recovery, deadline);
+
+    //         idRegistry.disableTrustedOnly();
+
+    //         assertEq(idRegistry.getIdCounter(), 0);
+    //         assertEq(idRegistry.idOf(walletAddress), 0);
+    //         assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+    //         vm.expectEmit(true, true, true, true);
+    //         emit Register(walletAddress, 1, recovery);
+    //         vm.prank(registrar);
+    //         idRegistry.registerFor(walletAddress, recovery, deadline, sig);
+
+    //         assertEq(idRegistry.getIdCounter(), 1);
+    //         assertEq(idRegistry.idOf(walletAddress), 1);
+    //         assertEq(idRegistry.getRecoveryOf(1), recovery);
+    //     }
+
+    function testFuzzRegisterForRevertsBadSmartContractWalletSig(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        recipientPk = _boundPk(recipientPk);
+        uint256 deadline = _boundDeadline(_deadline);
+
+        ERC1271MaliciousMock maliciousMock = new ERC1271MaliciousMock();
+        address walletAddress = address(maliciousMock);
+        bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
+
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(walletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.prank(registrar);
+        vm.expectRevert();
+        idRegistry.registerFor(walletAddress, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(walletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 }
