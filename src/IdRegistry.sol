@@ -383,6 +383,9 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
         _unpause();
     }
 
+    // ERC1271 Signature stuff
+    // Will organize the code later
+
     /*//////////////////////////////////////////////////////////////
                      SIGNATURE VERIFICATION HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -404,7 +407,7 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
                      VIEW FUNCTIONS FOR SIGNATURE
     //////////////////////////////////////////////////////////////*/
 
-    function verifyIdOwnerSignature(
+    function verifyfIdOwnerSignature(
         uint256 fid,
         bytes32 digest,
         bytes calldata sig
