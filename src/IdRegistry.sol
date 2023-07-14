@@ -409,6 +409,6 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
         bytes32 digest,
         bytes calldata sig
     ) external view returns (bool isValid) {
-        return SignatureChecker.isValidSignatureNow(recoveryOf[fid], digest, sig);
+        isValid = SignatureChecker.isValidSignatureNow(recoveryOf[fid], digest, sig);
     }
 }
