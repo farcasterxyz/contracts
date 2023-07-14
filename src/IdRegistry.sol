@@ -7,6 +7,8 @@ import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
+import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+
 /**
  * @title IdRegistry
  * @author @v
@@ -390,16 +392,12 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
         if (block.timestamp >= deadline) revert SignatureExpired();
         bytes32 digest =
             _hashTypedDataV4(keccak256(abi.encode(_REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline)));
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != to) revert InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(to, digest, sig)) revert InvalidSignature();
     }
 
     function _verifyTransferSig(uint256 fid, address to, uint256 deadline, bytes memory sig) internal {
         if (block.timestamp >= deadline) revert SignatureExpired();
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline)));
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != to) revert InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(to, digest, sig)) revert InvalidSignature();
     }
 }
