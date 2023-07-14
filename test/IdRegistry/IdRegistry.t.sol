@@ -445,7 +445,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(from), 1);
         assertEq(idRegistry.idOf(to), 0);
 
-        //vm.expectRevert("ECDSA: invalid signature");
         vm.expectRevert();
         vm.prank(from);
         idRegistry.transfer(to, deadline, sig);
