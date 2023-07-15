@@ -408,10 +408,11 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     function verifyfIdOwnerSignature(
+        address fidOwner,
         uint256 fid,
         bytes32 digest,
         bytes calldata sig
     ) external view returns (bool isValid) {
-        isValid = SignatureChecker.isValidSignatureNow(recoveryOf[fid], digest, sig);
+        isValid = idOf[fidOwner] == fid && SignatureChecker.isValidSignatureNow(fidOwner, digest, sig);
     }
 }

@@ -843,4 +843,199 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryOf(2), address(0));
     }
+
+    function testValidVerifyfIdOwnerSignature(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
+
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit Register(recipient, 1, recovery);
+        vm.prank(registrar);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(recipient), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+
+        bytes32 digest = keccak256(bytes("testMsg"));
+        bytes memory signature = _signMsg(recipientPk, digest);
+        assertEq(idRegistry.verifyfIdOwnerSignature(recipient, 1, digest, signature), true);
+    }
+
+    function testInvalidVerifyfIdOwnerSignature(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
+
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit Register(recipient, 1, recovery);
+        vm.prank(registrar);
+        idRegistry.registerFor(recipient, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(recipient), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+
+        bytes32 digest = keccak256(bytes("testMsg"));
+
+        uint256 maliciousPk = _boundPk(250);
+        bytes memory signature = _signMsg(maliciousPk, digest);
+        assertEq(idRegistry.verifyfIdOwnerSignature(recipient, 1, digest, signature), false);
+    }
+
+    function testInvalidRegisterSmartContractWallet(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        ERC1271MaliciousMock _mockWallet = new ERC1271MaliciousMock();
+        address walletAddress = address(_mockWallet);
+
+        bytes memory sig = _signRegister(recipientPk, walletAddress, recovery, deadline);
+
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(walletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+        vm.expectRevert();
+        vm.prank(registrar);
+        idRegistry.registerFor(walletAddress, recovery, deadline, sig);
+    }
+
+    function testValidRegisterSmartContractWallet(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        address signerAddress = vm.addr(recipientPk);
+
+        ERC1271WalletMock _mockWallet = new ERC1271WalletMock(signerAddress);
+        address walletAddress = address(_mockWallet);
+
+        bytes memory sig = _signRegister(recipientPk, walletAddress, recovery, deadline);
+
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(walletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit Register(walletAddress, 1, recovery);
+        vm.prank(registrar);
+        idRegistry.registerFor(walletAddress, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(walletAddress), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+    }
+
+    function testValidVerifyfIdOwnerSmartContractWalletSignature(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        address signerAddress = vm.addr(recipientPk);
+
+        ERC1271WalletMock _mockWallet = new ERC1271WalletMock(signerAddress);
+        address walletAddress = address(_mockWallet);
+
+        bytes memory sig = _signRegister(recipientPk, walletAddress, recovery, deadline);
+
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(walletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit Register(walletAddress, 1, recovery);
+        vm.prank(registrar);
+        idRegistry.registerFor(walletAddress, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(walletAddress), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+
+        bytes32 digest = keccak256(bytes("testMsg"));
+        bytes memory signature = _signMsg(recipientPk, digest);
+        assertEq(idRegistry.verifyfIdOwnerSignature(walletAddress, 1, digest, signature), true);
+    }
+
+    function testInvalidVerifyfIdOwnerSmartContractWalletSignature(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        address signerAddress = vm.addr(recipientPk);
+
+        ERC1271WalletMock _mockWallet = new ERC1271WalletMock(signerAddress);
+        address walletAddress = address(_mockWallet);
+
+        bytes memory sig = _signRegister(recipientPk, walletAddress, recovery, deadline);
+
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(walletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit Register(walletAddress, 1, recovery);
+        vm.prank(registrar);
+        idRegistry.registerFor(walletAddress, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(walletAddress), 1);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+
+        bytes32 digest = keccak256(bytes("testMsg"));
+        uint256 maliciousPk = _boundPk(250);
+        bytes memory signature = _signMsg(maliciousPk, digest);
+        assertEq(idRegistry.verifyfIdOwnerSignature(walletAddress, 1, digest, signature), false);
+    }
 }

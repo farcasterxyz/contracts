@@ -11,10 +11,4 @@ abstract contract SignatureCheckerTestSuite is IdRegistryTestSuite {
     function setUp() public override {
         super.setUp();
     }
-
-    function _signMsg(uint256 pk, bytes32 digest) internal returns (bytes memory signature) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        signature = abi.encodePacked(r, s, v);
-        assertEq(signature.length, 65);
-    }
 }
