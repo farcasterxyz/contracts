@@ -407,12 +407,20 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
                      VIEW FUNCTIONS FOR SIGNATURE
     //////////////////////////////////////////////////////////////*/
 
+    function _verifyfIdOwner(address fidOwner, uint256 fid) internal view returns (bool isOwner) {
+        isOwner = idOf[fidOwner] == fid;
+    }
+
+    function verifyfIdOwner(address fidOwner, uint256 fid) external view returns (bool isOwner) {
+        isOwner = _verifyfIdOwner(fidOwner, fid);
+    }
+
     function verifyfIdOwnerSignature(
         address fidOwner,
         uint256 fid,
         bytes32 digest,
         bytes calldata sig
     ) external view returns (bool isValid) {
-        isValid = idOf[fidOwner] == fid && SignatureChecker.isValidSignatureNow(fidOwner, digest, sig);
+        isValid = _verifyfIdOwner(fidOwner, fid) && SignatureChecker.isValidSignatureNow(fidOwner, digest, sig);
     }
 }
