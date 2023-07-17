@@ -98,11 +98,21 @@ contract IdRegistrySymTest is SymTest, Test {
         // Generate calldata based on the function selector
         bytes memory args;
         if (selector == idRegistry.registerFor.selector) {
-            args = abi.encode( svm.createAddress("to"), svm.createAddress("recovery"), svm.createUint256("deadline"), svm.createBytes(65, "sig"));
+            args = abi.encode(
+                svm.createAddress("to"),
+                svm.createAddress("recovery"),
+                svm.createUint256("deadline"),
+                svm.createBytes(65, "sig")
+            );
         } else if (selector == idRegistry.transfer.selector) {
             args = abi.encode(svm.createAddress("to"), svm.createUint256("deadline"), svm.createBytes(65, "sig"));
         } else if (selector == idRegistry.recover.selector) {
-            args = abi.encode( svm.createAddress("from"), svm.createAddress("to"), svm.createUint256("deadline"), svm.createBytes(65, "sig"));
+            args = abi.encode(
+                svm.createAddress("from"),
+                svm.createAddress("to"),
+                svm.createUint256("deadline"),
+                svm.createBytes(65, "sig")
+            );
         } else {
             args = svm.createBytes(1024, "data");
         }
@@ -160,9 +170,9 @@ contract IdRegistrySymTest is SymTest, Test {
         idRegistry.recover(from, to, svm.createUint256("deadline"), svm.createBytes(65, "sig"));
 
         // Record post-state
-        uint newIdFrom = idRegistry.idOf(from);
-        uint newIdTo = idRegistry.idOf(to);
-        uint newIdOther = idRegistry.idOf(other);
+        uint256 newIdFrom = idRegistry.idOf(from);
+        uint256 newIdTo = idRegistry.idOf(to);
+        uint256 newIdOther = idRegistry.idOf(other);
 
         // Verify correctness properties
 

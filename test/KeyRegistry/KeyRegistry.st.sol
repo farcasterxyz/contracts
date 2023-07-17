@@ -25,9 +25,12 @@ contract KeyRegistrySymTest is SymTest, Test {
         idRegistry.setTrustedCaller(trustedCaller);
 
         // Register fids
-        vm.prank(trustedCaller); idRegistry.trustedRegister(address(0x1001), address(0x2001));
-        vm.prank(trustedCaller); idRegistry.trustedRegister(address(0x1002), address(0x2002));
-        vm.prank(trustedCaller); idRegistry.trustedRegister(address(0x1003), address(0x2003));
+        vm.prank(trustedCaller);
+        idRegistry.trustedRegister(address(0x1001), address(0x2001));
+        vm.prank(trustedCaller);
+        idRegistry.trustedRegister(address(0x1002), address(0x2002));
+        vm.prank(trustedCaller);
+        idRegistry.trustedRegister(address(0x1003), address(0x2003));
 
         assert(idRegistry.idOf(address(0x1001)) == 1);
         assert(idRegistry.idOf(address(0x1002)) == 2);
@@ -48,12 +51,15 @@ contract KeyRegistrySymTest is SymTest, Test {
         // - fid 3: null
 
         bytes memory key1 = svm.createBytes(32, "key1");
-        vm.prank(address(0x1001)); keyRegistry.add(1, 1, key1, "");
-        vm.prank(address(0x1001)); keyRegistry.remove(1, key1);
+        vm.prank(address(0x1001));
+        keyRegistry.add(1, 1, key1, "");
+        vm.prank(address(0x1001));
+        keyRegistry.remove(1, key1);
         assert(keyRegistry.keyDataOf(1, key1).state == KeyRegistry.KeyState.REMOVED);
 
         bytes memory key2 = svm.createBytes(32, "key2");
-        vm.prank(address(0x1002)); keyRegistry.add(2, 1, key2, "");
+        vm.prank(address(0x1002));
+        keyRegistry.add(2, 1, key2, "");
         assert(keyRegistry.keyDataOf(2, key2).state == KeyRegistry.KeyState.ADDED);
 
         // Create symbolic fid and key
@@ -73,7 +79,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         if (svm.createBool("pauseRegistration?")) {
             idRegistry.pauseRegistration();
         }
-        vm.warp(svm.createUint(64, 'timestamp2'));
+        vm.warp(svm.createUint(64, "timestamp2"));
 
         // Record pre-state
         KeyRegistry.KeyState oldStateX = keyRegistry.keyDataOf(x, xkey).state;
@@ -158,8 +164,10 @@ contract KeyRegistrySymTest is SymTest, Test {
         fids[1] = svm.createUint256("fid2");
 
         bytes[][] memory fidKeys = new bytes[][](2);
-        fidKeys[0] = new bytes[](1); fidKeys[0][0] = key;
-        fidKeys[1] = new bytes[](1); fidKeys[1][0] = svm.createBytes(32, "key2");
+        fidKeys[0] = new bytes[](1);
+        fidKeys[0][0] = key;
+        fidKeys[1] = new bytes[](1);
+        fidKeys[1][0] = svm.createBytes(32, "key2");
 
         // Generate calldata based on the function selector
         bytes memory args;
