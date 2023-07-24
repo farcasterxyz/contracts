@@ -5,6 +5,7 @@ import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
 import {IdRegistry} from "./IdRegistry.sol";
 import {StorageRent} from "./StorageRent.sol";
+import {KeyRegistry} from "./KeyRegistry.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
 contract Bundler is Ownable2Step {
@@ -63,6 +64,11 @@ contract Bundler is Ownable2Step {
      */
     StorageRent public immutable storageRent;
 
+    /**
+     * @dev Address of the StorageRent contract
+     */
+    KeyRegistry public immutable keyRegistry;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -75,11 +81,18 @@ contract Bundler is Ownable2Step {
      * @param _storageRent   Address of the StorageRent contract
      * @param _trustedCaller Address that can call trustedRegister and trustedBatchRegister
      */
-    constructor(address _idRegistry, address _storageRent, address _trustedCaller, address _owner) {
+    constructor(
+        address _idRegistry,
+        address _storageRent,
+        address _keyRegistry,
+        address _trustedCaller,
+        address _owner
+    ) {
         _transferOwnership(_owner);
 
         idRegistry = IdRegistry(_idRegistry);
         storageRent = StorageRent(_storageRent);
+        keyRegistry = KeyRegistry(_keyRegistry);
         trustedCaller = _trustedCaller;
         emit SetTrustedCaller(address(0), _trustedCaller, msg.sender);
     }

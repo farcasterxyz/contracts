@@ -11,11 +11,8 @@ import {KeyRegistryHarness} from "../Utils.sol";
 abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     KeyRegistryHarness internal keyRegistry;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
 
         keyRegistry = new KeyRegistryHarness(address(idRegistry), 1 days, owner);
     }

@@ -33,6 +33,10 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(bundler.storageRent()), address(storageRent));
     }
 
+    function testHasKeyRegistry() public {
+        assertEq(address(bundler.keyRegistry()), address(keyRegistry));
+    }
+
     function testDefaultTrustedCaller() public {
         assertEq(address(bundler.trustedCaller()), address(this));
     }

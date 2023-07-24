@@ -15,9 +15,10 @@ contract BundlerHarness is Bundler {
     constructor(
         address _idRegistry,
         address _storageRent,
+        address _keyRegistry,
         address _trustedCaller,
         address _owner
-    ) Bundler(_idRegistry, _storageRent, _trustedCaller, _owner) {}
+    ) Bundler(_idRegistry, _storageRent, _keyRegistry, _trustedCaller, _owner) {}
 }
 
 contract FnameResolverHarness is FnameResolver {
