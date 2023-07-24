@@ -26,7 +26,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testInitialOwner() public {
-        assertEq(keyRegistry.owner(), admin);
+        assertEq(keyRegistry.owner(), owner);
     }
 
     function testInitialStateIsNotMigrated() public {
@@ -201,7 +201,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(timestamp);
         vm.expectEmit();
         emit Migrated(timestamp);
-        vm.prank(admin);
+        vm.prank(owner);
         keyRegistry.migrateKeys();
 
         assertEq(keyRegistry.isMigrated(), true);
@@ -209,7 +209,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testFuzzOnlyOwnerCanMigrate(address caller) public {
-        vm.assume(caller != admin);
+        vm.assume(caller != owner);
 
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
@@ -222,12 +222,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzCannotMigrateTwice(uint40 timestamp) public {
         timestamp = uint40(bound(timestamp, 1, type(uint40).max));
         vm.warp(timestamp);
-        vm.prank(admin);
+        vm.prank(owner);
         keyRegistry.migrateKeys();
 
         timestamp = uint40(bound(timestamp, timestamp, type(uint40).max));
         vm.expectRevert(KeyRegistry.AlreadyMigrated.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         keyRegistry.migrateKeys();
 
         assertEq(keyRegistry.isMigrated(), true);
@@ -247,7 +247,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 idsLength = ids.length;
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
 
-        vm.prank(admin);
+        vm.prank(owner);
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
 
         for (uint256 i; i < idsLength; ++i) {
@@ -287,7 +287,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.expectEmit();
         emit Add(ids[2], 1, keys[2][1], keys[2][1], metadata);
 
-        vm.prank(admin);
+        vm.prank(owner);
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
     }
 
@@ -296,7 +296,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes[][] memory keys = new bytes[][](1);
         uint256 warpForward = bound(_warpForward, 1, keyRegistry.gracePeriod() - 1);
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
 
         keyRegistry.migrateKeys();
         vm.warp(keyRegistry.keysMigratedAt() + warpForward);
@@ -315,7 +315,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - keyRegistry.gracePeriod() - keyRegistry.keysMigratedAt());
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
 
         keyRegistry.migrateKeys();
         vm.warp(keyRegistry.keysMigratedAt() + keyRegistry.gracePeriod() + warpForward);
@@ -340,7 +340,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keys[0][0] = abi.encodePacked(uint256(1));
         keys[1][0] = abi.encodePacked(uint256(2));
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
 
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
 
@@ -355,7 +355,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes[][] memory keys = new bytes[][](1);
         bytes memory metadata = new bytes(1);
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         vm.expectRevert(KeyRegistry.InvalidBatchInput.selector);
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
 
@@ -379,7 +379,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 idsLength = ids.length;
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
 
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
         keyRegistry.bulkResetKeysForMigration(ids, keys);
@@ -413,7 +413,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keys[2][0] = abi.encodePacked(uint256(3));
         keys[2][1] = abi.encodePacked(uint256(4));
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
 
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
 
@@ -448,7 +448,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keys[1][0] = abi.encodePacked(uint256(2));
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         keyRegistry.bulkResetKeysForMigration(ids, keys);
     }
 
@@ -466,7 +466,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keys[0][0] = abi.encodePacked(uint256(1));
         keys[1][0] = abi.encodePacked(uint256(2));
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
 
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
         keyRegistry.bulkResetKeysForMigration(ids, keys);
@@ -482,7 +482,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes[][] memory keys = new bytes[][](1);
         uint256 warpForward = bound(_warpForward, 1, keyRegistry.gracePeriod() - 1);
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
 
         keyRegistry.migrateKeys();
         vm.warp(keyRegistry.keysMigratedAt() + warpForward);
@@ -499,7 +499,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - keyRegistry.gracePeriod() - keyRegistry.keysMigratedAt());
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
 
         keyRegistry.migrateKeys();
         vm.warp(keyRegistry.keysMigratedAt() + keyRegistry.gracePeriod() + warpForward);
@@ -514,7 +514,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](1);
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         vm.expectRevert(KeyRegistry.InvalidBatchInput.selector);
         keyRegistry.bulkResetKeysForMigration(ids, keys);
 

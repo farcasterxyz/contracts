@@ -56,6 +56,7 @@ contract BundlerTest is BundlerTestSuite {
         storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
 
         // State: Trusted Registration is disabled in ID registry
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         uint256 price = storageRent.price(storageUnits);
@@ -93,6 +94,7 @@ contract BundlerTest is BundlerTestSuite {
         storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
 
         // State: Trusted Registration is disabled in ID registry
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         uint256 price = storageRent.price(storageUnits);
@@ -123,6 +125,7 @@ contract BundlerTest is BundlerTestSuite {
         storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
 
         // State: Trusted Registration is disabled in ID registry
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         uint256 price = storageRent.price(storageUnits);
@@ -157,6 +160,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
+        vm.prank(owner);
         idRegistry.setTrustedCaller(address(bundler));
 
         vm.prank(bundler.trustedCaller());
@@ -186,6 +190,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
+        vm.prank(owner);
         idRegistry.setTrustedCaller(address(bundler));
 
         vm.prank(caller);
@@ -205,6 +210,7 @@ contract BundlerTest is BundlerTestSuite {
         storageUnits = bound(storageUnits, 1, (storageRent.maxUnits() - storageBefore) / registrations);
 
         // Configure the trusted callers correctly
+        vm.prank(owner);
         idRegistry.setTrustedCaller(address(bundler));
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
@@ -246,6 +252,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(account != address(0));
 
         // Configure the trusted callers correctly
+        vm.prank(owner);
         idRegistry.setTrustedCaller(address(bundler));
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
@@ -267,6 +274,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(untrustedCaller != address(this));
 
         // Configure the trusted callers correctly
+        vm.prank(owner);
         idRegistry.setTrustedCaller(address(bundler));
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
@@ -285,6 +293,7 @@ contract BundlerTest is BundlerTestSuite {
 
     function testFuzzTrustedBatchRegisterIfIdRegistryDisabled(address alice) public {
         // State: Trusted registration is disabled in IdRegistry
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
@@ -308,19 +317,23 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(alice != address(0));
         assertEq(bundler.owner(), owner);
 
+        vm.startPrank(owner);
         vm.expectEmit(true, true, true, true);
-        emit SetTrustedCaller(bundler.trustedCaller(), alice, address(this));
+        emit SetTrustedCaller(bundler.trustedCaller(), alice, owner);
         bundler.setTrustedCaller(alice);
+        vm.stopPrank();
+
         assertEq(bundler.trustedCaller(), alice);
     }
 
     function testFuzzCannotSetTrustedCallerToZeroAddress() public {
         assertEq(bundler.owner(), owner);
 
+        vm.prank(owner);
         vm.expectRevert(Bundler.InvalidAddress.selector);
         bundler.setTrustedCaller(address(0));
 
-        assertEq(bundler.trustedCaller(), owner);
+        assertEq(bundler.trustedCaller(), address(this));
     }
 
     function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
@@ -330,7 +343,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
         bundler.setTrustedCaller(bob);
-        assertEq(bundler.trustedCaller(), owner);
+        assertEq(bundler.trustedCaller(), address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -342,10 +355,12 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(bundler.owner(), owner);
         assertEq(bundler.pendingOwner(), address(0));
 
+        vm.prank(owner);
         bundler.transferOwnership(newOwner);
         assertEq(bundler.owner(), owner);
         assertEq(bundler.pendingOwner(), newOwner);
 
+        vm.prank(owner);
         bundler.transferOwnership(newOwner2);
         assertEq(bundler.owner(), owner);
         assertEq(bundler.pendingOwner(), newOwner2);

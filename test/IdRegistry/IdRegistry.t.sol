@@ -26,6 +26,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzRegister(address caller, address recovery) public {
         assertEq(idRegistry.getIdCounter(), 0);
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         assertEq(idRegistry.getIdCounter(), 0);
@@ -80,6 +81,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzCannotRegisterIfPaused(address caller, address recovery) public {
         assertEq(idRegistry.getIdCounter(), 0);
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
         _pauseRegistrations();
 
@@ -107,6 +109,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         assertEq(idRegistry.getIdCounter(), 0);
@@ -135,6 +138,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline + 1);
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         assertEq(idRegistry.getIdCounter(), 0);
@@ -162,6 +166,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         assertEq(idRegistry.getIdCounter(), 0);
@@ -189,12 +194,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         vm.warp(deadline + 1);
@@ -246,6 +253,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
         _register(recipient);
 
@@ -274,6 +282,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         _pauseRegistrations();
@@ -297,6 +306,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
     function testFuzzTrustedRegister(address recipient, address trustedCaller, address recovery) public {
         vm.assume(trustedCaller != address(0));
+        vm.prank(owner);
         idRegistry.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
 
@@ -315,6 +325,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address trustedCaller,
         address recovery
     ) public {
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         vm.prank(trustedCaller);
@@ -334,6 +345,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         vm.assume(untrustedCaller != trustedCaller);
         vm.assume(trustedCaller != address(0));
+        vm.prank(owner);
         idRegistry.setTrustedCaller(trustedCaller);
 
         vm.prank(untrustedCaller);
@@ -351,6 +363,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recovery
     ) public {
         vm.assume(trustedCaller != address(0));
+        vm.prank(owner);
         idRegistry.setTrustedCaller(trustedCaller);
 
         vm.prank(trustedCaller);
@@ -368,6 +381,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
     function testFuzzCannotTrustedRegisterWhenPaused(address alice, address trustedCaller, address recovery) public {
         vm.assume(trustedCaller != address(0));
+        vm.prank(owner);
         idRegistry.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
 

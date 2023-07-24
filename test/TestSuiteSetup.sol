@@ -24,8 +24,7 @@ abstract contract TestSuiteSetup is Test {
         address(0xf5a2fE45F4f1308502b1C136b9EF8af136141382) // ???
     ];
 
-    // Address of the test contract
-    address owner = address(this);
+    address owner = makeAddr("owner");
 
     // Address of known contracts, in a mapping for faster lookup when fuzzing
     mapping(address => bool) isKnownContract;

@@ -13,6 +13,7 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     // Perform actions many times to get a good median, since the first run initializes storage
 
     function testGasRegister() public {
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         for (uint256 i = 1; i < 15; i++) {
@@ -24,6 +25,7 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     }
 
     function testGasRegisterForAndRecover() public {
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         for (uint256 i = 1; i < 15; i++) {
@@ -44,6 +46,7 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     }
 
     function testGasRegisterFromTrustedCaller() public {
+        vm.prank(owner);
         idRegistry.setTrustedCaller(TRUSTED_SENDER);
 
         for (uint256 i = 0; i < 25; i++) {

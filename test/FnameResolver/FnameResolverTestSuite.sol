@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "forge-std/Test.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
+import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 import {FnameResolverHarness} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract FnameResolverTestSuite is Test {
+abstract contract FnameResolverTestSuite is TestSuiteSetup {
     FnameResolverHarness internal resolver;
 
     string internal constant FNAME_SERVER_URL = "https://fnames.farcaster.xyz/ccip/{sender}/{data}.json";
@@ -39,11 +39,9 @@ abstract contract FnameResolverTestSuite is Test {
     address internal mallory;
     uint256 internal malloryPk;
 
-    address internal admin = makeAddr("admin");
-
-    function setUp() public {
+    function setUp() public override {
         (signer, signerPk) = makeAddrAndKey("signer");
         (mallory, malloryPk) = makeAddrAndKey("mallory");
-        resolver = new FnameResolverHarness(FNAME_SERVER_URL, signer, admin);
+        resolver = new FnameResolverHarness(FNAME_SERVER_URL, signer, owner);
     }
 }

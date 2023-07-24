@@ -25,6 +25,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         vm.assume(alice != address(0));
         assertEq(idRegistry.owner(), owner);
 
+        vm.prank(owner);
         vm.expectEmit(true, true, true, true);
         emit SetTrustedCaller(alice);
         idRegistry.setTrustedCaller(alice);
@@ -34,6 +35,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
     function testFuzzCannotSetTrustedCallerToZeroAddr() public {
         assertEq(idRegistry.owner(), owner);
 
+        vm.prank(owner);
         vm.expectRevert(IdRegistry.InvalidAddress.selector);
         idRegistry.setTrustedCaller(address(0));
 
@@ -50,10 +52,11 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.getTrustedCaller(), address(0));
     }
 
-    function testFuzzDisableTrustedCaller() public {
+    function testDisableTrustedCaller() public {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.getTrustedOnly(), 1);
 
+        vm.prank(owner);
         vm.expectEmit(true, true, true, true);
         emit DisableTrustedOnly();
         idRegistry.disableTrustedOnly();
@@ -79,10 +82,12 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.pendingOwner(), address(0));
 
+        vm.prank(owner);
         idRegistry.transferOwnership(newOwner);
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.pendingOwner(), newOwner);
 
+        vm.prank(owner);
         idRegistry.transferOwnership(newOwner2);
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.pendingOwner(), newOwner2);
