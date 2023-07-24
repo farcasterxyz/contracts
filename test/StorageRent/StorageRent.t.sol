@@ -26,6 +26,7 @@ contract StorageRentTest is StorageRentTestSuite {
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
+    event SetMaxAge(uint256 oldAge, uint256 newAge);
     event SetGracePeriod(uint256 oldPeriod, uint256 newPeriod);
     event SetVault(address oldVault, address newVault);
     event Withdraw(address indexed to, uint256 amount);
@@ -90,6 +91,10 @@ contract StorageRentTest is StorageRentTestSuite {
 
     function testPriceFeedCacheDurationDefault() public {
         assertEq(storageRent.priceFeedCacheDuration(), INITIAL_PRICE_FEED_CACHE_DURATION);
+    }
+
+    function testPriceFeedMaxAgeDefault() public {
+        assertEq(storageRent.priceFeedMaxAge(), INITIAL_PRICE_FEED_MAX_AGE);
     }
 
     function testUptimeFeedGracePeriodDefault() public {
@@ -864,7 +869,7 @@ contract StorageRentTest is StorageRentTestSuite {
         storageRent.refreshPrice();
     }
 
-    function testPriceFeedRevertsStaleAnswer() public {
+    function testPriceFeedRevertsStaleAnswerByRound() public {
         // Set stale answeredInRound value
         priceFeed.setRoundData(
             MockChainlinkFeed.RoundData({
@@ -875,6 +880,26 @@ contract StorageRentTest is StorageRentTestSuite {
                 answeredInRound: 1
             })
         );
+
+        vm.expectRevert(StorageRent.StaleAnswer.selector);
+        vm.prank(admin);
+        storageRent.refreshPrice();
+    }
+
+    function testPriceFeedRevertsStaleAnswerByMaxAge() public {
+        vm.warp(INITIAL_PRICE_FEED_MAX_AGE + 2);
+
+        // Set stale answeredInRound value
+        priceFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 1,
+                answer: 2000e8,
+                startedAt: block.timestamp,
+                timeStamp: 1,
+                answeredInRound: 1
+            })
+        );
+        priceFeed.setStubTimeStamp(true);
 
         vm.expectRevert(StorageRent.StaleAnswer.selector);
         vm.prank(admin);
@@ -892,6 +917,7 @@ contract StorageRentTest is StorageRentTestSuite {
                 answeredInRound: 1
             })
         );
+        priceFeed.setStubTimeStamp(true);
         vm.expectRevert(StorageRent.IncompleteRound.selector);
         vm.prank(admin);
         storageRent.refreshPrice();
@@ -989,6 +1015,7 @@ contract StorageRentTest is StorageRentTestSuite {
                 answeredInRound: 1
             })
         );
+        uptimeFeed.setStubTimeStamp(true);
         vm.expectRevert(StorageRent.IncompleteRound.selector);
         vm.prank(admin);
         storageRent.refreshPrice();
@@ -1388,6 +1415,30 @@ contract StorageRentTest is StorageRentTestSuite {
         storageRent.setCacheDuration(duration);
 
         assertEq(storageRent.priceFeedCacheDuration(), duration);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           SET MAX PRICE AGE
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyAdminCanSetMaxAge(address caller, uint256 age) public {
+        vm.assume(caller != admin);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRent.NotAdmin.selector);
+        storageRent.setMaxAge(age);
+    }
+
+    function testFuzzSetMaxAge(uint256 age) public {
+        uint256 currentAge = storageRent.priceFeedMaxAge();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetMaxAge(currentAge, age);
+
+        vm.prank(admin);
+        storageRent.setMaxAge(age);
+
+        assertEq(storageRent.priceFeedMaxAge(), age);
     }
 
     /*//////////////////////////////////////////////////////////////
