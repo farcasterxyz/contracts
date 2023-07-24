@@ -327,6 +327,7 @@ contract KeyRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     function _add(uint256 fid, uint32 scheme, bytes calldata key, bytes calldata metadata) internal {
+        if (fid == 0) revert Unauthorized();
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
 

@@ -54,6 +54,19 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertAdded(fid, key, scheme);
     }
 
+    function testFuzzRegisterRevertsFidZero(
+        address caller,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
+        vm.prank(caller);
+        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        keyRegistry.add(0, scheme, key, metadata);
+
+        assertNull(0, key);
+    }
+
     function testFuzzRegisterRevertsUnlessFidOwner(
         address to,
         address recovery,
@@ -561,7 +574,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                     break;
                 }
             }
-            if (!found) {
+            if (!found && _ids[i] != 0) {
                 ids[idsLength++] = _ids[i];
             }
         }
