@@ -30,7 +30,9 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     }
 
     function _registerWithRecovery(address caller, address recovery) internal returns (uint256 fid) {
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
+
         vm.prank(caller);
         fid = idRegistry.register(recovery);
     }
@@ -46,7 +48,9 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         address caller = vm.addr(callerPk);
         bytes memory sig = _signRegister(callerPk, caller, recovery, deadline);
 
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
+
         vm.prank(caller);
         idRegistry.registerFor(caller, recovery, deadline, sig);
     }

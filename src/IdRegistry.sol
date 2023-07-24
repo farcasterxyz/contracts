@@ -164,7 +164,9 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
      * @notice Set the owner of the contract to the deployer.
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _owner) EIP712("Farcaster IdRegistry", "1") {}
+    constructor(address _owner) EIP712("Farcaster IdRegistry", "1") {
+        _transferOwnership(_owner);
+    }
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC

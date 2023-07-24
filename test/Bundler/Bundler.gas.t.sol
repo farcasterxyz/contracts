@@ -10,6 +10,7 @@ import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 
 contract BundleRegistryGasUsageTest is BundlerTestSuite {
     function testGasRegisterWithSig() public {
+        vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
         for (uint256 i = 1; i < 10; i++) {
@@ -24,6 +25,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
     }
 
     function testGasTrustedRegister() public {
+        vm.prank(owner);
         idRegistry.setTrustedCaller(address(bundler));
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
@@ -38,6 +40,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
     }
 
     function testGasTrustedBatchRegister() public {
+        vm.prank(owner);
         idRegistry.setTrustedCaller(address(bundler));
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
