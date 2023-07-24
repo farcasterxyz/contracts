@@ -7,6 +7,7 @@ import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Inter
 
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {StorageRent} from "../src/StorageRent.sol";
+import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {MockPriceFeed, MockUptimeFeed, MockChainlinkFeed} from "../test/Utils.sol";
 
 contract Deploy is Script {
@@ -16,13 +17,17 @@ contract Deploy is Script {
     uint256 internal constant INITIAL_PRICE_FEED_CACHE_DURATION = 1 days;
     uint256 internal constant INITIAL_UPTIME_FEED_GRACE_PERIOD = 1 hours;
 
+    uint24 internal constant KEY_REGISTRY_MIGRATION_GRACE_PERIOD = 1 days;
+
     bytes32 internal constant ID_REGISTRY_CREATE2_SALT = "fc";
+    bytes32 internal constant KEY_REGISTRY_CREATE2_SALT = "fc";
     bytes32 internal constant STORAGE_RENT_CREATE2_SALT = "fc";
 
     function run() public {
         _etchCreate2Deployer();
 
-        address initialOwner = vm.envAddress("ID_REGISTRY_OWNER_ADDRESS");
+        address initialIdRegistryOwner = vm.envAddress("ID_REGISTRY_OWNER_ADDRESS");
+        address initialKeyRegistryOwner = vm.envAddress("KEY_REGISTRY_OWNER_ADDRESS");
 
         address vault = vm.envAddress("STORAGE_RENT_VAULT_ADDRESS");
         address roleAdmin = vm.envAddress("STORAGE_RENT_ROLE_ADMIN_ADDRESS");
@@ -32,7 +37,12 @@ contract Deploy is Script {
 
         vm.startBroadcast();
         (AggregatorV3Interface priceFeed, AggregatorV3Interface uptimeFeed) = _getOrDeployPriceFeeds();
-        IdRegistry idRegistry = new IdRegistry{ salt: ID_REGISTRY_CREATE2_SALT }(initialOwner);
+        IdRegistry idRegistry = new IdRegistry{ salt: ID_REGISTRY_CREATE2_SALT }(initialIdRegistryOwner);
+        KeyRegistry keyRegistry = new KeyRegistry{ salt: KEY_REGISTRY_CREATE2_SALT }(
+            address(idRegistry),
+            KEY_REGISTRY_MIGRATION_GRACE_PERIOD,
+            initialKeyRegistryOwner
+        );
         StorageRent storageRent = new StorageRent{ salt: STORAGE_RENT_CREATE2_SALT }(
             priceFeed,
             uptimeFeed,
@@ -47,6 +57,7 @@ contract Deploy is Script {
         );
         vm.stopBroadcast();
         console.log("ID Registry: %s", address(idRegistry));
+        console.log("Key Registry: %s", address(keyRegistry));
         console.log("Storage Rent: %s", address(storageRent));
     }
 
