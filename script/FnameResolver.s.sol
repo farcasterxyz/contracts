@@ -11,11 +11,13 @@ contract FnameResolverScript is Script {
     function run() public {
         string memory serverURI = vm.envString("FNAME_RESOLVER_SERVER_URL");
         address signer = vm.envAddress("FNAME_RESOLVER_SIGNER_ADDRESS");
+        address owner = vm.envAddress("FNAME_RESOLVER_OWNER_ADDRESS");
 
         vm.broadcast();
         new FnameResolver{ salt: CREATE2_SALT }(
             serverURI,
-            signer
+            signer,
+            owner
         );
     }
 }
