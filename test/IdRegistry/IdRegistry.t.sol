@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 import "../TestConstants.sol";
 
 import {IdRegistry} from "../../src/IdRegistry.sol";
+import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -52,7 +53,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         vm.prank(caller);
-        vm.expectRevert(IdRegistry.Seedable.selector);
+        vm.expectRevert(TrustedCaller.Seedable.selector);
         idRegistry.register(recovery);
 
         assertEq(idRegistry.getIdCounter(), 0);
@@ -233,7 +234,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
         vm.prank(registrar);
-        vm.expectRevert(IdRegistry.Seedable.selector);
+        vm.expectRevert(TrustedCaller.Seedable.selector);
         idRegistry.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.getIdCounter(), 0);
@@ -329,7 +330,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.disableTrustedOnly();
 
         vm.prank(trustedCaller);
-        vm.expectRevert(IdRegistry.Registrable.selector);
+        vm.expectRevert(TrustedCaller.Registrable.selector);
         idRegistry.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.getIdCounter(), 0);
@@ -349,7 +350,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.setTrustedCaller(trustedCaller);
 
         vm.prank(untrustedCaller);
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
+        vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
         idRegistry.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.getIdCounter(), 0);

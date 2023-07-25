@@ -113,7 +113,26 @@ contract Bundler is Ownable2Step {
     }
 
     /**
-     * @notice Register an fid, register, signers, and rent storage to an address in a single transaction.
+     * @notice Register an fid, single signer, and rent storage to an address in a single transaction.
+     *
+     */
+    function register(
+        RegistrationParams calldata registration,
+        SignerParams calldata signer,
+        uint256 storageUnits
+    ) external payable {
+        uint256 fid =
+            idRegistry.registerFor(registration.to, registration.recovery, registration.deadline, registration.sig);
+        keyRegistry.addFor(registration.to, signer.scheme, signer.key, signer.metadata, signer.deadline, signer.sig);
+        uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
+
+        if (overpayment > 0) {
+            msg.sender.sendNative(overpayment);
+        }
+    }
+
+    /**
+     * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
      *
      */
     function register(

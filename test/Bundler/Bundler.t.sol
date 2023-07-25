@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import {Bundler} from "../../src/Bundler.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {StorageRent} from "../../src/StorageRent.sol";
+import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -325,7 +326,7 @@ contract BundlerTest is BundlerTestSuite {
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
         batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0)});
 
-        vm.expectRevert(IdRegistry.Registrable.selector);
+        vm.expectRevert(TrustedCaller.Registrable.selector);
         bundler.trustedBatchRegister(batchArray);
 
         _assertUnsuccessfulRegistration(alice);

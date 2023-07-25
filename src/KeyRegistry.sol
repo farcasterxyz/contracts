@@ -4,10 +4,10 @@ pragma solidity 0.8.21;
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
+import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {IdRegistry} from "./IdRegistry.sol";
 
-contract KeyRegistry is Ownable2Step, EIP712, Nonces {
+contract KeyRegistry is TrustedCaller, EIP712, Nonces {
     /**
      *  @notice State enumeration for a key in the registry. During migration, an admin can change
      *          the state of any fids key from NULL to ADDED or ADDED to NULL. After migration, an
@@ -198,9 +198,11 @@ contract KeyRegistry is Ownable2Step, EIP712, Nonces {
      * @param _gracePeriod Migration grace period in seconds. Immutable.
      * @param _owner       Contract owner address.
      */
-    constructor(address _idRegistry, uint24 _gracePeriod, address _owner) EIP712("Farcaster KeyRegistry", "1") {
-        _transferOwnership(_owner);
-
+    constructor(
+        address _idRegistry,
+        uint24 _gracePeriod,
+        address _owner
+    ) TrustedCaller(_owner) EIP712("Farcaster KeyRegistry", "1") {
         gracePeriod = _gracePeriod;
         idRegistry = IdRegistry(_idRegistry);
     }
@@ -260,6 +262,18 @@ contract KeyRegistry is Ownable2Step, EIP712, Nonces {
         if (fid == 0) revert Unauthorized();
 
         _verifyAddSig(owner, scheme, key, metadata, deadline, sig);
+        _add(fid, scheme, key, metadata);
+    }
+
+    function trustedAdd(
+        address owner,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata
+    ) external onlyTrustedCaller {
+        uint256 fid = idRegistry.idOf(owner);
+        if (fid == 0) revert Unauthorized();
+
         _add(fid, scheme, key, metadata);
     }
 

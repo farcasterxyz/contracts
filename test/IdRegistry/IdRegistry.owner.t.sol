@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "../TestConstants.sol";
 
 import {IdRegistry} from "../../src/IdRegistry.sol";
+import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -36,7 +37,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.owner(), owner);
 
         vm.prank(owner);
-        vm.expectRevert(IdRegistry.InvalidAddress.selector);
+        vm.expectRevert(TrustedCaller.InvalidAddress.selector);
         idRegistry.setTrustedCaller(address(0));
 
         assertEq(idRegistry.getTrustedCaller(), address(0));

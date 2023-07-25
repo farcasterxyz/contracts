@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "../TestConstants.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
+import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -229,6 +230,66 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.prank(registrar);
         vm.expectRevert(KeyRegistry.SignatureExpired.selector);
         keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
+
+        assertNull(fid, key);
+    }
+
+    function testFuzzTrustedAdd(
+        address to,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
+        vm.prank(owner);
+        keyRegistry.setTrustedCaller(trustedCaller);
+
+        uint256 fid = _registerFid(to, recovery);
+
+        vm.expectEmit();
+        emit Add(fid, scheme, key, key, metadata);
+        vm.prank(trustedCaller);
+        keyRegistry.trustedAdd(to, scheme, key, metadata);
+
+        assertAdded(fid, key, scheme);
+    }
+
+    function testFuzzTrustedAddRevertsNotTrustedCaller(
+        address to,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
+        vm.prank(owner);
+        keyRegistry.setTrustedCaller(trustedCaller);
+
+        uint256 fid = _registerFid(to, recovery);
+
+        vm.prank(to);
+        vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
+        keyRegistry.trustedAdd(to, scheme, key, metadata);
+
+        assertNull(fid, key);
+    }
+
+    function testFuzzTrustedAddRevertsTrustedOnly(
+        address to,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
+        vm.startPrank(owner);
+        keyRegistry.setTrustedCaller(trustedCaller);
+        keyRegistry.disableTrustedOnly();
+        vm.stopPrank();
+
+        uint256 fid = _registerFid(to, recovery);
+
+        vm.prank(trustedCaller);
+        vm.expectRevert(TrustedCaller.Registrable.selector);
+        keyRegistry.trustedAdd(to, scheme, key, metadata);
 
         assertNull(fid, key);
     }

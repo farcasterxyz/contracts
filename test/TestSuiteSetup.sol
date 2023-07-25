@@ -27,6 +27,7 @@ abstract contract TestSuiteSetup is Test {
     ];
 
     address owner = makeAddr("owner");
+    address trustedCaller = makeAddr("trustedCaller");
 
     // Address of known contracts, in a mapping for faster lookup when fuzzing
     mapping(address => bool) isKnownContract;

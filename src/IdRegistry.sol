@@ -4,8 +4,10 @@ pragma solidity 0.8.21;
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
+
+import {TrustedCaller} from "./lib/TrustedCaller.sol";
+
 /**
  * @title IdRegistry
  * @author @v
@@ -20,7 +22,7 @@ import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
  *         a recovery address that can transfer the fid to a new address.
  */
 
-contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
+contract IdRegistry is TrustedCaller, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -33,15 +35,6 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
 
     /// @dev Revert when the destination is required to be empty, but has an fid.
     error HasId();
-
-    /// @dev Revert if trustedRegister is invoked after trustedCallerOnly is disabled.
-    error Registrable();
-
-    /// @dev Revert if register is invoked before trustedCallerOnly is disabled.
-    error Seedable();
-
-    /// @dev Revert when an invalid address is provided as input.
-    error InvalidAddress();
 
     /// @dev Revert when the signature provided is invalid.
     error InvalidSignature();
@@ -99,18 +92,6 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
      */
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
-    /**
-     * @dev Emit an event when the trusted caller is modified.
-     *
-     * @param trustedCaller The address of the new trusted caller.
-     */
-    event SetTrustedCaller(address indexed trustedCaller);
-
-    /**
-     * @dev Emit an event when the trusted only state is disabled.
-     */
-    event DisableTrustedOnly();
-
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -120,21 +101,6 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
 
     bytes32 internal constant _TRANSFER_TYPEHASH =
         keccak256("Transfer(address from,address to,uint256 nonce,uint256 deadline)");
-
-    /*//////////////////////////////////////////////////////////////
-                              PARAMETERS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev The admin address that is allowed to call trustedRegister.
-     */
-    address internal trustedCaller;
-
-    /**
-     * @dev Allows calling trustedRegister() when set 1, and register() when set to 0. The value is
-     *      set to 1 and can be changed to 0, but never back to 1.
-     */
-    uint256 internal trustedOnly = 1;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -163,9 +129,7 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
      * @notice Set the owner of the contract to the deployer.
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _owner) EIP712("Farcaster IdRegistry", "1") {
-        _transferOwnership(_owner);
-    }
+    constructor(address _owner) TrustedCaller(_owner) EIP712("Farcaster IdRegistry", "1") {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -208,13 +172,8 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
      * @param to       The address which will own the fid.
      * @param recovery The address which can recover the fid.
      */
-    function trustedRegister(address to, address recovery) external returns (uint256 fid) {
-        if (trustedOnly == 0) revert Registrable();
-
-        if (msg.sender != trustedCaller) revert Unauthorized();
-
+    function trustedRegister(address to, address recovery) external onlyTrustedCaller returns (uint256 fid) {
         fid = _unsafeRegister(to, recovery);
-
         emit Register(to, idCounter, recovery);
     }
 
@@ -222,9 +181,7 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
      * @dev Registers an fid and sets up a recovery address for a target. The contract must not be
      *      in the Seedable (trustedOnly = 1) state and the target must not have an fid.
      */
-    function _register(address to, address recovery) internal returns (uint256 fid) {
-        if (trustedOnly == 1) revert Seedable();
-
+    function _register(address to, address recovery) internal whenNotTrusted returns (uint256 fid) {
         fid = _unsafeRegister(to, recovery);
 
         emit Register(to, idCounter, recovery);
@@ -347,27 +304,6 @@ contract IdRegistry is Ownable2Step, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Change the trusted caller by calling this from the contract's owner.
-     *
-     * @param _trustedCaller The address of the new trusted caller
-     */
-    function setTrustedCaller(address _trustedCaller) external onlyOwner {
-        if (_trustedCaller == address(0)) revert InvalidAddress();
-
-        trustedCaller = _trustedCaller;
-        emit SetTrustedCaller(_trustedCaller);
-    }
-
-    /**
-     * @notice Move from Seedable to Registrable where anyone can register an fid. Must be called
-     *         by the contract's owner.
-     */
-    function disableTrustedOnly() external onlyOwner {
-        delete trustedOnly;
-        emit DisableTrustedOnly();
-    }
 
     /**
      * @notice Pause all registrations. Must be called by the owner.
