@@ -310,8 +310,6 @@ contract StorageRent is AccessControlEnumerable {
         _grantRole(OPERATOR_ROLE, _initialOperator);
         _grantRole(TREASURER_ROLE, _initialTreasurer);
 
-        _revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
-
         _refreshPrice();
     }
 
