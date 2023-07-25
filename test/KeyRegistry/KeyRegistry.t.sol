@@ -261,6 +261,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes calldata key,
         bytes calldata metadata
     ) public {
+        vm.assume(to != trustedCaller);
+
         vm.prank(owner);
         keyRegistry.setTrustedCaller(trustedCaller);
 
@@ -271,6 +273,21 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.trustedAdd(to, scheme, key, metadata);
 
         assertNull(fid, key);
+    }
+
+    function testFuzzTrustedAddRevertsUnownedFid(
+        address to,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata
+    ) public {
+        vm.prank(owner);
+        keyRegistry.setTrustedCaller(trustedCaller);
+
+        vm.prank(trustedCaller);
+        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        keyRegistry.trustedAdd(to, scheme, key, metadata);
     }
 
     function testFuzzTrustedAddRevertsTrustedOnly(

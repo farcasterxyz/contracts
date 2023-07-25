@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
-
 import {IdRegistry} from "./IdRegistry.sol";
 import {StorageRent} from "./StorageRent.sol";
 import {KeyRegistry} from "./KeyRegistry.sol";
+import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
-contract Bundler is Ownable2Step {
+contract Bundler is TrustedCaller {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -18,22 +17,6 @@ contract Bundler is Ownable2Step {
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
 
-    /// @dev Revert when an invalid address is provided as input.
-    error InvalidAddress();
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Emit an event when the trustedCaller is set
-     *
-     * @param oldCaller The previous trusted caller.
-     * @param newCaller The new trusted caller.
-     * @param owner The address of the owner making the change.
-     */
-    event SetTrustedCaller(address indexed oldCaller, address indexed newCaller, address owner);
-
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -41,8 +24,11 @@ contract Bundler is Ownable2Step {
     /// @notice Data needed to register a user with the fid and storage contracts.
     struct UserData {
         address to;
-        uint256 units;
         address recovery;
+        uint32 scheme;
+        bytes key;
+        bytes metadata;
+        uint256 units;
     }
 
     struct RegistrationParams {
@@ -59,11 +45,6 @@ contract Bundler is Ownable2Step {
         uint256 deadline;
         bytes sig;
     }
-
-    /**
-     * @dev Address that can call trustedRegister and trustedBatchRegister
-     */
-    address public trustedCaller;
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
@@ -102,33 +83,11 @@ contract Bundler is Ownable2Step {
         address _keyRegistry,
         address _trustedCaller,
         address _owner
-    ) {
-        _transferOwnership(_owner);
-
+    ) TrustedCaller(_owner) {
         idRegistry = IdRegistry(_idRegistry);
         storageRent = StorageRent(_storageRent);
         keyRegistry = KeyRegistry(_keyRegistry);
-        trustedCaller = _trustedCaller;
-        emit SetTrustedCaller(address(0), _trustedCaller, msg.sender);
-    }
-
-    /**
-     * @notice Register an fid, single signer, and rent storage to an address in a single transaction.
-     *
-     */
-    function register(
-        RegistrationParams calldata registration,
-        SignerParams calldata signer,
-        uint256 storageUnits
-    ) external payable {
-        uint256 fid =
-            idRegistry.registerFor(registration.to, registration.recovery, registration.deadline, registration.sig);
-        keyRegistry.addFor(registration.to, signer.scheme, signer.key, signer.metadata, signer.deadline, signer.sig);
-        uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
-
-        if (overpayment > 0) {
-            msg.sender.sendNative(overpayment);
-        }
+        _setTrustedCaller(_trustedCaller);
     }
 
     /**
@@ -163,11 +122,17 @@ contract Bundler is Ownable2Step {
      * @param recovery     Address that is allowed to perform a recovery
      * @param storageUnits Number of storage units to rent
      */
-    function trustedRegister(address to, address recovery, uint256 storageUnits) external {
-        if (msg.sender != trustedCaller) revert Unauthorized();
-
+    function trustedRegister(
+        address to,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint256 storageUnits
+    ) external onlyTrustedCaller {
         // Will revert unless IdRegistry is in the Seedable phase
         uint256 fid = idRegistry.trustedRegister(to, recovery);
+        keyRegistry.trustedAdd(to, scheme, key, metadata);
         storageRent.credit(fid, storageUnits);
     }
 
@@ -178,24 +143,13 @@ contract Bundler is Ownable2Step {
      *
      * @param users  Array of UserData structs to register
      */
-    function trustedBatchRegister(UserData[] calldata users) external {
-        // Do not allow anyone except the Farcaster Bootstrap Server (trustedCaller) to call this
-        if (msg.sender != trustedCaller) revert Unauthorized();
-
+    function trustedBatchRegister(UserData[] calldata users) external onlyTrustedCaller {
         // Safety: calls inside a loop are safe since caller is trusted
         for (uint256 i = 0; i < users.length; i++) {
             uint256 fid = idRegistry.trustedRegister(users[i].to, users[i].recovery);
+            keyRegistry.trustedAdd(users[i].to, users[i].scheme, users[i].key, users[i].metadata);
             storageRent.credit(fid, users[i].units);
         }
-    }
-
-    /**
-     * @notice Change the trusted caller that can call trusted* functions
-     */
-    function setTrustedCaller(address _trustedCaller) external onlyOwner {
-        if (_trustedCaller == address(0)) revert InvalidAddress();
-        emit SetTrustedCaller(trustedCaller, _trustedCaller, msg.sender);
-        trustedCaller = _trustedCaller;
     }
 
     // solhint-disable-next-line no-empty-blocks

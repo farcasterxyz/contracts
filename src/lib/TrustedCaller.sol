@@ -30,9 +30,11 @@ abstract contract TrustedCaller is Ownable2Step {
     /**
      * @dev Emit an event when the trusted caller is modified.
      *
-     * @param trustedCaller The address of the new trusted caller.
+     * @param oldCaller The address of the old trusted caller.
+     * @param newCaller The address of the new trusted caller.
+     * @param owner     The address of the owner setting the new caller.
      */
-    event SetTrustedCaller(address indexed trustedCaller);
+    event SetTrustedCaller(address indexed oldCaller, address indexed newCaller, address owner);
 
     /**
      * @dev Emit an event when the trusted only state is disabled.
@@ -46,7 +48,7 @@ abstract contract TrustedCaller is Ownable2Step {
     /**
      * @dev The admin address that is allowed to call trusted functions.
      */
-    address internal trustedCaller;
+    address public trustedCaller;
 
     /**
      * @dev Allows calling trustedRegister() when set 1, and register() when set to 0. The value is
@@ -86,11 +88,8 @@ abstract contract TrustedCaller is Ownable2Step {
      *
      * @param _trustedCaller The address of the new trusted caller
      */
-    function setTrustedCaller(address _trustedCaller) external onlyOwner {
-        if (_trustedCaller == address(0)) revert InvalidAddress();
-
-        trustedCaller = _trustedCaller;
-        emit SetTrustedCaller(_trustedCaller);
+    function setTrustedCaller(address _trustedCaller) public onlyOwner {
+        _setTrustedCaller(_trustedCaller);
     }
 
     /**
@@ -100,5 +99,16 @@ abstract contract TrustedCaller is Ownable2Step {
     function disableTrustedOnly() external onlyOwner {
         delete trustedOnly;
         emit DisableTrustedOnly();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function _setTrustedCaller(address _trustedCaller) internal {
+        if (_trustedCaller == address(0)) revert InvalidAddress();
+
+        emit SetTrustedCaller(trustedCaller, _trustedCaller, msg.sender);
+        trustedCaller = _trustedCaller;
     }
 }
