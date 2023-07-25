@@ -45,6 +45,21 @@ contract Bundler is Ownable2Step {
         address recovery;
     }
 
+    struct RegistrationParams {
+        address to;
+        address recovery;
+        uint256 deadline;
+        bytes sig;
+    }
+
+    struct SignerParams {
+        uint32 scheme;
+        bytes key;
+        bytes metadata;
+        uint256 deadline;
+        bytes sig;
+    }
+
     /**
      * @dev Address that can call trustedRegister and trustedBatchRegister
      */
@@ -98,20 +113,22 @@ contract Bundler is Ownable2Step {
     }
 
     /**
-     * @notice Register an fid and rent storage to an address in a single transaction.
+     * @notice Register an fid, register, signers, and rent storage to an address in a single transaction.
      *
-     * @param to           Address of the fid to register
-     * @param recovery     Address that is allowed to perform a recovery
-     * @param storageUnits Number of storage units to rent
      */
     function register(
-        address to,
-        address recovery,
-        uint256 deadline,
-        bytes calldata sig,
+        RegistrationParams calldata registration,
+        SignerParams[] calldata signers,
         uint256 storageUnits
     ) external payable {
-        uint256 fid = idRegistry.registerFor(to, recovery, deadline, sig);
+        uint256 fid =
+            idRegistry.registerFor(registration.to, registration.recovery, registration.deadline, registration.sig);
+
+        for (uint256 i; i < signers.length; i++) {
+            SignerParams calldata signer = signers[i];
+            keyRegistry.addFor(registration.to, signer.scheme, signer.key, signer.metadata, signer.deadline, signer.sig);
+        }
+
         uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
 
         if (overpayment > 0) {

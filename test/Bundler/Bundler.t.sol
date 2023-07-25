@@ -68,9 +68,15 @@ contract BundlerTest is BundlerTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
 
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+
         vm.deal(caller, price);
         vm.prank(caller);
-        bundler.register{value: price}(account, recovery, deadline, sig, storageUnits);
+        bundler.register{value: price}(
+            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            signers,
+            storageUnits
+        );
 
         _assertSuccessfulRegistration(account, recovery);
 
@@ -107,10 +113,16 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, price - 1);
 
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+
         vm.deal(caller, price);
         vm.prank(caller);
         vm.expectRevert(StorageRent.InvalidPayment.selector);
-        bundler.register{value: price - delta}(account, recovery, deadline, sig, storageUnits);
+        bundler.register{value: price - delta}(
+            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            signers,
+            storageUnits
+        );
     }
 
     function testFuzzRegisterReturnsExcessPayment(
@@ -138,9 +150,15 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, type(uint256).max - price);
 
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+
         vm.deal(caller, price + delta);
         vm.prank(caller);
-        bundler.register{value: price + delta}(account, recovery, deadline, sig, storageUnits);
+        bundler.register{value: price + delta}(
+            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            signers,
+            storageUnits
+        );
 
         _assertSuccessfulRegistration(account, recovery);
 
