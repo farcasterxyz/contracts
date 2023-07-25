@@ -38,7 +38,7 @@ contract KeyRegistry is Ownable2Step {
     /// @dev Revert if a key violates KeyState transition rules.
     error InvalidState();
 
-    /// @dev Revert if owner attempts a bulk add or reset after the migration grace period.
+    /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
 
     /// @dev Revert if owner calls migrateKeys more than once.
@@ -187,18 +187,6 @@ contract KeyRegistry is Ownable2Step {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Revert if caller does not own the associated fid.
-     */
-    modifier onlyFidOwner(uint256 fid) {
-        if (idRegistry.idOf(msg.sender) != fid) revert Unauthorized();
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                   VIEWS
     //////////////////////////////////////////////////////////////*/
 
@@ -228,25 +216,29 @@ contract KeyRegistry is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Add a key to an fid, setting the key state to ADDED.
+     * @notice Add a key to the caller's fid, setting the key state to ADDED.
      *
-     * @param fid      The fid associated with the key. Caller must own the fid.
      * @param scheme   The key's numeric scheme.
      * @param key      Bytes of the key to add.
      * @param metadata Metadata about the key, which is not stored and only emitted in an event.
      */
-    function add(uint256 fid, uint32 scheme, bytes calldata key, bytes calldata metadata) external onlyFidOwner(fid) {
+    function add(uint32 scheme, bytes calldata key, bytes calldata metadata) external {
+        uint256 fid = idRegistry.idOf(msg.sender);
+        if (fid == 0) revert Unauthorized();
+
         _add(fid, scheme, key, metadata);
     }
 
     /**
-     * @notice Remove a key associated with an fid, setting the key state to REMOVED.
+     * @notice Remove a key associated with the caller's fid, setting the key state to REMOVED.
      *         The key must be in the ADDED state.
      *
-     * @param fid   The fid associated with the key. Caller must own the fid.
      * @param key   Bytes of the key to remove.
      */
-    function remove(uint256 fid, bytes calldata key) external onlyFidOwner(fid) {
+    function remove(bytes calldata key) external {
+        uint256 fid = idRegistry.idOf(msg.sender);
+        if (fid == 0) revert Unauthorized();
+
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 

@@ -56,7 +56,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.expectEmit();
         emit Add(fid, scheme, key, key, metadata);
         vm.prank(to);
-        keyRegistry.add(fid, scheme, key, metadata);
+        keyRegistry.add(scheme, key, metadata);
 
         assertAdded(fid, key, scheme);
     }
@@ -75,7 +75,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(caller);
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        keyRegistry.add(fid, scheme, key, metadata);
+        keyRegistry.add(scheme, key, metadata);
 
         assertNull(fid, key);
     }
@@ -90,10 +90,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.add(fid, scheme, key, metadata);
+        keyRegistry.add(scheme, key, metadata);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.add(fid, scheme, key, metadata);
+        keyRegistry.add(scheme, key, metadata);
 
         vm.stopPrank();
         assertAdded(fid, key, scheme);
@@ -109,11 +109,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.add(fid, scheme, key, metadata);
-        keyRegistry.remove(fid, key);
+        keyRegistry.add(scheme, key, metadata);
+        keyRegistry.remove(key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.add(fid, scheme, key, metadata);
+        keyRegistry.add(scheme, key, metadata);
 
         vm.stopPrank();
         assertRemoved(fid, key, scheme);
@@ -133,14 +133,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
 
         vm.prank(to);
-        keyRegistry.add(fid, scheme, key, metadata);
+        keyRegistry.add(scheme, key, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
 
         vm.expectEmit();
         emit Remove(fid, key, key);
         vm.prank(to);
-        keyRegistry.remove(fid, key);
+        keyRegistry.remove(key);
         assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
 
@@ -159,11 +159,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         uint256 fid = _registerFid(to, recovery);
         vm.prank(to);
-        keyRegistry.add(fid, scheme, key, metadata);
+        keyRegistry.add(scheme, key, metadata);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
         vm.prank(caller);
-        keyRegistry.remove(fid, key);
+        keyRegistry.remove(key);
 
         assertAdded(fid, key, scheme);
     }
@@ -173,7 +173,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
         vm.prank(to);
-        keyRegistry.remove(fid, key);
+        keyRegistry.remove(key);
 
         assertNull(fid, key);
     }
@@ -188,11 +188,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         vm.startPrank(to);
 
-        keyRegistry.add(fid, scheme, key, metadata);
-        keyRegistry.remove(fid, key);
+        keyRegistry.add(scheme, key, metadata);
+        keyRegistry.remove(key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.remove(fid, key);
+        keyRegistry.remove(key);
 
         vm.stopPrank();
         assertRemoved(fid, key, scheme);
