@@ -74,6 +74,18 @@ contract KeyRegistryHarness is KeyRegistry {
         uint24 _gracePeriod,
         address _owner
     ) KeyRegistry(_idRegistry, _gracePeriod, _owner) {}
+
+    function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
+        return _hashTypedDataV4(structHash);
+    }
+
+    function addTypehash() public pure returns (bytes32) {
+        return _ADD_TYPEHASH;
+    }
+
+    function removeTypehash() public pure returns (bytes32) {
+        return _REMOVE_TYPEHASH;
+    }
 }
 
 contract StorageRentHarness is StorageRent {

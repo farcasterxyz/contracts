@@ -44,7 +44,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                    ADD
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzRegister(
+    function testFuzzAdd(
         address to,
         address recovery,
         uint32 scheme,
@@ -61,7 +61,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertAdded(fid, key, scheme);
     }
 
-    function testFuzzRegisterRevertsUnlessFidOwner(
+    function testFuzzAddRevertsUnlessFidOwner(
         address to,
         address recovery,
         address caller,
@@ -80,7 +80,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertNull(fid, key);
     }
 
-    function testFuzzRegisterRevertsIfStateNotNull(
+    function testFuzzAddRevertsIfStateNotNull(
         address to,
         address recovery,
         uint32 scheme,
@@ -117,6 +117,120 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.stopPrank();
         assertRemoved(fid, key, scheme);
+    }
+
+    function testFuzzAddFor(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = _signAdd(ownerPk, owner, scheme, key, metadata, deadline);
+
+        vm.expectEmit();
+        emit Add(fid, scheme, key, key, metadata);
+        vm.prank(registrar);
+        keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
+
+        assertAdded(fid, key, scheme);
+    }
+
+    function testFuzzAddForRevertsNoFid(
+        address registrar,
+        uint256 ownerPk,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        bytes memory sig = _signAdd(ownerPk, owner, scheme, key, metadata, deadline + 1);
+
+        vm.prank(registrar);
+        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
+    }
+
+    function testFuzzAddForRevertsInvalidSig(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = _signAdd(ownerPk, owner, scheme, key, metadata, deadline + 1);
+
+        vm.prank(registrar);
+        vm.expectRevert(KeyRegistry.InvalidSignature.selector);
+        keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
+
+        assertNull(fid, key);
+    }
+
+    function testFuzzAddForRevertsBadSig(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
+
+        vm.prank(registrar);
+        vm.expectRevert("ECDSA: invalid signature");
+        keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
+
+        assertNull(fid, key);
+    }
+
+    function testFuzzAddForRevertsExpiredSig(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = _signAdd(ownerPk, owner, scheme, key, metadata, deadline);
+
+        vm.warp(deadline + 1);
+
+        vm.prank(registrar);
+        vm.expectRevert(KeyRegistry.SignatureExpired.selector);
+        keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
+
+        assertNull(fid, key);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -196,6 +310,140 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.stopPrank();
         assertRemoved(fid, key, scheme);
+    }
+
+    function testFuzzRemoveFor(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = _signRemove(ownerPk, owner, key, deadline);
+
+        vm.prank(owner);
+        keyRegistry.add(scheme, key, metadata);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
+
+        vm.expectEmit();
+        emit Remove(fid, key, key);
+        vm.prank(registrar);
+        keyRegistry.removeFor(owner, key, deadline, sig);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.REMOVED);
+        assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
+
+        assertRemoved(fid, key, scheme);
+    }
+
+    function testFuzzRemoveForRevertsNoFid(
+        address registrar,
+        uint256 ownerPk,
+        bytes calldata key,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        bytes memory sig = _signRemove(ownerPk, owner, key, deadline);
+
+        vm.prank(registrar);
+        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        keyRegistry.removeFor(owner, key, deadline, sig);
+    }
+
+    function testFuzzRemoveForRevertsInvalidSig(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = _signRemove(ownerPk, owner, key, deadline + 1);
+
+        vm.prank(owner);
+        keyRegistry.add(scheme, key, metadata);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
+
+        vm.prank(registrar);
+        vm.expectRevert(KeyRegistry.InvalidSignature.selector);
+        keyRegistry.removeFor(owner, key, deadline, sig);
+
+        assertAdded(fid, key, scheme);
+    }
+
+    function testFuzzRemoveForRevertsBadSig(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
+
+        vm.prank(owner);
+        keyRegistry.add(scheme, key, metadata);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
+
+        vm.prank(registrar);
+        vm.expectRevert("ECDSA: invalid signature");
+        keyRegistry.removeFor(owner, key, deadline, sig);
+
+        assertAdded(fid, key, scheme);
+    }
+
+    function testFuzzRemoveForRevertsExpiredSig(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = _signRemove(ownerPk, owner, key, deadline);
+
+        vm.prank(owner);
+        keyRegistry.add(scheme, key, metadata);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
+
+        vm.warp(deadline + 1);
+
+        vm.prank(registrar);
+        vm.expectRevert(KeyRegistry.SignatureExpired.selector);
+        keyRegistry.removeFor(owner, key, deadline, sig);
+
+        assertAdded(fid, key, scheme);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
+import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {IdRegistry} from "./IdRegistry.sol";
 
-contract KeyRegistry is Ownable2Step {
+contract KeyRegistry is Ownable2Step, EIP712, Nonces {
     /**
      *  @notice State enumeration for a key in the registry. During migration, an admin can change
      *          the state of any fids key from NULL to ADDED or ADDED to NULL. After migration, an
@@ -46,6 +49,12 @@ contract KeyRegistry is Ownable2Step {
 
     /// @dev Revert if migration batch input arrays are not the same length.
     error InvalidBatchInput();
+
+    /// @dev Revert when the signature provided is invalid.
+    error InvalidSignature();
+
+    /// @dev Revert when the block.timestamp is ahead of the signature deadline.
+    error SignatureExpired();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -133,6 +142,16 @@ contract KeyRegistry is Ownable2Step {
     event Migrated(uint256 indexed keysMigratedAt);
 
     /*//////////////////////////////////////////////////////////////
+                              CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    bytes32 internal constant _ADD_TYPEHASH =
+        keccak256("Add(address owner,uint32 scheme,bytes key,bytes metadata,uint256 nonce,uint256 deadline)");
+
+    bytes32 internal constant _REMOVE_TYPEHASH =
+        keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
+
+    /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
@@ -179,7 +198,7 @@ contract KeyRegistry is Ownable2Step {
      * @param _gracePeriod Migration grace period in seconds. Immutable.
      * @param _owner       Contract owner address.
      */
-    constructor(address _idRegistry, uint24 _gracePeriod, address _owner) {
+    constructor(address _idRegistry, uint24 _gracePeriod, address _owner) EIP712("Farcaster KeyRegistry", "1") {
         _transferOwnership(_owner);
 
         gracePeriod = _gracePeriod;
@@ -229,6 +248,21 @@ contract KeyRegistry is Ownable2Step {
         _add(fid, scheme, key, metadata);
     }
 
+    function addFor(
+        address owner,
+        uint32 scheme,
+        bytes calldata key,
+        bytes calldata metadata,
+        uint256 deadline,
+        bytes calldata sig
+    ) external {
+        uint256 fid = idRegistry.idOf(owner);
+        if (fid == 0) revert Unauthorized();
+
+        _verifyAddSig(owner, scheme, key, metadata, deadline, sig);
+        _add(fid, scheme, key, metadata);
+    }
+
     /**
      * @notice Remove a key associated with the caller's fid, setting the key state to REMOVED.
      *         The key must be in the ADDED state.
@@ -239,11 +273,15 @@ contract KeyRegistry is Ownable2Step {
         uint256 fid = idRegistry.idOf(msg.sender);
         if (fid == 0) revert Unauthorized();
 
-        KeyData storage keyData = keys[fid][key];
-        if (keyData.state != KeyState.ADDED) revert InvalidState();
+        _remove(fid, key);
+    }
 
-        keyData.state = KeyState.REMOVED;
-        emit Remove(fid, key, key);
+    function removeFor(address owner, bytes calldata key, uint256 deadline, bytes calldata sig) external {
+        uint256 fid = idRegistry.idOf(owner);
+        if (fid == 0) revert Unauthorized();
+
+        _verifyRemoveSig(owner, key, deadline, sig);
+        _remove(fid, key);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -327,6 +365,14 @@ contract KeyRegistry is Ownable2Step {
         emit Add(fid, scheme, key, key, metadata);
     }
 
+    function _remove(uint256 fid, bytes calldata key) internal {
+        KeyData storage keyData = keys[fid][key];
+        if (keyData.state != KeyState.ADDED) revert InvalidState();
+
+        keyData.state = KeyState.REMOVED;
+        emit Remove(fid, key, key);
+    }
+
     function _reset(uint256 fid, bytes calldata key) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
@@ -334,5 +380,39 @@ contract KeyRegistry is Ownable2Step {
         keyData.state = KeyState.NULL;
         delete keyData.scheme;
         emit AdminReset(fid, key, key);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     SIGNATURE VERIFICATION HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _verifyAddSig(
+        address owner,
+        uint32 scheme,
+        bytes memory key,
+        bytes memory metadata,
+        uint256 deadline,
+        bytes memory sig
+    ) internal {
+        if (block.timestamp >= deadline) revert SignatureExpired();
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    _ADD_TYPEHASH, owner, scheme, keccak256(key), keccak256(metadata), _useNonce(owner), deadline
+                )
+            )
+        );
+
+        address recovered = ECDSA.recover(digest, sig);
+        if (recovered != owner) revert InvalidSignature();
+    }
+
+    function _verifyRemoveSig(address owner, bytes memory key, uint256 deadline, bytes memory sig) internal {
+        if (block.timestamp >= deadline) revert SignatureExpired();
+        bytes32 digest =
+            _hashTypedDataV4(keccak256(abi.encode(_REMOVE_TYPEHASH, owner, keccak256(key), _useNonce(owner), deadline)));
+
+        address recovered = ECDSA.recover(digest, sig);
+        if (recovered != owner) revert InvalidSignature();
     }
 }

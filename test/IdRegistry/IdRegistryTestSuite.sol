@@ -9,12 +9,6 @@ import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 abstract contract IdRegistryTestSuite is TestSuiteSetup {
     IdRegistryHarness idRegistry;
 
-    /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    uint256 constant SECP_256K1_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
-
     function setUp() public virtual override {
         super.setUp();
 
@@ -59,14 +53,6 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         vm.prank(owner);
         idRegistry.pauseRegistration();
         assertEq(idRegistry.paused(), true);
-    }
-
-    function _boundPk(uint256 pk) internal view returns (uint256) {
-        return bound(pk, 1, SECP_256K1_ORDER - 1);
-    }
-
-    function _boundDeadline(uint40 deadline) internal view returns (uint256) {
-        return block.timestamp + uint256(bound(deadline, 1, type(uint40).max));
     }
 
     function _signRegister(
