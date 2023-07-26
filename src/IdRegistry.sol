@@ -6,6 +6,7 @@ import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
+import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
 /**
@@ -22,7 +23,7 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  *         a recovery address that can transfer the fid to a new address.
  */
 
-contract IdRegistry is TrustedCaller, Pausable, EIP712, Nonces {
+contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -35,12 +36,6 @@ contract IdRegistry is TrustedCaller, Pausable, EIP712, Nonces {
 
     /// @dev Revert when the destination is required to be empty, but has an fid.
     error HasId();
-
-    /// @dev Revert when the signature provided is invalid.
-    error InvalidSignature();
-
-    /// @dev Revert when the block.timestamp is ahead of the signature deadline.
-    error SignatureExpired();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -114,19 +109,19 @@ contract IdRegistry is TrustedCaller, Pausable, EIP712, Nonces {
     /**
      * @dev Maps each address to a fid, or zero if it does not own a fid.
      */
-    mapping(address => uint256) public idOf;
+    mapping(address owner => uint256 fid) public idOf;
 
     /**
      * @dev Maps each fid to an address that can initiate a recovery.
      */
-    mapping(uint256 => address) internal recoveryOf;
+    mapping(uint256 fid => address recovery) internal recoveryOf;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the owner of the contract to the deployer.
+     * @notice Set the owner of the contract to the provided _owner.
      */
     // solhint-disable-next-line no-empty-blocks
     constructor(address _owner) TrustedCaller(_owner) EIP712("Farcaster IdRegistry", "1") {}
@@ -324,19 +319,20 @@ contract IdRegistry is TrustedCaller, Pausable, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
-        if (block.timestamp >= deadline) revert SignatureExpired();
-        bytes32 digest =
-            _hashTypedDataV4(keccak256(abi.encode(_REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline)));
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != to) revert InvalidSignature();
+        _verifySig(
+            _hashTypedDataV4(keccak256(abi.encode(_REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline))),
+            to,
+            deadline,
+            sig
+        );
     }
 
     function _verifyTransferSig(uint256 fid, address to, uint256 deadline, bytes memory sig) internal {
-        if (block.timestamp >= deadline) revert SignatureExpired();
-        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline)));
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != to) revert InvalidSignature();
+        _verifySig(
+            _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline))),
+            to,
+            deadline,
+            sig
+        );
     }
 }

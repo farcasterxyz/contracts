@@ -4,10 +4,12 @@ pragma solidity 0.8.21;
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
-import {TrustedCaller} from "./lib/TrustedCaller.sol";
-import {IdRegistry} from "./IdRegistry.sol";
 
-contract KeyRegistry is TrustedCaller, EIP712, Nonces {
+import {IdRegistry} from "./IdRegistry.sol";
+import {Signatures} from "./lib/Signatures.sol";
+import {TrustedCaller} from "./lib/TrustedCaller.sol";
+
+contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      *  @notice State enumeration for a key in the registry. During migration, an admin can change
      *          the state of any fids key from NULL to ADDED or ADDED to NULL. After migration, an
@@ -49,12 +51,6 @@ contract KeyRegistry is TrustedCaller, EIP712, Nonces {
 
     /// @dev Revert if migration batch input arrays are not the same length.
     error InvalidBatchInput();
-
-    /// @dev Revert when the signature provided is invalid.
-    error InvalidSignature();
-
-    /// @dev Revert when the block.timestamp is ahead of the signature deadline.
-    error SignatureExpired();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -408,25 +404,26 @@ contract KeyRegistry is TrustedCaller, EIP712, Nonces {
         uint256 deadline,
         bytes memory sig
     ) internal {
-        if (block.timestamp >= deadline) revert SignatureExpired();
-        bytes32 digest = _hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    _ADD_TYPEHASH, owner, scheme, keccak256(key), keccak256(metadata), _useNonce(owner), deadline
+        _verifySig(
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        _ADD_TYPEHASH, owner, scheme, keccak256(key), keccak256(metadata), _useNonce(owner), deadline
+                    )
                 )
-            )
+            ),
+            owner,
+            deadline,
+            sig
         );
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != owner) revert InvalidSignature();
     }
 
     function _verifyRemoveSig(address owner, bytes memory key, uint256 deadline, bytes memory sig) internal {
-        if (block.timestamp >= deadline) revert SignatureExpired();
-        bytes32 digest =
-            _hashTypedDataV4(keccak256(abi.encode(_REMOVE_TYPEHASH, owner, keccak256(key), _useNonce(owner), deadline)));
-
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != owner) revert InvalidSignature();
+        _verifySig(
+            _hashTypedDataV4(keccak256(abi.encode(_REMOVE_TYPEHASH, owner, keccak256(key), _useNonce(owner), deadline))),
+            owner,
+            deadline,
+            sig
+        );
     }
 }

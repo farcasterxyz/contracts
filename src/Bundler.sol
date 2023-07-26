@@ -21,7 +21,7 @@ contract Bundler is TrustedCaller {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Data needed to register a user with the fid and storage contracts.
+    /// @notice Data needed to trusted register a user with the fid and storage contracts.
     struct UserData {
         address to;
         address recovery;
@@ -31,6 +31,7 @@ contract Bundler is TrustedCaller {
         uint256 units;
     }
 
+    /// @notice Data needed to register an fid with signature.
     struct RegistrationParams {
         address to;
         address recovery;
@@ -38,6 +39,7 @@ contract Bundler is TrustedCaller {
         bytes sig;
     }
 
+    /// @notice Data needed to add a signer with signature.
     struct SignerParams {
         uint32 scheme;
         bytes key;
@@ -76,6 +78,7 @@ contract Bundler is TrustedCaller {
      * @param _idRegistry    Address of the IdRegistry contract
      * @param _storageRent   Address of the StorageRent contract
      * @param _trustedCaller Address that can call trustedRegister and trustedBatchRegister
+     * @param _owner         Address that can set the trusted caller
      */
     constructor(
         address _idRegistry,
@@ -92,6 +95,10 @@ contract Bundler is TrustedCaller {
 
     /**
      * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
+     *
+     * @param registration Struct containing registration parameters: to, from, deadline, and signature.
+     * @param signers      Array of structs containing signer parameters: scheme, key, metadata, deadline, and signature.
+     * @param storageUnits Number of storage units to rent
      *
      */
     function register(
@@ -115,7 +122,7 @@ contract Bundler is TrustedCaller {
     }
 
     /**
-     * @notice Register an fid and credit storage to an address in a single transaction. Can only
+     * @notice Register an fid, add a signer, and credit storage to an address in a single transaction. Can only
      *         be called by the trustedCaller during the Seedable phase.
      *
      * @param to           Address of the fid to register
@@ -137,7 +144,7 @@ contract Bundler is TrustedCaller {
     }
 
     /**
-     * @notice Register multiple fids and credit storage to an address in a single transaction. Can
+     * @notice Register fids, keys, and credit storage for multiple users in a single transaction. Can
      *         only be called by the trustedCaller during the Seedable phase. Will be used when
      *         migrating across Ethereum networks to bootstrap a new contract with existing data.
      *

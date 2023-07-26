@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import "../TestConstants.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
+import {Signatures} from "../../src/lib/Signatures.sol";
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -180,7 +181,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory sig = _signAdd(ownerPk, owner, scheme, key, metadata, deadline + 1);
 
         vm.prank(registrar);
-        vm.expectRevert(KeyRegistry.InvalidSignature.selector);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
         keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
 
         assertNull(fid, key);
@@ -228,7 +229,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(deadline + 1);
 
         vm.prank(registrar);
-        vm.expectRevert(KeyRegistry.SignatureExpired.selector);
+        vm.expectRevert(Signatures.SignatureExpired.selector);
         keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
 
         assertNull(fid, key);
@@ -277,7 +278,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
     function testFuzzTrustedAddRevertsUnownedFid(
         address to,
-        address recovery,
         uint32 scheme,
         bytes calldata key,
         bytes calldata metadata
@@ -460,7 +460,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
 
         vm.prank(registrar);
-        vm.expectRevert(KeyRegistry.InvalidSignature.selector);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, scheme);
@@ -518,7 +518,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(deadline + 1);
 
         vm.prank(registrar);
-        vm.expectRevert(KeyRegistry.SignatureExpired.selector);
+        vm.expectRevert(Signatures.SignatureExpired.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, scheme);

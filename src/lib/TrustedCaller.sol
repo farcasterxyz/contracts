@@ -12,6 +12,7 @@ abstract contract TrustedCaller is Ownable2Step {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Revert when an unauthorized caller calls a trusted function.
     error OnlyTrustedCaller();
 
     /// @dev Revert if trustedRegister is invoked after trustedCallerOnly is disabled.
@@ -46,13 +47,14 @@ abstract contract TrustedCaller is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev The admin address that is allowed to call trusted functions.
+     * @dev The privileged address that is allowed to call trusted functions.
      */
     address public trustedCaller;
 
     /**
-     * @dev Allows calling trustedRegister() when set 1, and register() when set to 0. The value is
-     *      set to 1 and can be changed to 0, but never back to 1.
+     * @dev Allows calling trusted functions when set 1, and disables trusted
+     *      functions when set to 0. The value is set to 1 and can be changed to 0,
+     *      but never back to 1.
      */
     uint256 internal trustedOnly = 1;
 
@@ -60,12 +62,18 @@ abstract contract TrustedCaller is Ownable2Step {
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Allow only the trusted caller to call the modified function.
+     */
     modifier onlyTrustedCaller() {
         if (trustedOnly == 0) revert Registrable();
         if (msg.sender != trustedCaller) revert OnlyTrustedCaller();
         _;
     }
 
+    /**
+     * @dev Prevent calling the modified function in trustedOnly mode.
+     */
     modifier whenNotTrusted() {
         if (trustedOnly == 1) revert Seedable();
         _;
@@ -75,6 +83,9 @@ abstract contract TrustedCaller is Ownable2Step {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @param _owner Initial contract owner address.
+     */
     constructor(address _owner) {
         _transferOwnership(_owner);
     }
@@ -93,8 +104,7 @@ abstract contract TrustedCaller is Ownable2Step {
     }
 
     /**
-     * @notice Move from Seedable to Registrable where anyone can register an fid. Must be called
-     *         by the contract's owner.
+     * @notice Disable trustedOnly mode. Must be called by the contract's owner.
      */
     function disableTrustedOnly() external onlyOwner {
         delete trustedOnly;
@@ -105,6 +115,10 @@ abstract contract TrustedCaller is Ownable2Step {
                          INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Internal helper to set trusted caller. Can be used internally
+     *      to set the trusted caller at construction time.
+     */
     function _setTrustedCaller(address _trustedCaller) internal {
         if (_trustedCaller == address(0)) revert InvalidAddress();
 
