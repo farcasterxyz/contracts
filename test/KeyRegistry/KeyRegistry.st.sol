@@ -19,7 +19,7 @@ contract KeyRegistrySymTest is SymTest, Test {
 
     function setUp() public {
         // Setup IdRegistry
-        idRegistry = new IdRegistryHarness(address(0));
+        idRegistry = new IdRegistryHarness(address(this));
 
         trustedCaller = address(0x1000);
         idRegistry.setTrustedCaller(trustedCaller);
