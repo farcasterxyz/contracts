@@ -137,7 +137,7 @@ jobs:
         run: pip install halmos
 
       - name: Run halmos
-        run: halmos --solver-parallel --solver-timeout-assertion 60000
+        run: halmos --error-unknown --test-parallel --solver-parallel --solver-timeout-assertion 0
 
   coverage:
     runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'ubuntu-latest' || 'buildjet-2vcpu-ubuntu-2204' }}
