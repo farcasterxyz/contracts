@@ -8,7 +8,7 @@ import "../TestConstants.sol";
 
 import {StorageRent} from "../../src/StorageRent.sol";
 import {TransferHelper} from "../../src/lib/TransferHelper.sol";
-import {StorageRentTestSuite} from "./StorageRentTestSuite.sol";
+import {StorageRentTestSuite, StorageRentHarness} from "./StorageRentTestSuite.sol";
 import {MockChainlinkFeed} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
@@ -107,6 +107,23 @@ contract StorageRentTest is StorageRentTestSuite {
 
     function testInitialUnitPrice() public {
         assertEq(storageRent.unitPrice(), INITIAL_PRICE_IN_ETH);
+    }
+
+    function testInitialPriceUpdate() public {
+        // Clear ethUsdPrice storage slot
+        vm.store(address(storageRent), bytes32(uint256(11)), bytes32(0));
+        assertEq(storageRent.ethUsdPrice(), 0);
+
+        // Clear prevEthUsdPrice storage slot
+        vm.store(address(storageRent), bytes32(uint256(12)), bytes32(0));
+        assertEq(storageRent.prevEthUsdPrice(), 0);
+
+        vm.prank(admin);
+        storageRent.refreshPrice();
+
+        assertEq(storageRent.ethUsdPrice(), uint256(ETH_USD_PRICE));
+        assertEq(storageRent.prevEthUsdPrice(), uint256(ETH_USD_PRICE));
+        assertEq(storageRent.ethUsdPrice(), storageRent.prevEthUsdPrice());
     }
 
     /*//////////////////////////////////////////////////////////////

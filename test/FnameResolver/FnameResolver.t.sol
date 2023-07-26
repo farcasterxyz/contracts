@@ -44,6 +44,15 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.resolve(name, data);
     }
 
+    function testFuzzResolveRevertsNonAddrFunction(bytes calldata name, bytes memory data) public {
+        data = bytes.concat(hex"00000001", data);
+        string[] memory urls = new string[](1);
+        urls[0] = FNAME_SERVER_URL;
+
+        vm.expectRevert(FnameResolver.ResolverFunctionNotSupported.selector);
+        resolver.resolve(name, data);
+    }
+
     function testFuzzResolveWithProofValidSignature(string memory name, uint256 timestamp, address owner) public {
         bytes memory signature = _signProof(name, timestamp, owner);
         bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
