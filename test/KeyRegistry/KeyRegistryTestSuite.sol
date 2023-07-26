@@ -25,16 +25,22 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
         bytes memory metadata,
         uint256 deadline
     ) internal returns (bytes memory signature) {
+        return _signAdd(pk, owner, scheme, key, metadata, keyRegistry.nonces(owner), deadline);
+    }
+
+    function _signAdd(
+        uint256 pk,
+        address owner,
+        uint32 scheme,
+        bytes memory key,
+        bytes memory metadata,
+        uint256 nonce,
+        uint256 deadline
+    ) internal returns (bytes memory signature) {
         bytes32 digest = keyRegistry.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keyRegistry.addTypehash(),
-                    owner,
-                    scheme,
-                    keccak256(key),
-                    keccak256(metadata),
-                    keyRegistry.nonces(owner),
-                    deadline
+                    keyRegistry.addTypehash(), owner, scheme, keccak256(key), keccak256(metadata), nonce, deadline
                 )
             )
         );
