@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import "forge-std/Script.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
+import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
 
-contract IdRegistryScript is Script {
-    bytes32 internal constant CREATE2_SALT = "fc";
-
+contract IdRegistryScript is ImmutableCreate2Deployer {
     function run() public {
         address initialOwner = vm.envAddress("ID_REGISTRY_OWNER_ADDRESS");
 
-        vm.broadcast();
-        new IdRegistry{ salt: CREATE2_SALT }(initialOwner);
+        register("IdRegistry", type(IdRegistry).creationCode, abi.encode(initialOwner));
+        deploy();
     }
 }

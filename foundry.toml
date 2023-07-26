@@ -21,3 +21,7 @@ quote_style = "double"
 bracket_spacing = false
 int_types = "long"
 multiline_func_header = "params_first"
+
+[rpc_endpoints]
+testnet = "${TESTNET_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"
