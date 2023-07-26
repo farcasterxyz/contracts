@@ -15,9 +15,10 @@ contract BundlerHarness is Bundler {
     constructor(
         address _idRegistry,
         address _storageRent,
+        address _keyRegistry,
         address _trustedCaller,
         address _owner
-    ) Bundler(_idRegistry, _storageRent, _trustedCaller, _owner) {}
+    ) Bundler(_idRegistry, _storageRent, _keyRegistry, _trustedCaller, _owner) {}
 }
 
 contract FnameResolverHarness is FnameResolver {
@@ -73,6 +74,18 @@ contract KeyRegistryHarness is KeyRegistry {
         uint24 _gracePeriod,
         address _owner
     ) KeyRegistry(_idRegistry, _gracePeriod, _owner) {}
+
+    function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
+        return _hashTypedDataV4(structHash);
+    }
+
+    function addTypehash() public pure returns (bytes32) {
+        return _ADD_TYPEHASH;
+    }
+
+    function removeTypehash() public pure returns (bytes32) {
+        return _REMOVE_TYPEHASH;
+    }
 }
 
 contract StorageRentHarness is StorageRent {

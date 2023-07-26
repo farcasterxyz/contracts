@@ -3,7 +3,9 @@ pragma solidity 0.8.21;
 
 import {Bundler} from "../../src/Bundler.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
+import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {StorageRent} from "../../src/StorageRent.sol";
+import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -33,6 +35,10 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(bundler.storageRent()), address(storageRent));
     }
 
+    function testHasKeyRegistry() public {
+        assertEq(address(bundler.keyRegistry()), address(keyRegistry));
+    }
+
     function testDefaultTrustedCaller() public {
         assertEq(address(bundler.trustedCaller()), address(this));
     }
@@ -41,13 +47,45 @@ contract BundlerTest is BundlerTestSuite {
                                 REGISTER
     //////////////////////////////////////////////////////////////*/
 
+    function _generateSigners(
+        uint256 accountPk,
+        address account,
+        uint256 deadline,
+        uint256 numSigners
+    ) internal returns (Bundler.SignerParams[] memory) {
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](numSigners);
+        uint256 nonce = keyRegistry.nonces(account);
+
+        // The duplication below is ugly but necessary to work around a stack too deep error.
+        for (uint256 i; i < numSigners; i++) {
+            signers[i] = Bundler.SignerParams({
+                scheme: uint32(i),
+                key: abi.encodePacked("key", keccak256(abi.encode(i))),
+                metadata: abi.encodePacked("metadata", keccak256(abi.encode(i))),
+                deadline: deadline,
+                sig: _signAdd(
+                    accountPk,
+                    account,
+                    uint32(i),
+                    abi.encodePacked("key", keccak256(abi.encode(i))),
+                    abi.encodePacked("metadata", keccak256(abi.encode(i))),
+                    nonce + i,
+                    deadline
+                    )
+            });
+        }
+        return signers;
+    }
+
     function testFuzzRegister(
         address caller,
         uint256 accountPk,
         address recovery,
-        uint40 _deadline,
-        uint256 storageUnits
+        uint256 storageUnits,
+        uint8 _numSigners,
+        uint40 _deadline
     ) public {
+        uint256 numSigners = bound(_numSigners, 0, 10);
         accountPk = _boundPk(accountPk);
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
@@ -62,11 +100,17 @@ contract BundlerTest is BundlerTestSuite {
         uint256 price = storageRent.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
-        bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
+        bytes memory registerSig = _signRegister(accountPk, account, recovery, deadline);
+
+        Bundler.SignerParams[] memory signers = _generateSigners(accountPk, account, deadline, numSigners);
 
         vm.deal(caller, price);
         vm.prank(caller);
-        bundler.register{value: price}(account, recovery, deadline, sig, storageUnits);
+        bundler.register{value: price}(
+            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: registerSig}),
+            signers,
+            storageUnits
+        );
 
         _assertSuccessfulRegistration(account, recovery);
 
@@ -103,10 +147,16 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, price - 1);
 
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+
         vm.deal(caller, price);
         vm.prank(caller);
         vm.expectRevert(StorageRent.InvalidPayment.selector);
-        bundler.register{value: price - delta}(account, recovery, deadline, sig, storageUnits);
+        bundler.register{value: price - delta}(
+            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            signers,
+            storageUnits
+        );
     }
 
     function testFuzzRegisterReturnsExcessPayment(
@@ -134,9 +184,15 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, type(uint256).max - price);
 
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+
         vm.deal(caller, price + delta);
         vm.prank(caller);
-        bundler.register{value: price + delta}(account, recovery, deadline, sig, storageUnits);
+        bundler.register{value: price + delta}(
+            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            signers,
+            storageUnits
+        );
 
         _assertSuccessfulRegistration(account, recovery);
 
@@ -152,7 +208,14 @@ contract BundlerTest is BundlerTestSuite {
                             TRUSTED REGISTER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzTrustedRegister(address account, address recovery, uint256 storageUnits) public {
+    function testFuzzTrustedRegister(
+        address account,
+        address recovery,
+        uint256 storageUnits,
+        uint32 scheme,
+        bytes memory key,
+        bytes memory metadata
+    ) public {
         uint256 storageBefore = storageRent.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
 
@@ -160,13 +223,20 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         idRegistry.setTrustedCaller(address(bundler));
+        keyRegistry.setTrustedCaller(address(bundler));
+        vm.stopPrank();
 
         vm.prank(bundler.trustedCaller());
-        bundler.trustedRegister(account, recovery, storageUnits);
+        bundler.trustedRegister(account, recovery, scheme, key, metadata, storageUnits);
 
         _assertSuccessfulRegistration(account, recovery);
+
+        // Check that the key was registered
+        KeyRegistry.KeyData memory keyData = keyRegistry.keyDataOf(1, key);
+        assertEq(keyData.scheme, scheme);
+        assertEq(uint256(keyData.state), uint256(1));
 
         uint256 storageAfter = storageRent.rentedUnits();
 
@@ -175,10 +245,13 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(bundler).balance, 0 ether);
     }
 
-    function testFuzzTrustedRegisterReverts(
+    function testFuzzTrustedRegisterRevertsUntrustedCaller(
         address caller,
         address account,
         address recovery,
+        uint32 scheme,
+        bytes memory key,
+        bytes memory metadata,
         uint256 storageUnits
     ) public {
         vm.assume(caller != bundler.trustedCaller());
@@ -190,12 +263,14 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         idRegistry.setTrustedCaller(address(bundler));
+        keyRegistry.setTrustedCaller(address(bundler));
+        vm.stopPrank();
 
         vm.prank(caller);
-        vm.expectRevert(Bundler.Unauthorized.selector);
-        bundler.trustedRegister(account, recovery, storageUnits);
+        vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
+        bundler.trustedRegister(account, recovery, scheme, key, metadata, storageUnits);
 
         _assertUnsuccessfulRegistration(account);
     }
@@ -210,8 +285,10 @@ contract BundlerTest is BundlerTestSuite {
         storageUnits = bound(storageUnits, 1, (storageRent.maxUnits() - storageBefore) / registrations);
 
         // Configure the trusted callers correctly
-        vm.prank(owner);
+        vm.startPrank(owner);
         idRegistry.setTrustedCaller(address(bundler));
+        keyRegistry.setTrustedCaller(address(bundler));
+        vm.stopPrank();
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
         vm.prank(roleAdmin);
@@ -223,7 +300,17 @@ contract BundlerTest is BundlerTestSuite {
             uint160 fid = uint160(i + 1);
             address account = address(fid);
             address recovery = address(uint160(i + 1000));
-            batchArray[i] = Bundler.UserData({to: account, units: storageUnits, recovery: recovery});
+            uint32 scheme = uint32(i);
+            bytes memory key = bytes.concat(bytes("key"), abi.encode(i));
+            bytes memory metadata = bytes.concat(bytes("metadata"), abi.encode(i));
+            batchArray[i] = Bundler.UserData({
+                to: account,
+                units: storageUnits,
+                scheme: scheme,
+                key: key,
+                metadata: metadata,
+                recovery: recovery
+            });
 
             vm.expectEmit(true, true, true, true);
             emit Register(account, fid, recovery);
@@ -241,6 +328,17 @@ contract BundlerTest is BundlerTestSuite {
             assertEq(idRegistry.getRecoveryOf(fid), recovery);
         }
 
+        // Check that the keys were registered
+        for (uint256 i = 0; i < registrations; i++) {
+            uint160 fid = uint160(i + 1);
+            bytes memory key = bytes.concat(bytes("key"), abi.encode(i));
+            uint32 scheme = uint32(i);
+
+            KeyRegistry.KeyData memory keyData = keyRegistry.keyDataOf(fid, key);
+            assertEq(keyData.scheme, scheme);
+            assertEq(uint256(keyData.state), uint256(1));
+        }
+
         // Check that the correct amount of storage was rented
         uint256 storageAfter = storageRent.rentedUnits();
         assertEq(storageAfter - storageBefore, storageUnits * registrations);
@@ -252,15 +350,18 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(account != address(0));
 
         // Configure the trusted callers correctly
-        vm.prank(owner);
+        vm.startPrank(owner);
         idRegistry.setTrustedCaller(address(bundler));
+        keyRegistry.setTrustedCaller(address(bundler));
+        vm.stopPrank();
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](2);
-        batchArray[0] = Bundler.UserData({to: account, units: 1, recovery: address(0)});
+        batchArray[0] =
+            Bundler.UserData({to: account, units: 1, scheme: 0, key: "", metadata: "", recovery: address(0)});
 
         vm.expectRevert(StorageRent.InvalidAmount.selector);
         bundler.trustedBatchRegister(batchArray);
@@ -274,18 +375,20 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(untrustedCaller != address(this));
 
         // Configure the trusted callers correctly
-        vm.prank(owner);
+        vm.startPrank(owner);
         idRegistry.setTrustedCaller(address(bundler));
+        keyRegistry.setTrustedCaller(address(bundler));
+        vm.stopPrank();
 
         bytes32 operatorRoleId = storageRent.operatorRoleId();
         vm.prank(roleAdmin);
         storageRent.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
-        batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0)});
+        batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0), scheme: 0, key: "", metadata: ""});
 
         vm.prank(untrustedCaller);
-        vm.expectRevert(Bundler.Unauthorized.selector);
+        vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
         bundler.trustedBatchRegister(batchArray);
 
         _assertUnsuccessfulRegistration(alice);
@@ -301,9 +404,9 @@ contract BundlerTest is BundlerTestSuite {
         storageRent.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
-        batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0)});
+        batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0), scheme: 0, key: "", metadata: ""});
 
-        vm.expectRevert(IdRegistry.Registrable.selector);
+        vm.expectRevert(TrustedCaller.Registrable.selector);
         bundler.trustedBatchRegister(batchArray);
 
         _assertUnsuccessfulRegistration(alice);
@@ -330,7 +433,7 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(bundler.owner(), owner);
 
         vm.prank(owner);
-        vm.expectRevert(Bundler.InvalidAddress.selector);
+        vm.expectRevert(TrustedCaller.InvalidAddress.selector);
         bundler.setTrustedCaller(address(0));
 
         assertEq(bundler.trustedCaller(), address(this));

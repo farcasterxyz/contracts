@@ -8,6 +8,8 @@ abstract contract TestSuiteSetup is Test {
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    uint256 constant SECP_256K1_ORDER = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
+
     address constant ADMIN = address(0xa6a4daBC320300cd0D38F77A6688C6b4048f4682);
 
     // Known contracts that must not be made to call other contracts in tests
@@ -25,6 +27,7 @@ abstract contract TestSuiteSetup is Test {
     ];
 
     address owner = makeAddr("owner");
+    address trustedCaller = makeAddr("trustedCaller");
 
     // Address of known contracts, in a mapping for faster lookup when fuzzing
     mapping(address => bool) isKnownContract;
@@ -54,5 +57,13 @@ abstract contract TestSuiteSetup is Test {
         vm.assume(!isKnownContract[a]);
         vm.assume(a != ADMIN);
         vm.assume(a != address(0));
+    }
+
+    function _boundPk(uint256 pk) internal view returns (uint256) {
+        return bound(pk, 1, SECP_256K1_ORDER - 1);
+    }
+
+    function _boundDeadline(uint40 deadline) internal view returns (uint256) {
+        return block.timestamp + uint256(bound(deadline, 1, type(uint40).max));
     }
 }

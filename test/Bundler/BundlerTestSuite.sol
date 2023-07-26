@@ -7,22 +7,24 @@ import {IdRegistryHarness} from "../Utils.sol";
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 import {StorageRentTestSuite} from "../StorageRent/StorageRentTestSuite.sol";
 import {IdRegistryTestSuite} from "../IdRegistry/IdRegistryTestSuite.sol";
+import {KeyRegistryTestSuite} from "../KeyRegistry/KeyRegistryTestSuite.sol";
 
 import {BundlerHarness} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract BundlerTestSuite is IdRegistryTestSuite, StorageRentTestSuite {
+abstract contract BundlerTestSuite is StorageRentTestSuite, KeyRegistryTestSuite {
     // Instance of the BundleRegistry contract wrapped in its test wrapper
     BundlerHarness bundler;
 
-    function setUp() public override(IdRegistryTestSuite, StorageRentTestSuite) {
+    function setUp() public override(StorageRentTestSuite, KeyRegistryTestSuite) {
         super.setUp();
 
         // Set up the BundleRegistry
         bundler = new BundlerHarness(
             address(idRegistry),
             address(storageRent),
+            address(keyRegistry),
             address(this),
             owner
         );
