@@ -129,6 +129,14 @@ contract StorageRent is AccessControlEnumerable {
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
 
     /**
+     * @dev Emit an event when an admin changes the priceFeedMaxAge.
+     *
+     * @param oldAge The previous priceFeedMaxAge.
+     * @param newAge The new priceFeedMaxAge.
+     */
+    event SetMaxAge(uint256 oldAge, uint256 newAge);
+
+    /**
      * @dev Emit an event when an admin changes the uptimeFeedGracePeriod.
      *
      * @param oldPeriod The previous uptimeFeedGracePeriod.
@@ -215,6 +223,11 @@ contract StorageRent is AccessControlEnumerable {
     uint256 public priceFeedCacheDuration;
 
     /**
+     * @dev Max age of a price feed answer before it is considered stale. Changeable by admin.
+     */
+    uint256 public priceFeedMaxAge;
+
+    /**
      * @dev Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
      *      See: https://docs.chain.link/data-feeds/l2-sequencer-feeds. Changeable by admin.
      */
@@ -298,6 +311,9 @@ contract StorageRent is AccessControlEnumerable {
 
         priceFeedCacheDuration = 1 days;
         emit SetCacheDuration(0, 1 days);
+
+        priceFeedMaxAge = 2 hours;
+        emit SetMaxAge(0, 2 hours);
 
         uptimeFeedGracePeriod = 1 hours;
         emit SetGracePeriod(0, 1 hours);
@@ -522,6 +538,7 @@ contract StorageRent is AccessControlEnumerable {
         if (answer <= 0) revert InvalidPrice();
         if (priceUpdatedAt == 0) revert IncompleteRound();
         if (priceAnsweredInRound < priceRoundId) revert StaleAnswer();
+        if (block.timestamp - priceUpdatedAt > priceFeedMaxAge) revert StaleAnswer();
 
         /* Set the last update timestamp and block. */
         lastPriceFeedUpdateTime = block.timestamp;
@@ -666,6 +683,16 @@ contract StorageRent is AccessControlEnumerable {
     function setCacheDuration(uint256 duration) external onlyAdmin {
         emit SetCacheDuration(priceFeedCacheDuration, duration);
         priceFeedCacheDuration = duration;
+    }
+
+    /**
+     * @notice Change the priceFeedMaxAge. Only callable by admin.
+     *
+     * @param age The new priceFeedMaxAge.
+     */
+    function setMaxAge(uint256 age) external onlyAdmin {
+        emit SetMaxAge(priceFeedMaxAge, age);
+        priceFeedMaxAge = age;
     }
 
     /**

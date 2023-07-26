@@ -34,6 +34,7 @@ abstract contract StorageRentTestSuite is TestSuiteSetup {
     int256 internal constant ETH_USD_PRICE = 2000e8; // $2000 USD/ETH
 
     uint256 internal constant INITIAL_PRICE_FEED_CACHE_DURATION = 1 days;
+    uint256 internal constant INITIAL_PRICE_FEED_MAX_AGE = 2 hours;
     uint256 internal constant INITIAL_UPTIME_FEED_GRACE_PERIOD = 1 hours;
     uint256 internal constant INITIAL_PRICE_IN_ETH = 0.0025 ether;
 
