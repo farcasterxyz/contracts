@@ -134,7 +134,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install halmos
-        run: pip install git+https://github.com/a16z/halmos
+        run: pip install halmos
 
       - name: Run halmos
         run: halmos --solver-parallel --solver-timeout-assertion 60000
