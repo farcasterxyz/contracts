@@ -204,7 +204,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
         vm.prank(registrar);
-        vm.expectRevert("ECDSA: invalid signature");
+        vm.expectRevert(Signatures.InvalidSignature.selector);
         keyRegistry.addFor(owner, scheme, key, metadata, deadline, sig);
 
         assertNull(fid, key);
@@ -488,7 +488,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
 
         vm.prank(registrar);
-        vm.expectRevert("ECDSA: invalid signature");
+        vm.expectRevert(Signatures.InvalidSignature.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, scheme);

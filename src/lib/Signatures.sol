@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 abstract contract Signatures {
     /*//////////////////////////////////////////////////////////////
@@ -20,7 +20,6 @@ abstract contract Signatures {
 
     function _verifySig(bytes32 digest, address signer, uint256 deadline, bytes memory sig) internal view {
         if (block.timestamp >= deadline) revert SignatureExpired();
-        address recovered = ECDSA.recover(digest, sig);
-        if (recovered != signer) revert InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(signer, digest, sig)) revert InvalidSignature();
     }
 }
