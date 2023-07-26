@@ -43,7 +43,7 @@ jobs:
       - name: Check forge snapshots
         run: forge snapshot --check --match-contract Gas
 
-  symtest:
+  halmos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
@@ -55,7 +55,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install halmos
         run: pip install halmos
