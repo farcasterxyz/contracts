@@ -61,7 +61,7 @@ jobs:
         run: pip install halmos
 
       - name: Run halmos
-        run: halmos --solver-parallel --solver-timeout-assertion 60000
+        run: halmos --error-unknown --test-parallel --solver-parallel --solver-timeout-assertion 0
 
   coverage:
     runs-on: ubuntu-latest
