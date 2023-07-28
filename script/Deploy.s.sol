@@ -16,14 +16,10 @@ contract Deploy is ImmutableCreate2Deployer {
 
     uint24 public constant KEY_REGISTRY_MIGRATION_GRACE_PERIOD = 1 days;
 
-    bytes32 internal constant STORAGE_RENT_CREATE2_SALT =
-        bytes32(0x00000000000000000000000000000000000000005ebe5065701d50001ad10a8b);
-    bytes32 internal constant ID_REGISTRY_CREATE2_SALT =
-        bytes32(0x0000000000000000000000000000000000000000b2c174c2cbd080000c03890b);
-    bytes32 internal constant KEY_REGISTRY_CREATE2_SALT =
-        bytes32(0x000000000000000000000000000000000000000077f59f73b6b120001970b8c8);
-    bytes32 internal constant BUNDLER_CREATE2_SALT =
-        bytes32(0x00000000000000000000000000000000000000008b561570b792900012109107);
+    bytes32 internal constant STORAGE_RENT_CREATE2_SALT = bytes32(0);
+    bytes32 internal constant ID_REGISTRY_CREATE2_SALT = bytes32(0);
+    bytes32 internal constant KEY_REGISTRY_CREATE2_SALT = bytes32(0);
+    bytes32 internal constant BUNDLER_CREATE2_SALT = bytes32(0);
 
     struct DeploymentParams {
         address initialIdRegistryOwner;
@@ -47,7 +43,7 @@ contract Deploy is ImmutableCreate2Deployer {
     }
 
     function run() public {
-        runDeploy(loadDeploymentParams());
+        runSetup(runDeploy(loadDeploymentParams()));
     }
 
     function runDeploy(DeploymentParams memory params) public returns (Contracts memory) {
@@ -97,6 +93,16 @@ contract Deploy is ImmutableCreate2Deployer {
             keyRegistry: KeyRegistry(keyRegistry),
             bundler: Bundler(payable(bundler))
         });
+    }
+
+    function runSetup(Contracts memory contracts) public {
+        address bundler = address(contracts.bundler);
+
+        vm.startBroadcast();
+        contracts.idRegistry.setTrustedCaller(bundler);
+        contracts.keyRegistry.setTrustedCaller(bundler);
+        contracts.storageRent.grantRole(keccak256("OPERATOR_ROLE"), bundler);
+        vm.stopBroadcast();
     }
 
     function loadDeploymentParams() internal view returns (DeploymentParams memory) {

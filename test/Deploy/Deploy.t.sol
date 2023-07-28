@@ -33,11 +33,11 @@ contract DeployTest is Test {
     address internal treasurer = makeAddr("treasurer");
     address internal bundlerTrustedCaller = makeAddr("bundlerTrustedCaller");
 
-    address internal priceFeed = address(0x57241A37733983F97C4Ab06448F244A1E0Ca0ba8);
-    address internal uptimeFeed = address(0x4C4814aa04433e0FB31310379a4D6946D5e1D353);
+    address internal priceFeed = address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
+    address internal uptimeFeed = address(0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389);
 
     function setUp() public {
-        vm.createSelectFork("testnet");
+        vm.createSelectFork("mainnet");
 
         (alice, alicePk) = makeAddrAndKey("alice");
         (bob, bobPk) = makeAddrAndKey("bob");
