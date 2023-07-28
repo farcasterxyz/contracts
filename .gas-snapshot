@@ -1,6 +1,6 @@
 BundleRegistryGasUsageTest:testGasRegisterWithSig() (gas: 826205)
-BundleRegistryGasUsageTest:testGasTrustedBatchRegister() (gas: 6732822)
-BundleRegistryGasUsageTest:testGasTrustedRegister() (gas: 849451)
+BundleRegistryGasUsageTest:testGasTrustedBatchRegister() (gas: 6744222)
+BundleRegistryGasUsageTest:testGasTrustedRegister() (gas: 852391)
 IdRegistryGasUsageTest:testGasRegister() (gas: 734576)
 IdRegistryGasUsageTest:testGasRegisterForAndRecover() (gas: 1702036)
 IdRegistryGasUsageTest:testGasRegisterFromTrustedCaller() (gas: 808056)

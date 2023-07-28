@@ -21,6 +21,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event Migrated(uint256 indexed keysMigratedAt);
+    event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
     function testInitialIdRegistry() public {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
@@ -852,6 +853,30 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.bulkResetKeysForMigration(ids, keys);
 
         vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           SET IDREGISTRY
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyAdminCanSetIdRegistry(address caller, address idRegistry) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        keyRegistry.setIdRegistry(idRegistry);
+    }
+
+    function testFuzzSetIdRegistry(address idRegistry) public {
+        address currentIdRegistry = address(keyRegistry.idRegistry());
+
+        vm.expectEmit(false, false, false, true);
+        emit SetIdRegistry(currentIdRegistry, idRegistry);
+
+        vm.prank(owner);
+        keyRegistry.setIdRegistry(idRegistry);
+
+        assertEq(address(keyRegistry.idRegistry()), idRegistry);
     }
 
     /*//////////////////////////////////////////////////////////////
