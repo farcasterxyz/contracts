@@ -33,7 +33,10 @@ contract DeployTest is Test {
     address internal treasurer = makeAddr("treasurer");
     address internal bundlerTrustedCaller = makeAddr("bundlerTrustedCaller");
 
+    // @dev OP Mainnet ETH/USD price feed
     address internal priceFeed = address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
+
+    // @dev OP Mainnet sequencer uptime feed
     address internal uptimeFeed = address(0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389);
 
     function setUp() public {
