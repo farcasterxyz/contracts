@@ -9,6 +9,8 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
+  TESTNET_RPC_URL: ${{ secrets.TESTNET_RPC_URL }}
+  MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
 
 jobs:
   test:
