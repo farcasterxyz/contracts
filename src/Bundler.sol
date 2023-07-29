@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
+import "forge-std/console.sol";
+
 import {IdRegistry} from "./IdRegistry.sol";
 import {StorageRent} from "./StorageRent.sol";
 import {KeyRegistry} from "./KeyRegistry.sol";
