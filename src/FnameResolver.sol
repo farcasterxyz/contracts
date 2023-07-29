@@ -95,7 +95,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the lookup gateway URL, and initial signer.
+     * @notice Set the lookup gateway URL and initial signer.
      *
      * @param _url    Lookup gateway URL. This value is set permanently.
      * @param _signer Initial authorized signer address.
@@ -116,7 +116,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *
      * @param name DNS-encoded name to resolve.
      * @param data Encoded calldata of an ENS resolver function. This resolver supports only address resolution
-     *             (Signature 0x3b3b57de). Calling the CCIP gateway with any other resolver function will error.
+     *             (Selector 0x3b3b57de). Calling the CCIP gateway with any other resolver function will error.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
         if (bytes4(data[:4]) != IAddressQuery.addr.selector) revert ResolverFunctionNotSupported();
@@ -146,10 +146,10 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
         (string memory fname, uint256 timestamp, address fnameOwner, bytes memory signature) =
             abi.decode(response, (string, uint256, address, bytes));
 
-        bytes32 proofHash =
-            keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(abi.encodePacked(fname)), timestamp, fnameOwner));
-        bytes32 eip712hash = _hashTypedDataV4(proofHash);
-        address signer = ECDSA.recover(eip712hash, signature);
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(abi.encodePacked(fname)), timestamp, fnameOwner))
+        );
+        address signer = ECDSA.recover(digest, signature);
 
         if (!signers[signer]) revert InvalidSigner();
 
@@ -163,7 +163,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /**
      * @notice Add a signer address to the authorized mapping. Only callable by owner.
      *
-     * @param signer The signer address.
+     * @param signer The signer address to add.
      */
     function addSigner(address signer) external onlyOwner {
         signers[signer] = true;
@@ -173,7 +173,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /**
      * @notice Remove a signer address from the authorized mapping. Only callable by owner.
      *
-     * @param signer The signer address.
+     * @param signer The signer address to remove.
      */
     function removeSigner(address signer) external onlyOwner {
         signers[signer] = false;

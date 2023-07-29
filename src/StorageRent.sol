@@ -170,7 +170,7 @@ contract StorageRent is AccessControlEnumerable {
     string public constant VERSION = "2023.07.12";
 
     /**
-     * @dev Total possile storage unit capacity. 1.6e7 = 64TB @ 4MB/unit .
+     * @dev Total possible storage unit capacity. 1.6e7 = 64TB @ 4MB/unit .
      */
     uint256 public constant TOTAL_STORAGE_UNIT_CAPACITY = 1.6e7;
 
@@ -523,7 +523,7 @@ contract StorageRent is AccessControlEnumerable {
 
         /**
          *  Get and validate the Chainlink ETH/USD price. We validate that the answer is
-         *  a positive value, the round is complete, and the answer is not stale by round.
+         *  a positive value, the round is complete, and the answer is not stale.
          *
          *  We ignore the price feed startedAt value, which we don't use in validations,
          *  since the priceUpdatedAt timestamp is more meaningful.
@@ -615,7 +615,7 @@ contract StorageRent is AccessControlEnumerable {
         uint256 totalUnits = len * units;
         if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
         rentedUnits += totalUnits;
-        for (uint256 i; i < len; ++i) {
+        for (uint256 i; i <= len; ++i) {
             emit Rent(msg.sender, start + i, units);
         }
     }

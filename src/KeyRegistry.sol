@@ -28,8 +28,8 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      *  @notice Data about a key.
      *
-     *  @param state   The current state of the key.
-     *  @param scheme  The manner in which the key should be used.
+     *  @param state  The current state of the key.
+     *  @param scheme The manner in which the key should be used.
      */
     struct KeyData {
         KeyState state;

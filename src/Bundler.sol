@@ -63,7 +63,7 @@ contract Bundler is TrustedCaller {
     StorageRent public immutable storageRent;
 
     /**
-     * @dev Address of the StorageRent contract
+     * @dev Address of the KeyRegistry contract
      */
     KeyRegistry public immutable keyRegistry;
 
@@ -73,10 +73,11 @@ contract Bundler is TrustedCaller {
 
     /**
      * @notice Configure the addresses of the Registry contracts and the trusted caller which is
-     *        allowed to register during the bootstrap phase.
+     *         allowed to register during the bootstrap phase.
      *
      * @param _idRegistry    Address of the IdRegistry contract
      * @param _storageRent   Address of the StorageRent contract
+     * @param _keyRegistry   Address of the KeyRegistry contract
      * @param _trustedCaller Address that can call trustedRegister and trustedBatchRegister
      * @param _owner         Address that can set the trusted caller
      */

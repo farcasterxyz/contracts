@@ -22,7 +22,6 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  *         Registry implements a recovery system which lets the address that owns an fid nominate
  *         a recovery address that can transfer the fid to a new address.
  */
-
 contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -107,7 +106,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     uint256 internal idCounter;
 
     /**
-     * @dev Maps each address to a fid, or zero if it does not own a fid.
+     * @dev Maps each address to an fid, or zero if it does not own an fid.
      */
     mapping(address owner => uint256 fid) public idOf;
 
@@ -122,6 +121,8 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Set the owner of the contract to the provided _owner.
+     *
+     * @param _owner address of the contract owner.
      */
     // solhint-disable-next-line no-empty-blocks
     constructor(address _owner) TrustedCaller(_owner) EIP712("Farcaster IdRegistry", "1") {}
@@ -132,7 +133,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Register a new Farcaster ID (fid) to the caller. The caller must not have an fid.
-     *         Rthe contract must not be in the Registrable (trustedOnly = 0) state.
+     *         The contract must not be in the Registrable (trustedOnly = 0) state.
      *
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      */
@@ -146,7 +147,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      *         Registrable (trustedOnly = 0) state.
      *
      * @param to       Address which will own the fid.
-     * @param recovery Address which can recover the fid. Set to zero to disable recovery.
+     * @param recovery Address which can recover the fid. Set to address(0) to disable recovery.
      * @param deadline Expiration timestamp of the signature.
      * @param sig      EIP-712 signature signed by the to address.
      */
@@ -208,10 +209,9 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Transfer the fid owned by this address to another address that does not have an fid.
-     *         Supports ERC 2771 meta-transactions and can be called via a relayer. A signed message
-     *         from the destination address must be provided.
+     *         A signed message from the destination address must be provided.
      *
-     * @param to The address to transfer the fid to.
+     * @param to       The address to transfer the fid to.
      * @param deadline Expiration timestamp of the signature.
      * @param sig      EIP-712 signature signed by the to address.
      */
@@ -219,7 +219,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         address from = msg.sender;
         uint256 fromId = idOf[from];
 
-        /* Revert if the sender has no id or receipient has an id */
+        /* Revert if the sender has no id or recipient has an id */
         if (fromId == 0) revert HasNoId();
         if (idOf[to] != 0) revert HasId();
 
@@ -252,8 +252,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      */
 
     /**
-     * @notice Change the recovery address of the fid owned by the caller. Supports ERC 2771
-     *         meta-transactions and can be called by a relayer.
+     * @notice Change the recovery address of the fid owned by the caller.
      *
      * @param recovery The address which can recover the fid. Set to 0x0 to disable recovery.
      */
@@ -270,8 +269,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Transfer the fid from the from address to the to address. Must be called by the
-     *         recovery address. Supports ERC 2771 meta-transactions and can be called via a
-     *         relayer. A signed message from the to address must be provided.
+     *         recovery address. A signed message from the to address must be provided.
      *
      * @param from     The address that currently owns the fid.
      * @param to       The address to transfer the fid to.
