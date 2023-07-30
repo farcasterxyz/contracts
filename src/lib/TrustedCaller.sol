@@ -38,7 +38,7 @@ abstract contract TrustedCaller is Ownable2Step {
     event SetTrustedCaller(address indexed oldCaller, address indexed newCaller, address owner);
 
     /**
-     * @dev Emit an event when the trusted only state is disabled.
+     * @dev Emit an event when the trustedOnly state is disabled.
      */
     event DisableTrustedOnly();
 

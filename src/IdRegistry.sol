@@ -18,8 +18,8 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  *         one fid at a time and may transfer it to another address.
  *
  *         The IdRegistry starts in the Seedable state where only a trusted caller can register
- *         fids and later moves to the Registrable where any address can register an fid. The
- *         Registry implements a recovery system which lets the address that owns an fid nominate
+ *         fids and later moves to the Registrable state where any address can register an fid. The
+ *         Registry implements a recovery system that lets the address that owns an fid nominate
  *         a recovery address that can transfer the fid to a new address.
  */
 
@@ -31,10 +31,10 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /// @dev Revert when the caller does not have the authority to perform the action.
     error Unauthorized();
 
-    /// @dev Revert when the caller is required to have an fid but does not have one.
+    /// @dev Revert when the caller must have an fid but does not have one.
     error HasNoId();
 
-    /// @dev Revert when the destination is required to be empty, but has an fid.
+    /// @dev Revert when the destination must be empty but has an fid.
     error HasId();
 
     /*//////////////////////////////////////////////////////////////
@@ -102,7 +102,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev The last farcaster id that was issued.
+     * @dev The last Farcaster id that was issued.
      */
     uint256 internal idCounter;
 
@@ -132,7 +132,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Register a new Farcaster ID (fid) to the caller. The caller must not have an fid.
-     *         Rthe contract must not be in the Registrable (trustedOnly = 0) state.
+     *         The contract must not be in the Registrable (trustedOnly = 0) state.
      *
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      */
@@ -174,7 +174,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @dev Registers an fid and sets up a recovery address for a target. The contract must not be
-     *      in the Seedable (trustedOnly = 1) state and the target must not have an fid.
+     *      in the Seedable (trustedOnly = 1) state and target must not have an fid.
      */
     function _register(address to, address recovery) internal whenNotTrusted returns (uint256 fid) {
         fid = _unsafeRegister(to, recovery);
@@ -185,7 +185,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /**
      * @dev Registers an fid and sets up a recovery address for a target. Does not check all
      *      invariants or emit events. The contract must not be in the Seedable (trustedOnly = 1)
-     *      state and the target must not have an fid.
+     *      state and target must not have an fid.
      */
     function _unsafeRegister(address to, address recovery) internal whenNotPaused returns (uint256 fid) {
         /* Revert if the target(to) has an fid */
@@ -219,7 +219,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         address from = msg.sender;
         uint256 fromId = idOf[from];
 
-        /* Revert if the sender has no id or receipient has an id */
+        /* Revert if the sender has no id or recipient has an id */
         if (fromId == 0) revert HasNoId();
         if (idOf[to] != 0) revert HasId();
 

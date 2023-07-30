@@ -15,7 +15,7 @@ contract StorageRent is AccessControlEnumerable {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Revert if the caller attempts to rent storage after this contract is deprecated.
+    /// @dev Revert if the caller attempts to rent storage after deprecating this contract.
     error ContractDeprecated();
 
     /// @dev Revert if the caller attempts to rent more storage than is available.
@@ -45,7 +45,7 @@ contract StorageRent is AccessControlEnumerable {
     /// @dev Revert if the L2 sequencer restarted less than L2_DOWNTIME_GRACE_PERIOD seconds ago.
     error GracePeriodNotOver();
 
-    /// @dev Revert if the depreaction timestamp parameter is in the past.
+    /// @dev Revert if the deprecation timestamp parameter is in the past.
     error InvalidDeprecationTimestamp();
 
     /// @dev Revert if the max units parameter is above 1.6e7 (64TB @ 4MB/unit).
@@ -165,12 +165,12 @@ contract StorageRent is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Contract version. Follows Farcaster protocol version scheme.
+     * @dev Contract version specified in the Farcaster protocol version scheme.
      */
     string public constant VERSION = "2023.07.12";
 
     /**
-     * @dev Total possile storage unit capacity. 1.6e7 = 64TB @ 4MB/unit .
+     * @dev Total possible storage unit capacity. 1.6e7 = 64TB @ 4MB/unit .
      */
     uint256 public constant TOTAL_STORAGE_UNIT_CAPACITY = 1.6e7;
 
@@ -207,7 +207,7 @@ contract StorageRent is AccessControlEnumerable {
     uint256 public usdUnitPrice;
 
     /**
-     * @dev A fixed ETH/USD price, to be used in the event of a price feed failure. If this value
+     * @dev A fixed ETH/USD price to be used in the event of a price feed failure. If this value
      *      is nonzero, we disable external calls to the price feed and use this price. Changeable by admin.
      */
     uint256 public fixedEthUsdPrice;
@@ -488,7 +488,7 @@ contract StorageRent is AccessControlEnumerable {
         /**
          *  We want price changes to take effect in the first block after the price
          *  refresh, rather than immediately, to keep the price from changing intra
-         *  block. If we updated the price in this block, use the previous price
+         *  block. If we update the price in this block, use the previous price
          *  until the next block. Otherwise, use the latest price.
          *
          *  Slither flags this line as a dangerous strict equality, but we want to

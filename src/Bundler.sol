@@ -72,7 +72,7 @@ contract Bundler is TrustedCaller {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Configure the addresses of the Registry contracts and the trusted caller which is
+     * @notice Configure the addresses of the Registry contracts and the trusted caller, which is
      *        allowed to register during the bootstrap phase.
      *
      * @param _idRegistry    Address of the IdRegistry contract
