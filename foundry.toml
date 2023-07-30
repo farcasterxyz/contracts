@@ -9,10 +9,12 @@ remappings = [
   "openzeppelin-latest/=lib/openzeppelin-latest/",
   "chainlink/=lib/chainlink-brownie-contracts/contracts/src/"
 ]
+no_match_path = "test/Deploy/*"
 
 [profile.ci]
 verbosity = 3
 fuzz = { runs = 2000 }
+match_path = "test/*/**"
 
 [fmt]
 line_length = 120
@@ -21,3 +23,7 @@ quote_style = "double"
 bracket_spacing = false
 int_types = "long"
 multiline_func_header = "params_first"
+
+[rpc_endpoints]
+testnet = "${TESTNET_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"

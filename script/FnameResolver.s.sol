@@ -4,20 +4,15 @@ pragma solidity 0.8.21;
 import "forge-std/Script.sol";
 
 import {FnameResolver} from "../src/FnameResolver.sol";
+import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
 
-contract FnameResolverScript is Script {
-    bytes32 internal constant CREATE2_SALT = "fc";
-
+contract FnameResolverScript is ImmutableCreate2Deployer {
     function run() public {
         string memory serverURI = vm.envString("FNAME_RESOLVER_SERVER_URL");
         address signer = vm.envAddress("FNAME_RESOLVER_SIGNER_ADDRESS");
         address owner = vm.envAddress("FNAME_RESOLVER_OWNER_ADDRESS");
 
-        vm.broadcast();
-        new FnameResolver{ salt: CREATE2_SALT }(
-            serverURI,
-            signer,
-            owner
-        );
+        register("FnameResolver", type(FnameResolver).creationCode, abi.encode(serverURI, signer, owner));
+        deploy();
     }
 }
