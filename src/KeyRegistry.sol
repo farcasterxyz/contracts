@@ -9,6 +9,10 @@ import {IdRegistry} from "./IdRegistry.sol";
 import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
+interface IdRegistryLike {
+    function idOf(address owner) external view returns (uint256);
+}
+
 contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      *  @notice State enumeration for a key in the registry. During migration, an admin can change
@@ -137,6 +141,14 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      */
     event Migrated(uint256 indexed keysMigratedAt);
 
+    /**
+     * @dev Emit an event when the admin sets a new IdRegistry contract address.
+     *
+     * @param oldIdRegistry The previous IdRegistry address.
+     * @param newIdRegistry The ne IdRegistry address.
+     */
+    event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
+
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -152,11 +164,6 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev The IdRegistry contract.
-     */
-    IdRegistry public immutable idRegistry;
-
-    /**
      * @dev Period in seconds after migration during which admin can bulk add/reset keys.
      *      Admins can make corrections to the migrated data during the grace period if necessary,
      *      but cannot make changes after it expires.
@@ -166,6 +173,11 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev The IdRegistry contract.
+     */
+    IdRegistryLike public idRegistry;
 
     /**
      * @dev Timestamp at which keys migrated. Hubs will cut over to use this key registry as their
@@ -190,7 +202,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @notice Set the IdRegistry, migration grace period, and owner.
      *
-     * @param _idRegistry  IdRegistry contract address. Immutable.
+     * @param _idRegistry  IdRegistry contract address.
      * @param _gracePeriod Migration grace period in seconds. Immutable.
      * @param _owner       Contract owner address.
      */
@@ -200,7 +212,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         address _owner
     ) TrustedCaller(_owner) EIP712("Farcaster KeyRegistry", "1") {
         gracePeriod = _gracePeriod;
-        idRegistry = IdRegistry(_idRegistry);
+        idRegistry = IdRegistryLike(_idRegistry);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -360,6 +372,20 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                 }
             }
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 ADMIN
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Set the IdRegistry contract address. Only callable by owner.
+     *
+     * @param _idRegistry The new IdRegistry address.
+     */
+    function setIdRegistry(address _idRegistry) external onlyOwner {
+        emit SetIdRegistry(address(idRegistry), _idRegistry);
+        idRegistry = IdRegistryLike(_idRegistry);
     }
 
     /*//////////////////////////////////////////////////////////////
