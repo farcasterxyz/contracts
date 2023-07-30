@@ -7,6 +7,11 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
+/**
+ * @title StorageRent
+ *
+ * @notice See ../docs/docs.md for an overview.
+ */
 contract StorageRent is AccessControlEnumerable {
     using FixedPointMathLib for uint256;
     using TransferHelper for address;
