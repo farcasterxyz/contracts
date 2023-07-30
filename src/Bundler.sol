@@ -109,9 +109,14 @@ contract Bundler is TrustedCaller {
         uint256 fid =
             idRegistry.registerFor(registration.to, registration.recovery, registration.deadline, registration.sig);
 
-        for (uint256 i; i < signers.length; i++) {
+        for (uint256 i; i < signers.length;) {
             SignerParams calldata signer = signers[i];
             keyRegistry.addFor(registration.to, signer.scheme, signer.key, signer.metadata, signer.deadline, signer.sig);
+
+            // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
+            unchecked {
+                ++i;
+            }
         }
 
         uint256 overpayment = storageRegistry.rent{value: msg.value}(fid, storageUnits);
@@ -152,10 +157,16 @@ contract Bundler is TrustedCaller {
      */
     function trustedBatchRegister(UserData[] calldata users) external onlyTrustedCaller {
         // Safety: calls inside a loop are safe since caller is trusted
-        for (uint256 i = 0; i < users.length; i++) {
-            uint256 fid = idRegistry.trustedRegister(users[i].to, users[i].recovery);
-            keyRegistry.trustedAdd(users[i].to, users[i].scheme, users[i].key, users[i].metadata);
-            storageRegistry.credit(fid, users[i].units);
+        for (uint256 i; i < users.length;) {
+            UserData calldata user = users[i];
+            uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
+            keyRegistry.trustedAdd(user.to, user.scheme, user.key, user.metadata);
+            storageRegistry.credit(fid, user.units);
+
+            // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
+            unchecked {
+                ++i;
+            }
         }
     }
 
