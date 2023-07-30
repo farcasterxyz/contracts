@@ -66,7 +66,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Contract version. Follows Farcaster protocol version scheme.
+     * @dev Contract version specified using Farcaster protocol version scheme.
      */
     string public constant VERSION = "2023.07.12";
 
@@ -95,7 +95,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the lookup gateway URL, and initial signer.
+     * @notice Set the lookup gateway URL and initial signer.
      *
      * @param _url    Lookup gateway URL. This value is set permanently.
      * @param _signer Initial authorized signer address.
@@ -112,11 +112,13 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Resolve the provided ENS name. This function will always revert to indicate an offchain lookup.
+     * @notice Resolve the provided ENS name. This function will always revert to indicate an
+     *         offchain lookup.
      *
      * @param name DNS-encoded name to resolve.
-     * @param data Encoded calldata of an ENS resolver function. This resolver supports only address resolution
-     *             (Signature 0x3b3b57de). Calling the CCIP gateway with any other resolver function will error.
+     * @param data Encoded calldata of an ENS resolver function. This resolver supports only
+     *             address resolution (Signature 0x3b3b57de). Calling the CCIP gateway with any
+     *             other resolver function will revert.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
         if (bytes4(data[:4]) != IAddressQuery.addr.selector) revert ResolverFunctionNotSupported();
@@ -129,9 +131,10 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     }
 
     /**
-     * @notice Offchain lookup callback. The caller must provide the signed response returned by the lookup gateway.
+     * @notice Offchain lookup callback. The caller must provide the signed response returned by
+     *         the lookup gateway.
      *
-     * @param response Response data returned by the CCIP gateway. This consists of the following ABI-encoded fields:
+     * @param response Response from the CCIP gateway which has the following ABI-encoded fields:
      *                 - string: Fname of the username proof.
      *                 - uint256: Timestamp of the username proof.
      *                 - address: Owner address that signed the username proof.

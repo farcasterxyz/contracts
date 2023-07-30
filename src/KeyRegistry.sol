@@ -21,7 +21,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *
      *          - NULL: The key is not in the registry.
      *          - ADDED: The key has been added to the registry.
-     *          - REMOVED: The key was added to the registry, but is now removed.
+     *          - REMOVED: The key was added to the registry but is now removed.
      */
     enum KeyState {
         NULL,
@@ -50,7 +50,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
 
-    /// @dev Revert if owner calls migrateKeys more than once.
+    /// @dev Revert if the owner calls migrateKeys more than once.
     error AlreadyMigrated();
 
     /// @dev Revert if migration batch input arrays are not the same length.
@@ -125,7 +125,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *
      *      Hubs listen for this and:
      *      1. Stop accepting Farcaster Signer messages with a timestamp >= keysMigratedAt.
-     *      2. After grace period (24 hours), stop accepting all Farcaster Signer messages.
+     *      2. After the grace period (24 hours), stop accepting all Farcaster Signer messages.
      *      3. Drop any messages created by off-chain Farcaster Signers whose pub key was
      *         not emitted as an Add event.
      *
@@ -133,8 +133,8 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *      there is a chance that there is some data loss, which is considered an acceptable
      *      risk for this migration.
      *
-     *      If this event is emitted incorrectly ahead of schedule, new users could not post
-     *      and existing users could not add new apps. A protocol upgrade will be necessary
+     *      If this event is emitted incorrectly ahead of schedule, new users cannot not post
+     *      and existing users cannot add new apps. A protocol upgrade will be necessary
      *      which could take up to 6 weeks to roll out correctly.
      *
      * @param keysMigratedAt  The timestamp at which the migration occurred.
@@ -180,7 +180,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     IdRegistryLike public idRegistry;
 
     /**
-     * @dev Timestamp at which keys migrated. Hubs will cut over to use this key registry as their
+     * @dev Timestamp at which keys migrated. Hubs will cut over to use this KeyRegistry as their
      *      source of truth after this timestamp.
      */
     uint40 public keysMigratedAt;
