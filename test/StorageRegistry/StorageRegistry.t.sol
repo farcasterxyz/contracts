@@ -38,7 +38,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testRoles() public {
-        assertEq(storageRegistry.adminRoleId(), keccak256("ADMIN_ROLE"));
+        assertEq(storageRegistry.ownerRoleId(), keccak256("OWNER_ROLE"));
         assertEq(storageRegistry.operatorRoleId(), keccak256("OPERATOR_ROLE"));
         assertEq(storageRegistry.treasurerRoleId(), keccak256("TREASURER_ROLE"));
     }
@@ -116,7 +116,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.store(address(storageRegistry), bytes32(uint256(12)), bytes32(0));
         assertEq(storageRegistry.prevEthUsdPrice(), 0);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
 
         assertEq(storageRegistry.ethUsdPrice(), uint256(ETH_USD_PRICE));
@@ -303,7 +303,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         priceFeed.setShouldRevert(true);
 
         // Set a fixed ETH/USD price, disabling price feeds
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(fixedPrice);
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
@@ -421,7 +421,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
@@ -451,7 +451,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
@@ -497,7 +497,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
@@ -533,7 +533,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
@@ -582,7 +582,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
@@ -622,7 +622,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
@@ -666,7 +666,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
@@ -711,7 +711,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
@@ -756,7 +756,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set to a moderate max capacity to avoid overflow.
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.setMaxUnits(10_000_000);
         vm.stopPrank();
 
@@ -804,7 +804,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
 
         priceFeed.setPrice(ethUsdPrice);
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.refreshPrice();
         storageRegistry.setPrice(usdUnitPrice);
         vm.stopPrank();
@@ -821,7 +821,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         priceFeed.setPrice(ethUsdPrice);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setPrice(usdUnitPrice);
 
         assertEq(storageRegistry.unitPrice(), uint256(usdUnitPrice) * 1e18 / cachedPrice);
@@ -834,7 +834,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     function testPriceRoundsUp() public {
         priceFeed.setPrice(1e18 + 1);
 
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.refreshPrice();
         storageRegistry.setPrice(1);
         vm.stopPrank();
@@ -848,7 +848,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
 
         priceFeed.setPrice(ethUsdPrice);
-        vm.startPrank(admin);
+        vm.startPrank(owner);
         storageRegistry.refreshPrice();
         storageRegistry.setPrice(usdUnitPrice);
         vm.stopPrank();
@@ -864,7 +864,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 cachedPrice = storageRegistry.ethUsdPrice();
 
         priceFeed.setPrice(ethUsdPrice);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setPrice(usdUnitPrice);
 
         assertEq(storageRegistry.price(units), (uint256(usdUnitPrice) * units).divWadUp(cachedPrice));
@@ -880,7 +880,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         priceFeed.setPrice(price);
 
         vm.expectRevert(StorageRegistry.InvalidPrice.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -897,7 +897,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
 
         vm.expectRevert(StorageRegistry.StaleAnswer.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -917,7 +917,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         priceFeed.setStubTimeStamp(true);
 
         vm.expectRevert(StorageRegistry.StaleAnswer.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -934,7 +934,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
         priceFeed.setStubTimeStamp(true);
         vm.expectRevert(StorageRegistry.IncompleteRound.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -952,10 +952,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.prank(msgSender);
         storageRegistry.rent{value: price}(id, units);
 
-        // Admin can set a failsafe fixed price.
+        // Owner can set a failsafe fixed price.
         vm.expectEmit(false, false, false, true);
         emit SetFixedEthUsdPrice(0, 4000e8);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(4000e8);
 
         // ETH doubled in USD terms, so we need
@@ -970,12 +970,12 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         // Setting fixed price back to zero re-enables the price feed.
         vm.expectEmit(false, false, false, true);
         emit SetFixedEthUsdPrice(4000e8, 0);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(0);
 
         // Calls revert again, since price feed is re-enabled.
         vm.expectRevert("MockChainLinkFeed: Call failed");
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -998,7 +998,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
 
         vm.expectRevert(StorageRegistry.SequencerDown.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -1015,7 +1015,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
 
         vm.expectRevert(StorageRegistry.StaleAnswer.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -1032,7 +1032,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
         uptimeFeed.setStubTimeStamp(true);
         vm.expectRevert(StorageRegistry.IncompleteRound.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -1049,7 +1049,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         );
 
         vm.expectRevert(StorageRegistry.GracePeriodNotOver.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -1067,10 +1067,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.prank(msgSender);
         storageRegistry.rent{value: price}(id, units);
 
-        // Admin can set a failsafe fixed price.
+        // Owner can set a failsafe fixed price.
         vm.expectEmit(false, false, false, true);
         emit SetFixedEthUsdPrice(0, 4000e8);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(4000e8);
 
         // ETH doubled in USD terms, so we need
@@ -1085,12 +1085,12 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         // Setting fixed price back to zero re-enables the price feed.
         vm.expectEmit(false, false, false, true);
         emit SetFixedEthUsdPrice(4000e8, 0);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(0);
 
         // Calls revert again, since price feed is re-enabled.
         vm.expectRevert("MockChainLinkFeed: Call failed");
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.refreshPrice();
     }
 
@@ -1099,7 +1099,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzOnlyAuthorizedCanRefreshPrice(address caller) public {
-        vm.assume(caller != admin && caller != treasurer);
+        vm.assume(caller != owner && caller != treasurer);
 
         vm.prank(caller);
         vm.expectRevert(StorageRegistry.Unauthorized.selector);
@@ -1262,8 +1262,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                            SET USD UNIT PRICE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAdminOrTreasurerCanSetUSDUnitPrice(address caller, uint256 unitPrice) public {
-        vm.assume(caller != admin && caller != treasurer);
+    function testFuzzOnlyOwnerOrTreasurerCanSetUSDUnitPrice(address caller, uint256 unitPrice) public {
+        vm.assume(caller != owner && caller != treasurer);
 
         vm.prank(caller);
         vm.expectRevert(StorageRegistry.Unauthorized.selector);
@@ -1276,7 +1276,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectEmit(false, false, false, true);
         emit SetPrice(currentPrice, unitPrice);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setPrice(unitPrice);
 
         assertEq(storageRegistry.usdUnitPrice(), unitPrice);
@@ -1286,11 +1286,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                            SET FIXED ETH PRICE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAdminCanSetFixedEthUsdPrice(address caller, uint256 fixedPrice) public {
-        vm.assume(caller != admin);
+    function testFuzzOnlyOwnerCanSetFixedEthUsdPrice(address caller, uint256 fixedPrice) public {
+        vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(StorageRegistry.NotAdmin.selector);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setFixedEthUsdPrice(fixedPrice);
     }
 
@@ -1300,7 +1300,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectEmit(false, false, false, true);
         emit SetFixedEthUsdPrice(0, fixedPrice);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(fixedPrice);
 
         assertEq(storageRegistry.fixedEthUsdPrice(), fixedPrice);
@@ -1313,7 +1313,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 usdUnitPrice = storageRegistry.usdUnitPrice();
         uint256 priceBefore = storageRegistry.unitPrice();
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(fixedPrice);
 
         uint256 priceAfter = storageRegistry.unitPrice();
@@ -1329,7 +1329,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 usdUnitPrice = storageRegistry.usdUnitPrice();
         uint256 priceBefore = storageRegistry.unitPrice();
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(fixedPrice);
 
         uint256 priceAfter = storageRegistry.unitPrice();
@@ -1337,7 +1337,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertTrue(priceBefore != priceAfter);
         assertEq(priceAfter, usdUnitPrice.divWadUp(fixedPrice));
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setFixedEthUsdPrice(0);
         assertEq(storageRegistry.fixedEthUsdPrice(), 0);
 
@@ -1349,11 +1349,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                               SET MAX UNITS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAdminCanSetMaxUnits(address caller, uint256 maxUnits) public {
-        vm.assume(caller != admin);
+    function testFuzzOnlyOwnerCanSetMaxUnits(address caller, uint256 maxUnits) public {
+        vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(StorageRegistry.NotAdmin.selector);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setMaxUnits(maxUnits);
     }
 
@@ -1363,17 +1363,17 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectEmit(false, false, false, true);
         emit SetMaxUnits(currentMax, maxUnits);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setMaxUnits(maxUnits);
 
         assertEq(storageRegistry.maxUnits(), maxUnits);
     }
 
-    function testFuzzOnlyAdminCanSetDeprecationTime(address caller, uint256 timestamp) public {
-        vm.assume(caller != admin);
+    function testFuzzOnlyOwnerCanSetDeprecationTime(address caller, uint256 timestamp) public {
+        vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(StorageRegistry.NotAdmin.selector);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setDeprecationTimestamp(timestamp);
     }
 
@@ -1388,7 +1388,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectEmit(false, false, false, true);
         emit SetDeprecationTimestamp(currentEnd, timestamp);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setDeprecationTimestamp(timestamp);
 
         assertEq(storageRegistry.deprecationTimestamp(), timestamp);
@@ -1396,7 +1396,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testFuzzSetDeprecationTimeRevertsInPast() public {
         vm.expectRevert(StorageRegistry.InvalidDeprecationTimestamp.selector);
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setDeprecationTimestamp(block.timestamp - 1);
     }
 
@@ -1404,11 +1404,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                            SET CACHE DURATION
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAdminCanSetCacheDuration(address caller, uint256 duration) public {
-        vm.assume(caller != admin);
+    function testFuzzOnlyOwnerCanSetCacheDuration(address caller, uint256 duration) public {
+        vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(StorageRegistry.NotAdmin.selector);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setCacheDuration(duration);
     }
 
@@ -1418,7 +1418,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectEmit(false, false, false, true);
         emit SetCacheDuration(currentDuration, duration);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setCacheDuration(duration);
 
         assertEq(storageRegistry.priceFeedCacheDuration(), duration);
@@ -1428,11 +1428,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                            SET MAX PRICE AGE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAdminCanSetMaxAge(address caller, uint256 age) public {
-        vm.assume(caller != admin);
+    function testFuzzOnlyOwnerCanSetMaxAge(address caller, uint256 age) public {
+        vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(StorageRegistry.NotAdmin.selector);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setMaxAge(age);
     }
 
@@ -1442,7 +1442,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectEmit(false, false, false, true);
         emit SetMaxAge(currentAge, age);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setMaxAge(age);
 
         assertEq(storageRegistry.priceFeedMaxAge(), age);
@@ -1452,11 +1452,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                             SET GRACE PERIOD
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAdminCanSetGracePeriod(address caller, uint256 duration) public {
-        vm.assume(caller != admin);
+    function testFuzzOnlyOwnerCanSetGracePeriod(address caller, uint256 duration) public {
+        vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(StorageRegistry.NotAdmin.selector);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setGracePeriod(duration);
     }
 
@@ -1466,7 +1466,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectEmit(false, false, false, true);
         emit SetGracePeriod(currentGracePeriod, duration);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setGracePeriod(duration);
 
         assertEq(storageRegistry.uptimeFeedGracePeriod(), duration);
@@ -1481,22 +1481,22 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectEmit(false, false, false, true);
         emit SetVault(vault, newVault);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setVault(newVault);
 
         assertEq(storageRegistry.vault(), newVault);
     }
 
-    function testFuzzOnlyAdminCanSetVault(address caller, address vault) public {
-        vm.assume(caller != admin);
+    function testFuzzOnlyOwnerCanSetVault(address caller, address vault) public {
+        vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(StorageRegistry.NotAdmin.selector);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setVault(vault);
     }
 
     function testSetVaultCannotBeZeroAddress() public {
-        vm.prank(admin);
+        vm.prank(owner);
         vm.expectRevert(StorageRegistry.InvalidAddress.selector);
         storageRegistry.setVault(address(0));
     }
@@ -1538,7 +1538,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 price = storageRegistry.price(1);
         storageRegistry.rent{value: price}(1, 1);
 
-        vm.prank(admin);
+        vm.prank(owner);
         storageRegistry.setVault(address(revertOnReceive));
 
         vm.prank(treasurer);

@@ -20,7 +20,6 @@ abstract contract StorageRegistryTestSuite is TestSuiteSetup {
     address internal mallory = makeAddr("mallory");
     address internal vault = makeAddr("vault");
     address internal roleAdmin = makeAddr("roleAdmin");
-    address internal admin = makeAddr("admin");
     address internal operator = makeAddr("operator");
     address internal treasurer = makeAddr("treasurer");
 
@@ -75,7 +74,7 @@ abstract contract StorageRegistryTestSuite is TestSuiteSetup {
             INITIAL_MAX_UNITS,
             vault,
             roleAdmin,
-            admin,
+            owner,
             operator,
             treasurer
         );

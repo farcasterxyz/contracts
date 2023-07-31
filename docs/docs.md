@@ -73,7 +73,7 @@ The fid state transitions when users take specific actions:
 
 The IdRegistry contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
 
-1. A new IdRegistry contract is deployed in a state where only an admin can register fids.
+1. A new IdRegistry contract is deployed in a state where only an owner can register fids.
 2. The current IdRegistry contract is paused.
 3. The new IdRegistry is seeded with all the registered fids in the old contract.
 4. The KeyRegistry is updated to point to the new IdRegistry.
@@ -112,9 +112,9 @@ units to fids if necessary.
 
 An `operator` address can credit storage to fids without the payment of rent. This is used for the initial migration to assign storage to existing users, so that their messages aren't auto-expired from Hubs.
 
-A `treasurer` address can move funds from the contract to a pre-defined `vault` address, but cannot change this destination. Only the `admin` may change the vault address to a new destination.
+A `treasurer` address can move funds from the contract to a pre-defined `vault` address, but cannot change this destination. Only the `owner` may change the vault address to a new destination.
 
-An `admin` address can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp.
+An `owner` address can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp.
 
 ### Upgradeability
 
@@ -184,9 +184,9 @@ The key state can also be transitioned by these owner actions that are only poss
 
 The KeyRegistry contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
 
-1. A new KeyRegistry contract is deployed in a state where only an admin can update keys.
+1. A new KeyRegistry contract is deployed in a state where only an owner can update keys.
 2. The old KeyRegistry contract has its IdRegistry address set to address(0), which prevents changes.
-3. The state of all existing keys is copied from the old contract to the new one by an admin.
+3. The state of all existing keys is copied from the old contract to the new one by an owner.
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The contract is set to untrusted state where anyone can register keys.
 

@@ -97,7 +97,7 @@ contract StorageRegistryHarness is StorageRegistry {
         uint256 _maxUnits,
         address _vault,
         address _roleAdmin,
-        address _admin,
+        address _owner,
         address _operator,
         address _treasurer
     )
@@ -109,14 +109,14 @@ contract StorageRegistryHarness is StorageRegistry {
             _maxUnits,
             _vault,
             _roleAdmin,
-            _admin,
+            _owner,
             _operator,
             _treasurer
         )
     {}
 
-    function adminRoleId() external pure returns (bytes32) {
-        return ADMIN_ROLE;
+    function ownerRoleId() external pure returns (bytes32) {
+        return OWNER_ROLE;
     }
 
     function operatorRoleId() external pure returns (bytes32) {
