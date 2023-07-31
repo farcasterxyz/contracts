@@ -53,8 +53,8 @@ contract StorageRegistry is AccessControlEnumerable {
     /// @dev Revert if the deprecation timestamp parameter is in the past.
     error InvalidDeprecationTimestamp();
 
-    /// @dev Revert if the caller is not an admin.
-    error NotAdmin();
+    /// @dev Revert if the caller is not an owner.
+    error NotOwner();
 
     /// @dev Revert if the caller is not an operator.
     error NotOperator();
@@ -86,7 +86,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event Rent(address indexed payer, uint256 indexed fid, uint256 units);
 
     /**
-     * @dev Emit an event when an admin changes the price of storage units.
+     * @dev Emit an event when an owner changes the price of storage units.
      *
      * @param oldPrice The previous unit price in USD. Fixed point value with 8 decimals.
      * @param newPrice The new unit price in USD. Fixed point value with 8 decimals.
@@ -94,7 +94,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetPrice(uint256 oldPrice, uint256 newPrice);
 
     /**
-     * @dev Emit an event when an admin changes the fixed ETH/USD price.
+     * @dev Emit an event when an owner changes the fixed ETH/USD price.
      *      Setting this value to zero means the fixed price is disabled.
      *
      * @param oldPrice The previous ETH price in USD. Fixed point value with 8 decimals.
@@ -103,7 +103,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetFixedEthUsdPrice(uint256 oldPrice, uint256 newPrice);
 
     /**
-     * @dev Emit an event when an admin changes the maximum supply of storage units.
+     * @dev Emit an event when an owner changes the maximum supply of storage units.
      *
      *      Hubs do not actively listen for this event, though the owner of the contract is
      *      responsible for ensuring that Hub operators are aware of the new storage requirements,
@@ -115,7 +115,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
 
     /**
-     * @dev Emit an event when an admin changes the deprecationTimestamp.
+     * @dev Emit an event when an owner changes the deprecationTimestamp.
      *
      * @param oldTimestamp The previous deprecationTimestamp.
      * @param newTimestamp The new deprecationTimestamp.
@@ -123,7 +123,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
 
     /**
-     * @dev Emit an event when an admin changes the priceFeedCacheDuration.
+     * @dev Emit an event when an owner changes the priceFeedCacheDuration.
      *
      * @param oldDuration The previous priceFeedCacheDuration.
      * @param newDuration The new priceFeedCacheDuration.
@@ -131,7 +131,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
 
     /**
-     * @dev Emit an event when an admin changes the priceFeedMaxAge.
+     * @dev Emit an event when an owner changes the priceFeedMaxAge.
      *
      * @param oldAge The previous priceFeedMaxAge.
      * @param newAge The new priceFeedMaxAge.
@@ -139,7 +139,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetMaxAge(uint256 oldAge, uint256 newAge);
 
     /**
-     * @dev Emit an event when an admin changes the uptimeFeedGracePeriod.
+     * @dev Emit an event when an owner changes the uptimeFeedGracePeriod.
      *
      * @param oldPeriod The previous uptimeFeedGracePeriod.
      * @param newPeriod The new uptimeFeedGracePeriod.
@@ -147,7 +147,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetGracePeriod(uint256 oldPeriod, uint256 newPeriod);
 
     /**
-     * @dev Emit an event when an admin changes the vault.
+     * @dev Emit an event when an owner changes the vault.
      *
      * @param oldVault The previous vault.
      * @param newVault The new vault.
@@ -171,7 +171,7 @@ contract StorageRegistry is AccessControlEnumerable {
      */
     string public constant VERSION = "2023.07.12";
 
-    bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 internal constant OWNER_ROLE = keccak256("OWNER_ROLE");
     bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 internal constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
@@ -194,44 +194,44 @@ contract StorageRegistry is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Block timestamp at which this contract will no longer accept storage rent payments. Changeable by admin.
+     * @dev Block timestamp at which this contract will no longer accept storage rent payments. Changeable by owner.
      */
     uint256 public deprecationTimestamp;
 
     /**
-     * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD. Changeable by admin.
+     * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD. Changeable by owner.
      */
     uint256 public usdUnitPrice;
 
     /**
      * @dev A fixed ETH/USD price to be used in the event of a price feed failure. If this value
-     *      is nonzero, we disable external calls to the price feed and use this price. Changeable by admin.
+     *      is nonzero, we disable external calls to the price feed and use this price. Changeable by owner.
      */
     uint256 public fixedEthUsdPrice;
 
     /**
-     * @dev Total capacity of storage units. Changeable by admin.
+     * @dev Total capacity of storage units. Changeable by owner.
      */
     uint256 public maxUnits;
 
     /**
-     * @dev Duration to cache ethUsdPrice before updating from the price feed. Changeable by admin.
+     * @dev Duration to cache ethUsdPrice before updating from the price feed. Changeable by owner.
      */
     uint256 public priceFeedCacheDuration;
 
     /**
-     * @dev Max age of a price feed answer before it is considered stale. Changeable by admin.
+     * @dev Max age of a price feed answer before it is considered stale. Changeable by owner.
      */
     uint256 public priceFeedMaxAge;
 
     /**
      * @dev Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
-     *      See: https://docs.chain.link/data-feeds/l2-sequencer-feeds. Changeable by admin.
+     *      See: https://docs.chain.link/data-feeds/l2-sequencer-feeds. Changeable by owner.
      */
     uint256 public uptimeFeedGracePeriod;
 
     /**
-     * @dev Address to which the treasurer role can withdraw funds. Changeable by admin.
+     * @dev Address to which the treasurer role can withdraw funds. Changeable by owner.
      */
     address public vault;
 
@@ -278,7 +278,7 @@ contract StorageRegistry is AccessControlEnumerable {
      * @param _initialMaxUnits               Initial maximum capacity in storage units.
      * @param _initialVault                  Initial vault address.
      * @param _initialRoleAdmin              Initial role admin address.
-     * @param _initialAdmin                  Initial admin address.
+     * @param _initialOwner                  Initial owner address.
      * @param _initialOperator               Initial operator address.
      * @param _initialTreasurer              Initial treasurer address.
      */
@@ -290,7 +290,7 @@ contract StorageRegistry is AccessControlEnumerable {
         uint256 _initialMaxUnits,
         address _initialVault,
         address _initialRoleAdmin,
-        address _initialAdmin,
+        address _initialOwner,
         address _initialOperator,
         address _initialTreasurer
     ) {
@@ -319,7 +319,7 @@ contract StorageRegistry is AccessControlEnumerable {
         emit SetVault(address(0), _initialVault);
 
         _grantRole(DEFAULT_ADMIN_ROLE, _initialRoleAdmin);
-        _grantRole(ADMIN_ROLE, _initialAdmin);
+        _grantRole(OWNER_ROLE, _initialOwner);
         _grantRole(OPERATOR_ROLE, _initialOperator);
         _grantRole(TREASURER_ROLE, _initialTreasurer);
 
@@ -335,8 +335,8 @@ contract StorageRegistry is AccessControlEnumerable {
         _;
     }
 
-    modifier onlyAdmin() {
-        if (!hasRole(ADMIN_ROLE, msg.sender)) revert NotAdmin();
+    modifier onlyOwner() {
+        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
         _;
     }
 
@@ -618,20 +618,20 @@ contract StorageRegistry is AccessControlEnumerable {
     }
 
     /**
-     * @notice Force refresh the cached Chainlink ETH/USD price. Callable by admin and treasurer.
+     * @notice Force refresh the cached Chainlink ETH/USD price. Callable by owner and treasurer.
      */
     function refreshPrice() external {
-        if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
+        if (!hasRole(OWNER_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
         _refreshPrice();
     }
 
     /**
-     * @notice Change the USD price per storage unit. Callable by admin and treasurer.
+     * @notice Change the USD price per storage unit. Callable by owner and treasurer.
      *
      * @param usdPrice The new unit price in USD. Fixed point value with 8 decimals.
      */
     function setPrice(uint256 usdPrice) external {
-        if (!hasRole(ADMIN_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
+        if (!hasRole(OWNER_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
         emit SetPrice(usdUnitPrice, usdPrice);
         usdUnitPrice = usdPrice;
     }
@@ -639,75 +639,75 @@ contract StorageRegistry is AccessControlEnumerable {
     /**
      * @notice Set the fixed ETH/USD price, disabling the price feed if the value is
      *         nonzero. This is an emergency fallback in case of a price feed failure.
-     *         Only callable by admin.
+     *         Only callable by owner.
      *
      * @param fixedPrice The new fixed ETH/USD price. Fixed point value with 8 decimals.
      *                   Setting this value back to zero from a nonzero value will
      *                   re-enable the price feed.
      */
-    function setFixedEthUsdPrice(uint256 fixedPrice) external onlyAdmin {
+    function setFixedEthUsdPrice(uint256 fixedPrice) external onlyOwner {
         emit SetFixedEthUsdPrice(fixedEthUsdPrice, fixedPrice);
         fixedEthUsdPrice = fixedPrice;
     }
 
     /**
-     * @notice Change the maximum supply of storage units. Only callable by admin.
+     * @notice Change the maximum supply of storage units. Only callable by owner.
      *
      * @param max The new maximum supply of storage units.
      */
-    function setMaxUnits(uint256 max) external onlyAdmin {
+    function setMaxUnits(uint256 max) external onlyOwner {
         emit SetMaxUnits(maxUnits, max);
         maxUnits = max;
     }
 
     /**
-     * @notice Change the deprecationTimestamp. Only callable by admin.
+     * @notice Change the deprecationTimestamp. Only callable by owner.
      *
      * @param timestamp The new deprecationTimestamp.
      */
-    function setDeprecationTimestamp(uint256 timestamp) external onlyAdmin {
+    function setDeprecationTimestamp(uint256 timestamp) external onlyOwner {
         if (timestamp < block.timestamp) revert InvalidDeprecationTimestamp();
         emit SetDeprecationTimestamp(deprecationTimestamp, timestamp);
         deprecationTimestamp = timestamp;
     }
 
     /**
-     * @notice Change the priceFeedCacheDuration. Only callable by admin.
+     * @notice Change the priceFeedCacheDuration. Only callable by owner.
      *
      * @param duration The new priceFeedCacheDuration.
      */
-    function setCacheDuration(uint256 duration) external onlyAdmin {
+    function setCacheDuration(uint256 duration) external onlyOwner {
         emit SetCacheDuration(priceFeedCacheDuration, duration);
         priceFeedCacheDuration = duration;
     }
 
     /**
-     * @notice Change the priceFeedMaxAge. Only callable by admin.
+     * @notice Change the priceFeedMaxAge. Only callable by owner.
      *
      * @param age The new priceFeedMaxAge.
      */
-    function setMaxAge(uint256 age) external onlyAdmin {
+    function setMaxAge(uint256 age) external onlyOwner {
         emit SetMaxAge(priceFeedMaxAge, age);
         priceFeedMaxAge = age;
     }
 
     /**
-     * @notice Change the uptimeFeedGracePeriod. Only callable by admin.
+     * @notice Change the uptimeFeedGracePeriod. Only callable by owner.
      *
      * @param period The new uptimeFeedGracePeriod.
      */
-    function setGracePeriod(uint256 period) external onlyAdmin {
+    function setGracePeriod(uint256 period) external onlyOwner {
         emit SetGracePeriod(uptimeFeedGracePeriod, period);
         uptimeFeedGracePeriod = period;
     }
 
     /**
      * @notice Set the vault address that can receive funds from this contract.
-     *         Only callable by admin.
+     *         Only callable by owner.
      *
      * @param vaultAddr The new vault address.
      */
-    function setVault(address vaultAddr) external onlyAdmin {
+    function setVault(address vaultAddr) external onlyOwner {
         if (vaultAddr == address(0)) revert InvalidAddress();
         emit SetVault(vault, vaultAddr);
         vault = vaultAddr;
