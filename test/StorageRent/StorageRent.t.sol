@@ -422,7 +422,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         // Set a high max capacity to avoid overflow.
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
         // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
@@ -452,7 +452,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         // Set a high max capacity to avoid overflow.
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
         uint256 lastPriceFeedUpdate = storageRent.lastPriceFeedUpdateTime();
@@ -498,7 +498,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         // Set a high max capacity to avoid overflow.
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
         // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
@@ -534,7 +534,7 @@ contract StorageRentTest is StorageRentTestSuite {
         uint16[] calldata _units
     ) public {
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
@@ -583,7 +583,7 @@ contract StorageRentTest is StorageRentTestSuite {
         uint16[] calldata _units
     ) public {
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
@@ -623,7 +623,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         // Set a high max capacity to avoid overflow.
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
@@ -667,7 +667,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         // Set a high max capacity to avoid overflow.
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
@@ -712,7 +712,7 @@ contract StorageRentTest is StorageRentTestSuite {
 
         // Set a high max capacity to avoid overflow.
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(type(uint256).max);
         vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
@@ -755,9 +755,9 @@ contract StorageRentTest is StorageRentTestSuite {
         vm.assume(_ids.length > 0);
         vm.assume(_units.length > 0);
 
-        // Set a high max capacity to avoid overflow.
+        // Set to a moderate max capacity to avoid overflow.
         vm.startPrank(admin);
-        storageRent.setMaxUnits(storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
+        storageRent.setMaxUnits(10_000_000);
         vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
@@ -1358,7 +1358,6 @@ contract StorageRentTest is StorageRentTestSuite {
     }
 
     function testFuzzSetMaxUnitsEmitsEvent(uint256 maxUnits) public {
-        maxUnits = bound(maxUnits, 0, storageRent.TOTAL_STORAGE_UNIT_CAPACITY());
         uint256 currentMax = storageRent.maxUnits();
 
         vm.expectEmit(false, false, false, true);
@@ -1368,13 +1367,6 @@ contract StorageRentTest is StorageRentTestSuite {
         storageRent.setMaxUnits(maxUnits);
 
         assertEq(storageRent.maxUnits(), maxUnits);
-    }
-
-    function testFuzzSetMaxUnitsRevertsOverGlobalMax(uint256 maxUnits) public {
-        maxUnits = bound(maxUnits, storageRent.TOTAL_STORAGE_UNIT_CAPACITY() + 1, type(uint256).max);
-        vm.expectRevert(StorageRent.InvalidMaxUnits.selector);
-        vm.prank(admin);
-        storageRent.setMaxUnits(maxUnits);
     }
 
     function testFuzzOnlyAdminCanSetDeprecationTime(address caller, uint256 timestamp) public {

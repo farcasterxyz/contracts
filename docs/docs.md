@@ -93,10 +93,9 @@ A price refresh occurs when a transaction is made after the cache period has pas
 ### Invariants
 
 1. rentedUnits never exceed maxUnits.
-2. maxUnits can never exceed TOTAL_STORAGE_UNIT_CAPACITY.
-3. Estimated price equals actual price within a block, i.e. `price(x) == _price(x)`.
-4. price is calculated with fixedEthUsdPrice instead of ethUsdPrice if > 0.
-5. ethUsdPrice is updated from Chainlink no more often than priceFeedCacheDuration, if fixedEthUsdPrice is not set.
+2. Estimated price equals actual price within a block, i.e. `price(x) == _price(x)`.
+3. price is calculated with fixedEthUsdPrice instead of ethUsdPrice if > 0.
+4. ethUsdPrice is updated from Chainlink no more often than priceFeedCacheDuration, if fixedEthUsdPrice is not set.
 
 ### Assumptions
 

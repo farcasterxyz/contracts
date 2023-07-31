@@ -53,9 +53,6 @@ contract StorageRent is AccessControlEnumerable {
     /// @dev Revert if the deprecation timestamp parameter is in the past.
     error InvalidDeprecationTimestamp();
 
-    /// @dev Revert if the max units parameter is above 1.6e7 (64TB @ 4MB/unit).
-    error InvalidMaxUnits();
-
     /// @dev Revert if the caller is not an admin.
     error NotAdmin();
 
@@ -173,11 +170,6 @@ contract StorageRent is AccessControlEnumerable {
      * @dev Contract version specified in the Farcaster protocol version scheme.
      */
     string public constant VERSION = "2023.07.12";
-
-    /**
-     * @dev Total possible storage unit capacity. 1.6e7 = 64TB @ 4MB/unit .
-     */
-    uint256 public constant TOTAL_STORAGE_UNIT_CAPACITY = 1.6e7;
 
     bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -664,7 +656,6 @@ contract StorageRent is AccessControlEnumerable {
      * @param max The new maximum supply of storage units.
      */
     function setMaxUnits(uint256 max) external onlyAdmin {
-        if (max > TOTAL_STORAGE_UNIT_CAPACITY) revert InvalidMaxUnits();
         emit SetMaxUnits(maxUnits, max);
         maxUnits = max;
     }
