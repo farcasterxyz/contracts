@@ -4,8 +4,6 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
-import "../TestConstants.sol";
-
 import {StorageRent} from "../../src/StorageRent.sol";
 import {TransferHelper} from "../../src/lib/TransferHelper.sol";
 import {StorageRentTestSuite, StorageRentHarness} from "./StorageRentTestSuite.sol";

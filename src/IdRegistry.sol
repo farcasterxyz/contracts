@@ -11,16 +11,8 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
 /**
  * @title IdRegistry
- * @author @v
- * @custom:version 2.0.0
  *
- * @notice IdRegistry lets any ETH address claim a unique Farcaster ID (fid). An address can own
- *         one fid at a time and may transfer it to another address.
- *
- *         The IdRegistry starts in the Seedable state where only a trusted caller can register
- *         fids and later moves to the Registrable state where any address can register an fid. The
- *         Registry implements a recovery system that lets the address that owns an fid nominate
- *         a recovery address that can transfer the fid to a new address.
+ * @notice See ../docs/docs.md for an overview.
  */
 
 contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
@@ -241,15 +233,6 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                              RECOVERY LOGIC
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * INVARIANT: If an address has a non-zero recovery address, it must own an fid.
-     *
-     * 1. idOf[addr] = 0 && recoveryOf[idOf[addr]] == address(0) ∀ addr
-     *
-     * 2. recoveryOf[addr] != address(0) ↔ idOf[addr] != 0
-     *    see register(), trustedRegister() and changeRecoveryAddress()
-     */
 
     /**
      * @notice Change the recovery address of the fid owned by the caller. Supports ERC 2771

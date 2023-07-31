@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 import {IERC165} from "openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-import "../TestConstants.sol";
 import {FnameResolverTestSuite} from "./FnameResolverTestSuite.sol";
 import {FnameResolver, IResolverService, IExtendedResolver, IAddressQuery} from "../../src/FnameResolver.sol";
 

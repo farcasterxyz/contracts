@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import "../TestConstants.sol";
-
 import {IdRegistryHarness} from "../Utils.sol";
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 import {StorageRentTestSuite} from "../StorageRent/StorageRentTestSuite.sol";

@@ -3,8 +3,6 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
-import "../TestConstants.sol";
-
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
