@@ -1540,7 +1540,7 @@ contract StorageRentTest is StorageRentTestSuite {
         amount = bound(amount, 1, type(uint256).max);
 
         vm.prank(treasurer);
-        vm.expectRevert(TransferHelper.InsufficientFunds.selector);
+        vm.expectRevert(TransferHelper.CallFailed.selector);
         storageRent.withdraw(amount);
     }
 
