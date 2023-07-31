@@ -3,7 +3,7 @@
 This repository contains all the contracts deployed by the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are:
 
 1. **[Id Registry](./src/IdRegistry.sol)** - issues farcaster identities (fids) to new users.
-2. **[Storage](./src/StorageRent.sol)** - allocates storage to fids and collects rent.
+2. **[Storage Registry](./src/StorageRegistry.sol)** - allocates storage to fids and collects rent.
 3. **[Key Registry](./src/KeyRegistry.sol)** - allows users with an fid to register key pairs for signing messages.
 4. **[Bundler](./src/Bundler.sol)** - allows calling registry and storage in a single transaction.
 5. **[Fname Resolver](./src/FnameResolver.sol)** - validates Farcaster ENS names which were issued off-chain.

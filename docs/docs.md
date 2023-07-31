@@ -9,7 +9,7 @@ graph TD
     end
 
     subgraph Identity
-    BN(Bundler) --> IR(Id Registry) & SR(Storage) & KR(Key Registry)
+    BN(Bundler) --> IR(Id Registry) & SR(Storage Registry) & KR(Key Registry)
     KR --> IR
     end
 ```
@@ -17,7 +17,7 @@ graph TD
 ## Table of Contents
 
 1. [Id Registry](#1-id-registry)
-2. [Storage](#2-storage)
+2. [Storage Registry](#2-storage)
 3. [Key Registry](#3-key-registry)
 4. [Bundler](#4-bundler)
 5. [Fname Resolver](#5-fname-resolver)
@@ -80,9 +80,9 @@ The IdRegistry contract may need to be upgraded in case a bug is discovered or t
 5. A new Bundler contract is deployed, pointing to the correct contracts.
 6. The new IdRegistry is moved to the registrable state where anyone can register an fid.
 
-# 2. Storage
+# 2. Storage Registry
 
-The Storage contract lets anyone rent units of storage space on Farcaster Hubs for a given fid. Payment must be made in Ethereum to acquire storage for a year. Acquiring storage emits an event that is read off-chain by the Farcaster Hubs, which allocate space to the user. The contract will deprecate itself one year after deployment, and we expect to launch a new contract with updated logic.
+The StorageRegistry contract lets anyone rent units of storage space on Farcaster Hubs for a given fid. Payment must be made in Ethereum to acquire storage for a year. Acquiring storage emits an event that is read off-chain by the Farcaster Hubs, which allocate space to the user. The contract will deprecate itself one year after deployment, and we expect to launch a new contract with updated logic.
 
 ### Pricing
 
@@ -105,7 +105,7 @@ A price refresh occurs when a transaction is made after the cache period has pas
 
 ### Migration
 
-The Storage contract does not contain any special states for migration. Once deployed, the operator can use the credit functions to award storage
+The StorageRegistry contract does not contain any special states for migration. Once deployed, the operator can use the credit functions to award storage
 units to fids if necessary.
 
 ### Administration
@@ -118,7 +118,7 @@ An `admin` address can modify many parameters including the total supply of stor
 
 ### Upgradeability
 
-The Storage contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
+The StorageRegistry contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
 
 1. A new storage contract is deployed and is paused so that storage cannot be rented.
 2. Hubs are upgraded so that they respect storage events from both contracts.

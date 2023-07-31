@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {StorageRent} from "../src/StorageRent.sol";
+import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
 
-contract StorageRentScript is ImmutableCreate2Deployer {
+contract StorageRegistryScript is ImmutableCreate2Deployer {
     uint256 internal constant INITIAL_RENTAL_PERIOD = 365 days;
     uint256 internal constant INITIAL_USD_UNIT_PRICE = 5e8; // $5 USD
     uint256 internal constant INITIAL_MAX_UNITS = 2_000_000;
@@ -21,8 +21,8 @@ contract StorageRentScript is ImmutableCreate2Deployer {
         address treasurer = vm.envAddress("STORAGE_RENT_TREASURER_ADDRESS");
 
         register(
-            "StorageRent",
-            type(StorageRent).creationCode,
+            "StorageRegistry",
+            type(StorageRegistry).creationCode,
             abi.encode(
                 priceFeed,
                 uptimeFeed,

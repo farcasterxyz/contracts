@@ -2,13 +2,13 @@
 pragma solidity 0.8.21;
 
 import {Test} from "forge-std/Test.sol";
-import {Deploy, StorageRent, IdRegistry, KeyRegistry, Bundler} from "../../script/Deploy.s.sol";
+import {Deploy, StorageRegistry, IdRegistry, KeyRegistry, Bundler} from "../../script/Deploy.s.sol";
 
 /* solhint-disable state-visibility */
 
 contract DeployTest is Test {
     Deploy internal deploy;
-    StorageRent internal storageRent;
+    StorageRegistry internal storageRegistry;
     IdRegistry internal idRegistry;
     KeyRegistry internal keyRegistry;
     Bundler internal bundler;
@@ -65,20 +65,20 @@ contract DeployTest is Test {
 
         Deploy.Contracts memory contracts = deploy.runDeploy(params);
 
-        storageRent = contracts.storageRent;
+        storageRegistry = contracts.storageRegistry;
         idRegistry = contracts.idRegistry;
         keyRegistry = contracts.keyRegistry;
         bundler = contracts.bundler;
     }
 
     function test_deploymentParams() public {
-        assertEq(address(storageRent.priceFeed()), priceFeed);
-        assertEq(address(storageRent.uptimeFeed()), uptimeFeed);
-        assertEq(storageRent.deprecationTimestamp(), block.timestamp + deploy.INITIAL_RENTAL_PERIOD());
-        assertEq(storageRent.usdUnitPrice(), deploy.INITIAL_USD_UNIT_PRICE());
-        assertEq(storageRent.maxUnits(), deploy.INITIAL_MAX_UNITS());
-        assertEq(storageRent.priceFeedCacheDuration(), deploy.INITIAL_PRICE_FEED_CACHE_DURATION());
-        assertEq(storageRent.uptimeFeedGracePeriod(), deploy.INITIAL_UPTIME_FEED_GRACE_PERIOD());
+        assertEq(address(storageRegistry.priceFeed()), priceFeed);
+        assertEq(address(storageRegistry.uptimeFeed()), uptimeFeed);
+        assertEq(storageRegistry.deprecationTimestamp(), block.timestamp + deploy.INITIAL_RENTAL_PERIOD());
+        assertEq(storageRegistry.usdUnitPrice(), deploy.INITIAL_USD_UNIT_PRICE());
+        assertEq(storageRegistry.maxUnits(), deploy.INITIAL_MAX_UNITS());
+        assertEq(storageRegistry.priceFeedCacheDuration(), deploy.INITIAL_PRICE_FEED_CACHE_DURATION());
+        assertEq(storageRegistry.uptimeFeedGracePeriod(), deploy.INITIAL_UPTIME_FEED_GRACE_PERIOD());
 
         assertEq(idRegistry.owner(), owner);
 
@@ -88,7 +88,7 @@ contract DeployTest is Test {
 
         assertEq(bundler.owner(), owner);
         assertEq(address(bundler.idRegistry()), address(idRegistry));
-        assertEq(address(bundler.storageRent()), address(storageRent));
+        assertEq(address(bundler.storageRegistry()), address(storageRegistry));
         assertEq(address(bundler.keyRegistry()), address(keyRegistry));
         assertEq(bundler.trustedCaller(), bundlerTrustedCaller);
     }
@@ -100,7 +100,7 @@ contract DeployTest is Test {
         vm.stopPrank();
 
         vm.prank(roleAdmin);
-        storageRent.grantRole(keccak256("OPERATOR_ROLE"), address(bundler));
+        storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), address(bundler));
 
         vm.prank(bundlerTrustedCaller);
         bundler.trustedRegister(alice, bob, 0, "key", "metadata", 1);

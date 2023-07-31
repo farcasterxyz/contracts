@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {StorageRent} from "../src/StorageRent.sol";
+import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {Bundler} from "../src/Bundler.sol";
 import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
@@ -36,7 +36,7 @@ contract Deploy is ImmutableCreate2Deployer {
     }
 
     struct Contracts {
-        StorageRent storageRent;
+        StorageRegistry storageRegistry;
         IdRegistry idRegistry;
         KeyRegistry keyRegistry;
         Bundler bundler;
@@ -47,10 +47,10 @@ contract Deploy is ImmutableCreate2Deployer {
     }
 
     function runDeploy(DeploymentParams memory params) public returns (Contracts memory) {
-        address storageRent = register(
-            "StorageRent",
+        address storageRegistry = register(
+            "StorageRegistry",
             STORAGE_RENT_CREATE2_SALT,
-            type(StorageRent).creationCode,
+            type(StorageRegistry).creationCode,
             abi.encode(
                 params.priceFeed,
                 params.uptimeFeed,
@@ -82,13 +82,15 @@ contract Deploy is ImmutableCreate2Deployer {
             "Bundler",
             BUNDLER_CREATE2_SALT,
             type(Bundler).creationCode,
-            abi.encode(idRegistry, storageRent, keyRegistry, params.bundlerTrustedCaller, params.initialBundlerOwner)
+            abi.encode(
+                idRegistry, storageRegistry, keyRegistry, params.bundlerTrustedCaller, params.initialBundlerOwner
+            )
         );
 
         deploy();
 
         return Contracts({
-            storageRent: StorageRent(storageRent),
+            storageRegistry: StorageRegistry(storageRegistry),
             idRegistry: IdRegistry(idRegistry),
             keyRegistry: KeyRegistry(keyRegistry),
             bundler: Bundler(payable(bundler))
@@ -101,7 +103,7 @@ contract Deploy is ImmutableCreate2Deployer {
         vm.startBroadcast();
         contracts.idRegistry.setTrustedCaller(bundler);
         contracts.keyRegistry.setTrustedCaller(bundler);
-        contracts.storageRent.grantRole(keccak256("OPERATOR_ROLE"), bundler);
+        contracts.storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), bundler);
         vm.stopBroadcast();
     }
 

@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {IdRegistryHarness} from "../Utils.sol";
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
-import {StorageRentTestSuite} from "../StorageRent/StorageRentTestSuite.sol";
+import {StorageRegistryTestSuite} from "../StorageRegistry/StorageRegistryTestSuite.sol";
 import {IdRegistryTestSuite} from "../IdRegistry/IdRegistryTestSuite.sol";
 import {KeyRegistryTestSuite} from "../KeyRegistry/KeyRegistryTestSuite.sol";
 
@@ -11,17 +11,17 @@ import {BundlerHarness} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract BundlerTestSuite is StorageRentTestSuite, KeyRegistryTestSuite {
+abstract contract BundlerTestSuite is StorageRegistryTestSuite, KeyRegistryTestSuite {
     // Instance of the BundleRegistry contract wrapped in its test wrapper
     BundlerHarness bundler;
 
-    function setUp() public override(StorageRentTestSuite, KeyRegistryTestSuite) {
+    function setUp() public override(StorageRegistryTestSuite, KeyRegistryTestSuite) {
         super.setUp();
 
         // Set up the BundleRegistry
         bundler = new BundlerHarness(
             address(idRegistry),
-            address(storageRent),
+            address(storageRegistry),
             address(keyRegistry),
             address(this),
             owner

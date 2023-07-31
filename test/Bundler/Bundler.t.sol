@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import {Bundler} from "../../src/Bundler.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
-import {StorageRent} from "../../src/StorageRent.sol";
+import {StorageRegistry} from "../../src/StorageRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 
@@ -31,8 +31,8 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(bundler.idRegistry()), address(idRegistry));
     }
 
-    function testHasStorageRent() public {
-        assertEq(address(bundler.storageRent()), address(storageRent));
+    function testHasStorageRegistry() public {
+        assertEq(address(bundler.storageRegistry()), address(storageRegistry));
     }
 
     function testHasKeyRegistry() public {
@@ -90,14 +90,14 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
 
-        uint256 storageBefore = storageRent.rentedUnits();
-        storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
+        uint256 storageBefore = storageRegistry.rentedUnits();
+        storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore);
 
         // State: Trusted Registration is disabled in ID registry
         vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
-        uint256 price = storageRent.price(storageUnits);
+        uint256 price = storageRegistry.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory registerSig = _signRegister(accountPk, account, recovery, deadline);
@@ -114,10 +114,10 @@ contract BundlerTest is BundlerTestSuite {
 
         _assertSuccessfulRegistration(account, recovery);
 
-        uint256 storageAfter = storageRent.rentedUnits();
+        uint256 storageAfter = storageRegistry.rentedUnits();
 
         assertEq(storageAfter - storageBefore, storageUnits);
-        assertEq(address(storageRent).balance, price);
+        assertEq(address(storageRegistry).balance, price);
         assertEq(address(bundler).balance, 0 ether);
         assertEq(address(caller).balance, 0 ether);
     }
@@ -134,14 +134,14 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
 
-        uint256 storageBefore = storageRent.rentedUnits();
-        storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
+        uint256 storageBefore = storageRegistry.rentedUnits();
+        storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore);
 
         // State: Trusted Registration is disabled in ID registry
         vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
-        uint256 price = storageRent.price(storageUnits);
+        uint256 price = storageRegistry.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
@@ -151,7 +151,7 @@ contract BundlerTest is BundlerTestSuite {
 
         vm.deal(caller, price);
         vm.prank(caller);
-        vm.expectRevert(StorageRent.InvalidPayment.selector);
+        vm.expectRevert(StorageRegistry.InvalidPayment.selector);
         bundler.register{value: price - delta}(
             Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
             signers,
@@ -171,14 +171,14 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
 
-        uint256 storageBefore = storageRent.rentedUnits();
-        storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
+        uint256 storageBefore = storageRegistry.rentedUnits();
+        storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore);
 
         // State: Trusted Registration is disabled in ID registry
         vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
-        uint256 price = storageRent.price(storageUnits);
+        uint256 price = storageRegistry.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
@@ -196,10 +196,10 @@ contract BundlerTest is BundlerTestSuite {
 
         _assertSuccessfulRegistration(account, recovery);
 
-        uint256 storageAfter = storageRent.rentedUnits();
+        uint256 storageAfter = storageRegistry.rentedUnits();
 
         assertEq(storageAfter - storageBefore, storageUnits);
-        assertEq(address(storageRent).balance, price);
+        assertEq(address(storageRegistry).balance, price);
         assertEq(address(bundler).balance, 0 ether);
         assertEq(address(caller).balance, delta);
     }
@@ -216,12 +216,12 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory key,
         bytes memory metadata
     ) public {
-        uint256 storageBefore = storageRent.rentedUnits();
-        storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
+        uint256 storageBefore = storageRegistry.rentedUnits();
+        storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore);
 
-        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
-        storageRent.grantRole(operatorRoleId, address(bundler));
+        storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         vm.startPrank(owner);
         idRegistry.setTrustedCaller(address(bundler));
@@ -238,10 +238,10 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(keyData.scheme, scheme);
         assertEq(uint256(keyData.state), uint256(1));
 
-        uint256 storageAfter = storageRent.rentedUnits();
+        uint256 storageAfter = storageRegistry.rentedUnits();
 
         assertEq(storageAfter - storageBefore, storageUnits);
-        assertEq(address(storageRent).balance, 0);
+        assertEq(address(storageRegistry).balance, 0);
         assertEq(address(bundler).balance, 0 ether);
     }
 
@@ -256,12 +256,12 @@ contract BundlerTest is BundlerTestSuite {
     ) public {
         vm.assume(caller != bundler.trustedCaller());
 
-        uint256 storageBefore = storageRent.rentedUnits();
-        storageUnits = bound(storageUnits, 1, storageRent.maxUnits() - storageBefore);
+        uint256 storageBefore = storageRegistry.rentedUnits();
+        storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore);
 
-        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
-        storageRent.grantRole(operatorRoleId, address(bundler));
+        storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         vm.startPrank(owner);
         idRegistry.setTrustedCaller(address(bundler));
@@ -280,9 +280,9 @@ contract BundlerTest is BundlerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzTrustedBatchRegister(uint256 registrations, uint256 storageUnits) public {
-        uint256 storageBefore = storageRent.rentedUnits();
+        uint256 storageBefore = storageRegistry.rentedUnits();
         registrations = bound(registrations, 1, 100);
-        storageUnits = bound(storageUnits, 1, (storageRent.maxUnits() - storageBefore) / registrations);
+        storageUnits = bound(storageUnits, 1, (storageRegistry.maxUnits() - storageBefore) / registrations);
 
         // Configure the trusted callers correctly
         vm.startPrank(owner);
@@ -290,9 +290,9 @@ contract BundlerTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
-        storageRent.grantRole(operatorRoleId, address(bundler));
+        storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](registrations);
 
@@ -340,9 +340,9 @@ contract BundlerTest is BundlerTestSuite {
         }
 
         // Check that the correct amount of storage was rented
-        uint256 storageAfter = storageRent.rentedUnits();
+        uint256 storageAfter = storageRegistry.rentedUnits();
         assertEq(storageAfter - storageBefore, storageUnits * registrations);
-        assertEq(address(storageRent).balance, 0);
+        assertEq(address(storageRegistry).balance, 0);
         assertEq(address(bundler).balance, 0 ether);
     }
 
@@ -355,15 +355,15 @@ contract BundlerTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
-        storageRent.grantRole(operatorRoleId, address(bundler));
+        storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](2);
         batchArray[0] =
             Bundler.UserData({to: account, units: 1, scheme: 0, key: "", metadata: "", recovery: address(0)});
 
-        vm.expectRevert(StorageRent.InvalidAmount.selector);
+        vm.expectRevert(StorageRegistry.InvalidAmount.selector);
         bundler.trustedBatchRegister(batchArray);
 
         _assertUnsuccessfulRegistration(account);
@@ -380,9 +380,9 @@ contract BundlerTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
-        storageRent.grantRole(operatorRoleId, address(bundler));
+        storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
         batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0), scheme: 0, key: "", metadata: ""});
@@ -399,9 +399,9 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
-        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
-        storageRent.grantRole(operatorRoleId, address(bundler));
+        storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
         batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0), scheme: 0, key: "", metadata: ""});

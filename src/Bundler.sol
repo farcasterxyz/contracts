@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {IdRegistry} from "./IdRegistry.sol";
-import {StorageRent} from "./StorageRent.sol";
+import {StorageRegistry} from "./StorageRegistry.sol";
 import {KeyRegistry} from "./KeyRegistry.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
@@ -58,12 +58,12 @@ contract Bundler is TrustedCaller {
     IdRegistry public immutable idRegistry;
 
     /**
-     * @dev Address of the StorageRent contract
+     * @dev Address of the StorageRegistry contract
      */
-    StorageRent public immutable storageRent;
+    StorageRegistry public immutable storageRegistry;
 
     /**
-     * @dev Address of the StorageRent contract
+     * @dev Address of the StorageRegistry contract
      */
     KeyRegistry public immutable keyRegistry;
 
@@ -76,19 +76,19 @@ contract Bundler is TrustedCaller {
      *        allowed to register during the bootstrap phase.
      *
      * @param _idRegistry    Address of the IdRegistry contract
-     * @param _storageRent   Address of the StorageRent contract
+     * @param _storageRegistry   Address of the StorageRegistry contract
      * @param _trustedCaller Address that can call trustedRegister and trustedBatchRegister
      * @param _owner         Address that can set the trusted caller
      */
     constructor(
         address _idRegistry,
-        address _storageRent,
+        address _storageRegistry,
         address _keyRegistry,
         address _trustedCaller,
         address _owner
     ) TrustedCaller(_owner) {
         idRegistry = IdRegistry(_idRegistry);
-        storageRent = StorageRent(_storageRent);
+        storageRegistry = StorageRegistry(_storageRegistry);
         keyRegistry = KeyRegistry(_keyRegistry);
         _setTrustedCaller(_trustedCaller);
     }
@@ -114,7 +114,7 @@ contract Bundler is TrustedCaller {
             keyRegistry.addFor(registration.to, signer.scheme, signer.key, signer.metadata, signer.deadline, signer.sig);
         }
 
-        uint256 overpayment = storageRent.rent{value: msg.value}(fid, storageUnits);
+        uint256 overpayment = storageRegistry.rent{value: msg.value}(fid, storageUnits);
 
         if (overpayment > 0) {
             msg.sender.sendNative(overpayment);
@@ -140,7 +140,7 @@ contract Bundler is TrustedCaller {
         // Will revert unless IdRegistry is in the Seedable phase
         uint256 fid = idRegistry.trustedRegister(to, recovery);
         keyRegistry.trustedAdd(to, scheme, key, metadata);
-        storageRent.credit(fid, storageUnits);
+        storageRegistry.credit(fid, storageUnits);
     }
 
     /**
@@ -155,7 +155,7 @@ contract Bundler is TrustedCaller {
         for (uint256 i = 0; i < users.length; i++) {
             uint256 fid = idRegistry.trustedRegister(users[i].to, users[i].recovery);
             keyRegistry.trustedAdd(users[i].to, users[i].scheme, users[i].key, users[i].metadata);
-            storageRent.credit(fid, users[i].units);
+            storageRegistry.credit(fid, users[i].units);
         }
     }
 

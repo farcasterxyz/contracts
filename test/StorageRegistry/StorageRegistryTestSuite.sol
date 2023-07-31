@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {StorageRentHarness, MockPriceFeed, MockUptimeFeed, MockChainlinkFeed, RevertOnReceive} from "../Utils.sol";
+import {StorageRegistryHarness, MockPriceFeed, MockUptimeFeed, MockChainlinkFeed, RevertOnReceive} from "../Utils.sol";
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract StorageRentTestSuite is TestSuiteSetup {
-    StorageRentHarness internal storageRent;
+abstract contract StorageRegistryTestSuite is TestSuiteSetup {
+    StorageRegistryHarness internal storageRegistry;
     MockPriceFeed internal priceFeed;
     MockUptimeFeed internal uptimeFeed;
     RevertOnReceive internal revertOnReceive;
@@ -67,7 +67,7 @@ abstract contract StorageRentTestSuite is TestSuiteSetup {
 
         vm.warp(DEPLOYED_AT);
 
-        storageRent = new StorageRentHarness(
+        storageRegistry = new StorageRegistryHarness(
             priceFeed,
             uptimeFeed,
             INITIAL_RENTAL_PERIOD,
@@ -83,6 +83,6 @@ abstract contract StorageRentTestSuite is TestSuiteSetup {
         addKnownContract(address(priceFeed));
         addKnownContract(address(uptimeFeed));
         addKnownContract(address(revertOnReceive));
-        addKnownContract(address(storageRent));
+        addKnownContract(address(storageRegistry));
     }
 }

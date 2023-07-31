@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {StorageRent} from "../src/StorageRent.sol";
+import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {MockPriceFeed, MockUptimeFeed, MockChainlinkFeed} from "../test/Utils.sol";
 
@@ -43,7 +43,7 @@ contract LocalDeploy is Script {
             KEY_REGISTRY_MIGRATION_GRACE_PERIOD,
             initialKeyRegistryOwner
         );
-        StorageRent storageRent = new StorageRent{ salt: STORAGE_RENT_CREATE2_SALT }(
+        StorageRegistry storageRegistry = new StorageRegistry{ salt: STORAGE_RENT_CREATE2_SALT }(
             priceFeed,
             uptimeFeed,
             INITIAL_RENTAL_PERIOD,
@@ -58,7 +58,7 @@ contract LocalDeploy is Script {
         vm.stopBroadcast();
         console.log("ID Registry: %s", address(idRegistry));
         console.log("Key Registry: %s", address(keyRegistry));
-        console.log("Storage Rent: %s", address(storageRent));
+        console.log("Storage Rent: %s", address(storageRegistry));
     }
 
     /* @dev Make an Anvil RPC call to deploy the same CREATE2 deployer Foundry uses on mainnet. */
