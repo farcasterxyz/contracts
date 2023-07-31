@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import "../TestConstants.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
