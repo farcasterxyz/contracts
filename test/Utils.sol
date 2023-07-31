@@ -6,7 +6,7 @@ import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Inter
 import {FnameResolver} from "../src/FnameResolver.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
-import {StorageRent} from "../src/StorageRent.sol";
+import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {Bundler} from "../src/Bundler.sol";
 
 /* solhint-disable no-empty-blocks */
@@ -14,11 +14,11 @@ import {Bundler} from "../src/Bundler.sol";
 contract BundlerHarness is Bundler {
     constructor(
         address _idRegistry,
-        address _storageRent,
+        address _storageRegistry,
         address _keyRegistry,
         address _trustedCaller,
         address _owner
-    ) Bundler(_idRegistry, _storageRent, _keyRegistry, _trustedCaller, _owner) {}
+    ) Bundler(_idRegistry, _storageRegistry, _keyRegistry, _trustedCaller, _owner) {}
 }
 
 contract FnameResolverHarness is FnameResolver {
@@ -88,7 +88,7 @@ contract KeyRegistryHarness is KeyRegistry {
     }
 }
 
-contract StorageRentHarness is StorageRent {
+contract StorageRegistryHarness is StorageRegistry {
     constructor(
         AggregatorV3Interface _priceFeed,
         AggregatorV3Interface _uptimeFeed,
@@ -101,7 +101,7 @@ contract StorageRentHarness is StorageRent {
         address _operator,
         address _treasurer
     )
-        StorageRent(
+        StorageRegistry(
             _priceFeed,
             _uptimeFeed,
             _rentalPeriod,

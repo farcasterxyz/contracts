@@ -16,7 +16,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
         for (uint256 i = 1; i < 10; i++) {
             address account = vm.addr(i);
             bytes memory sig = _signRegister(i, account, address(0), type(uint40).max);
-            uint256 price = storageRent.price(1);
+            uint256 price = storageRegistry.price(1);
 
             Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
 
@@ -36,9 +36,9 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
-        storageRent.grantRole(operatorRoleId, address(bundler));
+        storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         for (uint256 i = 0; i < 10; i++) {
             address account = address(uint160(i));
@@ -53,9 +53,9 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        bytes32 operatorRoleId = storageRent.operatorRoleId();
+        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
-        storageRent.grantRole(operatorRoleId, address(bundler));
+        storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         for (uint256 i = 0; i < 10; i++) {
             Bundler.UserData[] memory batchArray = new Bundler.UserData[](10);

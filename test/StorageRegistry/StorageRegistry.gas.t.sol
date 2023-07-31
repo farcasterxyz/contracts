@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import {StorageRentTestSuite} from "./StorageRentTestSuite.sol";
+import {StorageRegistryTestSuite} from "./StorageRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract StorageRentGasUsageTest is StorageRentTestSuite {
+contract StorageRegistryGasUsageTest is StorageRegistryTestSuite {
     function testGasRent() public {
         uint256 units = 1;
-        uint256 price = storageRent.price(units);
+        uint256 price = storageRegistry.price(units);
 
         for (uint256 i = 0; i < 10; i++) {
-            storageRent.rent{value: price}(i, units);
+            storageRegistry.rent{value: price}(i, units);
         }
     }
 
@@ -30,11 +30,11 @@ contract StorageRentGasUsageTest is StorageRentTestSuite {
         ids[3] = 4;
         ids[4] = 5;
 
-        uint256 totalCost = storageRent.price(5);
+        uint256 totalCost = storageRegistry.price(5);
         vm.deal(address(this), totalCost * 10);
 
         for (uint256 i = 0; i < 10; i++) {
-            storageRent.batchRent{value: totalCost}(ids, units);
+            storageRegistry.batchRent{value: totalCost}(ids, units);
         }
     }
 
@@ -43,7 +43,7 @@ contract StorageRentGasUsageTest is StorageRentTestSuite {
 
         for (uint256 i = 0; i < 10; i++) {
             vm.prank(operator);
-            storageRent.credit(1, units);
+            storageRegistry.credit(1, units);
         }
     }
 
@@ -57,14 +57,14 @@ contract StorageRentGasUsageTest is StorageRentTestSuite {
 
         for (uint256 i = 0; i < 10; i++) {
             vm.prank(operator);
-            storageRent.batchCredit(ids, 1);
+            storageRegistry.batchCredit(ids, 1);
         }
     }
 
     function testGasContinuousCredit() public {
         for (uint256 i = 0; i < 10; i++) {
             vm.prank(operator);
-            storageRent.continuousCredit(1, 5, 1);
+            storageRegistry.continuousCredit(1, 5, 1);
         }
     }
 
