@@ -44,9 +44,6 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      *      2. Two Register(alice, ..., ...) cannot emit unless a Transfer(..., alice, bob) emits
      *          in between, where bob != alice.
      *
-     *      3. A Register(alice, id, recovery) can only occur if alice approves both the request
-     *         and the recovery parameter, otherwise it could be used to impersonate/grief alice
-     *
      * @param to       The custody address that owns the fid
      * @param id       The fid that was registered.
      * @param recovery The address that can initiate a recovery request for the fid.
@@ -134,8 +131,8 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Register a new Farcaster ID (fid) to any address. A signed message from the address
-     *         must be provided. The address must not have an fid. The contract must be in the
-     *         Registrable (trustedOnly = 0) state.
+     *         must be provided which approves both the to and the recovery. The address must not
+     *         have an fid. The contract must be in the Registrable (trustedOnly = 0) state.
      *
      * @param to       Address which will own the fid.
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
