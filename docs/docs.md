@@ -57,13 +57,14 @@ IdRegistry lets any Ethereum address claim a unique Farcaster ID or `fid`. Fids 
 
 ### Invariants
 
-1. An address can only own one fid at a given time.
-2. Multiple addresses cannot own the same fid at the same time.
-3. If fid n was registered, then all fids from 1...n must also be registered.
+1. One fid per address: An address can only own one fid at a given time.
+2. One address per fid: Multiple addresses cannot own the same fid at the same time.
+3. Sequential IDs: If fid n was registered, then all fids from 1...n must also be registered.
+4. One recovery address: An fid can have only one recovery address.
 
 ### Assumptions
 
-1. `owner` is not malicious.
+1. owner is not malicious.
 
 ### Migration
 
@@ -71,22 +72,22 @@ When deployed, the IdRegistry starts in the Seedable state, where only the trust
 
 ### Administration
 
-The owner can pause and unpause registrations though transfers and recoveries are unaffected.
+The owner can pause and unpause the contract, which pauses registration, transfer, and recovery.
 
 ### State Machine
 
 An fid can exist in three states:
 
 - `seedable` - the fid has never been issued and can be registered by the trusted caller
-- `registerable` - the fid has never been issued and can be registered by anyone
+- `registrable` - the fid has never been issued and can be registered by anyone
 - `registered` - the fid has been issued to an address
 
 ```mermaid
     stateDiagram-v2
         direction LR
-        seedable --> registerable: disable trusted only
+        seedable --> registrable: disable trusted only
         seedable --> registered: trusted register
-        registerable --> registered: register
+        registrable --> registered: register
         registered --> registered: transfer, recover
 ```
 
@@ -102,7 +103,7 @@ The fid state transitions when users take specific actions:
 
 The IdRegistry contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
 
-1. A new IdRegistry contract is deployed in a state where only an owner can register fids.
+1. A new IdRegistry contract is deployed in the seedable state.
 2. The current IdRegistry contract is paused.
 3. The new IdRegistry is seeded with all the registered fids in the old contract.
 4. The KeyRegistry is updated to point to the new IdRegistry.
@@ -111,20 +112,21 @@ The IdRegistry contract may need to be upgraded in case a bug is discovered or t
 
 ## 1.2. Storage Registry
 
-The StorageRegistry contract lets anyone rent units of storage space on Farcaster Hubs for a given fid. Payment must be made in Ethereum to acquire storage for a year. Acquiring storage emits an event that is read off-chain by the Farcaster Hubs, which allocate space to the user. The contract will deprecate itself one year after deployment, and we expect to launch a new contract with updated logic.
+The StorageRegistry contract lets anyone rent units of storage space on Farcaster Hubs for a given fid. Payment must be made in Ethereum to acquire storage for a year. Acquiring storage emits an event that is read off-chain by the Farcaster Hubs, which allocate space to the user. The contract will deprecate itself one year after deployment, and we expect to launch a new contract with updated logic. For more details, see [FIP-6](https://github.com/farcasterxyz/protocol/discussions/98).
 
 ### Pricing
 
-The rental price of a storage unit is fixed in USD but must be paid in ETH. A chainlink price oracle is used to determine the exchange rate. Prices are updated periodically, though checks are in place to avoid updates if prices are stale, out of bounds or if the sequencer was recently restarted.
+The rental price of a storage unit is fixed in USD but must be paid in ETH. A Chainlink price oracle is used to determine the exchange rate. Prices are updated periodically, though checks are in place to revert if prices are stale, out of bounds, or if the sequencer was recently restarted.
 
 A price refresh occurs when a transaction is made after the cache period has passed, which fetches the latest rate from the oracle. All transactions in that block can still pay the old price, and the refreshed price is applied to transactions in future blocks. A manual override is also present which can be used to fix the price and override the oracle.
 
 ### Invariants
 
-1. rentedUnits never exceed maxUnits.
-2. Estimated price equals actual price within a block, i.e. `price(x) == _price(x)`.
-3. price is calculated with fixedEthUsdPrice instead of ethUsdPrice if > 0.
-4. ethUsdPrice is updated from Chainlink no more often than priceFeedCacheDuration, if fixedEthUsdPrice is not set.
+1. Supply: rentedUnits never exceed maxUnits.
+2. Pricing: Estimated price equals actual price within a block, i.e. `price(x) == _price(x)`.
+3. Oracle override: price is calculated with fixedEthUsdPrice instead of ethUsdPrice if fixedEthUsdPrice > 0.
+4. Caching: ethUsdPrice is updated from Chainlink no more often than priceFeedCacheDuration, if fixedEthUsdPrice is not set.
+5. Deprecation: storage cannot be purchased after deprecationTimestamp.
 
 ### Assumptions
 
@@ -134,16 +136,17 @@ A price refresh occurs when a transaction is made after the cache period has pas
 
 ### Migration
 
-The StorageRegistry contract does not contain any special states for migration. Once deployed, the operator can use the credit functions to award storage
-units to fids if necessary.
+The StorageRegistry contract does not contain any special states for migration. Once deployed, the operator can use the credit functions to award storage units to fids if necessary. We intend to use this function to credit existing users with storage.
 
 ### Administration
 
-An `operator` address can credit storage to fids without the payment of rent. This is used for the initial migration to assign storage to existing users, so that their messages aren't auto-expired from Hubs.
+StorageRent defines multiple roles rather than a single owner address.
 
-A `treasurer` address can move funds from the contract to a pre-defined `vault` address, but cannot change this destination. Only the `owner` may change the vault address to a new destination.
+An `operator` role can credit storage to fids without the payment of rent. This is used for the initial migration to assign storage to existing users, so that their messages aren't auto-expired from Hubs.
 
-An `owner` address can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp.
+A `treasurer` role can move funds from the contract to a pre-defined `vault` address, but cannot change this destination. Only the `owner` may change the vault address to a new destination. The `treasurer` may also refresh the oracle price and set the storage unit price in USD.
+
+An `owner` role can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp.
 
 ### Upgradeability
 
@@ -165,10 +168,10 @@ The only scheme today is SCHEME_1 that indicates that a key is an EdDSA key and 
 
 ### Invariants
 
-1. A key can only move to the added state if it was previously in the null state.
-2. A key can only move to the removed state if it was previously in the added state.
-3. A key can only move to the null state if it was previously in the added state, the contract hasn't been migrated, and the action was performed by the owner.
-4. Event invariants are specified in comments above each event.
+1. Addition: A key can only move to the added state if it was previously in the null state.
+2. Removal: A key can only move to the removed state if it was previously in the added state.
+3. Reset: A key can only move to the null state if it was previously in the added state, the contract hasn't been migrated, and the action was performed by the owner.
+4. Events: Event invariants are specified in comments above each event.
 
 ### Assumptions
 
@@ -177,7 +180,7 @@ The only scheme today is SCHEME_1 that indicates that a key is an EdDSA key and 
 
 ### Migration
 
-The KeyRegistry is deployed in the trusted state where keys may not be registered by anyone except the owner. The owner will populate the KeyRegistry with existing state by using bulk operations. Once complete, the owner will call `migrationKeys()` to set a migration timestamp and emit an event. Hubs watch for the `Migrated` event and 24 hours after it is emitted, they cut over to this contract as the source of truth.
+The KeyRegistry is deployed in the trusted state where keys may not be registered by anyone except the owner. The owner will populate the KeyRegistry with existing state by using bulk operations. Once complete, the owner will call `migrateKeys()` to set a migration timestamp and emit an event. Hubs watch for the `Migrated` event and 24 hours after it is emitted, they cut over to this contract as the source of truth.
 
 ### State Machine
 
@@ -230,6 +233,10 @@ The Fname Resolver contract is deployed on L1 Mainnet (chainid: 1).
 # 2.1. Fname Resolver
 
 The Fname Resolver contract validates usernames issued under the \*.fcast.id domain on-chain by implementing [ERC-3668](https://eips.ethereum.org/EIPS/eip-3668) and [ENSIP-10](https://docs.ens.domains/ens-improvement-proposals/ensip-10-wildcard-resolution). The resolver contains the url of the server which issues the usernames and proofs. It maintains a list of valid signers for the server and also validates proofs returned by the server.
+
+### Invariants
+
+1. Authentication: resolving a name always reverts without a valid signature.
 
 ### Administration
 

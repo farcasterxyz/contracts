@@ -49,9 +49,9 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         idRegistry.registerFor(caller, recovery, deadline, sig);
     }
 
-    function _pauseRegistrations() public {
+    function _pause() public {
         vm.prank(owner);
-        idRegistry.pauseRegistration();
+        idRegistry.pause();
         assertEq(idRegistry.paused(), true);
     }
 
