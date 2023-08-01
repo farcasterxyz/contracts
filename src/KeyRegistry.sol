@@ -16,19 +16,7 @@ interface IdRegistryLike {
 /**
  * @title KeyRegistry
  *
- * @notice KeyRegistry allows addresses with an fid to add and remove public keys.
- *
- *         Keys have schemes which indicate how they should be interpreted and used. The only
- *         scheme today is SCHEME_1 which indicates that a key is an EdDSA key and should be
- *         allowed to sign messages on behalf of this fid on Farcaster Hubs.
- *
- *         The invariants of this contract are:
- *
- *         1. A key can only move to the added state if it was previously in the null state.
- *         2. A key can only move to the removed state if it was previously in the added state.
- *         3. A key can only move to the null state if it was previously in the added state, the
- * .         contract hasn't been migrated, and the action was performed by the owner.
- *         4. Event invariants are specified in comments above each event.
+ * @notice See ../docs/docs.md for an overview.
  */
 
 contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
@@ -86,12 +74,12 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *      and accepted over gossip, sync and client apis. Hubs assume the invariants:
      *
      *      1. Add(fid, ..., key, keyBytes, ...) cannot emit if there is an earlier emit with
-     *         Add(fid, ..., key, keyBytes, ...)
+     *         Add(fid, ..., key, keyBytes, ...) and no AdminReset(fid, key, keyBytes) inbetween.
      *
      *      2. Add(fid, ..., key, keyBytes, ...) cannot emit if there is an earlier emit with
-     *         Remove(fid, key, keyBytes)
+     *         Remove(fid, key, keyBytes).
      *
-     *      3. For all Add(..., ..., key, keyBytes, ...) key = keccack(keyBytes)
+     *      3. For all Add(..., ..., key, keyBytes, ...), key = keccack(keyBytes)
      *
      * @param fid       The fid associated with the key.
      * @param scheme    The type of the key.
@@ -104,10 +92,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @dev Emit an event when an fid removes an added key.
      *
-     *      Hubs listen for this, validate that keyBytes is an EdDSA pub key, that scheme == 1 and
-     *      that keyBytes exists in its SignerStore.  keyBytes is marked as removed, messages signed
-     *      by keyBytes with `fid` areinvalid, dropped immediately and no longer accepted. Hubs
-     *      assume the invariants:
+     *      Hubs listen for this, validate that scheme == 1 and keyBytes exists in its SignerStore.
+     *      keyBytes is marked as removed, messages signed by keyBytes with `fid` are invalid,
+     *      dropped immediately and no longer accepted. Hubs assume the invariants:
      *
      *      1. Remove(fid, key, keyBytes cannot emit if there is no earlier emit with
      *         Add(fid, ..., key, keyBytes, ...)

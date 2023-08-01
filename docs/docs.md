@@ -17,7 +17,7 @@ graph TD
 ## Table of Contents
 
 1. [Id Registry](#1-id-registry)
-2. [Storage Registry](#2-storage)
+2. [Storage Registry](#2-storage-registry)
 3. [Key Registry](#3-key-registry)
 4. [Bundler](#4-bundler)
 5. [Fname Resolver](#5-fname-resolver)

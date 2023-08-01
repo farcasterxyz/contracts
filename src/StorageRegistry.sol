@@ -77,7 +77,7 @@ contract StorageRegistry is AccessControlEnumerable {
      *
      *      Hubs listen for this event and increment the units assigned to the fid by 1 for exactly
      *      395 days from the timestamp of this event (1 year + 30 day grace period). Hubs respect
-     *      this even if the fid is not yet issued.
+     *      this even if the fid is not yet issued or invalid (e.g. 0).
      *
      * @param payer     Address of the account paying the storage rent.
      * @param fid       The fid that will receive the storage allocation.
