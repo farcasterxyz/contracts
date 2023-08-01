@@ -16,19 +16,7 @@ interface IdRegistryLike {
 /**
  * @title KeyRegistry
  *
- * @notice KeyRegistry allows addresses with an fid to add and remove public keys.
- *
- *         Keys have schemes which indicate how they should be interpreted and used. The only
- *         scheme today is SCHEME_1 which indicates that a key is an EdDSA key and should be
- *         allowed to sign messages on behalf of this fid on Farcaster Hubs.
- *
- *         The invariants of this contract are:
- *
- *         1. A key can only move to the added state if it was previously in the null state.
- *         2. A key can only move to the removed state if it was previously in the added state.
- *         3. A key can only move to the null state if it was previously in the added state, the
- * .         contract hasn't been migrated, and the action was performed by the owner.
- *         4. Event invariants are specified in comments above each event.
+ * @notice See ../docs/docs.md for an overview.
  */
 
 contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
