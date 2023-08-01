@@ -491,31 +491,6 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
     }
 
-    function testFuzzTransferWhenPaused(address from, uint256 toPk, uint40 _deadline) public {
-        toPk = _boundPk(toPk);
-        address to = vm.addr(toPk);
-        vm.assume(from != to);
-
-        uint256 deadline = _boundDeadline(_deadline);
-        uint256 fid = _register(from);
-        bytes memory sig = _signTransfer(toPk, fid, to, deadline);
-
-        assertEq(idRegistry.getIdCounter(), 1);
-        assertEq(idRegistry.idOf(from), 1);
-        assertEq(idRegistry.idOf(to), 0);
-
-        _pauseRegistrations();
-
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(from, to, 1);
-        vm.prank(from);
-        idRegistry.transfer(to, deadline, sig);
-
-        assertEq(idRegistry.getIdCounter(), 1);
-        assertEq(idRegistry.idOf(from), 0);
-        assertEq(idRegistry.idOf(to), 1);
-    }
-
     function testFuzzTransferDoesntResetRecovery(
         address from,
         uint256 toPk,
@@ -544,6 +519,30 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(from), 0);
         assertEq(idRegistry.idOf(to), 1);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
+    }
+
+    function testFuzzCannotTransferWhenPaused(address from, uint256 toPk, uint40 _deadline) public {
+        toPk = _boundPk(toPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+
+        uint256 deadline = _boundDeadline(_deadline);
+        uint256 fid = _register(from);
+        bytes memory sig = _signTransfer(toPk, fid, to, deadline);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        _pauseRegistrations();
+
+        vm.prank(from);
+        vm.expectRevert("Pausable: paused");
+        idRegistry.transfer(to, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
     }
 
     function testFuzzCannotTransferToAddressWithId(
@@ -636,16 +635,20 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), newRecovery);
     }
 
-    function testFuzzChangeRecoveryAddressWhenPaused(address alice, address oldRecovery, address newRecovery) public {
+    function testFuzzCannotChangeRecoveryAddressWhenPaused(
+        address alice,
+        address oldRecovery,
+        address newRecovery
+    ) public {
+        vm.assume(oldRecovery != newRecovery);
         _registerWithRecovery(alice, oldRecovery);
         _pauseRegistrations();
 
         vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit ChangeRecoveryAddress(1, newRecovery);
+        vm.expectRevert("Pausable: paused");
         idRegistry.changeRecoveryAddress(newRecovery);
 
-        assertEq(idRegistry.getRecoveryOf(1), newRecovery);
+        assertEq(idRegistry.getRecoveryOf(1), oldRecovery);
     }
 
     function testFuzzCannotChangeRecoveryAddressWithoutId(address alice, address bob) public {
@@ -751,7 +754,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
     }
 
-    function testFuzzRecoverWhenPaused(address from, uint256 toPk, uint40 _deadline, address recovery) public {
+    function testFuzzCannotRecoverWhenPaused(address from, uint256 toPk, uint40 _deadline, address recovery) public {
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
         vm.assume(from != to);
@@ -767,12 +770,11 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         vm.prank(recovery);
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(from, to, 1);
+        vm.expectRevert("Pausable: paused");
         idRegistry.recover(from, to, deadline, sig);
 
-        assertEq(idRegistry.idOf(from), 0);
-        assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 

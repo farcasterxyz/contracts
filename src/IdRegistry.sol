@@ -223,7 +223,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /**
      * @dev Transfer the fid to another address without checking invariants.
      */
-    function _unsafeTransfer(uint256 id, address from, address to) internal {
+    function _unsafeTransfer(uint256 id, address from, address to) internal whenNotPaused {
         idOf[to] = id;
         delete idOf[from];
 
@@ -240,7 +240,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      *
      * @param recovery The address which can recover the fid. Set to 0x0 to disable recovery.
      */
-    function changeRecoveryAddress(address recovery) external {
+    function changeRecoveryAddress(address recovery) external whenNotPaused {
         /* Revert if the caller does not own an fid */
         uint256 ownerId = idOf[msg.sender];
         if (ownerId == 0) revert HasNoId();
