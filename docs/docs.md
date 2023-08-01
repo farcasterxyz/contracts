@@ -244,7 +244,7 @@ The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an off-c
 ### Assumptions
 
 - All event history from IdRegistry will be accessible via an OP Mainnet node.
-- OP Mainnet will not re-org or revert transactions once confirmed as `safe` by the sequencer.
+- OP Mainnet will not re-org after 6 confirmations are received.
 
 # 3.1. Hubs
 
@@ -253,4 +253,4 @@ The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an off-c
 ### Assumptions
 
 - All event history from IdRegistry, KeyRegistry and StorageRegistry will be accessible via an OP Mainnet node.
-- OP Mainnet will not re-org or revert transactions once confirmed as `safe` by the sequencer.
+- OP Mainnet will not re-org after 6 confirmations are received.
