@@ -120,7 +120,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *      1. AdminReset(fid, key, keyBytes) cannot emit unless the most recent event for the fid
      *         was Add(fid, ..., key, keyBytes, ...).
      *
-     *      2. For all AdminReset(..., key, keyBytes), key = keccack(keyBytes)
+     *      2. For all AdminReset(..., key, keyBytes), key = keccack(keyBytes).
+     *
+     *      3. AdminReset() cannot emit after Migrated().
      *
      * @param fid       The fid associated with the key.
      * @param key       The key being reset. (indexed as hash)
