@@ -76,8 +76,9 @@ contract StorageRegistry is AccessControlEnumerable {
      * @dev Emit an event when caller pays rent for an fid's storage.
      *
      *      Hubs listen for this event and increment the units assigned to the fid by 1 for exactly
-     *      395 days from the timestamp of this event (1 year + 30 day grace period). Hubs respect
-     *      this even if the fid is not yet issued or invalid (e.g. 0).
+     *      395 days from the timestamp of this event (1 year + 30 day grace period). Hubs track
+     *      this for unregistered fids and will assign storage when the fid is registered. Storage
+     *      credited to fid 0 is a no-op.
      *
      * @param payer     Address of the account paying the storage rent.
      * @param fid       The fid that will receive the storage allocation.
@@ -116,6 +117,12 @@ contract StorageRegistry is AccessControlEnumerable {
 
     /**
      * @dev Emit an event when an owner changes the deprecationTimestamp.
+     *
+     *      Hubs will track this timestamp to determine when the contract is deprecated and the
+     *      next Storage contract should be used. The logic to cutover is still to be determined.
+     *      Hubs assume the following invariants:
+     *
+     *      1. SetDeprecationTimestamp() is only emitted once.
      *
      * @param oldTimestamp The previous deprecationTimestamp.
      * @param newTimestamp The new deprecationTimestamp.
