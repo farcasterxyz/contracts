@@ -1,28 +1,57 @@
 # Farcaster Contracts
 
+Users create accounts by registering with on-chain contracts. Farcaster contracts help set up identity key pairs, signing key pairs, usernames and with acquiring storage on off-chain systems. Contracts are deployed across multiple chains and off-chain services track the state of the these contracts by watching for events.
+
+This documentation is focussed on the contracts but also clarifies assumptions made by off-chain services. For a full overview of the Farcaster protocol, please [read the docs](https://docs.farcaster.xyz/) or watch the [overview videos](https://www.youtube.com/playlist?list=PL0eq1PLf6eUdm35v_840EGLXkVJDhxhcF).
+
 ```mermaid
 
 graph TD
 
-    subgraph Username
-    FR(Fname Registry) --> FS(Fname Server)
+    subgraph ETHL1["Ethereum L1: Mainnet"]
+    FR(Fname Registry)
     end
 
-    subgraph Identity
+    subgraph Offchain["Off-Chain"]
+    FS(Fname Registry)
+    end
+
+    subgraph Hubs["Off-Chain"]
+    Hub1(Hub A)
+    Hub2(Hub B)
+    Hub3(Hub C)
+    end
+
+    subgraph ETHL2["Ethereum L2: OP Mainnet"]
     BN(Bundler) --> IR(Id Registry) & SR(Storage Registry) & KR(Key Registry)
     KR --> IR
     end
+
+
+    ETHL1 --> Offchain
+    ETHL2 --> Offchain
+    Offchain --> Hubs
+    ETHL2 --> Hubs
 ```
 
 ## Table of Contents
 
-1. [Id Registry](#1-id-registry)
-2. [Storage Registry](#2-storage-registry)
-3. [Key Registry](#3-key-registry)
-4. [Bundler](#4-bundler)
-5. [Fname Resolver](#5-fname-resolver)
+1. [L2 Contracts](#1-l2-contracts)
+   1. [Id Registry](#11-id-registry)
+   2. [Storage Registry](#12-storage-registry)
+   3. [Key Registry](#13-key-registry)
+   4. [Bundler](#14-bundler)
+2. [L1 Contracts](#2-l1-contracts)
+   1. [Fname Resolver](#21-fname-resolver)
+3. [Off-chain Systems](#3-off-chain-systems)
+   1. [Fname Registry](#31-fname-registry)
+   2. [Hubs](#32-hubs)
 
-## 1. Id Registry
+# 1. L2 Contracts
+
+The Identity, Storage and Key Registry contracts are deployed on OP Mainnet (chainid: 10).
+
+## 1.1. Id Registry
 
 IdRegistry lets any Ethereum address claim a unique Farcaster ID or `fid`. Fids are unique integers that map 1:1 to an Ethereum address known as the `custody address`. An address can own one fid at a time and transfer it to another address. The custody address may nominate a `recovery address` that can transfer the fid to a new custody address. The custody address can always change or remove the recovery address.
 
@@ -34,7 +63,7 @@ IdRegistry lets any Ethereum address claim a unique Farcaster ID or `fid`. Fids 
 
 ### Assumptions
 
-1. owner is not malicious
+1. `owner` is not malicious.
 
 ### Migration
 
@@ -80,7 +109,7 @@ The IdRegistry contract may need to be upgraded in case a bug is discovered or t
 5. A new Bundler contract is deployed, pointing to the correct contracts.
 6. The new IdRegistry is moved to the registrable state where anyone can register an fid.
 
-# 2. Storage Registry
+## 1.2. Storage Registry
 
 The StorageRegistry contract lets anyone rent units of storage space on Farcaster Hubs for a given fid. Payment must be made in Ethereum to acquire storage for a year. Acquiring storage emits an event that is read off-chain by the Farcaster Hubs, which allocate space to the user. The contract will deprecate itself one year after deployment, and we expect to launch a new contract with updated logic.
 
@@ -126,7 +155,7 @@ The StorageRegistry contract may need to be upgraded in case a bug is discovered
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The new storage contract is unpaused.
 
-# 3. Key Registry
+## 1.3. Key Registry
 
 The Key Registry contract lets addresses with an fid add or remove public keys. Keys added onchain are tracked by Hubs and can be used to sign Farcaster messages. The same key can be added by different fids and can exist in different states. Keys contain a scheme that indicates how they should be interpreted and used. During registration, metadata can also be emitted to provide additional context about the key.
 
@@ -190,14 +219,38 @@ The KeyRegistry contract may need to be upgraded in case a bug is discovered or 
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The contract is set to untrusted state where anyone can register keys.
 
-# 4. Bundler
+## 1.4. Bundler
 
 The Bundler contract lets a caller register an fid, rent storage units and register a key in a single transaction to save gas. It is a simple wrapper around contract methods and contains little logic beyond tracking contract addresses, collecting parameters and invoking the appropriate functions.
 
-# 5. Fname Resolver
+# 2. L1 Contracts
+
+The Fname Resolver contract is deployed on L1 Mainnet (chainid: 1).
+
+# 2.1. Fname Resolver
 
 The Fname Resolver contract validates usernames issued under the \*.fcast.id domain on-chain by implementing [ERC-3668](https://eips.ethereum.org/EIPS/eip-3668) and [ENSIP-10](https://docs.ens.domains/ens-improvement-proposals/ensip-10-wildcard-resolution). The resolver contains the url of the server which issues the usernames and proofs. It maintains a list of valid signers for the server and also validates proofs returned by the server.
 
 ### Administration
 
 An `owner` can update the list of valid signers associated with the server.
+
+# 3. Off-chain Systems
+
+# 3.1. Fname Registry
+
+The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an off-chain server that lets addresses with an fid acquire a unique username. Requests are authenticated by way of a signed message produced by the fid's custody address.
+
+### Assumptions
+
+- All event history from IdRegistry will be accessible via an OP Mainnet node.
+- OP Mainnet will not re-org or revert transactions once confirmed as `safe` by the sequencer.
+
+# 3.1. Hubs
+
+[Hubs](https://docs.farcaster.xyz/protocol/hubs.html) are off-chain servers that store data on behalf of addresses that have registered an fid. They track the IdRegistry to know the addresses that have an fid, the StorageRegistry to find out how many messages they are allowed to store and the KeyRegistry to find out which key pairs can sign messages on behalf of the user.
+
+### Assumptions
+
+- All event history from IdRegistry, KeyRegistry and StorageRegistry will be accessible via an OP Mainnet node.
+- OP Mainnet will not re-org or revert transactions once confirmed as `safe` by the sequencer.
