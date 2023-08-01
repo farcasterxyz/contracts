@@ -96,10 +96,10 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *      keyBytes is marked as removed, messages signed by keyBytes with `fid` are invalid,
      *      dropped immediately and no longer accepted. Hubs assume the invariants:
      *
-     *      1. Remove(fid, key, keyBytes cannot emit if there is no earlier emit with
+     *      1. Remove(fid, key, keyBytes) cannot emit if there is no earlier emit with
      *         Add(fid, ..., key, keyBytes, ...)
      *
-     *      2. Remove(fid, key, keyBytes, ...) cannot emit if there is an earlier emit with
+     *      2. Remove(fid, key, keyBytes) cannot emit if there is an earlier emit with
      *         Remove(fid, key, keyBytes)
      *
      *      3. For all Remove(..., key, keyBytes), key = keccack(keyBytes)
@@ -113,10 +113,14 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @dev Emit an event when an admin resets an added key.
      *
-     *      Hubs listen for this, validate that keyBytes is an EdDSA pub key, that scheme == 1 and
-     *      that keyBytes exists in its SignerStore. keyBytes is no longer tracked, messages signed
-     *      by keyBytes with `fid` are invalid, dropped immediately and not accepted. Unlike Remove
-     *      keyBytes can be added to the SignerStore if an Add() event is observed.
+     *      Hubs listen for this, validate that scheme == 1 and that keyBytes exists in its SignerStore.
+     *      keyBytes is no longer tracked, messages signed by keyBytes with `fid` are invalid, dropped
+     *      immediately and not accepted. Hubs assume the following invariants:
+     *
+     *      1. AdminReset(fid, key, keyBytes) cannot emit unless the most recent event for the fid
+     *         was Add(fid, ..., key, keyBytes, ...).
+     *
+     *      2. For all AdminReset(..., key, keyBytes), key = keccack(keyBytes)
      *
      * @param fid       The fid associated with the key.
      * @param key       The key being reset. (indexed as hash)
