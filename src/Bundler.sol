@@ -75,18 +75,18 @@ contract Bundler is TrustedCaller {
      * @notice Configure the addresses of the Registry contracts and the trusted caller, which is
      *        allowed to register during the bootstrap phase.
      *
-     * @param _idRegistry    Address of the IdRegistry contract
-     * @param _storageRegistry   Address of the StorageRegistry contract
-     * @param _trustedCaller Address that can call trustedRegister and trustedBatchRegister
-     * @param _owner         Address that can set the trusted caller
+     * @param _idRegistry      Address of the IdRegistry contract
+     * @param _storageRegistry Address of the StorageRegistry contract
+     * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
+     * @param _initialOwner    Address that can set the trusted caller
      */
     constructor(
         address _idRegistry,
         address _storageRegistry,
         address _keyRegistry,
         address _trustedCaller,
-        address _owner
-    ) TrustedCaller(_owner) {
+        address _initialOwner
+    ) TrustedCaller(_initialOwner) {
         idRegistry = IdRegistry(_idRegistry);
         storageRegistry = StorageRegistry(_storageRegistry);
         keyRegistry = KeyRegistry(_keyRegistry);

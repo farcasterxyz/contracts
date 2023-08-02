@@ -111,11 +111,11 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /**
      * @notice Set the owner of the contract to the provided _owner.
      *
-     * @param _owner Initial owner address.
+     * @param _initialOwner Initial owner address.
      *
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _owner) TrustedCaller(_owner) EIP712("Farcaster IdRegistry", "1") {}
+    constructor(address _initialOwner) TrustedCaller(_initialOwner) EIP712("Farcaster IdRegistry", "1") {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
