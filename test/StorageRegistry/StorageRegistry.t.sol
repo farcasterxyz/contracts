@@ -323,10 +323,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzRentRevertsIfDeprecated(address msgSender, uint256 id, uint256 units) public {
-        units = bound(units, 1, storageRegistry.maxUnits());
+        units = bound(units, 0, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
         vm.deal(msgSender, price);
 
+        assertEq(storageRegistry.deprecationTimestamp() != 0, true);
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
 
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
@@ -355,7 +356,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testFuzzRentRefundsExcessPayment(uint256 id, uint256 units, uint256 delta) public {
         // Buy between 1 and maxUnits units.
-        units = bound(units, 1, storageRegistry.maxUnits());
+        units = bound(units, 0, storageRegistry.maxUnits());
 
         // Ensure there are units remaining
         uint256 rented = storageRegistry.rentedUnits();
@@ -1653,12 +1654,14 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 id,
         uint256 units
     ) public returns (uint256, uint256, uint256, uint256) {
+        // Ensure that we can rent the number of units requested
         uint256 rented = storageRegistry.rentedUnits();
         uint256 remaining = storageRegistry.maxUnits() - rented;
         vm.assume(remaining > 0);
+
+        // Deal the caller sufficient funds to succeed
         units = bound(units, 1, remaining);
         uint256 price = storageRegistry.price(units);
-        uint256 unitPrice = storageRegistry.unitPrice();
         vm.deal(msgSender, price);
         uint256 balanceBefore = msgSender.balance;
 
@@ -1671,6 +1674,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         uint256 balanceAfter = msgSender.balance;
         uint256 paid = balanceBefore - balanceAfter;
+        uint256 unitPrice = storageRegistry.unitPrice();
         uint256 unitPricePaid = paid / units;
 
         // Expect rented units to increase
