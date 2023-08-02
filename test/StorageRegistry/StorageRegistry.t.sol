@@ -322,7 +322,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.ethUsdPrice(), ethUsdPrice);
     }
 
-    function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
+    function testFuzzRentRevertsIfDeprecated(address msgSender, uint256 id, uint256 units) public {
         units = bound(units, 1, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
         vm.deal(msgSender, price);
@@ -534,7 +534,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.ethUsdPrice(), uint256(newEthUsdPrice));
     }
 
-    function testFuzzBatchRentRevertsAfterDeadline(
+    function testFuzzBatchRentRevertsIfDeprecated(
         address msgSender,
         uint256[] calldata _ids,
         uint16[] calldata _units
@@ -1141,7 +1141,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.credit(fid, units);
     }
 
-    function testFuzzCreditRevertsAfterDeadline(uint256 fid, uint32 units) public {
+    function testFuzzCreditRevertsIfDeprecated(uint256 fid, uint32 units) public {
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
 
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
@@ -1194,7 +1194,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.batchCredit(fids, units);
     }
 
-    function testFuzzBatchCreditRevertsAfterDeadline(uint256[] calldata fids, uint32 _units) public {
+    function testFuzzBatchCreditRevertsIfDeprecated(uint256[] calldata fids, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
 
@@ -1254,7 +1254,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.continuousCredit(start, end, units);
     }
 
-    function testFuzzContinuousCreditRevertsAfterDeadline(uint16 start, uint256 n, uint32 _units) public {
+    function testFuzzContinuousCreditRevertsIfDeprecated(uint16 start, uint256 n, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
         uint256 end = uint256(start) + bound(n, 0, 10000);
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
