@@ -456,7 +456,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
     }
 
     function testFuzzBatchRentCachedPrice(
@@ -489,7 +489,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
 
         // Ensure Chainlink price is in bounds
         newEthUsdPrice = bound(
@@ -502,7 +502,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         warp = bound(warp, 0, storageRegistry.priceFeedCacheDuration());
         vm.warp(block.timestamp + warp);
 
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
 
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), lastPriceFeedUpdate);
         assertEq(storageRegistry.ethUsdPrice(), ethUsdPrice);
@@ -534,7 +534,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
 
         // Ensure Chainlink price is in bounds
         newEthUsdPrice = bound(
@@ -546,7 +546,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
 
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
 
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), block.timestamp);
         assertEq(storageRegistry.ethUsdPrice(), uint256(newEthUsdPrice));
@@ -1237,7 +1237,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzCredit(uint256 fid, uint32 units) public {
-        credit(operator, fid, units);
+        _creditStorage(operator, fid, units);
     }
 
     function testFuzzCreditRevertsExceedsCapacity(uint256 fid, uint32 units) public {
@@ -1281,7 +1281,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testFuzzBatchCredit(uint256[] calldata fids, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
-        batchCredit(fids, units);
+        _batchCreditStorage(fids, units);
     }
 
     function testFuzzBatchCreditRevertsZeroAmount(uint256[] calldata fids) public {
@@ -1331,7 +1331,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testContinuousCredit() public {
         // Simulate the initial seeding of the contract and check that events are emitted.
-        continuousCredit(0, 20_000, 1, true);
+        _continuousCreditStorage(0, 20_000, 1, true);
     }
 
     function testFuzzContinuousCredit(uint16 start, uint256 n, uint32 _units) public {
@@ -1339,7 +1339,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 end = uint256(start) + bound(n, 1, 1_000);
         // Avoid checking for events here since expectEmit can make the fuzzing
         // very slow, rely on testContinuousCredit to validate that instead.
-        continuousCredit(start, end, units, false);
+        _continuousCreditStorage(start, end, units, false);
     }
 
     function testFuzzContinuousCreditRevertsZeroAmount(uint16 start, uint256 n) public {
@@ -1738,7 +1738,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function continuousCredit(uint256 start, uint256 end, uint256 units, bool assertEvents) public {
+    function _continuousCreditStorage(uint256 start, uint256 end, uint256 units, bool assertEvents) public {
         uint256 rented = storageRegistry.rentedUnits();
         uint256 len = end - start;
         uint256 totalUnits = len * units;
@@ -1759,7 +1759,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.rentedUnits(), rented + totalUnits);
     }
 
-    function batchCredit(uint256[] memory ids, uint256 units) public {
+    function _batchCreditStorage(uint256[] memory ids, uint256 units) public {
         uint256 rented = storageRegistry.rentedUnits();
         uint256 totalUnits = ids.length * units;
         vm.assume(totalUnits <= storageRegistry.maxUnits() - storageRegistry.rentedUnits());
@@ -1776,7 +1776,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.rentedUnits(), rented + totalUnits);
     }
 
-    function batchRentStorage(
+    function _batchRentStorage(
         address msgSender,
         uint256[] memory ids,
         uint256[] memory units
@@ -1806,7 +1806,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         return totalCost;
     }
 
-    function credit(address msgSender, uint256 id, uint256 units) public {
+    function _creditStorage(address msgSender, uint256 id, uint256 units) public {
         uint256 rented = storageRegistry.rentedUnits();
         uint256 remaining = storageRegistry.maxUnits() - rented;
         vm.assume(remaining > 0);
