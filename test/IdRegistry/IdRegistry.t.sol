@@ -83,7 +83,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.prank(owner);
         idRegistry.disableTrustedOnly();
-        _pauseRegistrations();
+        _pause();
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
@@ -285,7 +285,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.prank(owner);
         idRegistry.disableTrustedOnly();
 
-        _pauseRegistrations();
+        _pause();
 
         assertEq(idRegistry.getIdCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -385,7 +385,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.getIdCounter(), 0);
 
-        _pauseRegistrations();
+        _pause();
 
         vm.prank(trustedCaller);
         vm.expectRevert("Pausable: paused");
@@ -534,7 +534,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(from), 1);
         assertEq(idRegistry.idOf(to), 0);
 
-        _pauseRegistrations();
+        _pause();
 
         vm.prank(from);
         vm.expectRevert("Pausable: paused");
@@ -642,7 +642,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     ) public {
         vm.assume(oldRecovery != newRecovery);
         _registerWithRecovery(alice, oldRecovery);
-        _pauseRegistrations();
+        _pause();
 
         vm.prank(alice);
         vm.expectRevert("Pausable: paused");
@@ -763,7 +763,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 fid = _registerWithRecovery(from, recovery);
         bytes memory sig = _signTransfer(toPk, fid, to, deadline);
 
-        _pauseRegistrations();
+        _pause();
 
         assertEq(idRegistry.idOf(from), 1);
         assertEq(idRegistry.idOf(to), 0);

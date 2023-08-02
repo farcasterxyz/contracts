@@ -282,16 +282,18 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Pause all registrations. Must be called by the owner.
+     * @notice Pause registration, transfer, and recovery.
+     *         Must be called by the owner.
      */
-    function pauseRegistration() external onlyOwner {
+    function pause() external onlyOwner {
         _pause();
     }
 
     /**
-     * @notice Unpause all registrations. Must be called by the owner.
+     * @notice Unpause registration, transfer, and recovery.
+     *         Must be called by the owner.
      */
-    function unpauseRegistration() external onlyOwner {
+    function unpause() external onlyOwner {
         _unpause();
     }
 
