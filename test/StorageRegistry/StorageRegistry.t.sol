@@ -25,6 +25,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
     event SetMaxAge(uint256 oldAge, uint256 newAge);
+    event SetMinAnswer(uint256 oldPrice, uint256 newPrice);
+    event SetMaxAnswer(uint256 oldPrice, uint256 newPrice);
     event SetGracePeriod(uint256 oldPeriod, uint256 newPeriod);
     event SetVault(address oldVault, address newVault);
     event Withdraw(address indexed to, uint256 amount);
@@ -95,6 +97,14 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.priceFeedMaxAge(), INITIAL_PRICE_FEED_MAX_AGE);
     }
 
+    function testPriceFeedMinAnswerDefault() public {
+        assertEq(storageRegistry.priceFeedMinAnswer(), INITIAL_PRICE_FEED_MIN_ANSWER);
+    }
+
+    function testPriceFeedMaxAnswerDefault() public {
+        assertEq(storageRegistry.priceFeedMaxAnswer(), INITIAL_PRICE_FEED_MAX_ANSWER);
+    }
+
     function testUptimeFeedGracePeriodDefault() public {
         assertEq(storageRegistry.uptimeFeedGracePeriod(), INITIAL_UPTIME_FEED_GRACE_PERIOD);
     }
@@ -109,11 +119,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testInitialPriceUpdate() public {
         // Clear ethUsdPrice storage slot
-        vm.store(address(storageRegistry), bytes32(uint256(11)), bytes32(0));
+        vm.store(address(storageRegistry), bytes32(uint256(13)), bytes32(0));
         assertEq(storageRegistry.ethUsdPrice(), 0);
 
         // Clear prevEthUsdPrice storage slot
-        vm.store(address(storageRegistry), bytes32(uint256(12)), bytes32(0));
+        vm.store(address(storageRegistry), bytes32(uint256(14)), bytes32(0));
         assertEq(storageRegistry.prevEthUsdPrice(), 0);
 
         vm.prank(owner);
@@ -157,8 +167,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 ethUsdPrice = storageRegistry.ethUsdPrice();
         uint256 prevEthUsdPrice = storageRegistry.prevEthUsdPrice();
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         _rentStorage(msgSender1, id1, units1);
 
@@ -189,8 +201,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         _assumeClean(msgSender2);
         uint256 ethUsdPrice = storageRegistry.ethUsdPrice();
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         _rentStorage(msgSender1, id1, units1);
 
@@ -225,7 +239,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         decrease = bound(decrease, 1, ethUsdPrice);
         uint256 newEthUsdPrice = ethUsdPrice - decrease;
-        vm.assume(newEthUsdPrice > 0);
+        vm.assume(newEthUsdPrice >= storageRegistry.priceFeedMinAnswer());
 
         // Set a new ETH/USD price
         priceFeed.setPrice(int256(newEthUsdPrice));
@@ -259,6 +273,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         increase = bound(increase, 1, uint256(type(int256).max) - ethUsdPrice);
         uint256 newEthUsdPrice = ethUsdPrice + increase;
+        vm.assume(newEthUsdPrice < storageRegistry.priceFeedMaxAnswer());
 
         // Set a new ETH/USD price
         priceFeed.setPrice(int256(newEthUsdPrice));
@@ -292,8 +307,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 prevEthUsdPrice = storageRegistry.prevEthUsdPrice();
         uint256 ethUsdPrice = storageRegistry.ethUsdPrice();
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
         fixedPrice = bound(fixedPrice, 10e8, 100_000e8);
 
         _rentStorage(msgSender1, id1, units1);
@@ -308,12 +325,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
 
-        uint256 expectedPrice = storageRegistry.unitPrice();
-
         // Rent succeeds even though price feed is reverting
-        (, uint256 unitPrice,,) = _rentStorage(msgSender2, id2, units2);
-
-        assertEq(unitPrice, expectedPrice);
+        _rentStorage(msgSender2, id2, units2);
 
         // Price feed parameters do not change, since it's not refreshed
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), lastPriceFeedUpdateTime);
@@ -478,8 +491,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         }
         batchRentStorage(msgSender, ids, units);
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         // Set a new ETH/USD price
         priceFeed.setPrice(newEthUsdPrice);
@@ -521,8 +536,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         }
         batchRentStorage(msgSender, ids, units);
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         // Set a new ETH/USD price
         priceFeed.setPrice(newEthUsdPrice);
@@ -807,8 +824,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzUnitPriceRefresh(uint48 usdUnitPrice, int256 ethUsdPrice) public {
-        // Ensure Chainlink price is positive
-        ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        ethUsdPrice = bound(
+            ethUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         priceFeed.setPrice(ethUsdPrice);
         vm.startPrank(owner);
@@ -842,6 +861,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         priceFeed.setPrice(1e18 + 1);
 
         vm.startPrank(owner);
+        storageRegistry.setMaxAnswer(1e20);
         storageRegistry.refreshPrice();
         storageRegistry.setPrice(1);
         vm.stopPrank();
@@ -851,8 +871,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzPrice(uint48 usdUnitPrice, uint128 units, int256 ethUsdPrice) public {
-        // Ensure Chainlink price is positive
-        ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        ethUsdPrice = bound(
+            ethUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         priceFeed.setPrice(ethUsdPrice);
         vm.startPrank(owner);
@@ -891,11 +913,27 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.refreshPrice();
     }
 
-    function testPriceFeedRevertsStaleAnswerByRound() public {
-        // Set stale answeredInRound value
+    function testPriceFeedRevertsInvalidTimestamp() public {
         priceFeed.setRoundData(
             MockChainlinkFeed.RoundData({
-                roundId: 2,
+                roundId: 1,
+                answer: 2000e8,
+                startedAt: block.timestamp,
+                timeStamp: block.timestamp + 1,
+                answeredInRound: 1
+            })
+        );
+        priceFeed.setStubTimeStamp(true);
+
+        vm.expectRevert(StorageRegistry.InvalidRoundTimestamp.selector);
+        vm.prank(owner);
+        storageRegistry.refreshPrice();
+    }
+
+    function testPriceFeedRevertsZeroRoundId() public {
+        priceFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 0,
                 answer: 2000e8,
                 startedAt: block.timestamp,
                 timeStamp: block.timestamp,
@@ -903,7 +941,43 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.StaleAnswer.selector);
+        vm.expectRevert(StorageRegistry.IncompleteRound.selector);
+        vm.prank(owner);
+        storageRegistry.refreshPrice();
+    }
+
+    function testFuzzPriceFeedRevertsAnswerBelowBound(uint256 delta) public {
+        delta = bound(delta, 1, uint256(storageRegistry.priceFeedMinAnswer()) - 1);
+
+        priceFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 1,
+                answer: int256(storageRegistry.priceFeedMinAnswer() - delta),
+                startedAt: block.timestamp,
+                timeStamp: block.timestamp,
+                answeredInRound: 1
+            })
+        );
+
+        vm.expectRevert(StorageRegistry.PriceOutOfBounds.selector);
+        vm.prank(owner);
+        storageRegistry.refreshPrice();
+    }
+
+    function testPriceFeedRevertsAnswerAboveBound(uint256 delta) public {
+        delta = bound(delta, 1, uint256(type(int256).max) - storageRegistry.priceFeedMaxAnswer());
+
+        priceFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 1,
+                answer: int256(storageRegistry.priceFeedMaxAnswer() + delta),
+                startedAt: block.timestamp,
+                timeStamp: block.timestamp,
+                answeredInRound: 1
+            })
+        );
+
+        vm.expectRevert(StorageRegistry.PriceOutOfBounds.selector);
         vm.prank(owner);
         storageRegistry.refreshPrice();
     }
@@ -990,7 +1064,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                UPTIME FEED
     //////////////////////////////////////////////////////////////*/
 
-    function testUptimeFeedRevertsSequencerDown(int256 answer) public {
+    function testFuzzUptimeFeedRevertsSequencerDown(int256 answer) public {
         if (answer == 0) ++answer;
         // Set nonzero answer. It's counterintuitive, but a zero answer
         // means the sequencer is up.
@@ -1009,11 +1083,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.refreshPrice();
     }
 
-    function testUptimeFeedRevertsStaleAnswer() public {
+    function testUptimeFeedRevertsZeroRoundId() public {
         // Set stale answeredInRound value
         uptimeFeed.setRoundData(
             MockChainlinkFeed.RoundData({
-                roundId: 2,
+                roundId: 0,
                 answer: 0,
                 startedAt: block.timestamp,
                 timeStamp: block.timestamp,
@@ -1021,7 +1095,27 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.StaleAnswer.selector);
+        vm.expectRevert(StorageRegistry.IncompleteRound.selector);
+        vm.prank(owner);
+        storageRegistry.refreshPrice();
+    }
+
+    function testFuzzUptimeFeedRevertsInvalidTimestamp(uint256 secondsAhead) public {
+        secondsAhead = bound(secondsAhead, 1, type(uint256).max - block.timestamp);
+
+        // Set timestamp in future
+        uptimeFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 1,
+                answer: 0,
+                startedAt: 0,
+                timeStamp: block.timestamp + secondsAhead,
+                answeredInRound: 1
+            })
+        );
+        uptimeFeed.setStubTimeStamp(true);
+
+        vm.expectRevert(StorageRegistry.InvalidRoundTimestamp.selector);
         vm.prank(owner);
         storageRegistry.refreshPrice();
     }
@@ -1453,6 +1547,68 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setMaxAge(age);
 
         assertEq(storageRegistry.priceFeedMaxAge(), age);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           SET PRICE BOUNDS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyOwnerCanSetMinAnswer(address caller, uint256 answer) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
+        storageRegistry.setMinAnswer(answer);
+    }
+
+    function testFuzzSetMinAnswer(uint256 answer) public {
+        answer = bound(answer, 0, storageRegistry.priceFeedMaxAnswer() - 1);
+        uint256 currentMin = storageRegistry.priceFeedMinAnswer();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetMinAnswer(currentMin, answer);
+
+        vm.prank(owner);
+        storageRegistry.setMinAnswer(answer);
+
+        assertEq(storageRegistry.priceFeedMinAnswer(), answer);
+    }
+
+    function testFuzzCannotSetMinAboveMax(uint256 answer) public {
+        answer = bound(answer, storageRegistry.priceFeedMaxAnswer(), type(uint256).max);
+
+        vm.prank(owner);
+        vm.expectRevert(StorageRegistry.InvalidMinAnswer.selector);
+        storageRegistry.setMinAnswer(answer);
+    }
+
+    function testFuzzOnlyOwnerCanSetMaxAnswer(address caller, uint256 answer) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
+        storageRegistry.setMaxAnswer(answer);
+    }
+
+    function testFuzzSetMaxAnswer(uint256 answer) public {
+        answer = bound(answer, storageRegistry.priceFeedMinAnswer() + 1, type(uint256).max);
+        uint256 currentMax = storageRegistry.priceFeedMaxAnswer();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetMaxAnswer(currentMax, answer);
+
+        vm.prank(owner);
+        storageRegistry.setMaxAnswer(answer);
+
+        assertEq(storageRegistry.priceFeedMaxAnswer(), answer);
+    }
+
+    function testFuzzCannotSetMaxBelowMin(uint256 answer) public {
+        answer = bound(answer, 0, storageRegistry.priceFeedMinAnswer());
+
+        vm.prank(owner);
+        vm.expectRevert(StorageRegistry.InvalidMaxAnswer.selector);
+        storageRegistry.setMaxAnswer(answer);
     }
 
     /*//////////////////////////////////////////////////////////////
