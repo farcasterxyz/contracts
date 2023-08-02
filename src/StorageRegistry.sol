@@ -678,8 +678,7 @@ contract StorageRegistry is AccessControlEnumerable {
      *
      * @param usdPrice The new unit price in USD. Fixed point value with 8 decimals.
      */
-    function setPrice(uint256 usdPrice) external {
-        if (!hasRole(OWNER_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
+    function setPrice(uint256 usdPrice) external onlyOwner {
         emit SetPrice(usdUnitPrice, usdPrice);
         usdUnitPrice = usdPrice;
     }

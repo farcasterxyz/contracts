@@ -144,7 +144,7 @@ StorageRent defines multiple roles rather than a single owner address.
 
 An `operator` role can credit storage to fids without the payment of rent. This is used for the initial migration to assign storage to existing users, so that their messages aren't auto-expired from Hubs.
 
-A `treasurer` role can move funds from the contract to a pre-defined `vault` address, but cannot change this destination. Only the `owner` may change the vault address to a new destination. The `treasurer` may also refresh the oracle price and set the storage unit price in USD.
+A `treasurer` role can move funds from the contract to a pre-defined `vault` address, but cannot change this destination. Only the `owner` may change the vault address to a new destination. The `treasurer` may also refresh the oracle price.
 
 An `owner` role can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp.
 

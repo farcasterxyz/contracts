@@ -1380,11 +1380,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                            SET USD UNIT PRICE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyOwnerOrTreasurerCanSetUSDUnitPrice(address caller, uint256 unitPrice) public {
-        vm.assume(caller != owner && caller != treasurer);
+    function testFuzzOnlyOwnerCanSetUSDUnitPrice(address caller, uint256 unitPrice) public {
+        vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(StorageRegistry.Unauthorized.selector);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setPrice(unitPrice);
     }
 
