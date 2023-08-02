@@ -36,6 +36,8 @@ abstract contract StorageRegistryTestSuite is TestSuiteSetup {
     uint256 internal constant INITIAL_PRICE_FEED_MAX_AGE = 2 hours;
     uint256 internal constant INITIAL_UPTIME_FEED_GRACE_PERIOD = 1 hours;
     uint256 internal constant INITIAL_PRICE_IN_ETH = 0.0025 ether;
+    uint256 internal constant INITIAL_PRICE_FEED_MIN_ANSWER = 100e8; // $100 USD
+    uint256 internal constant INITIAL_PRICE_FEED_MAX_ANSWER = 10_000e8; // $10k USD
 
     function setUp() public virtual override {
         super.setUp();

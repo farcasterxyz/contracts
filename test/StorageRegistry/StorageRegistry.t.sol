@@ -25,6 +25,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     event SetDeprecationTimestamp(uint256 oldTimestamp, uint256 newTimestamp);
     event SetCacheDuration(uint256 oldDuration, uint256 newDuration);
     event SetMaxAge(uint256 oldAge, uint256 newAge);
+    event SetMinAnswer(uint256 oldPrice, uint256 newPrice);
+    event SetMaxAnswer(uint256 oldPrice, uint256 newPrice);
     event SetGracePeriod(uint256 oldPeriod, uint256 newPeriod);
     event SetVault(address oldVault, address newVault);
     event Withdraw(address indexed to, uint256 amount);
@@ -95,6 +97,14 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.priceFeedMaxAge(), INITIAL_PRICE_FEED_MAX_AGE);
     }
 
+    function testPriceFeedMinAnswerDefault() public {
+        assertEq(storageRegistry.priceFeedMinAnswer(), INITIAL_PRICE_FEED_MIN_ANSWER);
+    }
+
+    function testPriceFeedMaxAnswerDefault() public {
+        assertEq(storageRegistry.priceFeedMaxAnswer(), INITIAL_PRICE_FEED_MAX_ANSWER);
+    }
+
     function testUptimeFeedGracePeriodDefault() public {
         assertEq(storageRegistry.uptimeFeedGracePeriod(), INITIAL_UPTIME_FEED_GRACE_PERIOD);
     }
@@ -109,11 +119,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testInitialPriceUpdate() public {
         // Clear ethUsdPrice storage slot
-        vm.store(address(storageRegistry), bytes32(uint256(11)), bytes32(0));
+        vm.store(address(storageRegistry), bytes32(uint256(13)), bytes32(0));
         assertEq(storageRegistry.ethUsdPrice(), 0);
 
         // Clear prevEthUsdPrice storage slot
-        vm.store(address(storageRegistry), bytes32(uint256(12)), bytes32(0));
+        vm.store(address(storageRegistry), bytes32(uint256(14)), bytes32(0));
         assertEq(storageRegistry.prevEthUsdPrice(), 0);
 
         vm.prank(owner);
@@ -129,7 +139,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzRent(address msgSender, uint256 id, uint200 units) public {
-        rentStorage(msgSender, id, units);
+        _rentStorage(msgSender, id, units);
     }
 
     function testFuzzRentRevertsZeroUnits(address msgSender, uint256 id) public {
@@ -157,10 +167,12 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 ethUsdPrice = storageRegistry.ethUsdPrice();
         uint256 prevEthUsdPrice = storageRegistry.prevEthUsdPrice();
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
-        rentStorage(msgSender1, id1, units1);
+        _rentStorage(msgSender1, id1, units1);
 
         // Set a new ETH/USD price
         priceFeed.setPrice(newEthUsdPrice);
@@ -168,7 +180,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         warp = bound(warp, 0, storageRegistry.priceFeedCacheDuration());
         vm.warp(block.timestamp + warp);
 
-        rentStorage(msgSender2, id2, units2);
+        _rentStorage(msgSender2, id2, units2);
 
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), lastPriceFeedUpdateTime);
         assertEq(storageRegistry.lastPriceFeedUpdateBlock(), lastPriceFeedUpdateBlock);
@@ -189,10 +201,12 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         _assumeClean(msgSender2);
         uint256 ethUsdPrice = storageRegistry.ethUsdPrice();
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
-        rentStorage(msgSender1, id1, units1);
+        _rentStorage(msgSender1, id1, units1);
 
         // Set a new ETH/USD price
         priceFeed.setPrice(newEthUsdPrice);
@@ -201,7 +215,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         uint256 expectedPrice = storageRegistry.unitPrice();
 
-        (, uint256 unitPrice,,) = rentStorage(msgSender2, id2, units2);
+        (, uint256 unitPrice,,) = _rentStorage(msgSender2, id2, units2);
 
         assertEq(unitPrice, expectedPrice);
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), block.timestamp);
@@ -225,15 +239,15 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         decrease = bound(decrease, 1, ethUsdPrice);
         uint256 newEthUsdPrice = ethUsdPrice - decrease;
-        vm.assume(newEthUsdPrice > 0);
+        vm.assume(newEthUsdPrice >= storageRegistry.priceFeedMinAnswer());
 
         // Set a new ETH/USD price
         priceFeed.setPrice(int256(newEthUsdPrice));
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
 
-        (, uint256 unitPrice1,, uint256 unitPricePaid1) = rentStorage(msgSender1, id1, units1);
-        (, uint256 unitPrice2,, uint256 unitPricePaid2) = rentStorage(msgSender2, id2, units2);
+        (, uint256 unitPrice1,, uint256 unitPricePaid1) = _rentStorage(msgSender1, id1, units1);
+        (, uint256 unitPrice2,, uint256 unitPricePaid2) = _rentStorage(msgSender2, id2, units2);
 
         assertEq(unitPrice1, unitPrice2);
         assertEq(unitPricePaid1, unitPricePaid2);
@@ -259,14 +273,15 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         increase = bound(increase, 1, uint256(type(int256).max) - ethUsdPrice);
         uint256 newEthUsdPrice = ethUsdPrice + increase;
+        vm.assume(newEthUsdPrice < storageRegistry.priceFeedMaxAnswer());
 
         // Set a new ETH/USD price
         priceFeed.setPrice(int256(newEthUsdPrice));
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
 
-        (, uint256 unitPrice1,, uint256 unitPricePaid1) = rentStorage(msgSender1, id1, units1);
-        (, uint256 unitPrice2,, uint256 unitPricePaid2) = rentStorage(msgSender2, id2, units2);
+        (, uint256 unitPrice1,, uint256 unitPricePaid1) = _rentStorage(msgSender1, id1, units1);
+        (, uint256 unitPrice2,, uint256 unitPricePaid2) = _rentStorage(msgSender2, id2, units2);
 
         assertEq(unitPrice1, unitPrice2);
         assertEq(unitPricePaid1, unitPricePaid2);
@@ -292,11 +307,13 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 prevEthUsdPrice = storageRegistry.prevEthUsdPrice();
         uint256 ethUsdPrice = storageRegistry.ethUsdPrice();
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
         fixedPrice = bound(fixedPrice, 10e8, 100_000e8);
 
-        rentStorage(msgSender1, id1, units1);
+        _rentStorage(msgSender1, id1, units1);
 
         // Update the Chainlink price and fake a failure
         priceFeed.setPrice(newEthUsdPrice);
@@ -308,12 +325,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
 
-        uint256 expectedPrice = storageRegistry.unitPrice();
-
         // Rent succeeds even though price feed is reverting
-        (, uint256 unitPrice,,) = rentStorage(msgSender2, id2, units2);
-
-        assertEq(unitPrice, expectedPrice);
+        _rentStorage(msgSender2, id2, units2);
 
         // Price feed parameters do not change, since it's not refreshed
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), lastPriceFeedUpdateTime);
@@ -322,11 +335,12 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.ethUsdPrice(), ethUsdPrice);
     }
 
-    function testFuzzRentRevertsAfterDeadline(address msgSender, uint256 id, uint256 units) public {
-        units = bound(units, 1, storageRegistry.maxUnits());
+    function testFuzzRentRevertsIfDeprecated(address msgSender, uint256 id, uint256 units) public {
+        units = bound(units, 0, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
         vm.deal(msgSender, price);
 
+        assertEq(storageRegistry.deprecationTimestamp() != 0, true);
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
 
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
@@ -340,6 +354,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 units,
         uint256 delta
     ) public {
+        uint256 rentedUnits = storageRegistry.rentedUnits();
         units = bound(units, 1, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
         uint256 value = price - bound(delta, 1, price);
@@ -348,11 +363,13 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectRevert(StorageRegistry.InvalidPayment.selector);
         vm.prank(msgSender);
         storageRegistry.rent{value: value}(id, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
     }
 
     function testFuzzRentRefundsExcessPayment(uint256 id, uint256 units, uint256 delta) public {
         // Buy between 1 and maxUnits units.
-        units = bound(units, 1, storageRegistry.maxUnits());
+        units = bound(units, 0, storageRegistry.maxUnits());
 
         // Ensure there are units remaining
         uint256 rented = storageRegistry.rentedUnits();
@@ -371,6 +388,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         storageRegistry.rent{value: price + extra}(id, units);
 
+        assertEq(storageRegistry.rentedUnits(), rented + units);
         assertEq(address(this).balance, extra);
     }
 
@@ -409,6 +427,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectRevert(StorageRegistry.ExceedsCapacity.selector);
         vm.prank(msgSender);
         storageRegistry.rent{value: price}(id, units);
+
+        assertEq(storageRegistry.rentedUnits(), maxUnits);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -436,7 +456,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
     }
 
     function testFuzzBatchRentCachedPrice(
@@ -469,10 +489,12 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         // Set a new ETH/USD price
         priceFeed.setPrice(newEthUsdPrice);
@@ -480,7 +502,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         warp = bound(warp, 0, storageRegistry.priceFeedCacheDuration());
         vm.warp(block.timestamp + warp);
 
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
 
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), lastPriceFeedUpdate);
         assertEq(storageRegistry.ethUsdPrice(), ethUsdPrice);
@@ -512,31 +534,34 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
 
-        // Ensure Chainlink price is positive
-        newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        newEthUsdPrice = bound(
+            newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         // Set a new ETH/USD price
         priceFeed.setPrice(newEthUsdPrice);
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
 
-        batchRentStorage(msgSender, ids, units);
+        _batchRentStorage(msgSender, ids, units);
 
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), block.timestamp);
         assertEq(storageRegistry.ethUsdPrice(), uint256(newEthUsdPrice));
     }
 
-    function testFuzzBatchRentRevertsAfterDeadline(
+    function testFuzzBatchRentRevertsIfDeprecated(
         address msgSender,
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
-        vm.startPrank(owner);
+        vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
-        vm.stopPrank();
+        uint256 rentedUnits = storageRegistry.rentedUnits();
 
+        // Ensure that ids and units are of the same length
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
         for (uint256 i; i < length; ++i) {
@@ -546,7 +571,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
+
+        // Ensure that the contract is deprecated
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
+
+        // Deal enough funds to complete the transaction
         uint256 totalUnits;
         for (uint256 i; i < units.length; ++i) {
             totalUnits += units[i];
@@ -554,27 +583,38 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 totalCost = storageRegistry.price(totalUnits);
         vm.assume(totalUnits <= storageRegistry.maxUnits() - storageRegistry.rentedUnits());
         vm.deal(msgSender, totalCost);
+
         vm.prank(msgSender);
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
         storageRegistry.batchRent{value: totalCost}(ids, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
     }
 
     function testFuzzBatchRentRevertsEmptyArray(
         address msgSender,
         uint256[] memory ids,
         uint256[] memory units,
-        bool emptyIds
+        uint256 emptyState
     ) public {
-        // Switch on emptyIds and set one array to length zero.
-        if (emptyIds) {
+        uint256 rentedUnits = storageRegistry.rentedUnits();
+
+        // Switch on emptyState and set one or both arrays to empty
+        emptyState = bound(emptyState, 1, 3);
+        if (emptyState == 1) {
             ids = new uint256[](0);
+        } else if (emptyState == 2) {
+            units = new uint256[](0);
         } else {
+            ids = new uint256[](0);
             units = new uint256[](0);
         }
 
         vm.prank(msgSender);
         vm.expectRevert(StorageRegistry.InvalidBatchInput.selector);
         storageRegistry.batchRent{value: 0}(ids, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
     }
 
     function testFuzzBatchRentRevertsMismatchedArrayLength(
@@ -582,9 +622,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
-        vm.startPrank(owner);
+        uint256 rentedUnits = storageRegistry.rentedUnits();
+        vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
-        vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
@@ -609,6 +649,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.prank(msgSender);
         vm.expectRevert(StorageRegistry.InvalidBatchInput.selector);
         storageRegistry.batchRent{value: totalCost}(ids, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
     }
 
     function testFuzzBatchRentRevertsInsufficientPayment(
@@ -622,9 +664,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.startPrank(owner);
+        vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
-        vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
@@ -800,8 +841,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzUnitPriceRefresh(uint48 usdUnitPrice, int256 ethUsdPrice) public {
-        // Ensure Chainlink price is positive
-        ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        ethUsdPrice = bound(
+            ethUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         priceFeed.setPrice(ethUsdPrice);
         vm.startPrank(owner);
@@ -835,6 +878,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         priceFeed.setPrice(1e18 + 1);
 
         vm.startPrank(owner);
+        storageRegistry.setMaxAnswer(1e20);
         storageRegistry.refreshPrice();
         storageRegistry.setPrice(1);
         vm.stopPrank();
@@ -844,8 +888,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzPrice(uint48 usdUnitPrice, uint128 units, int256 ethUsdPrice) public {
-        // Ensure Chainlink price is positive
-        ethUsdPrice = bound(ethUsdPrice, 1, type(int256).max);
+        // Ensure Chainlink price is in bounds
+        ethUsdPrice = bound(
+            ethUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
+        );
 
         priceFeed.setPrice(ethUsdPrice);
         vm.startPrank(owner);
@@ -884,11 +930,27 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.refreshPrice();
     }
 
-    function testPriceFeedRevertsStaleAnswerByRound() public {
-        // Set stale answeredInRound value
+    function testPriceFeedRevertsInvalidTimestamp() public {
         priceFeed.setRoundData(
             MockChainlinkFeed.RoundData({
-                roundId: 2,
+                roundId: 1,
+                answer: 2000e8,
+                startedAt: block.timestamp,
+                timeStamp: block.timestamp + 1,
+                answeredInRound: 1
+            })
+        );
+        priceFeed.setStubTimeStamp(true);
+
+        vm.expectRevert(StorageRegistry.InvalidRoundTimestamp.selector);
+        vm.prank(owner);
+        storageRegistry.refreshPrice();
+    }
+
+    function testPriceFeedRevertsZeroRoundId() public {
+        priceFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 0,
                 answer: 2000e8,
                 startedAt: block.timestamp,
                 timeStamp: block.timestamp,
@@ -896,7 +958,43 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.StaleAnswer.selector);
+        vm.expectRevert(StorageRegistry.IncompleteRound.selector);
+        vm.prank(owner);
+        storageRegistry.refreshPrice();
+    }
+
+    function testFuzzPriceFeedRevertsAnswerBelowBound(uint256 delta) public {
+        delta = bound(delta, 1, uint256(storageRegistry.priceFeedMinAnswer()) - 1);
+
+        priceFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 1,
+                answer: int256(storageRegistry.priceFeedMinAnswer() - delta),
+                startedAt: block.timestamp,
+                timeStamp: block.timestamp,
+                answeredInRound: 1
+            })
+        );
+
+        vm.expectRevert(StorageRegistry.PriceOutOfBounds.selector);
+        vm.prank(owner);
+        storageRegistry.refreshPrice();
+    }
+
+    function testPriceFeedRevertsAnswerAboveBound(uint256 delta) public {
+        delta = bound(delta, 1, uint256(type(int256).max) - storageRegistry.priceFeedMaxAnswer());
+
+        priceFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 1,
+                answer: int256(storageRegistry.priceFeedMaxAnswer() + delta),
+                startedAt: block.timestamp,
+                timeStamp: block.timestamp,
+                answeredInRound: 1
+            })
+        );
+
+        vm.expectRevert(StorageRegistry.PriceOutOfBounds.selector);
         vm.prank(owner);
         storageRegistry.refreshPrice();
     }
@@ -983,7 +1081,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                UPTIME FEED
     //////////////////////////////////////////////////////////////*/
 
-    function testUptimeFeedRevertsSequencerDown(int256 answer) public {
+    function testFuzzUptimeFeedRevertsSequencerDown(int256 answer) public {
         if (answer == 0) ++answer;
         // Set nonzero answer. It's counterintuitive, but a zero answer
         // means the sequencer is up.
@@ -1002,11 +1100,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.refreshPrice();
     }
 
-    function testUptimeFeedRevertsStaleAnswer() public {
+    function testUptimeFeedRevertsZeroRoundId() public {
         // Set stale answeredInRound value
         uptimeFeed.setRoundData(
             MockChainlinkFeed.RoundData({
-                roundId: 2,
+                roundId: 0,
                 answer: 0,
                 startedAt: block.timestamp,
                 timeStamp: block.timestamp,
@@ -1014,7 +1112,27 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
             })
         );
 
-        vm.expectRevert(StorageRegistry.StaleAnswer.selector);
+        vm.expectRevert(StorageRegistry.IncompleteRound.selector);
+        vm.prank(owner);
+        storageRegistry.refreshPrice();
+    }
+
+    function testFuzzUptimeFeedRevertsInvalidTimestamp(uint256 secondsAhead) public {
+        secondsAhead = bound(secondsAhead, 1, type(uint256).max - block.timestamp);
+
+        // Set timestamp in future
+        uptimeFeed.setRoundData(
+            MockChainlinkFeed.RoundData({
+                roundId: 1,
+                answer: 0,
+                startedAt: 0,
+                timeStamp: block.timestamp + secondsAhead,
+                answeredInRound: 1
+            })
+        );
+        uptimeFeed.setStubTimeStamp(true);
+
+        vm.expectRevert(StorageRegistry.InvalidRoundTimestamp.selector);
         vm.prank(owner);
         storageRegistry.refreshPrice();
     }
@@ -1119,7 +1237,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzCredit(uint256 fid, uint32 units) public {
-        credit(operator, fid, units);
+        _creditStorage(operator, fid, units);
     }
 
     function testFuzzCreditRevertsExceedsCapacity(uint256 fid, uint32 units) public {
@@ -1135,7 +1253,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.credit(fid, units);
     }
 
-    function testFuzzCreditRevertsAfterDeadline(uint256 fid, uint32 units) public {
+    function testFuzzCreditRevertsIfDeprecated(uint256 fid, uint32 units) public {
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
 
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
@@ -1163,7 +1281,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testFuzzBatchCredit(uint256[] calldata fids, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
-        batchCredit(fids, units);
+        _batchCreditStorage(fids, units);
     }
 
     function testFuzzBatchCreditRevertsZeroAmount(uint256[] calldata fids) public {
@@ -1188,7 +1306,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.batchCredit(fids, units);
     }
 
-    function testFuzzBatchCreditRevertsAfterDeadline(uint256[] calldata fids, uint32 _units) public {
+    function testFuzzBatchCreditRevertsIfDeprecated(uint256[] calldata fids, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
 
@@ -1213,7 +1331,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testContinuousCredit() public {
         // Simulate the initial seeding of the contract and check that events are emitted.
-        continuousCredit(0, 20_000, 1, true);
+        _continuousCreditStorage(0, 20_000, 1, true);
     }
 
     function testFuzzContinuousCredit(uint16 start, uint256 n, uint32 _units) public {
@@ -1221,7 +1339,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 end = uint256(start) + bound(n, 1, 1_000);
         // Avoid checking for events here since expectEmit can make the fuzzing
         // very slow, rely on testContinuousCredit to validate that instead.
-        continuousCredit(start, end, units, false);
+        _continuousCreditStorage(start, end, units, false);
     }
 
     function testFuzzContinuousCreditRevertsZeroAmount(uint16 start, uint256 n) public {
@@ -1248,7 +1366,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.continuousCredit(start, end, units);
     }
 
-    function testFuzzContinuousCreditRevertsAfterDeadline(uint16 start, uint256 n, uint32 _units) public {
+    function testFuzzContinuousCreditRevertsIfDeprecated(uint16 start, uint256 n, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
         uint256 end = uint256(start) + bound(n, 0, 10000);
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
@@ -1449,6 +1567,68 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
+                           SET PRICE BOUNDS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyOwnerCanSetMinAnswer(address caller, uint256 answer) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
+        storageRegistry.setMinAnswer(answer);
+    }
+
+    function testFuzzSetMinAnswer(uint256 answer) public {
+        answer = bound(answer, 0, storageRegistry.priceFeedMaxAnswer() - 1);
+        uint256 currentMin = storageRegistry.priceFeedMinAnswer();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetMinAnswer(currentMin, answer);
+
+        vm.prank(owner);
+        storageRegistry.setMinAnswer(answer);
+
+        assertEq(storageRegistry.priceFeedMinAnswer(), answer);
+    }
+
+    function testFuzzCannotSetMinAboveMax(uint256 answer) public {
+        answer = bound(answer, storageRegistry.priceFeedMaxAnswer(), type(uint256).max);
+
+        vm.prank(owner);
+        vm.expectRevert(StorageRegistry.InvalidMinAnswer.selector);
+        storageRegistry.setMinAnswer(answer);
+    }
+
+    function testFuzzOnlyOwnerCanSetMaxAnswer(address caller, uint256 answer) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
+        storageRegistry.setMaxAnswer(answer);
+    }
+
+    function testFuzzSetMaxAnswer(uint256 answer) public {
+        answer = bound(answer, storageRegistry.priceFeedMinAnswer() + 1, type(uint256).max);
+        uint256 currentMax = storageRegistry.priceFeedMaxAnswer();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetMaxAnswer(currentMax, answer);
+
+        vm.prank(owner);
+        storageRegistry.setMaxAnswer(answer);
+
+        assertEq(storageRegistry.priceFeedMaxAnswer(), answer);
+    }
+
+    function testFuzzCannotSetMaxBelowMin(uint256 answer) public {
+        answer = bound(answer, 0, storageRegistry.priceFeedMinAnswer());
+
+        vm.prank(owner);
+        vm.expectRevert(StorageRegistry.InvalidMaxAnswer.selector);
+        storageRegistry.setMaxAnswer(answer);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             SET GRACE PERIOD
     //////////////////////////////////////////////////////////////*/
 
@@ -1508,7 +1688,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     function testFuzzWithdrawal(address msgSender, uint256 id, uint200 units, uint256 amount) public {
         uint256 balanceBefore = address(vault).balance;
 
-        rentStorage(msgSender, id, units);
+        _rentStorage(msgSender, id, units);
 
         // Don't withdraw more than the contract balance
         amount = bound(amount, 0, address(storageRegistry).balance);
@@ -1558,7 +1738,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function continuousCredit(uint256 start, uint256 end, uint256 units, bool assertEvents) public {
+    function _continuousCreditStorage(uint256 start, uint256 end, uint256 units, bool assertEvents) public {
         uint256 rented = storageRegistry.rentedUnits();
         uint256 len = end - start;
         uint256 totalUnits = len * units;
@@ -1579,7 +1759,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.rentedUnits(), rented + totalUnits);
     }
 
-    function batchCredit(uint256[] memory ids, uint256 units) public {
+    function _batchCreditStorage(uint256[] memory ids, uint256 units) public {
         uint256 rented = storageRegistry.rentedUnits();
         uint256 totalUnits = ids.length * units;
         vm.assume(totalUnits <= storageRegistry.maxUnits() - storageRegistry.rentedUnits());
@@ -1596,7 +1776,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.rentedUnits(), rented + totalUnits);
     }
 
-    function batchRentStorage(
+    function _batchRentStorage(
         address msgSender,
         uint256[] memory ids,
         uint256[] memory units
@@ -1622,10 +1802,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         // Expect rented units to increase
         assertEq(storageRegistry.rentedUnits(), rented + totalUnits);
+        assertEq(storageRegistry.rentedUnits() <= storageRegistry.maxUnits(), true);
         return totalCost;
     }
 
-    function credit(address msgSender, uint256 id, uint256 units) public {
+    function _creditStorage(address msgSender, uint256 id, uint256 units) public {
         uint256 rented = storageRegistry.rentedUnits();
         uint256 remaining = storageRegistry.maxUnits() - rented;
         vm.assume(remaining > 0);
@@ -1642,17 +1823,19 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.rentedUnits(), rented + units);
     }
 
-    function rentStorage(
+    function _rentStorage(
         address msgSender,
         uint256 id,
         uint256 units
     ) public returns (uint256, uint256, uint256, uint256) {
+        // Ensure that we can rent the number of units requested
         uint256 rented = storageRegistry.rentedUnits();
         uint256 remaining = storageRegistry.maxUnits() - rented;
         vm.assume(remaining > 0);
+
+        // Deal the caller sufficient funds to succeed
         units = bound(units, 1, remaining);
         uint256 price = storageRegistry.price(units);
-        uint256 unitPrice = storageRegistry.unitPrice();
         vm.deal(msgSender, price);
         uint256 balanceBefore = msgSender.balance;
 
@@ -1665,6 +1848,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         uint256 balanceAfter = msgSender.balance;
         uint256 paid = balanceBefore - balanceAfter;
+        uint256 unitPrice = storageRegistry.unitPrice();
         uint256 unitPricePaid = paid / units;
 
         // Expect rented units to increase

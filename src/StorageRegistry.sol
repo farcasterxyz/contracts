@@ -41,6 +41,12 @@ contract StorageRegistry is AccessControlEnumerable {
     /// @dev Revert if the data feed round is incomplete and has not yet generated an answer.
     error IncompleteRound();
 
+    /// @dev Revert if the price feed returns a timestamp in the future.
+    error InvalidRoundTimestamp();
+
+    /// @dev Revert if the price feed returns a value greater than the min/max bound.
+    error PriceOutOfBounds();
+
     /// @dev Revert if the price feed returns a zero or negative price.
     error InvalidPrice();
 
@@ -52,6 +58,12 @@ contract StorageRegistry is AccessControlEnumerable {
 
     /// @dev Revert if the deprecation timestamp parameter is in the past.
     error InvalidDeprecationTimestamp();
+
+    /// @dev Revert if the priceFeedMinAnswer parameter is greater than or equal to priceFeedMaxAnswer.
+    error InvalidMinAnswer();
+
+    /// @dev Revert if the priceFeedMaxAnswer parameter is less than or equal to priceFeedMinAnswer.
+    error InvalidMaxAnswer();
 
     /// @dev Revert if the caller is not an owner.
     error NotOwner();
@@ -146,6 +158,22 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetMaxAge(uint256 oldAge, uint256 newAge);
 
     /**
+     * @dev Emit an event when an owner changes the priceFeedMinAnswer.
+     *
+     * @param oldPrice The previous priceFeedMinAnswer.
+     * @param newPrice The new priceFeedMaxAnswer.
+     */
+    event SetMinAnswer(uint256 oldPrice, uint256 newPrice);
+
+    /**
+     * @dev Emit an event when an owner changes the priceFeedMaxAnswer.
+     *
+     * @param oldPrice The previous priceFeedMaxAnswer.
+     * @param newPrice The new priceFeedMaxAnswer.
+     */
+    event SetMaxAnswer(uint256 oldPrice, uint256 newPrice);
+
+    /**
      * @dev Emit an event when an owner changes the uptimeFeedGracePeriod.
      *
      * @param oldPeriod The previous uptimeFeedGracePeriod.
@@ -230,6 +258,16 @@ contract StorageRegistry is AccessControlEnumerable {
      * @dev Max age of a price feed answer before it is considered stale. Changeable by owner.
      */
     uint256 public priceFeedMaxAge;
+
+    /**
+     * @dev Lower bound on acceptable price feed answer. Changeable by owner.
+     */
+    uint256 public priceFeedMinAnswer;
+
+    /**
+     * @dev Upper bound on acceptable price feed answer. Changeable by owner.
+     */
+    uint256 public priceFeedMaxAnswer;
 
     /**
      * @dev Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
@@ -321,6 +359,12 @@ contract StorageRegistry is AccessControlEnumerable {
 
         uptimeFeedGracePeriod = 1 hours;
         emit SetGracePeriod(0, 1 hours);
+
+        priceFeedMinAnswer = 100e8; // 100 USD / ETH
+        emit SetMinAnswer(0, 100e8);
+
+        priceFeedMaxAnswer = 10_000e8; // 10_000 USD / ETH
+        emit SetMaxAnswer(0, 10_000e8);
 
         vault = _initialVault;
         emit SetVault(address(0), _initialVault);
@@ -510,16 +554,12 @@ contract StorageRegistry is AccessControlEnumerable {
      */
     function _refreshPrice() internal {
         /* Get and validate the L2 sequencer status. */
-        (
-            uint80 uptimeRoundId,
-            int256 sequencerUp,
-            uint256 uptimeStartedAt,
-            uint256 uptimeUpdatedAt,
-            uint80 uptimeAnsweredInRound
-        ) = uptimeFeed.latestRoundData();
+        (uint80 uptimeRoundId, int256 sequencerUp, uint256 uptimeStartedAt, uint256 uptimeUpdatedAt,) =
+            uptimeFeed.latestRoundData();
         if (sequencerUp != 0) revert SequencerDown();
+        if (uptimeRoundId == 0) revert IncompleteRound();
         if (uptimeUpdatedAt == 0) revert IncompleteRound();
-        if (uptimeAnsweredInRound < uptimeRoundId) revert StaleAnswer();
+        if (uptimeUpdatedAt > block.timestamp) revert InvalidRoundTimestamp();
 
         /* If the L2 sequencer recently restarted, ensure the grace period has elapsed. */
         uint256 timeSinceUp = block.timestamp - uptimeStartedAt;
@@ -537,12 +577,13 @@ contract StorageRegistry is AccessControlEnumerable {
          */
 
         // slither-disable-next-line unused-return
-        (uint80 priceRoundId, int256 answer,, uint256 priceUpdatedAt, uint80 priceAnsweredInRound) =
-            priceFeed.latestRoundData();
+        (uint80 priceRoundId, int256 answer,, uint256 priceUpdatedAt,) = priceFeed.latestRoundData();
         if (answer <= 0) revert InvalidPrice();
+        if (priceRoundId == 0) revert IncompleteRound();
         if (priceUpdatedAt == 0) revert IncompleteRound();
-        if (priceAnsweredInRound < priceRoundId) revert StaleAnswer();
+        if (priceUpdatedAt > block.timestamp) revert InvalidRoundTimestamp();
         if (block.timestamp - priceUpdatedAt > priceFeedMaxAge) revert StaleAnswer();
+        if (uint256(answer) < priceFeedMinAnswer || uint256(answer) > priceFeedMaxAnswer) revert PriceOutOfBounds();
 
         /* Set the last update timestamp and block. */
         lastPriceFeedUpdateTime = block.timestamp;
@@ -696,6 +737,28 @@ contract StorageRegistry is AccessControlEnumerable {
     function setMaxAge(uint256 age) external onlyOwner {
         emit SetMaxAge(priceFeedMaxAge, age);
         priceFeedMaxAge = age;
+    }
+
+    /**
+     * @notice Change the priceFeedMinAnswer. Only callable by owner.
+     *
+     * @param minPrice The new priceFeedMinAnswer.
+     */
+    function setMinAnswer(uint256 minPrice) external onlyOwner {
+        if (minPrice >= priceFeedMaxAnswer) revert InvalidMinAnswer();
+        emit SetMinAnswer(priceFeedMinAnswer, minPrice);
+        priceFeedMinAnswer = minPrice;
+    }
+
+    /**
+     * @notice Change the priceFeedMaxAnswer. Only callable by owner.
+     *
+     * @param maxPrice The new priceFeedMaxAnswer.
+     */
+    function setMaxAnswer(uint256 maxPrice) external onlyOwner {
+        if (maxPrice <= priceFeedMinAnswer) revert InvalidMaxAnswer();
+        emit SetMaxAnswer(priceFeedMaxAnswer, maxPrice);
+        priceFeedMaxAnswer = maxPrice;
     }
 
     /**
