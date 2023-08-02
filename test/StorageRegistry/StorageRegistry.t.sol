@@ -129,7 +129,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzRent(address msgSender, uint256 id, uint200 units) public {
-        rentStorage(msgSender, id, units);
+        _rentStorage(msgSender, id, units);
     }
 
     function testFuzzRentRevertsZeroUnits(address msgSender, uint256 id) public {
@@ -160,7 +160,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         // Ensure Chainlink price is positive
         newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
 
-        rentStorage(msgSender1, id1, units1);
+        _rentStorage(msgSender1, id1, units1);
 
         // Set a new ETH/USD price
         priceFeed.setPrice(newEthUsdPrice);
@@ -168,7 +168,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         warp = bound(warp, 0, storageRegistry.priceFeedCacheDuration());
         vm.warp(block.timestamp + warp);
 
-        rentStorage(msgSender2, id2, units2);
+        _rentStorage(msgSender2, id2, units2);
 
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), lastPriceFeedUpdateTime);
         assertEq(storageRegistry.lastPriceFeedUpdateBlock(), lastPriceFeedUpdateBlock);
@@ -192,7 +192,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         // Ensure Chainlink price is positive
         newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
 
-        rentStorage(msgSender1, id1, units1);
+        _rentStorage(msgSender1, id1, units1);
 
         // Set a new ETH/USD price
         priceFeed.setPrice(newEthUsdPrice);
@@ -201,7 +201,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         uint256 expectedPrice = storageRegistry.unitPrice();
 
-        (, uint256 unitPrice,,) = rentStorage(msgSender2, id2, units2);
+        (, uint256 unitPrice,,) = _rentStorage(msgSender2, id2, units2);
 
         assertEq(unitPrice, expectedPrice);
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), block.timestamp);
@@ -232,8 +232,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
 
-        (, uint256 unitPrice1,, uint256 unitPricePaid1) = rentStorage(msgSender1, id1, units1);
-        (, uint256 unitPrice2,, uint256 unitPricePaid2) = rentStorage(msgSender2, id2, units2);
+        (, uint256 unitPrice1,, uint256 unitPricePaid1) = _rentStorage(msgSender1, id1, units1);
+        (, uint256 unitPrice2,, uint256 unitPricePaid2) = _rentStorage(msgSender2, id2, units2);
 
         assertEq(unitPrice1, unitPrice2);
         assertEq(unitPricePaid1, unitPricePaid2);
@@ -265,8 +265,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         vm.warp(block.timestamp + storageRegistry.priceFeedCacheDuration() + 1);
 
-        (, uint256 unitPrice1,, uint256 unitPricePaid1) = rentStorage(msgSender1, id1, units1);
-        (, uint256 unitPrice2,, uint256 unitPricePaid2) = rentStorage(msgSender2, id2, units2);
+        (, uint256 unitPrice1,, uint256 unitPricePaid1) = _rentStorage(msgSender1, id1, units1);
+        (, uint256 unitPrice2,, uint256 unitPricePaid2) = _rentStorage(msgSender2, id2, units2);
 
         assertEq(unitPrice1, unitPrice2);
         assertEq(unitPricePaid1, unitPricePaid2);
@@ -296,7 +296,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         newEthUsdPrice = bound(newEthUsdPrice, 1, type(int256).max);
         fixedPrice = bound(fixedPrice, 10e8, 100_000e8);
 
-        rentStorage(msgSender1, id1, units1);
+        _rentStorage(msgSender1, id1, units1);
 
         // Update the Chainlink price and fake a failure
         priceFeed.setPrice(newEthUsdPrice);
@@ -311,7 +311,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 expectedPrice = storageRegistry.unitPrice();
 
         // Rent succeeds even though price feed is reverting
-        (, uint256 unitPrice,,) = rentStorage(msgSender2, id2, units2);
+        (, uint256 unitPrice,,) = _rentStorage(msgSender2, id2, units2);
 
         assertEq(unitPrice, expectedPrice);
 
@@ -1508,7 +1508,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     function testFuzzWithdrawal(address msgSender, uint256 id, uint200 units, uint256 amount) public {
         uint256 balanceBefore = address(vault).balance;
 
-        rentStorage(msgSender, id, units);
+        _rentStorage(msgSender, id, units);
 
         // Don't withdraw more than the contract balance
         amount = bound(amount, 0, address(storageRegistry).balance);
@@ -1642,7 +1642,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.rentedUnits(), rented + units);
     }
 
-    function rentStorage(
+    function _rentStorage(
         address msgSender,
         uint256 id,
         uint256 units
