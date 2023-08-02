@@ -56,7 +56,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.getTrustedOnly(), 1);
 
         vm.prank(owner);
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit DisableTrustedOnly();
         idRegistry.disableTrustedOnly();
         assertEq(idRegistry.getTrustedOnly(), 0);
@@ -114,7 +114,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         vm.prank(owner);
         idRegistry.transferOwnership(newOwner);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit OwnershipTransferred(owner, newOwner);
         vm.prank(newOwner);
         idRegistry.acceptOwnership();

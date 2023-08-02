@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
@@ -14,7 +13,6 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  *
  * @notice See ../docs/docs.md for an overview.
  */
-
 contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -97,7 +95,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     uint256 internal idCounter;
 
     /**
-     * @dev Maps each address to a fid, or zero if it does not own a fid.
+     * @dev Maps each address to an fid, or zero if it does not own an fid.
      */
     mapping(address owner => uint256 fid) public idOf;
 
@@ -112,9 +110,12 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Set the owner of the contract to the provided _owner.
+     *
+     * @param _initialOwner Initial owner address.
+     *
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _owner) TrustedCaller(_owner) EIP712("Farcaster IdRegistry", "1") {}
+    constructor(address _initialOwner) TrustedCaller(_initialOwner) EIP712("Farcaster IdRegistry", "1") {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -138,7 +139,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      * @param to       Address which will own the fid.
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      * @param deadline Expiration timestamp of the signature.
-     * @param sig      EIP-712 signature signed by the to address.
+     * @param sig      EIP-712 Register signature signed by the to address.
      */
     function registerFor(
         address to,
@@ -146,6 +147,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         uint256 deadline,
         bytes calldata sig
     ) external returns (uint256 fid) {
+        /* Revert if signature is invalid */
         _verifyRegisterSig(to, recovery, deadline, sig);
         return _register(to, recovery);
     }
@@ -168,14 +170,12 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      */
     function _register(address to, address recovery) internal whenNotTrusted returns (uint256 fid) {
         fid = _unsafeRegister(to, recovery);
-
         emit Register(to, idCounter, recovery);
     }
 
     /**
      * @dev Registers an fid and sets up a recovery address for a target. Does not check all
-     *      invariants or emit events. The contract must not be in the Seedable (trustedOnly = 1)
-     *      state and target must not have an fid.
+     *      invariants or emit events.
      */
     function _unsafeRegister(address to, address recovery) internal whenNotPaused returns (uint256 fid) {
         /* Revert if the target(to) has an fid */
@@ -187,7 +187,6 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
             fid = ++idCounter;
         }
 
-        /* Perf: Save 29 gas by avoiding to == address(0) check since 0x0 can only register 1 fid */
         idOf[to] = fid;
         recoveryOf[fid] = recovery;
     }
@@ -198,21 +197,21 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Transfer the fid owned by this address to another address that does not have an fid.
-     *         Supports ERC 2771 meta-transactions and can be called via a relayer. A signed message
-     *         from the destination address must be provided.
+     *         A signed Transfer message from the destination address must be provided.
      *
-     * @param to The address to transfer the fid to.
+     * @param to       The address to transfer the fid to.
      * @param deadline Expiration timestamp of the signature.
-     * @param sig      EIP-712 signature signed by the to address.
+     * @param sig      EIP-712 Transfer signature signed by the to address.
      */
     function transfer(address to, uint256 deadline, bytes calldata sig) external {
         address from = msg.sender;
         uint256 fromId = idOf[from];
 
-        /* Revert if the sender has no id or recipient has an id */
+        /* Revert if the sender has no id */
         if (fromId == 0) revert HasNoId();
+        /* Revert if recipient has an id */
         if (idOf[to] != 0) revert HasId();
-
+        /* Revert if signature is invalid */
         _verifyTransferSig(fromId, to, deadline, sig);
 
         _unsafeTransfer(fromId, from, to);
@@ -233,8 +232,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Change the recovery address of the fid owned by the caller. Supports ERC 2771
-     *         meta-transactions and can be called by a relayer.
+     * @notice Change the recovery address of the fid owned by the caller.
      *
      * @param recovery The address which can recover the fid. Set to 0x0 to disable recovery.
      */
@@ -251,13 +249,12 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     /**
      * @notice Transfer the fid from the from address to the to address. Must be called by the
-     *         recovery address. Supports ERC 2771 meta-transactions and can be called via a
-     *         relayer. A signed message from the to address must be provided.
+     *         recovery address. A signed message from the to address must be provided.
      *
      * @param from     The address that currently owns the fid.
      * @param to       The address to transfer the fid to.
      * @param deadline Expiration timestamp of the signature.
-     * @param sig      EIP-712 signature signed by the to address.
+     * @param sig      EIP-712 Transfer signature signed by the to address.
      */
     function recover(address from, address to, uint256 deadline, bytes calldata sig) external {
         /* Revert if from does not own an fid */
@@ -266,12 +263,12 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
         /* Revert if the caller is not the recovery address */
         address caller = msg.sender;
-        address recoveryAddress = recoveryOf[fromId];
-        if (recoveryAddress != caller) revert Unauthorized();
+        if (recoveryOf[fromId] != caller) revert Unauthorized();
 
         /* Revert if destination(to) already has an fid */
         if (idOf[to] != 0) revert HasId();
 
+        /* Revert if signature is invalid */
         _verifyTransferSig(fromId, to, deadline, sig);
 
         _unsafeTransfer(fromId, from, to);

@@ -84,10 +84,10 @@ abstract contract TrustedCaller is Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @param _owner Initial contract owner address.
+     * @param _initialOwner Initial contract owner address.
      */
-    constructor(address _owner) {
-        _transferOwnership(_owner);
+    constructor(address _initialOwner) {
+        _transferOwnership(_initialOwner);
     }
 
     /*//////////////////////////////////////////////////////////////

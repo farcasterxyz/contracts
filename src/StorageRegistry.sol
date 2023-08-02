@@ -553,7 +553,12 @@ contract StorageRegistry is AccessControlEnumerable {
      * @dev Get the latest ETH/USD price from the price feed and update the cached price.
      */
     function _refreshPrice() internal {
-        /* Get and validate the L2 sequencer status. */
+        /**
+         *  Get and validate the L2 sequencer status.
+         *  We ignore the deprecated answeredInRound value.
+         */
+
+        // slither-disable-next-line unused-return
         (uint80 uptimeRoundId, int256 sequencerUp, uint256 uptimeStartedAt, uint256 uptimeUpdatedAt,) =
             uptimeFeed.latestRoundData();
         if (sequencerUp != 0) revert SequencerDown();
@@ -568,6 +573,8 @@ contract StorageRegistry is AccessControlEnumerable {
         /**
          *  Get and validate the Chainlink ETH/USD price. We validate that the answer is
          *  a positive value, the round is complete, and the answer is not stale by round.
+         *
+         *  We ignore the deprecated answeredInRound value.
          *
          *  We ignore the price feed startedAt value, which we don't use in validations,
          *  since the priceUpdatedAt timestamp is more meaningful.
