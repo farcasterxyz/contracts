@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
+import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
@@ -314,5 +315,26 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
             deadline,
             sig
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             EXTERNAL VIEW HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Verify that a signature was produced by the custody address that owns an fid.
+     *
+     * @param custodyAddress   The address to check the signature of.
+     * @param fid              The fid to check the signature of.
+     * @param digest           The digest that was signed.
+     * @param sig              The signature to check.
+     */
+    function verifyFidSignature(
+        address custodyAddress,
+        uint256 fid,
+        bytes32 digest,
+        bytes calldata sig
+    ) external view returns (bool isValid) {
+        isValid = idOf[custodyAddress] == fid && SignatureChecker.isValidSignatureNow(custodyAddress, digest, sig);
     }
 }
