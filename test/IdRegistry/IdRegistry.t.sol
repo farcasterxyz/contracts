@@ -33,7 +33,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(caller), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Register(caller, 1, recovery);
         vm.prank(caller);
         idRegistry.register(recovery);
@@ -116,7 +116,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.getRecoveryOf(1), address(0));
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Register(recipient, 1, recovery);
         vm.prank(registrar);
         idRegistry.registerFor(recipient, recovery, deadline, sig);
@@ -136,6 +136,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
 
         address recipient = vm.addr(recipientPk);
+        /* generate a signature with an invalid parameter (wrong deadline) */
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline + 1);
 
         vm.prank(owner);
@@ -164,6 +165,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
 
         address recipient = vm.addr(recipientPk);
+        /* generate an invalid signature */
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
         vm.prank(owner);
@@ -311,7 +313,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getIdCounter(), 0);
 
         vm.prank(trustedCaller);
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Register(recipient, 1, recovery);
         idRegistry.trustedRegister(recipient, recovery);
 
@@ -320,7 +322,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
     }
 
-    function testFuzzCannotTrustedRegisterUnlessTrustedCallerOnly(
+    function testFuzzCannotTrustedRegisterUnlessTrustedOnly(
         address alice,
         address trustedCaller,
         address recovery
@@ -430,6 +432,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         uint256 deadline = _boundDeadline(_deadline);
         uint256 fid = _register(from);
+        /* generate a signature with an invalid parameter (wrong deadline) */
         bytes memory sig = _signTransfer(toPk, fid, to, deadline + 1);
 
         assertEq(idRegistry.getIdCounter(), 1);
@@ -452,6 +455,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         uint256 deadline = _boundDeadline(_deadline);
         _register(from);
+        /* generate an invalid signature */
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
         assertEq(idRegistry.getIdCounter(), 1);
@@ -510,7 +514,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Transfer(from, to, 1);
         vm.prank(from);
         idRegistry.transfer(to, deadline, sig);
@@ -628,7 +632,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         _registerWithRecovery(alice, oldRecovery);
 
         vm.prank(alice);
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit ChangeRecoveryAddress(1, newRecovery);
         idRegistry.changeRecoveryAddress(newRecovery);
 
@@ -677,7 +681,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         vm.prank(recovery);
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Transfer(from, to, 1);
         idRegistry.recover(from, to, deadline, sig);
 
