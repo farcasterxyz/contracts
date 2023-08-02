@@ -260,12 +260,12 @@ contract StorageRegistry is AccessControlEnumerable {
     uint256 public priceFeedMaxAge;
 
     /**
-     * @dev Changeable by owner.
+     * @dev Lower bound on acceptable price feed answer. Changeable by owner.
      */
     uint256 public priceFeedMinAnswer;
 
     /**
-     * @dev Changeable by owner.
+     * @dev Upper bound on acceptable price feed answer. Changeable by owner.
      */
     uint256 public priceFeedMaxAnswer;
 
@@ -360,10 +360,10 @@ contract StorageRegistry is AccessControlEnumerable {
         uptimeFeedGracePeriod = 1 hours;
         emit SetGracePeriod(0, 1 hours);
 
-        priceFeedMinAnswer = 100e8;
+        priceFeedMinAnswer = 100e8; // 100 USD / ETH
         emit SetMinAnswer(0, 100e8);
 
-        priceFeedMaxAnswer = 10_000e8;
+        priceFeedMaxAnswer = 10_000e8; // 10_000 USD / ETH
         emit SetMaxAnswer(0, 10_000e8);
 
         vault = _initialVault;
