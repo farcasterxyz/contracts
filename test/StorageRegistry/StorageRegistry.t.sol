@@ -340,6 +340,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 units,
         uint256 delta
     ) public {
+        uint256 rentedUnits = storageRegistry.rentedUnits();
         units = bound(units, 1, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
         uint256 value = price - bound(delta, 1, price);
@@ -348,6 +349,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectRevert(StorageRegistry.InvalidPayment.selector);
         vm.prank(msgSender);
         storageRegistry.rent{value: value}(id, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
     }
 
     function testFuzzRentRefundsExcessPayment(uint256 id, uint256 units, uint256 delta) public {
@@ -371,6 +374,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         storageRegistry.rent{value: price + extra}(id, units);
 
+        assertEq(storageRegistry.rentedUnits(), rented + units);
         assertEq(address(this).balance, extra);
     }
 
@@ -409,6 +413,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectRevert(StorageRegistry.ExceedsCapacity.selector);
         vm.prank(msgSender);
         storageRegistry.rent{value: price}(id, units);
+
+        assertEq(storageRegistry.rentedUnits(), maxUnits);
     }
 
     /*//////////////////////////////////////////////////////////////
