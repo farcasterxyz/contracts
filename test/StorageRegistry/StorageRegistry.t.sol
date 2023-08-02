@@ -557,10 +557,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
-        vm.startPrank(owner);
+        vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
-        vm.stopPrank();
+        uint256 rentedUnits = storageRegistry.rentedUnits();
 
+        // Ensure that ids and units are of the same length
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
         for (uint256 i; i < length; ++i) {
@@ -570,7 +571,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         for (uint256 i; i < length; ++i) {
             units[i] = _units[i];
         }
+
+        // Ensure that the contract is deprecated
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
+
+        // Deal enough funds to complete the transaction
         uint256 totalUnits;
         for (uint256 i; i < units.length; ++i) {
             totalUnits += units[i];
@@ -578,27 +583,38 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 totalCost = storageRegistry.price(totalUnits);
         vm.assume(totalUnits <= storageRegistry.maxUnits() - storageRegistry.rentedUnits());
         vm.deal(msgSender, totalCost);
+
         vm.prank(msgSender);
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
         storageRegistry.batchRent{value: totalCost}(ids, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
     }
 
     function testFuzzBatchRentRevertsEmptyArray(
         address msgSender,
         uint256[] memory ids,
         uint256[] memory units,
-        bool emptyIds
+        uint256 emptyState
     ) public {
-        // Switch on emptyIds and set one array to length zero.
-        if (emptyIds) {
+        uint256 rentedUnits = storageRegistry.rentedUnits();
+
+        // Switch on emptyState and set one or both arrays to empty
+        emptyState = bound(emptyState, 1, 3);
+        if (emptyState == 1) {
             ids = new uint256[](0);
+        } else if (emptyState == 2) {
+            units = new uint256[](0);
         } else {
+            ids = new uint256[](0);
             units = new uint256[](0);
         }
 
         vm.prank(msgSender);
         vm.expectRevert(StorageRegistry.InvalidBatchInput.selector);
         storageRegistry.batchRent{value: 0}(ids, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
     }
 
     function testFuzzBatchRentRevertsMismatchedArrayLength(
@@ -606,9 +622,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
-        vm.startPrank(owner);
+        uint256 rentedUnits = storageRegistry.rentedUnits();
+        vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
-        vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
@@ -633,6 +649,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.prank(msgSender);
         vm.expectRevert(StorageRegistry.InvalidBatchInput.selector);
         storageRegistry.batchRent{value: totalCost}(ids, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
     }
 
     function testFuzzBatchRentRevertsInsufficientPayment(
@@ -646,9 +664,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.assume(_units.length > 0);
 
         // Set a high max capacity to avoid overflow.
-        vm.startPrank(owner);
+        vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
-        vm.stopPrank();
 
         uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
         uint256[] memory ids = new uint256[](length);
@@ -1785,6 +1802,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         // Expect rented units to increase
         assertEq(storageRegistry.rentedUnits(), rented + totalUnits);
+        assertEq(storageRegistry.rentedUnits() <= storageRegistry.maxUnits(), true);
         return totalCost;
     }
 
