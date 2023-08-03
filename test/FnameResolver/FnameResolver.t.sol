@@ -25,6 +25,10 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assertEq(resolver.signers(signer), true);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 RESOLVE
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzResolveRevertsWithOffchainLookup(bytes calldata name, bytes memory data) public {
         data = bytes.concat(IAddressQuery.addr.selector, data);
         string[] memory urls = new string[](1);
@@ -51,6 +55,10 @@ contract FnameResolverTest is FnameResolverTestSuite {
         vm.expectRevert(FnameResolver.ResolverFunctionNotSupported.selector);
         resolver.resolve(name, data);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                           RESOLVE WITH PROOF
+    //////////////////////////////////////////////////////////////*/
 
     function testFuzzResolveWithProofValidSignature(string memory name, uint256 timestamp, address owner) public {
         bytes memory signature = _signProof(name, timestamp, owner);
@@ -107,6 +115,10 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), "");
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 SIGNERS
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzOwnerCanAddSigner(address signer) public {
         vm.expectEmit(true, false, false, false);
         emit AddSigner(signer);
@@ -148,6 +160,10 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.removeSigner(signer);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           INTERFACE DETECTION
+    //////////////////////////////////////////////////////////////*/
+
     function testInterfaceDetectionIExtendedResolver() public {
         assertEq(resolver.supportsInterface(type(IExtendedResolver).interfaceId), true);
     }
@@ -160,6 +176,10 @@ contract FnameResolverTest is FnameResolverTestSuite {
         vm.assume(interfaceId != type(IExtendedResolver).interfaceId && interfaceId != type(IERC165).interfaceId);
         assertEq(resolver.supportsInterface(interfaceId), false);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 HELPERS
+    //////////////////////////////////////////////////////////////*/
 
     function _signProof(
         string memory name,
