@@ -21,6 +21,11 @@ interface IResolverService {
     ) external view returns (string memory fname, uint256 timestamp, address owner, bytes memory signature);
 }
 
+/**
+ * @title FnameResolver
+ *
+ * @notice See ../docs/docs.md for an overview.
+ */
 contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
