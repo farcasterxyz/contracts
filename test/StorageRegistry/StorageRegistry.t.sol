@@ -1495,6 +1495,10 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.maxUnits(), maxUnits);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        SET DEPRECATION TIMESTAMP
+    //////////////////////////////////////////////////////////////*/
+
     function testFuzzOnlyOwnerCanSetDeprecationTime(address caller, uint256 timestamp) public {
         vm.assume(caller != owner);
 
@@ -1502,10 +1506,6 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectRevert(StorageRegistry.NotOwner.selector);
         storageRegistry.setDeprecationTimestamp(timestamp);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                        SET DEPRECATION TIMESTAMP
-    //////////////////////////////////////////////////////////////*/
 
     function testFuzzSetDeprecationTime(uint256 timestamp) public {
         timestamp = bound(timestamp, block.timestamp, type(uint256).max);
@@ -1520,10 +1520,15 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.deprecationTimestamp(), timestamp);
     }
 
-    function testFuzzSetDeprecationTimeRevertsInPast() public {
+    function testFuzzSetDeprecationTimeRevertsInPast(uint256 timestamp) public {
+        timestamp = bound(timestamp, 1, type(uint256).max);
+        vm.warp(timestamp);
+
+        uint256 deprecationTimestamp = bound(timestamp, 0, timestamp - 1);
+
         vm.expectRevert(StorageRegistry.InvalidDeprecationTimestamp.selector);
         vm.prank(owner);
-        storageRegistry.setDeprecationTimestamp(block.timestamp - 1);
+        storageRegistry.setDeprecationTimestamp(deprecationTimestamp);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1599,7 +1604,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.priceFeedMinAnswer(), answer);
     }
 
-    function testFuzzCannotSetMinAboveMax(uint256 answer) public {
+    function testFuzzCannotSetMinEqualOrAboveMax(uint256 answer) public {
         answer = bound(answer, storageRegistry.priceFeedMaxAnswer(), type(uint256).max);
 
         vm.prank(owner);
@@ -1628,7 +1633,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.priceFeedMaxAnswer(), answer);
     }
 
-    function testFuzzCannotSetMaxBelowMin(uint256 answer) public {
+    function testFuzzCannotSetMaxEqualOrBelowMin(uint256 answer) public {
         answer = bound(answer, 0, storageRegistry.priceFeedMinAnswer());
 
         vm.prank(owner);
@@ -1693,7 +1698,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                WITHDRAWAL
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzWithdrawal(address msgSender, uint256 id, uint200 units, uint256 amount) public {
+    function testFuzzRentAndWithdraw(address msgSender, uint256 id, uint200 units, uint256 amount) public {
         uint256 balanceBefore = address(vault).balance;
 
         _rentStorage(msgSender, id, units);
@@ -1714,32 +1719,52 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzWithdrawalRevertsInsufficientFunds(uint256 amount) public {
-        // Ensure amount is positive
+        // Ensure amount is >=0 and deal a smaller amount to the contract
         amount = bound(amount, 1, type(uint256).max);
+        vm.deal(address(storageRegistry), amount - 1);
 
         vm.prank(treasurer);
         vm.expectRevert(TransferHelper.CallFailed.selector);
         storageRegistry.withdraw(amount);
     }
 
-    function testFuzzWithdrawalRevertsCallFailed() public {
-        uint256 price = storageRegistry.price(1);
-        storageRegistry.rent{value: price}(1, 1);
+    function testFuzzWithdrawalRevertsCallFailed(uint256 amount) public {
+        vm.deal(address(storageRegistry), amount);
 
         vm.prank(owner);
         storageRegistry.setVault(address(revertOnReceive));
 
         vm.prank(treasurer);
         vm.expectRevert(TransferHelper.CallFailed.selector);
-        storageRegistry.withdraw(price);
+        storageRegistry.withdraw(amount);
     }
 
     function testFuzzOnlyTreasurerCanWithdraw(address caller, uint256 amount) public {
         vm.assume(caller != treasurer);
+        vm.deal(address(storageRegistry), amount);
 
         vm.prank(caller);
         vm.expectRevert(StorageRegistry.NotTreasurer.selector);
         storageRegistry.withdraw(amount);
+    }
+
+    function testFuzzWithdraw(uint256 amount) public {
+        // Deal an amount > 1 wei so we can withraw at least 1
+        amount = bound(amount, 2, type(uint256).max);
+        vm.deal(address(storageRegistry), amount);
+        uint256 balanceBefore = address(vault).balance;
+
+        // Withdraw at last 1 wei
+        uint256 withdrawalAmount = bound(amount, 1, amount - 1);
+
+        vm.expectEmit(true, false, false, true);
+        emit Withdraw(vault, withdrawalAmount);
+
+        vm.prank(treasurer);
+        storageRegistry.withdraw(withdrawalAmount);
+
+        uint256 balanceChange = address(vault).balance - balanceBefore;
+        assertEq(balanceChange, withdrawalAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
