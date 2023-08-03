@@ -321,7 +321,6 @@ contract StorageRegistry is AccessControlEnumerable {
      *
      * @param _priceFeed                     Chainlink ETH/USD price feed.
      * @param _uptimeFeed                    Chainlink L2 sequencer uptime feed.
-     * @param _initialDeprecationPeriod      Initial deprecation period in seconds.
      * @param _initialUsdUnitPrice           Initial unit price in USD. Fixed point 8 decimal value.
      * @param _initialMaxUnits               Initial maximum capacity in storage units.
      * @param _initialVault                  Initial vault address.
@@ -333,7 +332,6 @@ contract StorageRegistry is AccessControlEnumerable {
     constructor(
         AggregatorV3Interface _priceFeed,
         AggregatorV3Interface _uptimeFeed,
-        uint256 _initialDeprecationPeriod,
         uint256 _initialUsdUnitPrice,
         uint256 _initialMaxUnits,
         address _initialVault,
@@ -345,7 +343,7 @@ contract StorageRegistry is AccessControlEnumerable {
         priceFeed = _priceFeed;
         uptimeFeed = _uptimeFeed;
 
-        deprecationTimestamp = block.timestamp + _initialDeprecationPeriod;
+        deprecationTimestamp = block.timestamp + 365 days;
         emit SetDeprecationTimestamp(0, deprecationTimestamp);
 
         usdUnitPrice = _initialUsdUnitPrice;

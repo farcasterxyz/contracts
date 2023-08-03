@@ -92,7 +92,6 @@ contract StorageRegistryHarness is StorageRegistry {
     constructor(
         AggregatorV3Interface _priceFeed,
         AggregatorV3Interface _uptimeFeed,
-        uint256 _rentalPeriod,
         uint256 _usdUnitPrice,
         uint256 _maxUnits,
         address _vault,
@@ -104,7 +103,6 @@ contract StorageRegistryHarness is StorageRegistry {
         StorageRegistry(
             _priceFeed,
             _uptimeFeed,
-            _rentalPeriod,
             _usdUnitPrice,
             _maxUnits,
             _vault,

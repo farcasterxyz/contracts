@@ -46,7 +46,6 @@ contract LocalDeploy is Script {
         StorageRegistry storageRegistry = new StorageRegistry{ salt: STORAGE_RENT_CREATE2_SALT }(
             priceFeed,
             uptimeFeed,
-            INITIAL_RENTAL_PERIOD,
             INITIAL_USD_UNIT_PRICE,
             INITIAL_MAX_UNITS,
             vault,

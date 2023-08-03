@@ -8,7 +8,6 @@ import {Bundler} from "../src/Bundler.sol";
 import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
 
 contract Deploy is ImmutableCreate2Deployer {
-    uint256 public constant INITIAL_RENTAL_PERIOD = 365 days;
     uint256 public constant INITIAL_USD_UNIT_PRICE = 5e8; // $5 USD
     uint256 public constant INITIAL_MAX_UNITS = 2_000_000;
     uint256 public constant INITIAL_PRICE_FEED_CACHE_DURATION = 1 days;
@@ -54,7 +53,6 @@ contract Deploy is ImmutableCreate2Deployer {
             abi.encode(
                 params.priceFeed,
                 params.uptimeFeed,
-                INITIAL_RENTAL_PERIOD,
                 INITIAL_USD_UNIT_PRICE,
                 INITIAL_MAX_UNITS,
                 params.vault,
