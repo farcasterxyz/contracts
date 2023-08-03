@@ -1350,6 +1350,14 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.continuousCredit(start, end, 0);
     }
 
+    function testFuzzContinuousCreditRevertsStartGteEnd(uint16 start, uint256 end) public {
+        end = uint256(start) - bound(end, 0, start);
+
+        vm.expectRevert(StorageRegistry.InvalidRangeInput.selector);
+        vm.prank(operator);
+        storageRegistry.continuousCredit(start, end, 5);
+    }
+
     function testFuzzContinuousCreditRevertsExceedsCapacity(uint16 start, uint256 n, uint32 _units) public {
         uint256 units = bound(_units, 1, type(uint32).max);
         uint256 end = uint256(start) + bound(n, 1, 10000);
@@ -1746,7 +1754,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         if (assertEvents) {
             // Expect emitted events
-            for (uint256 i; i < len; ++i) {
+            for (uint256 i; i <= len; ++i) {
                 vm.expectEmit(true, true, false, true);
                 emit Rent(operator, start + i, units);
             }
