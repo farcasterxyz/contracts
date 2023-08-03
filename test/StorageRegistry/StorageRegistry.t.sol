@@ -1746,7 +1746,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         if (assertEvents) {
             // Expect emitted events
-            for (uint256 i; i < len; ++i) {
+            for (uint256 i; i <= len; ++i) {
                 vm.expectEmit(true, true, false, true);
                 emit Rent(operator, start + i, units);
             }

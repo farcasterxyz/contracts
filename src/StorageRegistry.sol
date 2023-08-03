@@ -667,7 +667,7 @@ contract StorageRegistry is AccessControlEnumerable {
         uint256 totalUnits = len * units;
         if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
         rentedUnits += totalUnits;
-        for (uint256 i; i < len; ++i) {
+        for (uint256 i; i <= len; ++i) {
             emit Rent(msg.sender, start + i, units);
         }
     }
