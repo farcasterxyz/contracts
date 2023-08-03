@@ -862,4 +862,74 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
         assertEq(idRegistry.getRecoveryOf(2), address(0));
     }
+
+    /*//////////////////////////////////////////////////////////////
+                          VERIFY FID SIGNATURE
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzVerifyFidSignature(uint256 recipientPk, bytes32 digest) public {
+        recipientPk = _boundPk(recipientPk);
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, address(0), 10);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+        idRegistry.registerFor(recipient, address(0), 10, sig);
+        assertEq(idRegistry.getIdCounter(), 1);
+
+        bytes memory msg_sig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(recipient, 1, digest, msg_sig), true);
+    }
+
+    function testFuzzCannotVerifyFidSignatureIfBadDigest(
+        uint256 recipientPk,
+        bytes32 digest,
+        bytes32 badDigest
+    ) public {
+        vm.assume(digest != badDigest);
+        recipientPk = _boundPk(recipientPk);
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, address(0), 10);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+        idRegistry.registerFor(recipient, address(0), 10, sig);
+        assertEq(idRegistry.getIdCounter(), 1);
+
+        bytes memory msgSig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(recipient, 1, badDigest, msgSig), false);
+    }
+
+    function testFuzzCannotVerifyFidSignatureIfBadFid(uint256 recipientPk, bytes32 digest) public {
+        recipientPk = _boundPk(recipientPk);
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, address(0), 10);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+        idRegistry.registerFor(recipient, address(0), 10, sig);
+        assertEq(idRegistry.getIdCounter(), 1);
+
+        bytes memory msgSig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(recipient, 2, digest, msgSig), false);
+    }
+
+    function testFuzzCannotVerifyFidSignatureIfBadCustodyAddress(
+        uint256 recipientPk,
+        bytes32 digest,
+        address badCustodyAddress
+    ) public {
+        recipientPk = _boundPk(recipientPk);
+        address recipient = vm.addr(recipientPk);
+        vm.assume(recipient != badCustodyAddress);
+        bytes memory sig = _signRegister(recipientPk, recipient, address(0), 10);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+        idRegistry.registerFor(recipient, address(0), 10, sig);
+        assertEq(idRegistry.getIdCounter(), 1);
+
+        bytes memory msgSig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(badCustodyAddress, 1, digest, msgSig), false);
+    }
 }
