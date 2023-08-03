@@ -20,7 +20,7 @@ contract StorageRegistry is AccessControlEnumerable {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Revert if the caller attempts to rent storage after deprecating this contract.
+    /// @dev Revert if the caller attempts to rent storage after the contract is deprecated.
     error ContractDeprecated();
 
     /// @dev Revert if the caller attempts to rent more storage than is available.
@@ -35,13 +35,13 @@ contract StorageRegistry is AccessControlEnumerable {
     /// @dev Revert if the caller provides the wrong payment amount.
     error InvalidPayment();
 
-    /// @dev Revert if a data feed returns a stale answer.
+    /// @dev Revert if the price feed returns a stale answer.
     error StaleAnswer();
 
-    /// @dev Revert if the data feed round is incomplete and has not yet generated an answer.
+    /// @dev Revert if any data feed round is incomplete and has not yet generated an answer.
     error IncompleteRound();
 
-    /// @dev Revert if the price feed returns a timestamp in the future.
+    /// @dev Revert if any data feed returns a timestamp in the future.
     error InvalidRoundTimestamp();
 
     /// @dev Revert if the price feed returns a value greater than the min/max bound.
@@ -88,15 +88,14 @@ contract StorageRegistry is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Emit an event when caller pays rent for an fid's storage.
+     * @dev Emit an event when a caller pays rent for an fid's storage.
      *
-     *      Hubs listen for this event and increment the units assigned to the fid by 1 for exactly
-     *      395 days from the timestamp of this event (1 year + 30 day grace period). Hubs track
-     *      this for unregistered fids and will assign storage when the fid is registered. Storage
-     *      credited to fid 0 is a no-op.
+     *      Hubs increment the units assigned to the fid for exactly 395 days (1 year + grace) from
+     *      the event timestamp. Hubs track this for unregistered fids and will assign units when
+     *      the fid is registered. Storage credited to fid 0 is a no-op.
      *
      * @param payer     Address of the account paying the storage rent.
-     * @param fid       The fid that will receive the storage allocation.
+     * @param fid       The fid that will receive the storage units.
      * @param units     The number of storage units being rented.
      */
     event Rent(address indexed payer, uint256 indexed fid, uint256 units);
@@ -121,9 +120,8 @@ contract StorageRegistry is AccessControlEnumerable {
     /**
      * @dev Emit an event when an owner changes the maximum supply of storage units.
      *
-     *      Hubs do not actively listen for this event, though the owner of the contract is
-     *      responsible for ensuring that Hub operators are aware of the new storage requirements,
-     *      since that may cause Hubs to fail if they do not allocate sufficient storage.
+     *      Hub operators should be made aware of changes to storage requirements before they occur
+     *      since it may cause Hubs to fail if they do not allocate sufficient storage.
      *
      * @param oldMax The previous maximum amount.
      * @param newMax The new maximum amount.
@@ -133,9 +131,8 @@ contract StorageRegistry is AccessControlEnumerable {
     /**
      * @dev Emit an event when an owner changes the deprecationTimestamp.
      *
-     *      Hubs will track this timestamp to determine when the contract is deprecated and the
-     *      next Storage contract should be used. The logic to cutover is still to be determined.
-     *      Hubs assume the following invariants:
+     *      Hubs will stop listening to events after the deprecationTimestamp. This can be used
+     *      when cutting over to a new contract. Hubs assume the following invariants:
      *
      *      1. SetDeprecationTimestamp() is only emitted once.
      *
@@ -193,7 +190,7 @@ contract StorageRegistry is AccessControlEnumerable {
     event SetVault(address oldVault, address newVault);
 
     /**
-     * @dev Emit an event when a treasurer makes a withdrawal from the contract balance.
+     * @dev Emit an event when a treasurer withdraws any contract balance to the vault.
      *
      * @param to     Address of recipient.
      * @param amount The amount of ether withdrawn.
@@ -232,18 +229,21 @@ contract StorageRegistry is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Block timestamp at which this contract will no longer accept storage rent payments. Changeable by owner.
+     * @dev Block timestamp at which this contract will no longer accept storage rent payments.
+     *      Changeable by owner.
      */
     uint256 public deprecationTimestamp;
 
     /**
-     * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD. Changeable by owner.
+     * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD.
+     *      Changeable by owner.
      */
     uint256 public usdUnitPrice;
 
     /**
-     * @dev A fixed ETH/USD price to be used in the event of a price feed failure. If this value
-     *      is nonzero, we disable external calls to the price feed and use this price. Changeable by owner.
+     * @dev A fixed ETH/USD price which overrides the Chainlink feed. If this value is nonzero,
+     *      we disable external calls to the price feed and use this price. Changeable by owner.
+     *      To be used in the event of a price feed failure.
      */
     uint256 public fixedEthUsdPrice;
 
@@ -298,7 +298,7 @@ contract StorageRegistry is AccessControlEnumerable {
     uint256 public ethUsdPrice;
 
     /**
-     * @dev Previous Chainlink ETH/USD price.
+     * @dev Previously cached Chainlink ETH/USD price.
      */
     uint256 public prevEthUsdPrice;
 
@@ -322,7 +322,7 @@ contract StorageRegistry is AccessControlEnumerable {
      * @param _priceFeed                     Chainlink ETH/USD price feed.
      * @param _uptimeFeed                    Chainlink L2 sequencer uptime feed.
      * @param _initialDeprecationPeriod      Initial deprecation period in seconds.
-     * @param _initialUsdUnitPrice           Initial unit price in USD. Fixed point value with 8 decimals.
+     * @param _initialUsdUnitPrice           Initial unit price in USD. Fixed point 8 decimal value.
      * @param _initialMaxUnits               Initial maximum capacity in storage units.
      * @param _initialVault                  Initial vault address.
      * @param _initialRoleAdmin              Initial role admin address.
@@ -418,7 +418,7 @@ contract StorageRegistry is AccessControlEnumerable {
      *         storage contract within the year and deprecate this one. Even if that does not occur,
      *         the existing maxUnits parameter can be tweaked to account for expired units.
      *
-     * @param fid   The fid that will receive the storage allocation.
+     * @param fid   The fid that will receive the storage units.
      * @param units Number of storage units to rent.
      */
     function rent(uint256 fid, uint256 units) external payable whenNotDeprecated returns (uint256 overpayment) {
@@ -441,8 +441,9 @@ contract StorageRegistry is AccessControlEnumerable {
     }
 
     /**
-     * @notice Rent storage for multiple fids. The caller must provide an exact payment amount equal to
-     *         the sum of the prices for each fid's storage allocation.
+     * @notice Rent storage for multiple fids for a year. The caller must provide at least
+     *         price(units) wei of payment where units is the sum of storage units requested across
+     *         the fids. See comments on rent() for additional details.
      *
      * @param fids  An array of fids.
      * @param units An array of storage unit quantities. Must be the same length as the fids array.
@@ -483,7 +484,8 @@ contract StorageRegistry is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Cost in wei to rent one storage unit.
+     * @notice Calculate the cost in wei to rent one storage unit.
+     *
      * @return uint256 cost in wei.
      */
     function unitPrice() external view returns (uint256) {
@@ -517,8 +519,9 @@ contract StorageRegistry is AccessControlEnumerable {
     }
 
     /**
-     * @dev Return the cached ethUsdPrice if it's still valid, otherwise get the
-     *      latest ETH/USD price from the price feed and update the cache.
+     * @dev Return the fixed price if present and the cached ethUsdPrice if it is not. If cached
+     *      price is no longer valid, refresh the cache from the price feed but return the cached
+     *      price for the rest of this block to avoid unexpected price changes.
      */
     function _ethUsdPrice() internal returns (uint256) {
         /**
@@ -545,7 +548,6 @@ contract StorageRegistry is AccessControlEnumerable {
          *  Slither flags this line as a dangerous strict equality, but we want to
          *  make an exact comparison here and are not using this value in the context
          *  this detector rule describes.
-         *
          */
 
         // slither-disable-next-line incorrect-equality
@@ -574,13 +576,13 @@ contract StorageRegistry is AccessControlEnumerable {
         if (timeSinceUp < uptimeFeedGracePeriod) revert GracePeriodNotOver();
 
         /**
-         *  Get and validate the Chainlink ETH/USD price. We validate that the answer is
-         *  a positive value, the round is complete, and the answer is not stale by round.
+         *  Get and validate the Chainlink ETH/USD price. Validate that the answer is a positive
+         *  value, the round is complete, and the answer is not stale by round.
          *
-         *  We ignore the deprecated answeredInRound value.
+         *  Ignore the deprecated answeredInRound value.
          *
-         *  We ignore the price feed startedAt value, which we don't use in validations,
-         *  since the priceUpdatedAt timestamp is more meaningful.
+         *  Ignore the price feed startedAt value, which isn't used in validations, since the
+         *  priceUpdatedAt timestamp is more meaningful.
          *
          *  Slither flags this as an unused return value error, but this is safe since
          *  we use priceUpdatedAt and are interested in the latest value.
@@ -608,11 +610,16 @@ contract StorageRegistry is AccessControlEnumerable {
         }
     }
 
+    /**
+     * @dev Calculate the cost in wei to rent storage units.
+     */
     function _price(uint256 units) internal returns (uint256) {
         return _price(units, usdUnitPrice, _ethUsdPrice());
     }
 
     /**
+     * @dev Calculate the cost in wei to rent storage units.
+     *
      * @param units      Number of storage units. Integer, no decimals.
      * @param usdPerUnit Unit price in USD. Fixed point with 8 decimals.
      * @param usdPerEth  ETH/USD price. Fixed point with 8 decimals.
@@ -686,7 +693,7 @@ contract StorageRegistry is AccessControlEnumerable {
     }
 
     /**
-     * @notice Change the USD price per storage unit. Callable by owner and treasurer.
+     * @notice Change the USD price per storage unit. Callable by owner.
      *
      * @param usdPrice The new unit price in USD. Fixed point value with 8 decimals.
      */
@@ -722,7 +729,7 @@ contract StorageRegistry is AccessControlEnumerable {
     /**
      * @notice Change the deprecationTimestamp. Only callable by owner.
      *
-     * @param timestamp The new deprecationTimestamp.
+     * @param timestamp The new deprecationTimestamp. Must be at least equal to block.timestamp.
      */
     function setDeprecationTimestamp(uint256 timestamp) external onlyOwner {
         if (timestamp < block.timestamp) revert InvalidDeprecationTimestamp();
@@ -753,7 +760,7 @@ contract StorageRegistry is AccessControlEnumerable {
     /**
      * @notice Change the priceFeedMinAnswer. Only callable by owner.
      *
-     * @param minPrice The new priceFeedMinAnswer.
+     * @param minPrice The new priceFeedMinAnswer. Must be less than current priceFeedMaxAnswer.
      */
     function setMinAnswer(uint256 minPrice) external onlyOwner {
         if (minPrice >= priceFeedMaxAnswer) revert InvalidMinAnswer();
@@ -764,7 +771,7 @@ contract StorageRegistry is AccessControlEnumerable {
     /**
      * @notice Change the priceFeedMaxAnswer. Only callable by owner.
      *
-     * @param maxPrice The new priceFeedMaxAnswer.
+     * @param maxPrice The new priceFeedMaxAnswer. Must be greater than current priceFeedMinAnswer.
      */
     function setMaxAnswer(uint256 maxPrice) external onlyOwner {
         if (maxPrice <= priceFeedMinAnswer) revert InvalidMaxAnswer();
@@ -783,7 +790,7 @@ contract StorageRegistry is AccessControlEnumerable {
     }
 
     /**
-     * @notice Set the vault address that can receive funds from this contract.
+     * @notice Change the vault address that can receive funds from this contract.
      *         Only callable by owner.
      *
      * @param vaultAddr The new vault address.
