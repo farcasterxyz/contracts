@@ -80,6 +80,9 @@ contract StorageRegistry is AccessControlEnumerable {
     /// @dev Revert if transferred to the zero address.
     error InvalidAddress();
 
+    /// @dev Revert if the caller attempts a continuous credit withan invalid range.
+    error InvalidRangeInput();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -663,6 +666,8 @@ contract StorageRegistry is AccessControlEnumerable {
      */
     function continuousCredit(uint256 start, uint256 end, uint256 units) external onlyOperator whenNotDeprecated {
         if (units == 0) revert InvalidAmount();
+        if (start >= end) revert InvalidRangeInput();
+
         uint256 len = end - start;
         uint256 totalUnits = len * units;
         if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
