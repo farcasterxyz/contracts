@@ -74,7 +74,7 @@ contract DeployTest is Test {
     function test_deploymentParams() public {
         assertEq(address(storageRegistry.priceFeed()), priceFeed);
         assertEq(address(storageRegistry.uptimeFeed()), uptimeFeed);
-        assertEq(storageRegistry.deprecationTimestamp(), block.timestamp + deploy.INITIAL_RENTAL_PERIOD());
+        assertEq(storageRegistry.deprecationTimestamp(), block.timestamp + 365 days);
         assertEq(storageRegistry.usdUnitPrice(), deploy.INITIAL_USD_UNIT_PRICE());
         assertEq(storageRegistry.maxUnits(), deploy.INITIAL_MAX_UNITS());
         assertEq(storageRegistry.priceFeedCacheDuration(), deploy.INITIAL_PRICE_FEED_CACHE_DURATION());

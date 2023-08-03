@@ -71,7 +71,6 @@ abstract contract StorageRegistryTestSuite is TestSuiteSetup {
         storageRegistry = new StorageRegistryHarness(
             priceFeed,
             uptimeFeed,
-            INITIAL_RENTAL_PERIOD,
             INITIAL_USD_UNIT_PRICE,
             INITIAL_MAX_UNITS,
             vault,
