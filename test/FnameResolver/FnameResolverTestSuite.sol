@@ -11,27 +11,26 @@ import {FnameResolverHarness} from "../Utils.sol";
 abstract contract FnameResolverTestSuite is TestSuiteSetup {
     FnameResolverHarness internal resolver;
 
-    string internal constant FNAME_SERVER_URL = "https://fnames.farcaster.xyz/ccip/{sender}/{data}.json";
+    string internal constant FNAME_SERVER_URL = "https://fnames.fcast.id/ccip/{sender}/{data}.json";
 
     /**
-     * @dev DNS-encoding of "alice.farcaster.xyz". The DNS-encoded name consists of:
+     * @dev DNS-encoding of "alice.fcast.id". The DNS-encoded name consists of:
      *      - 1 byte for the length of the first label (5)
      *      - 5 bytes for the label ("alice")
-     *      - 1 byte for the length of the second label (9)
-     *      - 9 bytes for the label ("farcaster")
-     *      - 1 byte for the length of the third label (3)
-     *      - 3 bytes for the label ("xyz")
+     *      - 1 byte for the length of the second label (5)
+     *      - 5 bytes for the label ("fcast")
+     *      - 1 byte for the length of the third label (2)
+     *      - 2 bytes for the label ("id")
      *      - A null byte terminating the encoded name.
      */
     bytes internal constant DNS_ENCODED_NAME =
-        (hex"05" hex"616c696365" hex"09" hex"666172636173746572" hex"03" hex"78797a" hex"00");
+        (hex"05" hex"616c696365" hex"05" hex"6663617374" hex"02" hex"6964" hex"00");
 
     /**
      * @dev Encoded calldata for a call to addr(bytes32 node), where node is the ENS
-     *      nameHash encoded value of "alice.farcaster.xyz"
+     *      nameHash encoded value of "alice.fcast.id"
      */
-    bytes internal constant ADDR_QUERY_CALLDATA =
-        hex"3b3b57de00d4f449060ad2a07ff5ad355ae8da52281e95f6ad10fb923ae7cad9f2c43c2a";
+    bytes internal constant ADDR_QUERY_CALLDATA = hex"c30dc5a16498c5b6d46f97ca0c74d092ebbee1290b1c88f6e435dd4fb306ca36";
 
     address internal signer;
     uint256 internal signerPk;
