@@ -10,7 +10,7 @@ import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {Bundler} from "../src/Bundler.sol";
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
 import {IERC1271} from "openzeppelin/contracts/interfaces/IERC1271.sol";
-import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 /* solhint-disable no-empty-blocks */
 
@@ -208,7 +208,8 @@ contract ERC1271WalletMock is Ownable, IERC1271 {
     }
 
     function isValidSignature(bytes32 hash, bytes memory signature) public view returns (bytes4 magicValue) {
-        return ECDSA.recover(hash, signature) == owner() ? this.isValidSignature.selector : bytes4(0);
+        return
+            SignatureChecker.isValidSignatureNow(owner(), hash, signature) ? this.isValidSignature.selector : bytes4(0);
     }
 }
 
