@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC1271WalletMock, ERC1271MaliciousMock} from "./Utils.sol";
+import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "./Utils.sol";
 
 abstract contract TestSuiteSetup is Test {
     /*//////////////////////////////////////////////////////////////
@@ -78,9 +78,9 @@ abstract contract TestSuiteSetup is Test {
 
     function _createMaliciousMockERC1271(address ownerAddress)
         internal
-        returns (ERC1271MaliciousMock mockWallet, address mockWalletAddress)
+        returns (ERC1271MaliciousMockForceRevert mockWallet, address mockWalletAddress)
     {
-        mockWallet = new ERC1271MaliciousMock(ownerAddress);
+        mockWallet = new ERC1271MaliciousMockForceRevert(ownerAddress);
         mockWalletAddress = address(mockWallet);
     }
 }

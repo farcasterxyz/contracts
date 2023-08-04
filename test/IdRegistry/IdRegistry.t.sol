@@ -7,7 +7,7 @@ import {IdRegistry} from "../../src/IdRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
-import {ERC1271WalletMock, ERC1271MaliciousMock} from "../Utils.sol";
+import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 

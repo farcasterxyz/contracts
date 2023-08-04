@@ -212,7 +212,7 @@ contract ERC1271WalletMock is Ownable, IERC1271 {
     }
 }
 
-contract ERC1271MaliciousMock is Ownable, IERC1271 {
+contract ERC1271MaliciousMockForceRevert is Ownable, IERC1271 {
     constructor(address owner) {
         super.transferOwnership(owner);
     }
