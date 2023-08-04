@@ -214,14 +214,25 @@ contract ERC1271WalletMock is Ownable, IERC1271 {
 }
 
 contract ERC1271MaliciousMockForceRevert is Ownable, IERC1271 {
+    bool internal _forceRevert = true;
+
     constructor(address owner) {
         super.transferOwnership(owner);
     }
 
-    function isValidSignature(bytes32, bytes memory) public pure returns (bytes4) {
-        assembly {
-            mstore(0, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
-            return(0, 32)
+    function setForceRevert(bool forceRevert) external {
+        _forceRevert = forceRevert;
+    }
+
+    function isValidSignature(bytes32 hash, bytes memory signature) public view returns (bytes4) {
+        if (_forceRevert) {
+            assembly {
+                mstore(0, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+                return(0, 32)
+            }
         }
+
+        return
+            SignatureChecker.isValidSignatureNow(owner(), hash, signature) ? this.isValidSignature.selector : bytes4(0);
     }
 }
