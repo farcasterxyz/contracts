@@ -1,0 +1,47 @@
+version: '3.9'
+
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:v1.0.0
+    entrypoint: ""
+    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL', '--state', '/var/lib/anvil/state']
+    environment:
+      - MAINNET_RPC_URL
+    volumes:
+      - anvil-data:/var/lib/anvil
+    ports:
+      - '${PORT:-8545}:${PORT:-8545}'
+    restart: on-failure
+    healthcheck:
+      test: ['CMD', '/usr/bin/nc', '-z', 'localhost', '${PORT:-8545}']
+      interval: 1s
+      timeout: 1s
+      retries: 3
+
+  deployer:
+    image: ghcr.io/foundry-rs/foundry:v1.0.0
+    depends_on:
+      - anvil
+    environment:
+      - DEPLOYER
+    volumes:
+      - .:/app
+    working_dir: /app
+    entrypoint: |
+      sh -c '
+        set -e
+        export RPC_URL="http://anvil:${PORT:-8545}"
+        echo "Waiting for Anvil..."
+        while ! nc -z anvil "${PORT:-8545}"; do sleep 0.1; done
+        echo "Anvil online"
+        echo "Enabling impersonation"
+        cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL"
+        echo "Deploying contract"
+        forge script -v script/Deploy.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
+        echo "Disabling impersonation"
+        cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL"
+        echo "Deploy complete"
+      '
+
+volumes:
+  anvil-data:
