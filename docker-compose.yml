@@ -19,7 +19,7 @@ services:
       retries: 3
 
   deployer:
-    image: ghcr.io/foundry-rs/foundry:v1.0.0
+    image: ghcr.io/foundry-rs/foundry:nightly
     depends_on:
       - anvil
     environment:
