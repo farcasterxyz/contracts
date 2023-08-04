@@ -929,7 +929,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          VERIFY FID SIGNATURE EOA
+                        EOA VERIFY FID SIGNATURE
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzVerifyFidSignature(uint256 recipientPk, bytes32 digest) public {
