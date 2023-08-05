@@ -17,6 +17,8 @@ services:
       interval: 1s
       timeout: 1s
       retries: 3
+    networks:
+      - contracts_subnet
 
   deployer:
     image: ghcr.io/foundry-rs/foundry:nightly
@@ -42,6 +44,13 @@ services:
         cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL"
         echo "Deploy complete"
       '
+    networks:
+      - contracts_subnet
 
 volumes:
   anvil-data:
+
+networks:
+  # Allows us to share the services in this file with other Docker Compose files
+  contracts_subnet:
+    driver: bridge
