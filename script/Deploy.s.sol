@@ -5,7 +5,7 @@ import {IdRegistry} from "../src/IdRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {Bundler} from "../src/Bundler.sol";
-import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
+import {console, ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
 
 contract Deploy is ImmutableCreate2Deployer {
     uint256 public constant INITIAL_USD_UNIT_PRICE = 5e8; // $5 USD
@@ -96,13 +96,18 @@ contract Deploy is ImmutableCreate2Deployer {
     }
 
     function runSetup(Contracts memory contracts) public {
-        address bundler = address(contracts.bundler);
+        if (deploymentChanged()) {
+            console.log("Running setup");
+            address bundler = address(contracts.bundler);
 
-        vm.startBroadcast();
-        contracts.idRegistry.setTrustedCaller(bundler);
-        contracts.keyRegistry.setTrustedCaller(bundler);
-        contracts.storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), bundler);
-        vm.stopBroadcast();
+            vm.startBroadcast();
+            contracts.idRegistry.setTrustedCaller(bundler);
+            contracts.keyRegistry.setTrustedCaller(bundler);
+            contracts.storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), bundler);
+            vm.stopBroadcast();
+        } else {
+            console.log("No changes, skipping setup");
+        }
     }
 
     function loadDeploymentParams() internal view returns (DeploymentParams memory) {

@@ -4,11 +4,9 @@ services:
   anvil:
     image: ghcr.io/foundry-rs/foundry:v1.0.0
     entrypoint: ""
-    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL', '--state', '/var/lib/anvil/state']
+    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL']
     environment:
       - MAINNET_RPC_URL
-    volumes:
-      - anvil-data:/var/lib/anvil
     ports:
       - '${PORT:-8545}:${PORT:-8545}'
     restart: on-failure
@@ -37,18 +35,15 @@ services:
         while ! nc -z anvil "${PORT:-8545}"; do sleep 0.1; done
         echo "Anvil online"
         echo "Enabling impersonation"
-        cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL"
+        cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploying contract"
         forge script -v script/Deploy.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
         echo "Disabling impersonation"
-        cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL"
+        cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploy complete"
       '
     networks:
       - contracts_subnet
-
-volumes:
-  anvil-data:
 
 networks:
   # Allows us to share the services in this file with other Docker Compose files
