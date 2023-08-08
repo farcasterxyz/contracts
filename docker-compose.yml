@@ -4,9 +4,11 @@ services:
   anvil:
     image: ghcr.io/foundry-rs/foundry:v1.0.0
     entrypoint: ""
-    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL']
+    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL', '--state', '/var/lib/anvil/state']
     environment:
       - MAINNET_RPC_URL
+    volumes:
+      - anvil-data:/var/lib/anvil
     ports:
       - '${PORT:-8545}:${PORT:-8545}'
     restart: on-failure
@@ -44,6 +46,9 @@ services:
       '
     networks:
       - contracts_subnet
+
+volumes:
+  anvil-data:
 
 networks:
   # Allows us to share the services in this file with other Docker Compose files
