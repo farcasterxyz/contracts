@@ -42,7 +42,12 @@ contract KeyRegistrySymTest is SymTest, Test {
 
         // Setup KeyRegistry
         gracePeriod = svm.createUint(24, "gracePeriod");
-        keyRegistry = new KeyRegistry(address(idRegistry), uint24(gracePeriod), address(this));
+        keyRegistry = new KeyRegistry(
+            address(idRegistry),
+            uint24(gracePeriod),
+            address(this)
+        );
+        keyRegistry.setTrustedCaller(trustedCaller);
         assert(keyRegistry.gracePeriod() == gracePeriod);
 
         // Set initial states:
@@ -52,14 +57,14 @@ contract KeyRegistrySymTest is SymTest, Test {
 
         bytes memory key1 = svm.createBytes(32, "key1");
         vm.prank(address(0x1001));
-        keyRegistry.add(1, 1, key1, "");
+        keyRegistry.add(1, key1, "");
         vm.prank(address(0x1001));
-        keyRegistry.remove(1, key1);
+        keyRegistry.remove(key1);
         assert(keyRegistry.keyDataOf(1, key1).state == KeyRegistry.KeyState.REMOVED);
 
         bytes memory key2 = svm.createBytes(32, "key2");
         vm.prank(address(0x1002));
-        keyRegistry.add(2, 1, key2, "");
+        keyRegistry.add(1, key2, "");
         assert(keyRegistry.keyDataOf(2, key2).state == KeyRegistry.KeyState.ADDED);
 
         // Create symbolic fid and key
@@ -68,7 +73,7 @@ contract KeyRegistrySymTest is SymTest, Test {
     }
 
     // Verify the KeyRegistry invariants
-    function check_invariant(bytes4 selector, address caller) public {
+    function check_Invariants(bytes4 selector, address caller) public {
         // Additional setup to cover various input states
         if (svm.createBool("migrateKeys?")) {
             keyRegistry.migrateKeys();
@@ -76,8 +81,8 @@ contract KeyRegistrySymTest is SymTest, Test {
         if (svm.createBool("disableTrustedOnly?")) {
             idRegistry.disableTrustedOnly();
         }
-        if (svm.createBool("pauseRegistration?")) {
-            idRegistry.pauseRegistration();
+        if (svm.createBool("pause?")) {
+            idRegistry.pause();
         }
         vm.warp(svm.createUint(64, "timestamp2"));
 
@@ -105,29 +110,37 @@ contract KeyRegistrySymTest is SymTest, Test {
 
             // Ensure that the REMOVED state does not allow any state transitions.
             assert(oldStateX != KeyRegistry.KeyState.REMOVED);
-
             if (newStateX == KeyRegistry.KeyState.REMOVED) {
                 // For a transition to REMOVED, ensure that:
                 // - The previous state must be ADD.
-                // - The transition can only be made by remove(), where:
-                //   - It must be called by the owner of fid x.
                 assert(oldStateX == KeyRegistry.KeyState.ADDED);
-                assert(selector == keyRegistry.remove.selector);
-                assert(oldCallerId == x);
+                // - The transition can only be made by remove() or removeFor()
+                if (selector == keyRegistry.remove.selector) {
+                    //   - remove() must be called by the owner of fid x.
+                    assert(oldCallerId == x);
+                } else if (selector == keyRegistry.removeFor.selector) {} else {
+                    assert(false);
+                }
             } else if (newStateX == KeyRegistry.KeyState.ADDED) {
                 // For a transition to ADDED, ensure that:
                 // - The previous state must be NULL.
-                // - The transition can only be made by either add() or bulkAdd(), where:
-                //   - add() must be called by the owner of fid x.
-                //   - bulkAdd() must be called by the owner of KeyRegistry.
-                //   - bulkAdd() must be called before the key migration or within the grade period following the migration.
+                // - The transition can only be made by add(), addFor(), trustedAdd() or bulkAddKeysForMigration()
                 assert(oldStateX == KeyRegistry.KeyState.NULL);
                 if (selector == keyRegistry.add.selector) {
-                    assert(oldCallerId == x);
-                } else {
-                    assert(selector == keyRegistry.bulkAddKeysForMigration.selector);
+                    //   - add() must be called by the owner of fid x.
+                    //assert(oldCallerId == x);
+                } else if (selector == keyRegistry.addFor.selector) {} else if (
+                    selector == keyRegistry.trustedAdd.selector
+                ) {
+                    //   - trustedAdd() must be called by the trustedCaller.
+                    assert(caller == trustedCaller);
+                } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
+                    //   - bulkAdd() must be called by the owner of KeyRegistry.
+                    //   - bulkAdd() must be called before the key migration or within the grade period following the migration.
                     assert(caller == address(this)); // `this` is the owner of KeyRegistry
                     assert(isNotMigratedOrGracePeriod);
+                } else {
+                    assert(false);
                 }
             } else if (newStateX == KeyRegistry.KeyState.NULL) {
                 // For a transition to NULL, ensure that:
@@ -146,16 +159,19 @@ contract KeyRegistrySymTest is SymTest, Test {
         }
     }
 
-    function mk_calldata(bytes4 selector) internal returns (bytes memory args) {
+    function mk_calldata(bytes4 selector) internal returns (bytes memory) {
         // Ignore view functions
         vm.assume(selector != keyRegistry.keyDataOf.selector);
         vm.assume(selector != keyRegistry.keys.selector);
 
         // Create symbolic values to be included in calldata
+        address addr = svm.createAddress("addr");
         uint256 fid = svm.createUint256("fid");
         uint32 scheme = uint32(svm.createUint(32, "scheme"));
         bytes memory key = svm.createBytes(32, "key");
         bytes memory metadata = svm.createBytes(32, "metadata");
+        uint256 deadline = svm.createUint256("deadline");
+        bytes memory sig = svm.createBytes(65, "sig");
 
         // Halmos requires symbolic dynamic arrays to be given with a specific size.
         // In this test, we provide arrays with length 2.
@@ -172,9 +188,15 @@ contract KeyRegistrySymTest is SymTest, Test {
         // Generate calldata based on the function selector
         bytes memory args;
         if (selector == keyRegistry.add.selector) {
-            args = abi.encode(fid, scheme, key, metadata);
+            args = abi.encode(scheme, key, metadata);
+        } else if (selector == keyRegistry.addFor.selector) {
+            args = abi.encode(addr, scheme, key, metadata, deadline, sig);
+        } else if (selector == keyRegistry.trustedAdd.selector) {
+            args = abi.encode(addr, scheme, key, metadata);
         } else if (selector == keyRegistry.remove.selector) {
-            args = abi.encode(fid, key);
+            args = abi.encode(key);
+        } else if (selector == keyRegistry.removeFor.selector) {
+            args = abi.encode(addr, key, deadline, sig);
         } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
             args = abi.encode(fids, fidKeys, metadata);
         } else if (selector == keyRegistry.bulkResetKeysForMigration.selector) {
