@@ -20,6 +20,12 @@ interface ImmutableCreate2Factory {
 }
 
 abstract contract ImmutableCreate2Deployer is Script {
+    enum Status {
+        UNKNOWN,
+        FOUND,
+        DEPLOYED
+    }
+
     /**
      * @dev Deployment information for a contract.
      *
@@ -37,6 +43,7 @@ abstract contract ImmutableCreate2Deployer is Script {
         bytes constructorArgs;
         bytes32 initCodeHash;
         address deploymentAddress;
+        Status status;
     }
 
     /// @dev Deterministic address of the cross-chain ImmutableCreate2Factory
@@ -116,7 +123,8 @@ abstract contract ImmutableCreate2Deployer is Script {
             creationCode: creationCode,
             constructorArgs: constructorArgs,
             initCodeHash: initCodeHash,
-            deploymentAddress: deploymentAddress
+            deploymentAddress: deploymentAddress,
+            status: Status.UNKNOWN
         });
         return deploymentAddress;
     }
@@ -125,7 +133,7 @@ abstract contract ImmutableCreate2Deployer is Script {
      * @dev Deploy all registered contracts.
      */
     function deploy() internal {
-        console.log(pad("State", 10), pad("Name", 13), pad("Address", 43), "Initcode hash");
+        console.log(pad("State", 10), pad("Name", 17), pad("Address", 43), "Initcode hash");
         for (uint256 i; i < names.length; i++) {
             _deploy(names[i]);
         }
@@ -137,26 +145,37 @@ abstract contract ImmutableCreate2Deployer is Script {
      * @param name Contract name
      */
     function deploy(string memory name) internal {
-        console.log(pad("State", 10), pad("Name", 13), pad("Address", 43), "Initcode hash");
+        console.log(pad("State", 10), pad("Name", 17), pad("Address", 43), "Initcode hash");
         _deploy(name);
     }
 
     function _deploy(string memory name) internal {
-        Deployment memory deployment = contracts[name];
-        bool deploying = false;
+        Deployment storage deployment = contracts[name];
         if (!IMMUTABLE_CREATE2_FACTORY.hasBeenDeployed(deployment.deploymentAddress)) {
             vm.broadcast();
             deployment.deploymentAddress = IMMUTABLE_CREATE2_FACTORY.safeCreate2(
                 deployment.salt, bytes.concat(deployment.creationCode, deployment.constructorArgs)
             );
-            deploying = true;
+            deployment.status = Status.DEPLOYED;
+        } else {
+            deployment.status = Status.FOUND;
         }
         console.log(
-            pad(deploying ? "Deploying" : "Found", 10),
-            pad(deployment.name, 13),
+            pad((deployment.status == Status.DEPLOYED) ? "Deploying" : "Found", 10),
+            pad(deployment.name, 17),
             pad(Strings.toHexString(deployment.deploymentAddress), 43),
             Strings.toHexString(uint256(deployment.initCodeHash))
         );
+    }
+
+    function deploymentChanged() public view returns (bool) {
+        for (uint256 i; i < names.length; i++) {
+            Deployment storage deployment = contracts[names[i]];
+            if (deployment.status == Status.DEPLOYED) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

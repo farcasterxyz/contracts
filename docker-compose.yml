@@ -42,11 +42,11 @@ services:
         while ! nc -z anvil "${PORT:-8545}"; do sleep 0.1; done
         echo "Anvil online"
         echo "Enabling impersonation"
-        cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL"
+        cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploying contract"
         forge script -v script/Deploy.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
         echo "Disabling impersonation"
-        cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL"
+        cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploy complete"
       '
     networks:
