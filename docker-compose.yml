@@ -2,9 +2,11 @@ version: '3.9'
 
 services:
   anvil:
-    image: ghcr.io/foundry-rs/foundry:v1.0.0
+    build:
+      dockerfile: Dockerfile.foundry
+      context: .
     entrypoint: ""
-    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL', '--state', '/var/lib/anvil/state']
+    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL', '--state', '/var/lib/anvil/state', '--block-time', '2', '--retries', '3', '--timeout', '10000']
     environment:
       - MAINNET_RPC_URL
     volumes:
@@ -21,7 +23,9 @@ services:
       - contracts_subnet
 
   deployer:
-    image: ghcr.io/foundry-rs/foundry:nightly
+    build:
+      dockerfile: Dockerfile.foundry
+      context: .
     depends_on:
       - anvil
     environment:

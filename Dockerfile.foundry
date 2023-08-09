@@ -1,0 +1,12 @@
+# syntax=docker/dockerfile:1.4
+
+# Used for local development so that we have binaries compiled for the local
+# architecture, since Foundry only publishes Docker images for AMD, and we don't
+# want to have slow emulation on Apple Silicon.
+
+FROM ubuntu:latest
+
+RUN apt-get update -y && apt-get install -y curl bash git netcat
+RUN curl -L https://foundry.paradigm.xyz | bash
+ENV RUST_BACKTRACE=full PATH="$PATH:/root/.foundry/bin"
+RUN foundryup
