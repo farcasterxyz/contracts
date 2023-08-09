@@ -36,7 +36,7 @@ contract IdRegistrySymTest is SymTest, Test {
         y = svm.createAddress("y");
     }
 
-    function verifyInvariants(bytes4 selector, address caller) public {
+    function check_Invariants(bytes4 selector, address caller) public {
         _initState();
         vm.assume(x != y);
 
@@ -75,7 +75,7 @@ contract IdRegistrySymTest is SymTest, Test {
         }
     }
 
-    function verifyTransfer(address caller, address to, address other) public {
+    function check_Transfer(address caller, address to, address other) public {
         _initState();
         vm.assume(other != caller && other != to);
 
@@ -104,7 +104,7 @@ contract IdRegistrySymTest is SymTest, Test {
         assert(newIdOther == oldIdOther);
     }
 
-    function verifyRecovery(address caller, address from, address to, address other) public {
+    function check_Recovery(address caller, address from, address to, address other) public {
         _initState();
         vm.assume(other != from && other != to);
 
@@ -148,8 +148,8 @@ contract IdRegistrySymTest is SymTest, Test {
         if (svm.createBool("disableTrustedOnly?")) {
             idRegistry.disableTrustedOnly();
         }
-        if (svm.createBool("pauseRegistration?")) {
-            idRegistry.pauseRegistration();
+        if (svm.createBool("pause?")) {
+            idRegistry.pause();
         }
     }
 
@@ -172,6 +172,13 @@ contract IdRegistrySymTest is SymTest, Test {
                 svm.createAddress("from"),
                 svm.createAddress("to"),
                 svm.createUint256("deadline"),
+                svm.createBytes(65, "sig")
+            );
+        } else if (selector == idRegistry.verifyFidSignature.selector) {
+            args = abi.encode(
+                svm.createAddress("custodyAddress"),
+                svm.createUint256("fid"),
+                svm.createBytes32("digest"),
                 svm.createBytes(65, "sig")
             );
         } else {
