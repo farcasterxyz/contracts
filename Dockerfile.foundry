@@ -8,7 +8,10 @@ FROM ubuntu:latest
 
 RUN apt-get update -y && apt-get install -y curl bash git netcat
 RUN curl -L https://foundry.paradigm.xyz | bash
+
 ENV RUST_BACKTRACE=full PATH="$PATH:/root/.foundry/bin"
 
-# Use a stable commit so that we don't have surprising breakages when rebuilding
-RUN foundryup --commit d4f626bb7f96d46358997d4b27f79358cb2b3401 # August 8, 2023
+# Hardcode release so that we don't have surprising breakages when rebuilding by
+# automatically downloading the latest release every time.
+# https://github.com/foundry-rs/foundry/releases/tag/nightly-d4f626bb7f96d46358997d4b27f79358cb2b3401
+RUN foundryup --version nightly-d4f626bb7f96d46358997d4b27f79358cb2b3401
