@@ -115,6 +115,12 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), "");
     }
 
+    function testProofTypehash() public {
+        assertEq(
+            resolver.usernameProofTypehash(), keccak256("UserNameProof(string name,uint256 timestamp,address owner)")
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  SIGNERS
     //////////////////////////////////////////////////////////////*/
@@ -196,7 +202,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
         address owner
     ) internal returns (bytes memory signature) {
         bytes32 eip712hash = resolver.hashTypedDataV4(
-            keccak256(abi.encode(resolver.usernameProofTypehash(), keccak256(abi.encodePacked(name)), timestamp, owner))
+            keccak256(abi.encode(resolver.usernameProofTypehash(), keccak256(bytes(name)), timestamp, owner))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, eip712hash);
         signature = abi.encodePacked(r, s, v);
