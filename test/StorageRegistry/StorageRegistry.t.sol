@@ -867,7 +867,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.prank(owner);
         storageRegistry.setPrice(usdUnitPrice);
 
-        assertEq(storageRegistry.unitPrice(), uint256(usdUnitPrice) * 1e18 / cachedPrice);
+        assertEq(storageRegistry.unitPrice(), (uint256(usdUnitPrice) * 1e18) / cachedPrice);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1329,7 +1329,17 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.continuousCredit(start, end, units);
     }
 
-    function testContinuousCredit() public {
+    function testContinuousCreditAmounts() public {
+        uint256 rented = storageRegistry.rentedUnits();
+
+        vm.prank(operator);
+        storageRegistry.continuousCredit(1, 1000, 1);
+
+        // Expect rented units to increase
+        assertEq(storageRegistry.rentedUnits(), rented + 1000);
+    }
+
+    function testContinuousCreditEvents() public {
         // Simulate the initial seeding of the contract and check that events are emitted.
         _continuousCreditStorage(0, 20_000, 1, true);
     }
@@ -1773,13 +1783,13 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function _continuousCreditStorage(uint256 start, uint256 end, uint256 units, bool assertEvents) public {
         uint256 rented = storageRegistry.rentedUnits();
-        uint256 len = end - start;
+        uint256 len = end - start + 1;
         uint256 totalUnits = len * units;
         vm.assume(totalUnits <= storageRegistry.maxUnits() - storageRegistry.rentedUnits());
 
         if (assertEvents) {
             // Expect emitted events
-            for (uint256 i; i <= len; ++i) {
+            for (uint256 i; i < len; ++i) {
                 vm.expectEmit(true, true, false, true);
                 emit Rent(operator, start + i, units);
             }

@@ -383,7 +383,9 @@ contract StorageRegistry is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     modifier whenNotDeprecated() {
-        if (block.timestamp >= deprecationTimestamp) revert ContractDeprecated();
+        if (block.timestamp >= deprecationTimestamp) {
+            revert ContractDeprecated();
+        }
         _;
     }
 
@@ -592,7 +594,9 @@ contract StorageRegistry is AccessControlEnumerable {
         if (priceRoundId == 0) revert IncompleteRound();
         if (priceUpdatedAt == 0) revert IncompleteRound();
         if (priceUpdatedAt > block.timestamp) revert InvalidRoundTimestamp();
-        if (block.timestamp - priceUpdatedAt > priceFeedMaxAge) revert StaleAnswer();
+        if (block.timestamp - priceUpdatedAt > priceFeedMaxAge) {
+            revert StaleAnswer();
+        }
         if (uint256(answer) < priceFeedMinAnswer || uint256(answer) > priceFeedMaxAnswer) revert PriceOutOfBounds();
 
         /* Set the last update timestamp and block. */
@@ -673,11 +677,11 @@ contract StorageRegistry is AccessControlEnumerable {
         if (units == 0) revert InvalidAmount();
         if (start >= end) revert InvalidRangeInput();
 
-        uint256 len = end - start;
+        uint256 len = end - start + 1;
         uint256 totalUnits = len * units;
         if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
         rentedUnits += totalUnits;
-        for (uint256 i; i <= len; ++i) {
+        for (uint256 i; i < len; ++i) {
             emit Rent(msg.sender, start + i, units);
         }
     }
