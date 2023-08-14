@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 import {AccessControlEnumerable} from "openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import {TransferHelper} from "./lib/TransferHelper.sol";
@@ -12,7 +13,7 @@ import {TransferHelper} from "./lib/TransferHelper.sol";
  *
  * @notice See ../docs/docs.md for an overview.
  */
-contract StorageRegistry is AccessControlEnumerable {
+contract StorageRegistry is AccessControlEnumerable, Pausable {
     using FixedPointMathLib for uint256;
     using TransferHelper for address;
 
@@ -439,7 +440,10 @@ contract StorageRegistry is AccessControlEnumerable {
      * @param fid   The fid that will receive the storage units.
      * @param units Number of storage units to rent.
      */
-    function rent(uint256 fid, uint256 units) external payable whenNotDeprecated returns (uint256 overpayment) {
+    function rent(
+        uint256 fid,
+        uint256 units
+    ) external payable whenNotDeprecated whenNotPaused returns (uint256 overpayment) {
         // Checks
         if (units == 0) revert InvalidAmount();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
@@ -466,7 +470,10 @@ contract StorageRegistry is AccessControlEnumerable {
      * @param fids  An array of fids.
      * @param units An array of storage unit quantities. Must be the same length as the fids array.
      */
-    function batchRent(uint256[] calldata fids, uint256[] calldata units) external payable whenNotDeprecated {
+    function batchRent(
+        uint256[] calldata fids,
+        uint256[] calldata units
+    ) external payable whenNotDeprecated whenNotPaused {
         // Pre-checks
         if (fids.length == 0 || units.length == 0) revert InvalidBatchInput();
         if (fids.length != units.length) revert InvalidBatchInput();
@@ -660,7 +667,7 @@ contract StorageRegistry is AccessControlEnumerable {
      * @param fid   The fid that will receive the credit.
      * @param units Number of storage units to credit.
      */
-    function credit(uint256 fid, uint256 units) external onlyOperator whenNotDeprecated {
+    function credit(uint256 fid, uint256 units) external onlyOperator whenNotDeprecated whenNotPaused {
         if (units == 0) revert InvalidAmount();
         if (rentedUnits + units > maxUnits) revert ExceedsCapacity();
 
@@ -674,7 +681,10 @@ contract StorageRegistry is AccessControlEnumerable {
      * @param fids  An array of fids.
      * @param units Number of storage units per fid.
      */
-    function batchCredit(uint256[] calldata fids, uint256 units) external onlyOperator whenNotDeprecated {
+    function batchCredit(
+        uint256[] calldata fids,
+        uint256 units
+    ) external onlyOperator whenNotDeprecated whenNotPaused {
         if (units == 0) revert InvalidAmount();
         uint256 totalUnits = fids.length * units;
         if (rentedUnits + totalUnits > maxUnits) revert ExceedsCapacity();
@@ -691,7 +701,11 @@ contract StorageRegistry is AccessControlEnumerable {
      * @param end   Highest fid in sequence (inclusive).
      * @param units Number of storage units per fid.
      */
-    function continuousCredit(uint256 start, uint256 end, uint256 units) external onlyOperator whenNotDeprecated {
+    function continuousCredit(
+        uint256 start,
+        uint256 end,
+        uint256 units
+    ) external onlyOperator whenNotDeprecated whenNotPaused {
         if (units == 0) revert InvalidAmount();
         if (start >= end) revert InvalidRangeInput();
 
@@ -853,5 +867,21 @@ contract StorageRegistry is AccessControlEnumerable {
     function withdraw(uint256 amount) external onlyTreasurer {
         emit Withdraw(vault, amount);
         vault.sendNative(amount);
+    }
+
+    /**
+     * @notice Pause, disabling rentals and credits.
+     *         Only callable by owner.
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Unpause, enabling rentals and credits.
+     *         Only callable by owner.
+     */
+    function unpause() external onlyOwner {
+        _unpause();
     }
 }
