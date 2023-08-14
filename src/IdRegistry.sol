@@ -40,7 +40,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      *
      *      1. Two Register events can never emit with the same `id`
      *
-     *      2. Two Register(alice, ..., ...) cannot emit unless a Transfer(..., alice, bob) emits
+     *      2. Two Register(alice, ..., ...) cannot emit unless a Transfer(alice, bob, ...) emits
      *          in between, where bob != alice.
      *
      * @param to       The custody address that owns the fid
@@ -127,6 +127,8 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      *         The contract must not be in the Registrable (trustedOnly = 0) state.
      *
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
+     *
+     * @return fid registered FID.
      */
     function register(address recovery) external returns (uint256 fid) {
         return _register(msg.sender, recovery);
@@ -141,6 +143,8 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      * @param recovery Address which can recover the fid. Set to zero to disable recovery.
      * @param deadline Expiration timestamp of the signature.
      * @param sig      EIP-712 Register signature signed by the to address.
+     *
+     * @return fid registered FID.
      */
     function registerFor(
         address to,
@@ -159,6 +163,8 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      *
      * @param to       The address which will own the fid.
      * @param recovery The address which can recover the fid.
+     *
+     * @return fid registered FID.
      */
     function trustedRegister(address to, address recovery) external onlyTrustedCaller returns (uint256 fid) {
         fid = _unsafeRegister(to, recovery);
@@ -306,6 +312,8 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      * @param fid              The fid to check the signature of.
      * @param digest           The digest that was signed.
      * @param sig              The signature to check.
+     *
+     * @return isValid Whether provided signature is valid.
      */
     function verifyFidSignature(
         address custodyAddress,

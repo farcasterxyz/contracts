@@ -63,7 +63,7 @@ contract Bundler is TrustedCaller {
     StorageRegistry public immutable storageRegistry;
 
     /**
-     * @dev Address of the StorageRegistry contract
+     * @dev Address of the KeyRegistry contract
      */
     KeyRegistry public immutable keyRegistry;
 
@@ -77,6 +77,7 @@ contract Bundler is TrustedCaller {
      *
      * @param _idRegistry      Address of the IdRegistry contract
      * @param _storageRegistry Address of the StorageRegistry contract
+     * @param _keyRegistry     Address of the KeyRegistry contract
      * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
      * @param _initialOwner    Address that can set the trusted caller
      */
@@ -96,7 +97,7 @@ contract Bundler is TrustedCaller {
     /**
      * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
      *
-     * @param registration Struct containing registration parameters: to, from, deadline, and signature.
+     * @param registration Struct containing registration parameters: to, recovery, deadline, and signature.
      * @param signers      Array of structs containing signer parameters: scheme, key, metadata, deadline, and signature.
      * @param storageUnits Number of storage units to rent
      *
@@ -132,6 +133,9 @@ contract Bundler is TrustedCaller {
      *
      * @param to           Address of the fid to register
      * @param recovery     Address that is allowed to perform a recovery
+     * @param scheme       Signer key's numeric scheme
+     * @param key          Bytes of signer key
+     * @param metadata     Signer key metadata
      * @param storageUnits Number of storage units to rent
      */
     function trustedRegister(
