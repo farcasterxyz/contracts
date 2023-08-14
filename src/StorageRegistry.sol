@@ -65,6 +65,9 @@ contract StorageRegistry is AccessControlEnumerable {
     /// @dev Revert if the priceFeedMaxAnswer parameter is less than or equal to priceFeedMinAnswer.
     error InvalidMaxAnswer();
 
+    /// @dev Revert if the fixedEthUsdPrice is outside the configured price bounds.
+    error InvalidFixedPrice();
+
     /// @dev Revert if the caller is not an owner.
     error NotOwner();
 
@@ -383,7 +386,9 @@ contract StorageRegistry is AccessControlEnumerable {
     //////////////////////////////////////////////////////////////*/
 
     modifier whenNotDeprecated() {
-        if (block.timestamp >= deprecationTimestamp) revert ContractDeprecated();
+        if (block.timestamp >= deprecationTimestamp) {
+            revert ContractDeprecated();
+        }
         _;
     }
 
@@ -592,7 +597,9 @@ contract StorageRegistry is AccessControlEnumerable {
         if (priceRoundId == 0) revert IncompleteRound();
         if (priceUpdatedAt == 0) revert IncompleteRound();
         if (priceUpdatedAt > block.timestamp) revert InvalidRoundTimestamp();
-        if (block.timestamp - priceUpdatedAt > priceFeedMaxAge) revert StaleAnswer();
+        if (block.timestamp - priceUpdatedAt > priceFeedMaxAge) {
+            revert StaleAnswer();
+        }
         if (uint256(answer) < priceFeedMinAnswer || uint256(answer) > priceFeedMaxAnswer) revert PriceOutOfBounds();
 
         /* Set the last update timestamp and block. */
@@ -710,6 +717,9 @@ contract StorageRegistry is AccessControlEnumerable {
      *                   re-enable the price feed.
      */
     function setFixedEthUsdPrice(uint256 fixedPrice) external onlyOwner {
+        if (fixedPrice != 0) {
+            if (fixedPrice < priceFeedMinAnswer || fixedPrice > priceFeedMaxAnswer) revert InvalidFixedPrice();
+        }
         emit SetFixedEthUsdPrice(fixedEthUsdPrice, fixedPrice);
         fixedEthUsdPrice = fixedPrice;
     }
