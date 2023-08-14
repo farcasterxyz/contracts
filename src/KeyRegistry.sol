@@ -171,7 +171,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
-                                IMMUTABLES
+                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -179,7 +179,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *      Admins can make corrections to the migrated data during the grace period if necessary,
      *      but cannot make changes after it expires.
      */
-    uint24 public immutable gracePeriod;
+    uint24 public constant gracePeriod = uint24(24 hours);
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
@@ -214,15 +214,12 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      * @notice Set the IdRegistry, migration grace period, and owner.
      *
      * @param _idRegistry   IdRegistry contract address.
-     * @param _gracePeriod  Migration grace period in seconds. Immutable.
      * @param _initialOwner Initial contract owner address.
      */
     constructor(
         address _idRegistry,
-        uint24 _gracePeriod,
         address _initialOwner
     ) TrustedCaller(_initialOwner) EIP712("Farcaster KeyRegistry", "1") {
-        gracePeriod = _gracePeriod;
         idRegistry = IdRegistryLike(_idRegistry);
     }
 
@@ -373,7 +370,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         bytes[][] calldata fidKeys,
         bytes calldata metadata
     ) external onlyOwner {
-        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) revert Unauthorized();
+        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) {
+            revert Unauthorized();
+        }
         if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
         // Safety: i and j can be incremented unchecked since they are bound by fids.length and
@@ -399,7 +398,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      * @param fidKeys A list of keys to remove for each fid, in the same order as the fids array.
      */
     function bulkResetKeysForMigration(uint256[] calldata fids, bytes[][] calldata fidKeys) external onlyOwner {
-        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) revert Unauthorized();
+        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) {
+            revert Unauthorized();
+        }
         if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
         // Safety: i and j can be incremented unchecked since they are bound by fids.length and

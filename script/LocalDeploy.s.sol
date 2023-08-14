@@ -17,8 +17,6 @@ contract LocalDeploy is Script {
     uint256 internal constant INITIAL_PRICE_FEED_CACHE_DURATION = 1 days;
     uint256 internal constant INITIAL_UPTIME_FEED_GRACE_PERIOD = 1 hours;
 
-    uint24 internal constant KEY_REGISTRY_MIGRATION_GRACE_PERIOD = 1 days;
-
     bytes32 internal constant ID_REGISTRY_CREATE2_SALT = "fc";
     bytes32 internal constant KEY_REGISTRY_CREATE2_SALT = "fc";
     bytes32 internal constant STORAGE_RENT_CREATE2_SALT = "fc";
@@ -37,13 +35,15 @@ contract LocalDeploy is Script {
 
         vm.startBroadcast();
         (AggregatorV3Interface priceFeed, AggregatorV3Interface uptimeFeed) = _getOrDeployPriceFeeds();
-        IdRegistry idRegistry = new IdRegistry{ salt: ID_REGISTRY_CREATE2_SALT }(initialIdRegistryOwner);
-        KeyRegistry keyRegistry = new KeyRegistry{ salt: KEY_REGISTRY_CREATE2_SALT }(
-            address(idRegistry),
-            KEY_REGISTRY_MIGRATION_GRACE_PERIOD,
-            initialKeyRegistryOwner
+        IdRegistry idRegistry = new IdRegistry{salt: ID_REGISTRY_CREATE2_SALT}(
+            initialIdRegistryOwner
         );
-        StorageRegistry storageRegistry = new StorageRegistry{ salt: STORAGE_RENT_CREATE2_SALT }(
+        KeyRegistry keyRegistry = new KeyRegistry{
+            salt: KEY_REGISTRY_CREATE2_SALT
+        }(address(idRegistry), initialKeyRegistryOwner);
+        StorageRegistry storageRegistry = new StorageRegistry{
+            salt: STORAGE_RENT_CREATE2_SALT
+        }(
             priceFeed,
             uptimeFeed,
             INITIAL_USD_UNIT_PRICE,
@@ -94,8 +94,8 @@ contract LocalDeploy is Script {
         returns (AggregatorV3Interface priceFeed, AggregatorV3Interface uptimeFeed)
     {
         if (block.chainid == 31337) {
-            MockPriceFeed _priceFeed = new MockPriceFeed{ salt: bytes32(0) }();
-            MockUptimeFeed _uptimeFeed = new MockUptimeFeed{ salt: bytes32(0) }();
+            MockPriceFeed _priceFeed = new MockPriceFeed{salt: bytes32(0)}();
+            MockUptimeFeed _uptimeFeed = new MockUptimeFeed{salt: bytes32(0)}();
             _priceFeed.setRoundData(
                 MockChainlinkFeed.RoundData({
                     roundId: 1,
