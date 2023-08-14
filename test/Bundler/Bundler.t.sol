@@ -53,7 +53,9 @@ contract BundlerTest is BundlerTestSuite {
         uint256 deadline,
         uint256 numSigners
     ) internal returns (Bundler.SignerParams[] memory) {
-        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](numSigners);
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](
+            numSigners
+        );
         uint256 nonce = keyRegistry.nonces(account);
 
         // The duplication below is ugly but necessary to work around a stack too deep error.
@@ -153,6 +155,37 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(caller);
         vm.expectRevert(StorageRegistry.InvalidPayment.selector);
         bundler.register{value: price - delta}(
+            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            signers,
+            storageUnits
+        );
+    }
+
+    function testFuzzRegisterRevertsZeroUnits(
+        address caller,
+        uint256 accountPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        accountPk = _boundPk(accountPk);
+        vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
+        assumePayable(caller); // caller must be able to receive funds
+
+        uint256 storageUnits = 0;
+
+        // State: Trusted Registration is disabled in ID registry
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+
+        address account = vm.addr(accountPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
+
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.InvalidAmount.selector);
+        bundler.register(
             Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
             signers,
             storageUnits
@@ -294,7 +327,9 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
-        Bundler.UserData[] memory batchArray = new Bundler.UserData[](registrations);
+        Bundler.UserData[] memory batchArray = new Bundler.UserData[](
+            registrations
+        );
 
         for (uint256 i = 0; i < registrations; i++) {
             uint160 fid = uint160(i + 1);
