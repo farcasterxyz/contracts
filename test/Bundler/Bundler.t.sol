@@ -53,7 +53,9 @@ contract BundlerTest is BundlerTestSuite {
         uint256 deadline,
         uint256 numSigners
     ) internal returns (Bundler.SignerParams[] memory) {
-        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](numSigners);
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](
+            numSigners
+        );
         uint256 nonce = keyRegistry.nonces(account);
 
         // The duplication below is ugly but necessary to work around a stack too deep error.
@@ -294,7 +296,9 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
-        Bundler.UserData[] memory batchArray = new Bundler.UserData[](registrations);
+        Bundler.UserData[] memory batchArray = new Bundler.UserData[](
+            registrations
+        );
 
         for (uint256 i = 0; i < registrations; i++) {
             uint160 fid = uint160(i + 1);
@@ -513,5 +517,18 @@ contract BundlerTest is BundlerTestSuite {
 
         assertEq(bundler.owner(), owner);
         assertEq(bundler.pendingOwner(), newOwner);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             RECEIVE 
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzRevertsDirectPayments(address sender, uint256 amount) public {
+        vm.assume(sender != address(storageRegistry));
+
+        deal(sender, amount);
+        vm.prank(sender);
+        vm.expectRevert(Bundler.Unauthorized.selector);
+        payable(address(bundler)).transfer(amount);
     }
 }
