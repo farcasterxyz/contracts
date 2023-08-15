@@ -1443,6 +1443,24 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.fixedEthUsdPrice(), fixedPrice);
     }
 
+    function testFuzzSetFixedEthUsdPriceRevertsLessThanMinPrice(uint256 fixedPrice) public {
+        fixedPrice = bound(fixedPrice, 1, storageRegistry.priceFeedMinAnswer() - 1);
+        assertEq(storageRegistry.fixedEthUsdPrice(), 0);
+
+        vm.prank(owner);
+        vm.expectRevert(StorageRegistry.InvalidFixedPrice.selector);
+        storageRegistry.setFixedEthUsdPrice(fixedPrice);
+    }
+
+    function testFuzzSetFixedEthUsdPriceRevertsGreaterThanMaxPrice(uint256 fixedPrice) public {
+        fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMaxAnswer() + 1, type(uint256).max);
+        assertEq(storageRegistry.fixedEthUsdPrice(), 0);
+
+        vm.prank(owner);
+        vm.expectRevert(StorageRegistry.InvalidFixedPrice.selector);
+        storageRegistry.setFixedEthUsdPrice(fixedPrice);
+    }
+
     function testFuzzSetFixedEthUsdPriceOverridesPriceFeed(uint256 fixedPrice) public {
         fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMinAnswer(), storageRegistry.priceFeedMaxAnswer());
         vm.assume(fixedPrice != storageRegistry.ethUsdPrice());
