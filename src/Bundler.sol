@@ -171,5 +171,7 @@ contract Bundler is TrustedCaller {
     }
 
     // solhint-disable-next-line no-empty-blocks
-    receive() external payable {}
+    receive() external payable {
+        if (msg.sender != address(storageRegistry)) revert Unauthorized();
+    }
 }
