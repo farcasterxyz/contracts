@@ -31,12 +31,12 @@ abstract contract BundlerTestSuite is StorageRegistryTestSuite, KeyRegistryTestS
     // Assert that a given fname was correctly registered with id 1 and recovery
     function _assertSuccessfulRegistration(address account, address recovery) internal {
         assertEq(idRegistry.idOf(account), 1);
-        assertEq(idRegistry.getRecoveryOf(1), recovery);
+        assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
     // Assert that a given fname was not registered and the contracts have no registrations
     function _assertUnsuccessfulRegistration(address account) internal {
         assertEq(idRegistry.idOf(account), 0);
-        assertEq(idRegistry.getRecoveryOf(1), address(0));
+        assertEq(idRegistry.recoveryOf(1), address(0));
     }
 }

@@ -102,7 +102,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /**
      * @dev The last Farcaster id that was issued.
      */
-    uint256 internal idCounter;
+    uint256 public idCounter;
 
     /**
      * @dev Maps each address to an fid, or zero if it does not own an fid.
@@ -112,7 +112,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /**
      * @dev Maps each fid to an address that can initiate a recovery.
      */
-    mapping(uint256 fid => address recovery) internal recoveryOf;
+    mapping(uint256 fid => address recovery) public recoveryOf;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
