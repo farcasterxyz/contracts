@@ -14,7 +14,7 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     function setUp() public virtual override {
         super.setUp();
 
-        keyRegistry = new KeyRegistryHarness(address(idRegistry), 1 days, owner);
+        keyRegistry = new KeyRegistryHarness(address(idRegistry), owner);
     }
 
     function _signAdd(
