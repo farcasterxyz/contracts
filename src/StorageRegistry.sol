@@ -65,6 +65,9 @@ contract StorageRegistry is AccessControlEnumerable {
     /// @dev Revert if the priceFeedMaxAnswer parameter is less than or equal to priceFeedMinAnswer.
     error InvalidMaxAnswer();
 
+    /// @dev Revert if the fixedEthUsdPrice is outside the configured price bounds.
+    error InvalidFixedPrice();
+
     /// @dev Revert if the caller is not an owner.
     error NotOwner();
 
@@ -714,6 +717,9 @@ contract StorageRegistry is AccessControlEnumerable {
      *                   re-enable the price feed.
      */
     function setFixedEthUsdPrice(uint256 fixedPrice) external onlyOwner {
+        if (fixedPrice != 0) {
+            if (fixedPrice < priceFeedMinAnswer || fixedPrice > priceFeedMaxAnswer) revert InvalidFixedPrice();
+        }
         emit SetFixedEthUsdPrice(fixedEthUsdPrice, fixedPrice);
         fixedEthUsdPrice = fixedPrice;
     }

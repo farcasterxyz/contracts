@@ -311,7 +311,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         newEthUsdPrice = bound(
             newEthUsdPrice, int256(storageRegistry.priceFeedMinAnswer()), int256(storageRegistry.priceFeedMaxAnswer())
         );
-        fixedPrice = bound(fixedPrice, 10e8, 100_000e8);
+        fixedPrice = bound(fixedPrice, 100e8, 10_000e8);
 
         _rentStorage(msgSender1, id1, units1);
 
@@ -1431,6 +1431,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzSetFixedEthUsdPrice(uint256 fixedPrice) public {
+        fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMinAnswer(), storageRegistry.priceFeedMaxAnswer());
         assertEq(storageRegistry.fixedEthUsdPrice(), 0);
 
         vm.expectEmit(false, false, false, true);
@@ -1443,6 +1444,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzSetFixedEthUsdPriceOverridesPriceFeed(uint256 fixedPrice) public {
+        fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMinAnswer(), storageRegistry.priceFeedMaxAnswer());
         vm.assume(fixedPrice != storageRegistry.ethUsdPrice());
         fixedPrice = bound(fixedPrice, 1, type(uint256).max);
 
@@ -1459,6 +1461,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzRemoveFixedEthUsdPriceReenablesPriceFeed(uint256 fixedPrice) public {
+        fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMinAnswer(), storageRegistry.priceFeedMaxAnswer());
         vm.assume(fixedPrice != storageRegistry.ethUsdPrice());
         fixedPrice = bound(fixedPrice, 1, type(uint256).max);
 
