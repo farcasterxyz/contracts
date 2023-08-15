@@ -10,6 +10,7 @@ remappings = [
   "chainlink/=lib/chainlink-brownie-contracts/contracts/src/"
 ]
 no_match_path = "test/Deploy/*"
+libs = ["node_modules", "lib"]
 
 [profile.ci]
 verbosity = 3

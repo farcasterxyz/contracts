@@ -434,6 +434,25 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.rentedUnits(), maxUnits);
     }
 
+    function testFuzzRentRevertsWhenPaused(address msgSender, uint256 id, uint256 units) public {
+        uint256 rentedBefore = storageRegistry.rentedUnits();
+
+        // Pause the contract.
+        vm.prank(owner);
+        storageRegistry.pause();
+
+        // Attempt to buy a fuzzed amount units.
+        units = bound(units, 1, storageRegistry.maxUnits());
+        uint256 price = storageRegistry.unitPrice() * units;
+        vm.deal(msgSender, price);
+
+        vm.expectRevert("Pausable: paused");
+        vm.prank(msgSender);
+        storageRegistry.rent{value: price}(id, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedBefore);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                BATCH RENT
     //////////////////////////////////////////////////////////////*/
@@ -589,6 +608,46 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
         vm.prank(msgSender);
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
+        storageRegistry.batchRent{value: totalCost}(ids, units);
+
+        assertEq(storageRegistry.rentedUnits(), rentedUnits);
+    }
+
+    function testFuzzBatchRentRevertsIfPaused(
+        address msgSender,
+        uint256[] calldata _ids,
+        uint16[] calldata _units
+    ) public {
+        vm.prank(owner);
+        storageRegistry.setMaxUnits(type(uint256).max);
+        uint256 rentedUnits = storageRegistry.rentedUnits();
+
+        // Ensure that ids and units are of the same length
+        uint256 length = _ids.length <= _units.length ? _ids.length : _units.length;
+        uint256[] memory ids = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            ids[i] = _ids[i];
+        }
+        uint256[] memory units = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            units[i] = _units[i];
+        }
+
+        // Ensure that the contract is paused
+        vm.prank(owner);
+        storageRegistry.pause();
+
+        // Deal enough funds to complete the transaction
+        uint256 totalUnits;
+        for (uint256 i; i < units.length; ++i) {
+            totalUnits += units[i];
+        }
+        uint256 totalCost = storageRegistry.price(totalUnits);
+        vm.assume(totalUnits <= storageRegistry.maxUnits() - storageRegistry.rentedUnits());
+        vm.deal(msgSender, totalCost);
+
+        vm.prank(msgSender);
+        vm.expectRevert("Pausable: paused");
         storageRegistry.batchRent{value: totalCost}(ids, units);
 
         assertEq(storageRegistry.rentedUnits(), rentedUnits);
@@ -1264,6 +1323,15 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.credit(fid, units);
     }
 
+    function testFuzzCreditRevertsIfPaused(uint256 fid, uint32 units) public {
+        vm.prank(owner);
+        storageRegistry.pause();
+
+        vm.expectRevert("Pausable: paused");
+        vm.prank(operator);
+        storageRegistry.credit(fid, units);
+    }
+
     function testFuzzCreditRevertsZeroUnits(uint256 fid) public {
         vm.expectRevert(StorageRegistry.InvalidAmount.selector);
         vm.prank(operator);
@@ -1314,6 +1382,16 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
 
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
+        vm.prank(operator);
+        storageRegistry.batchCredit(fids, units);
+    }
+
+    function testFuzzBatchCreditRevertsIfPaused(uint256[] calldata fids, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
+        vm.prank(owner);
+        storageRegistry.pause();
+
+        vm.expectRevert("Pausable: paused");
         vm.prank(operator);
         storageRegistry.batchCredit(fids, units);
     }
@@ -1393,6 +1471,17 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.warp(storageRegistry.deprecationTimestamp() + 1);
 
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
+        vm.prank(operator);
+        storageRegistry.continuousCredit(start, end, units);
+    }
+
+    function testFuzzContinuousCreditRevertsIfPaused(uint16 start, uint256 n, uint32 _units) public {
+        uint256 units = bound(_units, 1, type(uint32).max);
+        uint256 end = uint256(start) + bound(n, 0, 10000);
+        vm.prank(owner);
+        storageRegistry.pause();
+
+        vm.expectRevert("Pausable: paused");
         vm.prank(operator);
         storageRegistry.continuousCredit(start, end, units);
     }
@@ -1770,6 +1859,40 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.prank(owner);
         vm.expectRevert(StorageRegistry.InvalidAddress.selector);
         storageRegistry.setVault(address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             PAUSABILITY 
+    //////////////////////////////////////////////////////////////*/
+
+    function testPauseUnpause() public {
+        assertEq(storageRegistry.paused(), false);
+
+        vm.prank(owner);
+        storageRegistry.pause();
+
+        assertEq(storageRegistry.paused(), true);
+
+        vm.prank(owner);
+        storageRegistry.unpause();
+
+        assertEq(storageRegistry.paused(), false);
+    }
+
+    function testFuzzOnlyOwnerCanPause(address caller) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
+        storageRegistry.pause();
+    }
+
+    function testFuzzOnlyOwnerCanUnpause(address caller) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
+        storageRegistry.unpause();
     }
 
     /*//////////////////////////////////////////////////////////////

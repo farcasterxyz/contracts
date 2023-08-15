@@ -146,7 +146,7 @@ An `operator` role can credit storage to fids without the payment of rent. This 
 
 A `treasurer` role can move funds from the contract to a pre-defined `vault` address, but cannot change this destination. Only the `owner` may change the vault address to a new destination. The `treasurer` may also refresh the oracle price.
 
-An `owner` role can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp.
+An `owner` role can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp. The owner may also pause and unpause the contract, disabling/enabling rentals and credits. 
 
 ### Upgradeability
 
