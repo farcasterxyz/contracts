@@ -104,6 +104,22 @@ contract StorageRegistry is AccessControlEnumerable {
     event Rent(address indexed payer, uint256 indexed fid, uint256 units);
 
     /**
+     * @dev Emit an event when an owner changes the price feed address.
+     *
+     * @param oldFeed The previous price feed address.
+     * @param newFeed The new price feed address.
+     */
+    event SetPriceFeed(address oldFeed, address newFeed);
+
+    /**
+     * @dev Emit an event when an owner changes the uptime feed address.
+     *
+     * @param oldFeed The previous uptime feed address.
+     * @param newFeed The new uptime feed address.
+     */
+    event SetUptimeFeed(address oldFeed, address newFeed);
+
+    /**
      * @dev Emit an event when an owner changes the price of storage units.
      *
      * @param oldPrice The previous unit price in USD. Fixed point value with 8 decimals.
@@ -214,22 +230,18 @@ contract StorageRegistry is AccessControlEnumerable {
     bytes32 internal constant TREASURER_ROLE = keccak256("TREASURER_ROLE");
 
     /*//////////////////////////////////////////////////////////////
-                                IMMUTABLES
+                              PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
     /**
      * @dev Chainlink ETH/USD price feed.
      */
-    AggregatorV3Interface public immutable priceFeed;
+    AggregatorV3Interface public priceFeed;
 
     /**
      * @dev Chainlink L2 sequencer uptime feed.
      */
-    AggregatorV3Interface public immutable uptimeFeed;
-
-    /*//////////////////////////////////////////////////////////////
-                              PARAMETERS
-    //////////////////////////////////////////////////////////////*/
+    AggregatorV3Interface public uptimeFeed;
 
     /**
      * @dev Block timestamp at which this contract will no longer accept storage rent payments.
@@ -344,7 +356,10 @@ contract StorageRegistry is AccessControlEnumerable {
         address _initialTreasurer
     ) {
         priceFeed = _priceFeed;
+        emit SetPriceFeed(address(0), address(_priceFeed));
+
         uptimeFeed = _uptimeFeed;
+        emit SetUptimeFeed(address(0), address(_uptimeFeed));
 
         deprecationTimestamp = block.timestamp + 365 days;
         emit SetDeprecationTimestamp(0, deprecationTimestamp);
@@ -695,6 +710,26 @@ contract StorageRegistry is AccessControlEnumerable {
     function refreshPrice() external {
         if (!hasRole(OWNER_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
         _refreshPrice();
+    }
+
+    /**
+     * @notice Change the price feed addresss. Callable by owner.
+     *
+     * @param feed The new price feed.
+     */
+    function setPriceFeed(AggregatorV3Interface feed) external onlyOwner {
+        emit SetPriceFeed(address(priceFeed), address(feed));
+        priceFeed = feed;
+    }
+
+    /**
+     * @notice Change the uptime feed addresss. Callable by owner.
+     *
+     * @param feed The new uptime feed.
+     */
+    function setUptimeFeed(AggregatorV3Interface feed) external onlyOwner {
+        emit SetUptimeFeed(address(uptimeFeed), address(feed));
+        uptimeFeed = feed;
     }
 
     /**

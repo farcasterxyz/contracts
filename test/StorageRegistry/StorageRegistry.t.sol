@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
+import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {StorageRegistry} from "../../src/StorageRegistry.sol";
 import {TransferHelper} from "../../src/lib/TransferHelper.sol";
@@ -19,6 +20,8 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     event Rent(address indexed buyer, uint256 indexed id, uint256 units);
+    event SetPriceFeed(address oldFeed, address newFeed);
+    event SetUptimeFeed(address oldFeed, address newFeed);
     event SetPrice(uint256 oldPrice, uint256 newPrice);
     event SetFixedEthUsdPrice(uint256 oldPrice, uint256 newPrice);
     event SetMaxUnits(uint256 oldMax, uint256 newMax);
@@ -119,11 +122,11 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
 
     function testInitialPriceUpdate() public {
         // Clear ethUsdPrice storage slot
-        vm.store(address(storageRegistry), bytes32(uint256(13)), bytes32(0));
+        vm.store(address(storageRegistry), bytes32(uint256(15)), bytes32(0));
         assertEq(storageRegistry.ethUsdPrice(), 0);
 
         // Clear prevEthUsdPrice storage slot
-        vm.store(address(storageRegistry), bytes32(uint256(14)), bytes32(0));
+        vm.store(address(storageRegistry), bytes32(uint256(16)), bytes32(0));
         assertEq(storageRegistry.prevEthUsdPrice(), 0);
 
         vm.prank(owner);
@@ -1392,6 +1395,50 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         vm.expectRevert(StorageRegistry.ContractDeprecated.selector);
         vm.prank(operator);
         storageRegistry.continuousCredit(start, end, units);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           SET DATA FEEDS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyOwnerCanSetPriceFeed(address caller, address newFeed) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
+        storageRegistry.setPriceFeed(AggregatorV3Interface(newFeed));
+    }
+
+    function testFuzzSetPriceFeed(address newFeed) public {
+        AggregatorV3Interface currentFeed = storageRegistry.priceFeed();
+
+        vm.expectEmit();
+        emit SetPriceFeed(address(currentFeed), newFeed);
+
+        vm.prank(owner);
+        storageRegistry.setPriceFeed(AggregatorV3Interface(newFeed));
+
+        assertEq(address(storageRegistry.priceFeed()), newFeed);
+    }
+
+    function testFuzzOnlyOwnerCanSetUptimeFeed(address caller, address newFeed) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.NotOwner.selector);
+        storageRegistry.setUptimeFeed(AggregatorV3Interface(newFeed));
+    }
+
+    function testFuzzSetUptimeFeed(address newFeed) public {
+        AggregatorV3Interface currentFeed = storageRegistry.uptimeFeed();
+
+        vm.expectEmit();
+        emit SetUptimeFeed(address(currentFeed), newFeed);
+
+        vm.prank(owner);
+        storageRegistry.setUptimeFeed(AggregatorV3Interface(newFeed));
+
+        assertEq(address(storageRegistry.uptimeFeed()), newFeed);
     }
 
     /*//////////////////////////////////////////////////////////////
