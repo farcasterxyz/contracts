@@ -42,14 +42,6 @@ contract FnameResolverHarness is FnameResolver {
 contract IdRegistryHarness is IdRegistry {
     constructor(address owner) IdRegistry(owner) {}
 
-    function getIdCounter() public view returns (uint256) {
-        return idCounter;
-    }
-
-    function getRecoveryOf(uint256 id) public view returns (address) {
-        return recoveryOf[id];
-    }
-
     function getTrustedCaller() public view returns (address) {
         return trustedCaller;
     }

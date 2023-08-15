@@ -360,7 +360,7 @@ contract BundlerTest is BundlerTestSuite {
             uint160 fid = uint160(i + 1);
             address recovery = address(uint160(i + 1000));
             assertEq(idRegistry.idOf(address(fid)), fid);
-            assertEq(idRegistry.getRecoveryOf(fid), recovery);
+            assertEq(idRegistry.recoveryOf(fid), recovery);
         }
 
         // Check that the keys were registered
