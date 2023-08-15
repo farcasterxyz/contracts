@@ -68,6 +68,15 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
     /**
+     * @dev Emit an event when an fid is recovered.
+     *
+     * @param from The custody address that previously owned the fid.
+     * @param to   The custody address that now owns the fid.
+     * @param id   The fid that was recovered.
+     */
+    event Recover(address indexed from, address indexed to, uint256 indexed id);
+
+    /**
      * @dev Emit an event when a Farcaster ID's recovery address changes. It is possible for this
      *      event to emit multiple times in a row with the same recovery address.
      *
@@ -278,6 +287,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         /* Revert if signature is invalid */
         _verifyTransferSig(fromId, to, deadline, sig);
 
+        emit Recover(from, to, fromId);
         _unsafeTransfer(fromId, from, to);
     }
 

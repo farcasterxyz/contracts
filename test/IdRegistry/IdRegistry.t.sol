@@ -17,6 +17,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
     event Register(address indexed to, uint256 indexed id, address recovery);
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
+    event Recover(address indexed from, address indexed to, uint256 indexed id);
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
     /*//////////////////////////////////////////////////////////////
@@ -694,6 +695,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), recovery);
 
         vm.prank(recovery);
+        vm.expectEmit();
+        emit Recover(from, to, 1);
         vm.expectEmit();
         emit Transfer(from, to, 1);
         idRegistry.recover(from, to, deadline, sig);
