@@ -17,6 +17,9 @@ contract Bundler is TrustedCaller {
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
 
+    /// @dev Revert if the caller attempts to rent zero storage units.
+    error InvalidAmount();
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -106,6 +109,7 @@ contract Bundler is TrustedCaller {
         SignerParams[] calldata signers,
         uint256 storageUnits
     ) external payable {
+        if (storageUnits == 0) revert InvalidAmount();
         uint256 fid =
             idRegistry.registerFor(registration.to, registration.recovery, registration.deadline, registration.sig);
 

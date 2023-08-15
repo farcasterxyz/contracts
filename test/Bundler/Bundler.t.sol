@@ -161,6 +161,37 @@ contract BundlerTest is BundlerTestSuite {
         );
     }
 
+    function testFuzzRegisterRevertsZeroUnits(
+        address caller,
+        uint256 accountPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        accountPk = _boundPk(accountPk);
+        vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
+        assumePayable(caller); // caller must be able to receive funds
+
+        uint256 storageUnits = 0;
+
+        // State: Trusted Registration is disabled in ID registry
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+
+        address account = vm.addr(accountPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
+
+        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+
+        vm.prank(caller);
+        vm.expectRevert(StorageRegistry.InvalidAmount.selector);
+        bundler.register(
+            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            signers,
+            storageUnits
+        );
+    }
+
     function testFuzzRegisterReturnsExcessPayment(
         address caller,
         uint256 accountPk,
