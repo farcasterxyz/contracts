@@ -8,6 +8,9 @@ import {IdRegistry} from "../src/IdRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {Bundler} from "../src/Bundler.sol";
+import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
+import {IERC1271} from "openzeppelin/contracts/interfaces/IERC1271.sol";
+import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 /* solhint-disable no-empty-blocks */
 
@@ -188,5 +191,44 @@ contract MockUptimeFeed is MockChainlinkFeed(0, "Mock L2 Sequencer Uptime Feed")
 contract RevertOnReceive {
     receive() external payable {
         revert("Cannot receive ETH");
+    }
+}
+
+/*//////////////////////////////////////////////////////////////
+                     SMART CONTRACT WALLET MOCKS
+//////////////////////////////////////////////////////////////*/
+
+contract ERC1271WalletMock is Ownable, IERC1271 {
+    constructor(address owner) {
+        super.transferOwnership(owner);
+    }
+
+    function isValidSignature(bytes32 hash, bytes memory signature) public view returns (bytes4 magicValue) {
+        return
+            SignatureChecker.isValidSignatureNow(owner(), hash, signature) ? this.isValidSignature.selector : bytes4(0);
+    }
+}
+
+contract ERC1271MaliciousMockForceRevert is Ownable, IERC1271 {
+    bool internal _forceRevert = true;
+
+    constructor(address owner) {
+        super.transferOwnership(owner);
+    }
+
+    function setForceRevert(bool forceRevert) external {
+        _forceRevert = forceRevert;
+    }
+
+    function isValidSignature(bytes32 hash, bytes memory signature) public view returns (bytes4) {
+        if (_forceRevert) {
+            assembly {
+                mstore(0, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+                return(0, 32)
+            }
+        }
+
+        return
+            SignatureChecker.isValidSignatureNow(owner(), hash, signature) ? this.isValidSignature.selector : bytes4(0);
     }
 }

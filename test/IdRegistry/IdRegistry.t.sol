@@ -7,6 +7,7 @@ import {IdRegistry} from "../../src/IdRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
+import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
@@ -308,6 +309,70 @@ contract IdRegistryTest is IdRegistryTestSuite {
             idRegistry.registerTypehash(),
             keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)")
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       ERC1271 REGISTER FOR TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzRegisterForERC1271(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        address recipient = vm.addr(recipientPk);
+        (, address mockWalletAddress) = _createMockERC1271(recipient);
+
+        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, recovery, deadline);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(mockWalletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.expectEmit(true, true, true, true);
+        emit Register(mockWalletAddress, 1, recovery);
+        vm.prank(registrar);
+        idRegistry.registerFor(mockWalletAddress, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 1);
+        assertEq(idRegistry.idOf(mockWalletAddress), 1);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.getRecoveryOf(1), recovery);
+    }
+
+    function testFuzzRegisterForRevertsMaliciousERC1271(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        recipientPk = _boundPk(recipientPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address recipient = vm.addr(recipientPk);
+        (, address mockWalletAddress) = _createMaliciousMockERC1271(recipient);
+        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, recovery, deadline);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(mockWalletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
+
+        vm.prank(registrar);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        idRegistry.registerFor(mockWalletAddress, recovery, deadline, sig);
+
+        assertEq(idRegistry.getIdCounter(), 0);
+        assertEq(idRegistry.idOf(mockWalletAddress), 0);
+        assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -880,7 +945,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          VERIFY FID SIGNATURE
+                        EOA VERIFY FID SIGNATURE
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzVerifyFidSignature(uint256 recipientPk, bytes32 digest) public {
@@ -947,5 +1012,78 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         bytes memory msgSig = _signDigest(recipientPk, digest);
         assertEq(idRegistry.verifyFidSignature(badCustodyAddress, 1, digest, msgSig), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          ERC1271 VERIFY FID SIGNATURE
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzVerifyFidSignatureERC1271(uint256 recipientPk, bytes32 digest) public {
+        recipientPk = _boundPk(recipientPk);
+        address recipient = vm.addr(recipientPk);
+        (, address mockWalletAddress) = _createMockERC1271(recipient);
+
+        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, address(0), 10);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+        idRegistry.registerFor(mockWalletAddress, address(0), 10, sig);
+        assertEq(idRegistry.getIdCounter(), 1);
+
+        bytes memory msg_sig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(mockWalletAddress, 1, digest, msg_sig), true);
+    }
+
+    function testFuzzCannotVerifyFidSignatureERC1271IfBadDigest(
+        uint256 recipientPk,
+        bytes32 digest,
+        bytes32 badDigest
+    ) public {
+        vm.assume(digest != badDigest);
+        recipientPk = _boundPk(recipientPk);
+        address recipient = vm.addr(recipientPk);
+        (, address mockWalletAddress) = _createMockERC1271(recipient);
+        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, address(0), 10);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+        idRegistry.registerFor(mockWalletAddress, address(0), 10, sig);
+        assertEq(idRegistry.getIdCounter(), 1);
+
+        bytes memory msgSig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(mockWalletAddress, 1, badDigest, msgSig), false);
+    }
+
+    function testFuzzCannotVerifyFidSignatureERC1271IfBadCustodyAddress(uint256 recipientPk, bytes32 digest) public {
+        recipientPk = _boundPk(recipientPk);
+        address recipient = vm.addr(recipientPk);
+        (, address mockWalletAddress) = _createMockERC1271(recipient);
+        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, address(0), 10);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+        idRegistry.registerFor(mockWalletAddress, address(0), 10, sig);
+        assertEq(idRegistry.getIdCounter(), 1);
+
+        bytes memory msgSig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(recipient, 1, digest, msgSig), false);
+    }
+
+    function testFuzzCannotVerifyFidSignatureERC1271IfMalicious(uint256 recipientPk, bytes32 digest) public {
+        recipientPk = _boundPk(recipientPk);
+        address recipient = vm.addr(recipientPk);
+        (ERC1271MaliciousMockForceRevert mockWallet, address mockWalletAddress) = _createMaliciousMockERC1271(recipient);
+        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, address(0), 10);
+
+        vm.prank(owner);
+        idRegistry.disableTrustedOnly();
+        mockWallet.setForceRevert(false);
+        idRegistry.registerFor(mockWalletAddress, address(0), 10, sig);
+        assertEq(idRegistry.getIdCounter(), 1);
+
+        mockWallet.setForceRevert(true);
+
+        bytes memory msgSig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(mockWalletAddress, 1, digest, msgSig), false);
     }
 }
