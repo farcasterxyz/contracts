@@ -302,6 +302,13 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getRecoveryOf(1), address(0));
     }
 
+    function testRegisterTypehash() public {
+        assertEq(
+            idRegistry.registerTypehash(),
+            keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)")
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                          TRUSTED REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
@@ -622,6 +629,12 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.getIdCounter(), 2);
         assertEq(idRegistry.idOf(from), 2);
         assertEq(idRegistry.idOf(to), 1);
+    }
+
+    function testTransferTypehash() public {
+        assertEq(
+            idRegistry.transferTypehash(), keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)")
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

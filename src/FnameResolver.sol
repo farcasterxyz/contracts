@@ -131,7 +131,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *             other resolver function will revert.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
-        if (bytes4(data[:4]) != IAddressQuery.addr.selector) revert ResolverFunctionNotSupported();
+        if (bytes4(data[:4]) != IAddressQuery.addr.selector) {
+            revert ResolverFunctionNotSupported();
+        }
 
         bytes memory callData = abi.encodeCall(IResolverService.resolve, (name, data));
         string[] memory urls = new string[](1);
@@ -160,7 +162,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
             abi.decode(response, (string, uint256, address, bytes));
 
         bytes32 proofHash =
-            keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(abi.encodePacked(fname)), timestamp, fnameOwner));
+            keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(bytes(fname)), timestamp, fnameOwner));
         bytes32 eip712hash = _hashTypedDataV4(proofHash);
         address signer = ECDSA.recover(eip712hash, signature);
 

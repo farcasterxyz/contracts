@@ -373,7 +373,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         bytes[][] calldata fidKeys,
         bytes calldata metadata
     ) external onlyOwner {
-        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) revert Unauthorized();
+        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) {
+            revert Unauthorized();
+        }
         if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
         // Safety: i and j can be incremented unchecked since they are bound by fids.length and
@@ -399,7 +401,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      * @param fidKeys A list of keys to remove for each fid, in the same order as the fids array.
      */
     function bulkResetKeysForMigration(uint256[] calldata fids, bytes[][] calldata fidKeys) external onlyOwner {
-        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) revert Unauthorized();
+        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) {
+            revert Unauthorized();
+        }
         if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
         // Safety: i and j can be incremented unchecked since they are bound by fids.length and

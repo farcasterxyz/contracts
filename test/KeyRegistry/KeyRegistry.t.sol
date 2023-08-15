@@ -311,6 +311,13 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertNull(fid, key);
     }
 
+    function testAddTypeHash() public {
+        assertEq(
+            keyRegistry.addTypehash(),
+            keccak256("Add(address owner,uint32 scheme,bytes key,bytes metadata,uint256 nonce,uint256 deadline)")
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  REMOVE
     //////////////////////////////////////////////////////////////*/
@@ -522,6 +529,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, scheme);
+    }
+
+    function testRemoveTypeHash() public {
+        assertEq(
+            keyRegistry.removeTypehash(), keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)")
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -84,7 +84,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
 
     bytes32 internal constant _TRANSFER_TYPEHASH =
-        keccak256("Transfer(address from,address to,uint256 nonce,uint256 deadline)");
+        keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
