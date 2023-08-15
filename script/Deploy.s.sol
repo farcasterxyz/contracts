@@ -59,9 +59,7 @@ contract Deploy is ImmutableCreate2Deployer {
                 params.roleAdmin,
                 params.admin,
                 params.operator,
-                params.treasurer,
-                INITIAL_PRICE_FEED_CACHE_DURATION,
-                INITIAL_UPTIME_FEED_GRACE_PERIOD
+                params.treasurer
             )
         );
         address idRegistry = register(
@@ -74,7 +72,7 @@ contract Deploy is ImmutableCreate2Deployer {
             "KeyRegistry",
             KEY_REGISTRY_CREATE2_SALT,
             type(KeyRegistry).creationCode,
-            abi.encode(idRegistry, KEY_REGISTRY_MIGRATION_GRACE_PERIOD, params.initialKeyRegistryOwner)
+            abi.encode(idRegistry, params.initialKeyRegistryOwner)
         );
         address bundler = register(
             "Bundler",
