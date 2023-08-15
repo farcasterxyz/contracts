@@ -72,7 +72,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      *
      * @param from The custody address that previously owned the fid.
      * @param to   The custody address that now owns the fid.
-     * @param id   The fid that was transferred.
+     * @param id   The fid that was recovered.
      */
     event Recover(address indexed from, address indexed to, uint256 indexed id);
 
