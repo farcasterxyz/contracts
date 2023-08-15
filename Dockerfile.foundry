@@ -11,7 +11,5 @@ RUN curl -L https://foundry.paradigm.xyz | bash
 
 ENV RUST_BACKTRACE=full PATH="$PATH:/root/.foundry/bin"
 
-# Hardcode release so that we don't have surprising breakages when rebuilding by
-# automatically downloading the latest release every time.
-# https://github.com/foundry-rs/foundry/releases/tag/nightly-d4f626bb7f96d46358997d4b27f79358cb2b3401
-RUN foundryup --version nightly-d4f626bb7f96d46358997d4b27f79358cb2b3401
+# TODO: Install a specific version so builds don't unexpected break in the future
+RUN foundryup
