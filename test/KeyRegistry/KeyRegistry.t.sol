@@ -157,7 +157,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         ownerPk = _boundPk(ownerPk);
 
         address owner = vm.addr(ownerPk);
-        bytes memory sig = _signAdd(ownerPk, owner, scheme, key, metadata, deadline + 1);
+        bytes memory sig = _signAdd(ownerPk, owner, scheme, key, metadata, deadline);
 
         vm.prank(registrar);
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
