@@ -12,7 +12,6 @@ contract KeyRegistrySymTest is SymTest, Test {
     address trustedCaller;
 
     KeyRegistry keyRegistry;
-    uint256 gracePeriod;
 
     uint256 x;
     bytes xkey;
