@@ -74,12 +74,14 @@ contract KeyRegistrySymTest is SymTest, Test {
         if (svm.createBool("migrateKeys?")) {
             keyRegistry.migrateKeys();
         }
+        /* NOTE: these configurations don't make any differences for the current KeyRegistry behaviors.
         if (svm.createBool("disableTrustedOnly?")) {
             idRegistry.disableTrustedOnly();
         }
         if (svm.createBool("pause?")) {
             idRegistry.pause();
         }
+        */
         vm.warp(svm.createUint(64, "timestamp2"));
 
         address user = svm.createAddress("user");
