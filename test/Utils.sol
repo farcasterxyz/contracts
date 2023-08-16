@@ -62,6 +62,10 @@ contract IdRegistryHarness is IdRegistry {
     function transferTypehash() public pure returns (bytes32) {
         return _TRANSFER_TYPEHASH;
     }
+
+    function changeRecoveryAddressTypehash() public pure returns (bytes32) {
+        return _CHANGE_RECOVERY_ADDRESS_TYPEHASH;
+    }
 }
 
 contract KeyRegistryHarness is KeyRegistry {

@@ -1057,6 +1057,117 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
+                          CHANGE RECOVERY FOR
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzChangeRecoveryAddressFor(
+        address caller,
+        uint256 alicePk,
+        address oldRecovery,
+        address newRecovery,
+        uint40 _deadline
+    ) public {
+        alicePk = _boundPk(alicePk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address alice = vm.addr(alicePk);
+        _registerWithRecovery(alice, oldRecovery);
+
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+
+        vm.prank(caller);
+        vm.expectEmit();
+        emit ChangeRecoveryAddress(1, newRecovery);
+        idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
+
+        assertEq(idRegistry.recoveryOf(1), newRecovery);
+    }
+
+    function testFuzzChangeRecoveryAddressForRevertsInvalidSig(
+        address caller,
+        uint256 alicePk,
+        address oldRecovery,
+        address newRecovery,
+        uint40 _deadline
+    ) public {
+        alicePk = _boundPk(alicePk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address alice = vm.addr(alicePk);
+        _registerWithRecovery(alice, oldRecovery);
+
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline + 1);
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
+
+        assertEq(idRegistry.recoveryOf(1), oldRecovery);
+    }
+
+    function testFuzzChangeRecoveryAddressForRevertsBadSig(
+        address caller,
+        uint256 alicePk,
+        address oldRecovery,
+        address newRecovery,
+        uint40 _deadline
+    ) public {
+        alicePk = _boundPk(alicePk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address alice = vm.addr(alicePk);
+        _registerWithRecovery(alice, oldRecovery);
+
+        /* generate an invalid signature */
+        bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
+
+        assertEq(idRegistry.recoveryOf(1), oldRecovery);
+    }
+
+    function testFuzzChangeRecoveryAddressForRevertsExpired(
+        address caller,
+        uint256 alicePk,
+        address oldRecovery,
+        address newRecovery,
+        uint40 _deadline
+    ) public {
+        alicePk = _boundPk(alicePk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address alice = vm.addr(alicePk);
+        _registerWithRecovery(alice, oldRecovery);
+
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+
+        vm.warp(deadline + 1);
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.SignatureExpired.selector);
+        idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
+
+        assertEq(idRegistry.recoveryOf(1), oldRecovery);
+    }
+
+    function testFuzzCannotChangeRecoveryAddressWithoutId(
+        address caller,
+        uint256 alicePk,
+        address newRecovery,
+        uint40 _deadline
+    ) public {
+        alicePk = _boundPk(alicePk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address alice = vm.addr(alicePk);
+
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+
+        vm.warp(deadline + 1);
+
+        vm.prank(caller);
+        vm.expectRevert(IdRegistry.HasNoId.selector);
+        idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
 

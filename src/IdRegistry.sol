@@ -95,6 +95,9 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     bytes32 internal constant _TRANSFER_TYPEHASH =
         keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)");
 
+    bytes32 internal constant _CHANGE_RECOVERY_ADDRESS_TYPEHASH =
+        keccak256("ChangeRecoveryAddress(uint256 fid,address recovery,uint256 nonce,uint256 deadline)");
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -233,6 +236,18 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         _unsafeTransfer(fromId, from, to);
     }
 
+    /**
+     * @notice Transfer the fid owned by the from address to another address that does not
+     *         have an fid. Caller must provide two signed Transfer messages: one signed by
+     *         the from address and one signed by the to address.
+     *
+     * @param from         The owner address of the fid to transfer.
+     * @param to           The address to transfer the fid to.
+     * @param fromDeadline Expiration timestamp of the from signature.
+     * @param fromSig      EIP-712 Transfer signature signed by the from address.
+     * @param toDeadline   Expiration timestamp of the to signature.
+     * @param toSig        EIP-712 Transfer signature signed by the to address.
+     */
     function transferFor(
         address from,
         address to,
@@ -278,6 +293,24 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         /* Revert if the caller does not own an fid */
         uint256 ownerId = idOf[msg.sender];
         if (ownerId == 0) revert HasNoId();
+
+        /* Change the recovery address */
+        recoveryOf[ownerId] = recovery;
+
+        emit ChangeRecoveryAddress(ownerId, recovery);
+    }
+
+    function changeRecoveryAddressFor(
+        address owner,
+        address recovery,
+        uint256 deadline,
+        bytes calldata sig
+    ) external whenNotPaused {
+        /* Revert if the caller does not own an fid */
+        uint256 ownerId = idOf[owner];
+        if (ownerId == 0) revert HasNoId();
+
+        _verifyChangeRecoveryAddressSig(ownerId, recovery, deadline, owner, sig);
 
         /* Change the recovery address */
         recoveryOf[ownerId] = recovery;
@@ -372,6 +405,23 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     function _verifyTransferSig(uint256 fid, address to, uint256 deadline, address signer, bytes memory sig) internal {
         _verifySig(
             _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(signer), deadline))),
+            signer,
+            deadline,
+            sig
+        );
+    }
+
+    function _verifyChangeRecoveryAddressSig(
+        uint256 fid,
+        address recovery,
+        uint256 deadline,
+        address signer,
+        bytes memory sig
+    ) internal {
+        _verifySig(
+            _hashTypedDataV4(
+                keccak256(abi.encode(_CHANGE_RECOVERY_ADDRESS_TYPEHASH, fid, recovery, _useNonce(signer), deadline))
+            ),
             signer,
             deadline,
             sig

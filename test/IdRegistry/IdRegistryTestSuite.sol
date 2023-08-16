@@ -76,8 +76,28 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         address to,
         uint256 deadline
     ) internal returns (bytes memory signature) {
+        address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
-            keccak256(abi.encode(idRegistry.transferTypehash(), fid, to, idRegistry.nonces(to), deadline))
+            keccak256(abi.encode(idRegistry.transferTypehash(), fid, to, idRegistry.nonces(signer), deadline))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        signature = abi.encodePacked(r, s, v);
+        assertEq(signature.length, 65);
+    }
+
+    function _signChangeRecoveryAddress(
+        uint256 pk,
+        uint256 fid,
+        address recovery,
+        uint256 deadline
+    ) internal returns (bytes memory signature) {
+        address signer = vm.addr(pk);
+        bytes32 digest = idRegistry.hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    idRegistry.changeRecoveryAddressTypehash(), fid, recovery, idRegistry.nonces(signer), deadline
+                )
+            )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);
