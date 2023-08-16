@@ -165,7 +165,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         bytes calldata sig
     ) external returns (uint256 fid) {
         /* Revert if signature is invalid */
-        _verifyRegisterSig(to, recovery, deadline, sig);
+        _verifyRegisterSig({to: to, recovery: recovery, deadline: deadline, sig: sig});
         return _register(to, recovery);
     }
 
@@ -230,8 +230,9 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         if (fromId == 0) revert HasNoId();
         /* Revert if recipient has an id */
         if (idOf[to] != 0) revert HasId();
+
         /* Revert if signature is invalid */
-        _verifyTransferSig(fromId, to, deadline, to, sig);
+        _verifyTransferSig({fid: fromId, to: to, deadline: deadline, signer: to, sig: sig});
 
         _unsafeTransfer(fromId, from, to);
     }
@@ -264,8 +265,8 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         if (idOf[to] != 0) revert HasId();
 
         /* Revert if either signature is invalid */
-        _verifyTransferSig(fromId, to, fromDeadline, from, fromSig);
-        _verifyTransferSig(fromId, to, toDeadline, to, toSig);
+        _verifyTransferSig({fid: fromId, to: to, deadline: fromDeadline, signer: from, sig: fromSig});
+        _verifyTransferSig({fid: fromId, to: to, deadline: toDeadline, signer: to, sig: toSig});
 
         _unsafeTransfer(fromId, from, to);
     }
@@ -300,6 +301,15 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         emit ChangeRecoveryAddress(ownerId, recovery);
     }
 
+    /**
+     * @notice Change the recovery address of the given owner. Caller must provide an
+     *         EIP-712 ChangeRecoveryAddress message signed by the owner.
+     *
+     * @param owner    Owner address of the fid whose recovery address will be changed.
+     * @param recovery The address which can recover the fid. Set to 0x0 to disable recovery.
+     * @param deadline Expiration timestamp of the ChangeRecoveryAddress signature.
+     * @param sig      EIP-712 ChangeRecoveryAddress message signed by the owner address.
+     */
     function changeRecoveryAddressFor(
         address owner,
         address recovery,
@@ -310,7 +320,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         uint256 ownerId = idOf[owner];
         if (ownerId == 0) revert HasNoId();
 
-        _verifyChangeRecoveryAddressSig(ownerId, recovery, deadline, owner, sig);
+        _verifyChangeRecoveryAddressSig({fid: ownerId, recovery: recovery, deadline: deadline, signer: owner, sig: sig});
 
         /* Change the recovery address */
         recoveryOf[ownerId] = recovery;
@@ -340,7 +350,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         if (idOf[to] != 0) revert HasId();
 
         /* Revert if signature is invalid */
-        _verifyTransferSig(fromId, to, deadline, to, sig);
+        _verifyTransferSig({fid: fromId, to: to, deadline: deadline, signer: to, sig: sig});
 
         emit Recover(from, to, fromId);
         _unsafeTransfer(fromId, from, to);
