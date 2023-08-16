@@ -4,6 +4,8 @@ pragma solidity ^0.8.19;
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
+import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
+
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -20,6 +22,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event Migrated(uint256 indexed keysMigratedAt);
+    event SetValidator(uint32 scheme, uint8 typeId, address oldValidator, address newValidator);
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
     function testInitialIdRegistry() public {
@@ -51,9 +54,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         uint256 fid = _registerFid(to, recovery);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         vm.expectEmit();
         emit Add(fid, scheme, key, key, metadata);
@@ -63,15 +69,62 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertAdded(fid, key, scheme);
     }
 
+    function testFuzzAddRevertsUnregisteredValidator(
+        address to,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        uint8 typeId,
+        bytes memory metadata
+    ) public {
+        /* We set a validator for scheme 1, type 1 during setup. Remove it.*/
+        vm.prank(owner);
+        keyRegistry.setValidator(1, 1, IMetadataValidator(address(0)));
+
+        metadata = _validMetadata(typeId, metadata);
+
+        uint256 fid = _registerFid(to, recovery);
+
+        vm.prank(to);
+        vm.expectRevert(abi.encodeWithSelector(KeyRegistry.ValidatorNotFound.selector, scheme, typeId));
+        keyRegistry.add(scheme, key, metadata);
+
+        assertNull(fid, key);
+    }
+
+    function testFuzzAddRevertsInvalidMetadata(
+        address to,
+        address recovery,
+        uint32 scheme,
+        bytes calldata key,
+        uint8 typeId,
+        bytes memory metadata
+    ) public {
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
+        stubValidator.setIsValid(false);
+
+        uint256 fid = _registerFid(to, recovery);
+
+        vm.prank(to);
+        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
+        keyRegistry.add(scheme, key, metadata);
+
+        assertNull(fid, key);
+    }
+
     function testFuzzAddRevertsUnlessFidOwner(
         address to,
         address recovery,
         address caller,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         vm.assume(to != caller);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         uint256 fid = _registerFid(to, recovery);
 
@@ -87,9 +140,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         uint256 fid = _registerFid(to, recovery);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
         vm.startPrank(to);
 
         keyRegistry.add(scheme, key, metadata);
@@ -106,9 +162,13 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         uint256 fid = _registerFid(to, recovery);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
+
         vm.startPrank(to);
 
         keyRegistry.add(scheme, key, metadata);
@@ -127,11 +187,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata,
+        uint8 typeId,
+        bytes memory metadata,
         uint40 _deadline
     ) public {
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         address owner = vm.addr(ownerPk);
         uint256 fid = _registerFid(owner, recovery);
@@ -150,11 +213,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 ownerPk,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata,
+        uint8 typeId,
+        bytes memory metadata,
         uint40 _deadline
     ) public {
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         address owner = vm.addr(ownerPk);
         bytes memory sig = _signAdd(ownerPk, owner, scheme, key, metadata, deadline);
@@ -170,11 +236,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata,
+        uint8 typeId,
+        bytes memory metadata,
         uint40 _deadline
     ) public {
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         address owner = vm.addr(ownerPk);
         uint256 fid = _registerFid(owner, recovery);
@@ -193,11 +262,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata,
+        uint8 typeId,
+        bytes memory metadata,
         uint40 _deadline
     ) public {
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         address owner = vm.addr(ownerPk);
         uint256 fid = _registerFid(owner, recovery);
@@ -240,10 +312,13 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         vm.prank(owner);
         keyRegistry.setTrustedCaller(trustedCaller);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         uint256 fid = _registerFid(to, recovery);
 
@@ -327,9 +402,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         uint256 fid = _registerFid(to, recovery);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         vm.prank(to);
         keyRegistry.add(scheme, key, metadata);
@@ -352,9 +430,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address caller,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         vm.assume(to != caller);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         uint256 fid = _registerFid(to, recovery);
         vm.prank(to);
@@ -382,9 +463,13 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         uint256 fid = _registerFid(to, recovery);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
+
         vm.startPrank(to);
 
         keyRegistry.add(scheme, key, metadata);
@@ -403,11 +488,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata,
+        uint8 typeId,
+        bytes memory metadata,
         uint40 _deadline
     ) public {
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         address owner = vm.addr(ownerPk);
         uint256 fid = _registerFid(owner, recovery);
@@ -451,11 +539,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata,
+        uint8 typeId,
+        bytes memory metadata,
         uint40 _deadline
     ) public {
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         address owner = vm.addr(ownerPk);
         uint256 fid = _registerFid(owner, recovery);
@@ -479,11 +570,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata,
+        uint8 typeId,
+        bytes memory metadata,
         uint40 _deadline
     ) public {
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         address owner = vm.addr(ownerPk);
         uint256 fid = _registerFid(owner, recovery);
@@ -507,11 +601,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         address recovery,
         uint32 scheme,
         bytes calldata key,
-        bytes calldata metadata,
+        uint8 typeId,
+        bytes memory metadata,
         uint40 _deadline
     ) public {
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
+        _registerValidator(scheme, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         address owner = vm.addr(ownerPk);
         uint256 fid = _registerFid(owner, recovery);
@@ -584,7 +681,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                 BULK ADD
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys, bytes calldata metadata) public {
+    function testFuzzBulkAddSignerForMigration(
+        uint256[] memory _ids,
+        uint8 _numKeys,
+        uint8 typeId,
+        bytes memory metadata
+    ) public {
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
@@ -592,6 +694,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256[] memory ids = _dedupeFuzzedIds(_ids, len);
         uint256 idsLength = ids.length;
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
+
+        _registerValidator(1, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         vm.prank(owner);
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
@@ -606,7 +711,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testBulkAddEmitsEvent() public {
         uint256[] memory ids = new uint256[](3);
         bytes[][] memory keys = new bytes[][](3);
-        bytes memory metadata = new bytes(1);
+        bytes memory metadata = abi.encodePacked(uint8(1));
 
         ids[0] = 1;
         ids[1] = 2;
@@ -672,10 +777,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testBulkAddCannotReadd() public {
+    function testBulkAddCannotReAdd() public {
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](2);
-        bytes memory metadata = new bytes(1);
+        bytes memory metadata = abi.encodePacked(uint8(1));
 
         ids[0] = 1;
         ids[1] = 2;
@@ -699,7 +804,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzBulkAddSignerForMigrationRevertsMismatchedInput() public {
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](1);
-        bytes memory metadata = new bytes(1);
+        bytes memory metadata = abi.encodePacked(uint8(1));
 
         vm.startPrank(owner);
         vm.expectRevert(KeyRegistry.InvalidBatchInput.selector);
@@ -715,7 +820,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzBulkRemoveSignerForMigration(
         uint256[] memory _ids,
         uint8 _numKeys,
-        bytes calldata metadata
+        uint8 typeId,
+        bytes memory metadata
     ) public {
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
@@ -724,6 +830,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256[] memory ids = _dedupeFuzzedIds(_ids, len);
         uint256 idsLength = ids.length;
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
+
+        _registerValidator(1, typeId);
+        metadata = _validMetadata(typeId, metadata);
 
         vm.startPrank(owner);
 
@@ -742,7 +851,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testBulkResetEmitsEvent() public {
         uint256[] memory ids = new uint256[](3);
         bytes[][] memory keys = new bytes[][](3);
-        bytes memory metadata = new bytes(1);
+        bytes memory metadata = abi.encodePacked(uint8(1));
 
         ids[0] = 1;
         ids[1] = 2;
@@ -801,7 +910,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testBulkResetRevertsIfRunTwice() public {
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](2);
-        bytes memory metadata = new bytes(1);
+        bytes memory metadata = abi.encodePacked(uint8(1));
 
         ids[0] = 1;
         ids[1] = 2;
@@ -889,6 +998,39 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.setIdRegistry(idRegistry);
 
         assertEq(address(keyRegistry.idRegistry()), idRegistry);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           SET VALIDATOR
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyAdminCanSetValidator(
+        address caller,
+        uint32 scheme,
+        uint8 typeId,
+        IMetadataValidator validator
+    ) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        keyRegistry.setValidator(scheme, typeId, validator);
+    }
+
+    function testFuzzSetValidator(uint32 scheme, uint8 typeId, IMetadataValidator validator) public {
+        /* We set a validator for scheme 1, type 1 during setup. Remove it.*/
+        vm.prank(owner);
+        keyRegistry.setValidator(1, 1, IMetadataValidator(address(0)));
+
+        assertEq(address(keyRegistry.validators(scheme, typeId)), address(0));
+
+        vm.expectEmit(false, false, false, true);
+        emit SetValidator(scheme, typeId, address(0), address(validator));
+
+        vm.prank(owner);
+        keyRegistry.setValidator(scheme, typeId, validator);
+
+        assertEq(address(keyRegistry.validators(scheme, typeId)), address(validator));
     }
 
     /*//////////////////////////////////////////////////////////////

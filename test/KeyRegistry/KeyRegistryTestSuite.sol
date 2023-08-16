@@ -4,17 +4,23 @@ pragma solidity 0.8.21;
 import "forge-std/Test.sol";
 
 import {IdRegistryTestSuite} from "../IdRegistry/IdRegistryTestSuite.sol";
-import {KeyRegistryHarness} from "../Utils.sol";
+import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
+import {KeyRegistryHarness, StubValidator} from "../Utils.sol";
 
 /* solhint-disable state-visibility */
 
 abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     KeyRegistryHarness internal keyRegistry;
+    StubValidator internal stubValidator;
 
     function setUp() public virtual override {
         super.setUp();
 
         keyRegistry = new KeyRegistryHarness(address(idRegistry), owner);
+        stubValidator = new StubValidator();
+
+        vm.prank(owner);
+        keyRegistry.setValidator(1, 1, IMetadataValidator(address(stubValidator)));
     }
 
     function _signAdd(
@@ -63,5 +69,14 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);
         assertEq(signature.length, 65);
+    }
+
+    function _registerValidator(uint32 scheme, uint8 typeId) internal {
+        vm.prank(owner);
+        keyRegistry.setValidator(scheme, typeId, IMetadataValidator(address(stubValidator)));
+    }
+
+    function _validMetadata(uint8 typeId, bytes memory fuzzedMetadata) internal pure returns (bytes memory) {
+        return bytes.concat(bytes1(typeId), fuzzedMetadata);
     }
 }

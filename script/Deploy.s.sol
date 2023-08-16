@@ -4,7 +4,9 @@ pragma solidity 0.8.21;
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
+import {AppIdValidator} from "../src/validators/AppIdValidator.sol";
 import {Bundler} from "../src/Bundler.sol";
+import {IMetadataValidator} from "../src/interfaces/IMetadataValidator.sol";
 import {console, ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
 
 contract Deploy is ImmutableCreate2Deployer {
@@ -18,6 +20,7 @@ contract Deploy is ImmutableCreate2Deployer {
     bytes32 internal constant STORAGE_RENT_CREATE2_SALT = bytes32(0);
     bytes32 internal constant ID_REGISTRY_CREATE2_SALT = bytes32(0);
     bytes32 internal constant KEY_REGISTRY_CREATE2_SALT = bytes32(0);
+    bytes32 internal constant APP_ID_VALIDATOR_CREATE2_SALT = bytes32(0);
     bytes32 internal constant BUNDLER_CREATE2_SALT = bytes32(0);
 
     struct DeploymentParams {
@@ -38,6 +41,7 @@ contract Deploy is ImmutableCreate2Deployer {
         StorageRegistry storageRegistry;
         IdRegistry idRegistry;
         KeyRegistry keyRegistry;
+        AppIdValidator appIdValidator;
         Bundler bundler;
     }
 
@@ -74,6 +78,12 @@ contract Deploy is ImmutableCreate2Deployer {
             type(KeyRegistry).creationCode,
             abi.encode(idRegistry, params.initialKeyRegistryOwner)
         );
+        address appIdValidator = register(
+            "AppIdValidator",
+            APP_ID_VALIDATOR_CREATE2_SALT,
+            type(AppIdValidator).creationCode,
+            abi.encode(idRegistry, params.initialKeyRegistryOwner)
+        );
         address bundler = register(
             "Bundler",
             BUNDLER_CREATE2_SALT,
@@ -89,6 +99,7 @@ contract Deploy is ImmutableCreate2Deployer {
             storageRegistry: StorageRegistry(storageRegistry),
             idRegistry: IdRegistry(idRegistry),
             keyRegistry: KeyRegistry(keyRegistry),
+            appIdValidator: AppIdValidator(appIdValidator),
             bundler: Bundler(payable(bundler))
         });
     }
@@ -101,6 +112,7 @@ contract Deploy is ImmutableCreate2Deployer {
             vm.startBroadcast();
             contracts.idRegistry.setTrustedCaller(bundler);
             contracts.keyRegistry.setTrustedCaller(bundler);
+            contracts.keyRegistry.setValidator(1, 1, IMetadataValidator(address(contracts.appIdValidator)));
             contracts.storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), bundler);
             vm.stopBroadcast();
         } else {

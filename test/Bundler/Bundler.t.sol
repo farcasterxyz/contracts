@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
+import {stdError} from "forge-std/StdError.sol";
+
 import {Bundler} from "../../src/Bundler.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
@@ -60,17 +62,18 @@ contract BundlerTest is BundlerTestSuite {
 
         // The duplication below is ugly but necessary to work around a stack too deep error.
         for (uint256 i; i < numSigners; i++) {
+            _registerValidator(uint32(i), 1);
             signers[i] = Bundler.SignerParams({
                 scheme: uint32(i),
                 key: abi.encodePacked("key", keccak256(abi.encode(i))),
-                metadata: abi.encodePacked("metadata", keccak256(abi.encode(i))),
+                metadata: abi.encodePacked(uint8(1), "metadata", keccak256(abi.encode(i))),
                 deadline: deadline,
                 sig: _signAdd(
                     accountPk,
                     account,
                     uint32(i),
                     abi.encodePacked("key", keccak256(abi.encode(i))),
-                    abi.encodePacked("metadata", keccak256(abi.encode(i))),
+                    abi.encodePacked(uint8(1), "metadata", keccak256(abi.encode(i))),
                     nonce + i,
                     deadline
                     )
@@ -247,10 +250,13 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageUnits,
         uint32 scheme,
         bytes memory key,
+        uint8 typeId,
         bytes memory metadata
     ) public {
         uint256 storageBefore = storageRegistry.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore);
+        metadata = _validMetadata(typeId, metadata);
+        _registerValidator(scheme, typeId);
 
         bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
@@ -332,12 +338,17 @@ contract BundlerTest is BundlerTestSuite {
         );
 
         for (uint256 i = 0; i < registrations; i++) {
+            uint32 scheme = uint32(i);
+            _registerValidator(scheme, 1);
+        }
+
+        for (uint256 i = 0; i < registrations; i++) {
             uint160 fid = uint160(i + 1);
             address account = address(fid);
             address recovery = address(uint160(i + 1000));
             uint32 scheme = uint32(i);
             bytes memory key = bytes.concat(bytes("key"), abi.encode(i));
-            bytes memory metadata = bytes.concat(bytes("metadata"), abi.encode(i));
+            bytes memory metadata = abi.encodePacked(uint8(1), bytes("metadata"), abi.encode(i));
             batchArray[i] = Bundler.UserData({
                 to: account,
                 units: storageUnits,
@@ -390,15 +401,23 @@ contract BundlerTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
+        _registerValidator(0, 1);
+
         bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](2);
-        batchArray[0] =
-            Bundler.UserData({to: account, units: 1, scheme: 0, key: "", metadata: "", recovery: address(0)});
+        batchArray[0] = Bundler.UserData({
+            to: account,
+            units: 1,
+            scheme: 0,
+            key: "",
+            metadata: _validMetadata(1, ""),
+            recovery: address(0)
+        });
 
-        vm.expectRevert(StorageRegistry.InvalidAmount.selector);
+        vm.expectRevert(stdError.indexOOBError);
         bundler.trustedBatchRegister(batchArray);
 
         _assertUnsuccessfulRegistration(account);

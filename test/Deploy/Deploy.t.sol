@@ -2,7 +2,15 @@
 pragma solidity 0.8.21;
 
 import {Test} from "forge-std/Test.sol";
-import {Deploy, StorageRegistry, IdRegistry, KeyRegistry, Bundler} from "../../script/Deploy.s.sol";
+import {
+    Deploy,
+    StorageRegistry,
+    IdRegistry,
+    KeyRegistry,
+    AppIdValidator,
+    Bundler,
+    IMetadataValidator
+} from "../../script/Deploy.s.sol";
 
 /* solhint-disable state-visibility */
 
@@ -11,6 +19,7 @@ contract DeployTest is Test {
     StorageRegistry internal storageRegistry;
     IdRegistry internal idRegistry;
     KeyRegistry internal keyRegistry;
+    AppIdValidator internal validator;
     Bundler internal bundler;
 
     address internal alice;
@@ -24,6 +33,9 @@ contract DeployTest is Test {
 
     address internal dave;
     uint256 internal davePk;
+
+    address internal app;
+    uint256 internal appPk;
 
     address internal owner = makeAddr("owner");
     address internal vault = makeAddr("vault");
@@ -46,6 +58,7 @@ contract DeployTest is Test {
         (bob, bobPk) = makeAddrAndKey("bob");
         (carol, carolPk) = makeAddrAndKey("carol");
         (dave, davePk) = makeAddrAndKey("dave");
+        (app, appPk) = makeAddrAndKey("app");
 
         Deploy.DeploymentParams memory params = Deploy.DeploymentParams({
             initialIdRegistryOwner: owner,
@@ -68,6 +81,7 @@ contract DeployTest is Test {
         storageRegistry = contracts.storageRegistry;
         idRegistry = contracts.idRegistry;
         keyRegistry = contracts.keyRegistry;
+        validator = contracts.appIdValidator;
         bundler = contracts.bundler;
     }
 
@@ -86,6 +100,9 @@ contract DeployTest is Test {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
         assertEq(keyRegistry.gracePeriod(), deploy.KEY_REGISTRY_MIGRATION_GRACE_PERIOD());
 
+        assertEq(validator.owner(), owner);
+        assertEq(address(validator.idRegistry()), address(idRegistry));
+
         assertEq(bundler.owner(), owner);
         assertEq(address(bundler.idRegistry()), address(idRegistry));
         assertEq(address(bundler.storageRegistry()), address(storageRegistry));
@@ -97,14 +114,24 @@ contract DeployTest is Test {
         vm.startPrank(owner);
         idRegistry.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
+        keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
         vm.stopPrank();
 
         vm.prank(roleAdmin);
         storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), address(bundler));
 
+        vm.prank(address(bundler));
+        uint256 appFid = idRegistry.trustedRegister(app, address(0));
+
+        bytes memory sig = _signMetadata(appPk, 2, appFid, "key");
+        bytes memory metadata = bytes.concat(
+            abi.encodePacked(uint8(1)),
+            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: app, signature: sig}))
+        );
+
         vm.prank(bundlerTrustedCaller);
-        bundler.trustedRegister(alice, bob, 0, "key", "metadata", 1);
-        assertEq(idRegistry.idOf(alice), 1);
+        bundler.trustedRegister(alice, bob, 1, "key", metadata, 1);
+        assertEq(idRegistry.idOf(alice), 2);
 
         vm.startPrank(owner);
         idRegistry.disableTrustedOnly();
@@ -114,6 +141,27 @@ contract DeployTest is Test {
 
         vm.prank(carol);
         idRegistry.register(dave);
-        assertEq(idRegistry.idOf(carol), 2);
+        assertEq(idRegistry.idOf(carol), 3);
+    }
+
+    function _signMetadata(
+        uint256 pk,
+        uint256 userFid,
+        uint256 appFid,
+        bytes memory signerPubKey
+    ) internal returns (bytes memory signature) {
+        bytes32 digest = validator.hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    keccak256("AppId(uint256 userFid,uint256 appFid,bytes signerPubKey)"),
+                    userFid,
+                    appFid,
+                    keccak256(signerPubKey)
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        signature = abi.encodePacked(r, s, v);
+        assertEq(signature.length, 65);
     }
 }

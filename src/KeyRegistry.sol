@@ -4,13 +4,11 @@ pragma solidity 0.8.21;
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 
+import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
+import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {IdRegistry} from "./IdRegistry.sol";
 import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
-
-interface IdRegistryLike {
-    function idOf(address fidOwner) external view returns (uint256);
-}
 
 /**
  * @title KeyRegistry
@@ -51,6 +49,10 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
 
     /// @dev Revert if a key violates KeyState transition rules.
     error InvalidState();
+
+    error ValidatorNotFound(uint32 scheme, uint8 typeId);
+
+    error InvalidMetadata();
 
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
@@ -152,6 +154,17 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     event Migrated(uint256 indexed keysMigratedAt);
 
     /**
+     * @dev Emit an event when the admin sets a metadata validator contract for a given
+     *      scheme and typeId.
+     *
+     * @param scheme       The key scheme associated with this validator.
+     * @param typeId       The metadata typeId associated with this validator.
+     * @param oldValidator The previous validator contract address.
+     * @param newValidator The new validator contract address.
+     */
+    event SetValidator(uint32 scheme, uint8 typeId, address oldValidator, address newValidator);
+
+    /**
      * @dev Emit an event when the admin sets a new IdRegistry contract address.
      *
      * @param oldIdRegistry The previous IdRegistry address.
@@ -168,10 +181,6 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
 
     bytes32 internal constant _REMOVE_TYPEHASH =
         keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
-
-    /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
-    //////////////////////////////////////////////////////////////*/
 
     /**
      * @dev Period in seconds after migration during which admin can bulk add/reset keys.
@@ -196,7 +205,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     uint40 public keysMigratedAt;
 
     /**
-     * @dev Mapping of fid to a key to the key's metadata.
+     * @dev Mapping of fid to a key to the key's data.
      *
      * @custom:param fid       The fid associated with the key.
      * @custom:param key       Bytes of the key.
@@ -205,12 +214,21 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      */
     mapping(uint256 fid => mapping(bytes key => KeyData data)) public keys;
 
+    /**
+     * @dev Mapping of scheme to metadata typeId to validator contract.
+     *
+     * @custom:param scheme    Numeric key scheme.
+     * @custom:param typeId    Metadata typeId.
+     * @custom:param validator Validator contract implementing IMetadataValidator.
+     */
+    mapping(uint32 scheme => mapping(uint8 typeId => IMetadataValidator validator)) public validators;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the IdRegistry, migration grace period, and owner.
+     * @notice Set the IdRegistry and owner.
      *
      * @param _idRegistry   IdRegistry contract address.
      * @param _initialOwner Initial contract owner address.
@@ -407,6 +425,18 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @notice Set the IdRegistry contract address. Only callable by owner.
      *
+     * @param scheme    The key scheme associated with this validator.
+     * @param typeId    The metadata typeId associated with this validator.
+     * @param validator Contract implementing IMetadataValidator.
+     */
+    function setValidator(uint32 scheme, uint8 typeId, IMetadataValidator validator) external onlyOwner {
+        emit SetValidator(scheme, typeId, address(validators[scheme][typeId]), address(validator));
+        validators[scheme][typeId] = validator;
+    }
+
+    /**
+     * @notice Set the IdRegistry contract address. Only callable by owner.
+     *
      * @param _idRegistry The new IdRegistry address.
      */
     function setIdRegistry(address _idRegistry) external onlyOwner {
@@ -421,6 +451,16 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     function _add(uint256 fid, uint32 scheme, bytes calldata key, bytes calldata metadata) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
+
+        /* First byte of metadata must encode type ID */
+        uint8 typeId = uint8(metadata[0]);
+
+        IMetadataValidator validator = validators[scheme][typeId];
+        if (validator == IMetadataValidator(address(0))) {
+            revert ValidatorNotFound(scheme, typeId);
+        }
+        bool isValid = validator.validate(fid, key, metadata);
+        if (!isValid) revert InvalidMetadata();
 
         keyData.state = KeyState.ADDED;
         keyData.scheme = scheme;
