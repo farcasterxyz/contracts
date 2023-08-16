@@ -83,17 +83,21 @@ contract KeyRegistrySymTest is SymTest, Test {
         }
         vm.warp(svm.createUint(64, "timestamp2"));
 
+        address user = svm.createAddress("user");
+
         // Record pre-state
         KeyRegistry.KeyState oldStateX = keyRegistry.keyDataOf(x, xkey).state;
 
         uint256 oldCallerId = idRegistry.idOf(caller);
+
+        uint256 oldUserId = idRegistry.idOf(user);
 
         bool isNotMigratedOrGracePeriod =
             !keyRegistry.isMigrated() || block.timestamp <= keyRegistry.keysMigratedAt() + keyRegistry.gracePeriod();
 
         // Execute an arbitrary tx to KeyRegistry
         vm.prank(caller);
-        (bool success,) = address(keyRegistry).call(mk_calldata(selector));
+        (bool success,) = address(keyRegistry).call(mk_calldata(selector, user));
         vm.assume(success); // ignore reverting cases
 
         // Record post-state
@@ -107,6 +111,7 @@ contract KeyRegistrySymTest is SymTest, Test {
 
             // Ensure that the REMOVED state does not allow any state transitions.
             assert(oldStateX != KeyRegistry.KeyState.REMOVED);
+
             if (newStateX == KeyRegistry.KeyState.REMOVED) {
                 // For a transition to REMOVED, ensure that:
                 // - The previous state must be ADD.
@@ -115,7 +120,10 @@ contract KeyRegistrySymTest is SymTest, Test {
                 if (selector == keyRegistry.remove.selector) {
                     //   - remove() must be called by the owner of fid x.
                     assert(oldCallerId == x);
-                } else if (selector == keyRegistry.removeFor.selector) {} else {
+                } else if (selector == keyRegistry.removeFor.selector) {
+                    //   - removeFor() makes the transition for the given fidOwner.
+                    assert(oldUserId == x);
+                } else {
                     assert(false);
                 }
             } else if (newStateX == KeyRegistry.KeyState.ADDED) {
@@ -125,12 +133,15 @@ contract KeyRegistrySymTest is SymTest, Test {
                 assert(oldStateX == KeyRegistry.KeyState.NULL);
                 if (selector == keyRegistry.add.selector) {
                     //   - add() must be called by the owner of fid x.
-                    //assert(oldCallerId == x);
-                } else if (selector == keyRegistry.addFor.selector) {} else if (
-                    selector == keyRegistry.trustedAdd.selector
-                ) {
+                    assert(oldCallerId == x);
+                } else if (selector == keyRegistry.addFor.selector) {
+                    //   - addFor() makes the transition for the given fidOwner.
+                    assert(oldUserId == x);
+                } else if (selector == keyRegistry.trustedAdd.selector) {
                     //   - trustedAdd() must be called by the trustedCaller.
                     assert(caller == trustedCaller);
+                    //   - trustedAdd() makes the transition for the given fidOwner.
+                    assert(oldUserId == x);
                 } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
                     //   - bulkAdd() must be called by the owner of KeyRegistry.
                     //   - bulkAdd() must be called before the key migration or within the grade period following the migration.
@@ -156,13 +167,12 @@ contract KeyRegistrySymTest is SymTest, Test {
         }
     }
 
-    function mk_calldata(bytes4 selector) internal returns (bytes memory) {
+    function mk_calldata(bytes4 selector, address user) internal returns (bytes memory) {
         // Ignore view functions
         vm.assume(selector != keyRegistry.keyDataOf.selector);
         vm.assume(selector != keyRegistry.keys.selector);
 
         // Create symbolic values to be included in calldata
-        address addr = svm.createAddress("addr");
         uint256 fid = svm.createUint256("fid");
         uint32 scheme = uint32(svm.createUint(32, "scheme"));
         bytes memory key = svm.createBytes(32, "key");
@@ -187,13 +197,13 @@ contract KeyRegistrySymTest is SymTest, Test {
         if (selector == keyRegistry.add.selector) {
             args = abi.encode(scheme, key, metadata);
         } else if (selector == keyRegistry.addFor.selector) {
-            args = abi.encode(addr, scheme, key, metadata, deadline, sig);
+            args = abi.encode(user, scheme, key, metadata, deadline, sig);
         } else if (selector == keyRegistry.trustedAdd.selector) {
-            args = abi.encode(addr, scheme, key, metadata);
+            args = abi.encode(user, scheme, key, metadata);
         } else if (selector == keyRegistry.remove.selector) {
             args = abi.encode(key);
         } else if (selector == keyRegistry.removeFor.selector) {
-            args = abi.encode(addr, key, deadline, sig);
+            args = abi.encode(user, key, deadline, sig);
         } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
             args = abi.encode(fids, fidKeys, metadata);
         } else if (selector == keyRegistry.bulkResetKeysForMigration.selector) {
