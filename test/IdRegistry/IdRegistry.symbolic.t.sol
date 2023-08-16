@@ -28,8 +28,8 @@ contract IdRegistrySymTest is SymTest, Test {
         assert(idRegistry.idOf(address(0x1001)) == 1);
         assert(idRegistry.idOf(address(0x1002)) == 2);
 
-        assert(idRegistry.getRecoveryOf(1) == address(0x2001));
-        assert(idRegistry.getRecoveryOf(2) == address(0x2002));
+        assert(idRegistry.recoveryOf(1) == address(0x2001));
+        assert(idRegistry.recoveryOf(2) == address(0x2002));
 
         // Create symbolic addresses
         x = svm.createAddress("x");
@@ -43,7 +43,7 @@ contract IdRegistrySymTest is SymTest, Test {
         // Record pre-state
         uint256 oldIdX = idRegistry.idOf(x);
         uint256 oldIdY = idRegistry.idOf(y);
-        uint256 oldIdCounter = idRegistry.getIdCounter();
+        uint256 oldIdCounter = idRegistry.idCounter();
         bool oldPaused = idRegistry.paused();
 
         // Execute an arbitrary tx to IdRegistry
@@ -54,10 +54,10 @@ contract IdRegistrySymTest is SymTest, Test {
         // Record post-state
         uint256 newIdX = idRegistry.idOf(x);
         uint256 newIdY = idRegistry.idOf(y);
-        uint256 newIdCounter = idRegistry.getIdCounter();
+        uint256 newIdCounter = idRegistry.idCounter();
 
         // Ensure that there is no recovery address associated with fid 0.
-        assert(idRegistry.getRecoveryOf(0) == address(0));
+        assert(idRegistry.recoveryOf(0) == address(0));
 
         // Ensure that idCounter never decreases.
         assert(newIdCounter >= oldIdCounter);
@@ -112,7 +112,7 @@ contract IdRegistrySymTest is SymTest, Test {
         uint256 oldIdFrom = idRegistry.idOf(from);
         uint256 oldIdTo = idRegistry.idOf(to);
         uint256 oldIdOther = idRegistry.idOf(other);
-        address oldRecoveryFrom = idRegistry.getRecoveryOf(oldIdFrom);
+        address oldRecoveryFrom = idRegistry.recoveryOf(oldIdFrom);
 
         // Execute recover with symbolic arguments
         vm.prank(caller);

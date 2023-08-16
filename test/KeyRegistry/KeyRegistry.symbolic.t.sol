@@ -36,19 +36,16 @@ contract KeyRegistrySymTest is SymTest, Test {
         assert(idRegistry.idOf(address(0x1002)) == 2);
         assert(idRegistry.idOf(address(0x1003)) == 3);
 
-        assert(idRegistry.getRecoveryOf(1) == address(0x2001));
-        assert(idRegistry.getRecoveryOf(2) == address(0x2002));
-        assert(idRegistry.getRecoveryOf(3) == address(0x2003));
+        assert(idRegistry.recoveryOf(1) == address(0x2001));
+        assert(idRegistry.recoveryOf(2) == address(0x2002));
+        assert(idRegistry.recoveryOf(3) == address(0x2003));
 
         // Setup KeyRegistry
-        gracePeriod = svm.createUint(24, "gracePeriod");
         keyRegistry = new KeyRegistry(
             address(idRegistry),
-            uint24(gracePeriod),
             address(this)
         );
         keyRegistry.setTrustedCaller(trustedCaller);
-        assert(keyRegistry.gracePeriod() == gracePeriod);
 
         // Set initial states:
         // - fid 1: removed
@@ -92,7 +89,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         uint256 oldCallerId = idRegistry.idOf(caller);
 
         bool isNotMigratedOrGracePeriod =
-            !keyRegistry.isMigrated() || block.timestamp <= keyRegistry.keysMigratedAt() + gracePeriod;
+            !keyRegistry.isMigrated() || block.timestamp <= keyRegistry.keysMigratedAt() + keyRegistry.gracePeriod();
 
         // Execute an arbitrary tx to KeyRegistry
         vm.prank(caller);
