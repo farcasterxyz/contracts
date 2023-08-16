@@ -228,7 +228,29 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         /* Revert if recipient has an id */
         if (idOf[to] != 0) revert HasId();
         /* Revert if signature is invalid */
-        _verifyTransferSig(fromId, to, deadline, sig);
+        _verifyTransferSig(fromId, to, deadline, to, sig);
+
+        _unsafeTransfer(fromId, from, to);
+    }
+
+    function transferFor(
+        address from,
+        address to,
+        uint256 fromDeadline,
+        bytes calldata fromSig,
+        uint256 toDeadline,
+        bytes calldata toSig
+    ) external {
+        uint256 fromId = idOf[from];
+
+        /* Revert if the sender has no id */
+        if (fromId == 0) revert HasNoId();
+        /* Revert if recipient has an id */
+        if (idOf[to] != 0) revert HasId();
+
+        /* Revert if either signature is invalid */
+        _verifyTransferSig(fromId, to, fromDeadline, from, fromSig);
+        _verifyTransferSig(fromId, to, toDeadline, to, toSig);
 
         _unsafeTransfer(fromId, from, to);
     }
@@ -285,7 +307,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         if (idOf[to] != 0) revert HasId();
 
         /* Revert if signature is invalid */
-        _verifyTransferSig(fromId, to, deadline, sig);
+        _verifyTransferSig(fromId, to, deadline, to, sig);
 
         emit Recover(from, to, fromId);
         _unsafeTransfer(fromId, from, to);
@@ -347,10 +369,10 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         );
     }
 
-    function _verifyTransferSig(uint256 fid, address to, uint256 deadline, bytes memory sig) internal {
+    function _verifyTransferSig(uint256 fid, address to, uint256 deadline, address signer, bytes memory sig) internal {
         _verifySig(
-            _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(to), deadline))),
-            to,
+            _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(signer), deadline))),
+            signer,
             deadline,
             sig
         );
