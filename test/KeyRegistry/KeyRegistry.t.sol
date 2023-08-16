@@ -57,6 +57,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(scheme, typeId);
         metadata = _validMetadata(typeId, metadata);
@@ -77,6 +79,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         /* We set a validator for scheme 1, type 1 during setup. Remove it.*/
         vm.prank(owner);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(0)));
@@ -100,6 +105,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         _registerValidator(scheme, typeId);
         metadata = _validMetadata(typeId, metadata);
         stubValidator.setIsValid(false);
@@ -122,6 +130,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         vm.assume(to != caller);
         _registerValidator(scheme, typeId);
         metadata = _validMetadata(typeId, metadata);
@@ -143,6 +154,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(scheme, typeId);
         metadata = _validMetadata(typeId, metadata);
@@ -165,6 +179,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(scheme, typeId);
         metadata = _validMetadata(typeId, metadata);
@@ -191,6 +208,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
         _registerValidator(scheme, typeId);
@@ -217,6 +237,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
         _registerValidator(scheme, typeId);
@@ -240,6 +263,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
         _registerValidator(scheme, typeId);
@@ -266,6 +292,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
         _registerValidator(scheme, typeId);
@@ -291,6 +320,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes calldata metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
 
@@ -315,6 +346,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         vm.prank(owner);
         keyRegistry.setTrustedCaller(trustedCaller);
         _registerValidator(scheme, typeId);
@@ -337,6 +371,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes calldata key,
         bytes calldata metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
         vm.assume(to != trustedCaller);
 
         vm.prank(owner);
@@ -357,6 +392,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes calldata key,
         bytes calldata metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
         vm.prank(owner);
         keyRegistry.setTrustedCaller(trustedCaller);
 
@@ -372,6 +408,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes calldata key,
         bytes calldata metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
         vm.startPrank(owner);
         keyRegistry.setTrustedCaller(trustedCaller);
         keyRegistry.disableTrustedOnly();
@@ -405,6 +442,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(scheme, typeId);
         metadata = _validMetadata(typeId, metadata);
@@ -433,6 +473,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         vm.assume(to != caller);
         _registerValidator(scheme, typeId);
         metadata = _validMetadata(typeId, metadata);
@@ -466,6 +509,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(scheme, typeId);
         metadata = _validMetadata(typeId, metadata);
@@ -492,6 +538,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
         _registerValidator(scheme, typeId);
@@ -543,6 +592,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
         _registerValidator(scheme, typeId);
@@ -574,6 +626,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
         _registerValidator(scheme, typeId);
@@ -605,6 +660,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory metadata,
         uint40 _deadline
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 deadline = _boundDeadline(_deadline);
         ownerPk = _boundPk(ownerPk);
         _registerValidator(scheme, typeId);
@@ -687,6 +745,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
@@ -823,6 +883,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
@@ -1010,6 +1071,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint8 typeId,
         IMetadataValidator validator
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -1017,7 +1080,24 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.setValidator(scheme, typeId, validator);
     }
 
+    function testFuzzSetValidatorRevertsZeroScheme(uint8 typeId, IMetadataValidator validator) public {
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+        vm.prank(owner);
+        vm.expectRevert(KeyRegistry.InvalidScheme.selector);
+        keyRegistry.setValidator(0, typeId, validator);
+    }
+
+    function testFuzzSetValidatorRevertsZeroTypeId(uint32 scheme, IMetadataValidator validator) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        vm.prank(owner);
+        vm.expectRevert(KeyRegistry.InvalidTypeId.selector);
+        keyRegistry.setValidator(scheme, 0, validator);
+    }
+
     function testFuzzSetValidator(uint32 scheme, uint8 typeId, IMetadataValidator validator) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         /* We set a validator for scheme 1, type 1 during setup. Remove it.*/
         vm.prank(owner);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(0)));

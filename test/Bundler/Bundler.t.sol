@@ -61,17 +61,17 @@ contract BundlerTest is BundlerTestSuite {
         uint256 nonce = keyRegistry.nonces(account);
 
         // The duplication below is ugly but necessary to work around a stack too deep error.
-        for (uint256 i; i < numSigners; i++) {
-            _registerValidator(uint32(i), 1);
+        for (uint256 i = 0; i < numSigners; i++) {
+            _registerValidator(uint32(i + 1), 1);
             signers[i] = Bundler.SignerParams({
-                scheme: uint32(i),
+                scheme: uint32(i + 1),
                 key: abi.encodePacked("key", keccak256(abi.encode(i))),
                 metadata: abi.encodePacked(uint8(1), "metadata", keccak256(abi.encode(i))),
                 deadline: deadline,
                 sig: _signAdd(
                     accountPk,
                     account,
-                    uint32(i),
+                    uint32(i + 1),
                     abi.encodePacked("key", keccak256(abi.encode(i))),
                     abi.encodePacked(uint8(1), "metadata", keccak256(abi.encode(i))),
                     nonce + i,
@@ -253,6 +253,9 @@ contract BundlerTest is BundlerTestSuite {
         uint8 typeId,
         bytes memory metadata
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
+        typeId = uint8(bound(typeId, 1, type(uint8).max));
+
         uint256 storageBefore = storageRegistry.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore);
         metadata = _validMetadata(typeId, metadata);
@@ -293,6 +296,7 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory metadata,
         uint256 storageUnits
     ) public {
+        scheme = uint32(bound(scheme, 1, type(uint32).max));
         vm.assume(caller != bundler.trustedCaller());
 
         uint256 storageBefore = storageRegistry.rentedUnits();
@@ -338,7 +342,7 @@ contract BundlerTest is BundlerTestSuite {
         );
 
         for (uint256 i = 0; i < registrations; i++) {
-            uint32 scheme = uint32(i);
+            uint32 scheme = uint32(i + 1);
             _registerValidator(scheme, 1);
         }
 
@@ -346,7 +350,7 @@ contract BundlerTest is BundlerTestSuite {
             uint160 fid = uint160(i + 1);
             address account = address(fid);
             address recovery = address(uint160(i + 1000));
-            uint32 scheme = uint32(i);
+            uint32 scheme = uint32(i + 1);
             bytes memory key = bytes.concat(bytes("key"), abi.encode(i));
             bytes memory metadata = abi.encodePacked(uint8(1), bytes("metadata"), abi.encode(i));
             batchArray[i] = Bundler.UserData({
@@ -378,7 +382,7 @@ contract BundlerTest is BundlerTestSuite {
         for (uint256 i = 0; i < registrations; i++) {
             uint160 fid = uint160(i + 1);
             bytes memory key = bytes.concat(bytes("key"), abi.encode(i));
-            uint32 scheme = uint32(i);
+            uint32 scheme = uint32(i + 1);
 
             KeyRegistry.KeyData memory keyData = keyRegistry.keyDataOf(fid, key);
             assertEq(keyData.scheme, scheme);
@@ -401,7 +405,7 @@ contract BundlerTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        _registerValidator(0, 1);
+        _registerValidator(1, 1);
 
         bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
@@ -411,7 +415,7 @@ contract BundlerTest is BundlerTestSuite {
         batchArray[0] = Bundler.UserData({
             to: account,
             units: 1,
-            scheme: 0,
+            scheme: 1,
             key: "",
             metadata: _validMetadata(1, ""),
             recovery: address(0)
@@ -439,7 +443,7 @@ contract BundlerTest is BundlerTestSuite {
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
-        batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0), scheme: 0, key: "", metadata: ""});
+        batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0), scheme: 1, key: "", metadata: ""});
 
         vm.prank(untrustedCaller);
         vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
@@ -458,7 +462,7 @@ contract BundlerTest is BundlerTestSuite {
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
-        batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0), scheme: 0, key: "", metadata: ""});
+        batchArray[0] = Bundler.UserData({to: alice, units: 1, recovery: address(0), scheme: 1, key: "", metadata: ""});
 
         vm.expectRevert(TrustedCaller.Registrable.selector);
         bundler.trustedBatchRegister(batchArray);

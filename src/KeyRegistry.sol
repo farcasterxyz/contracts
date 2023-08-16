@@ -50,9 +50,17 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /// @dev Revert if a key violates KeyState transition rules.
     error InvalidState();
 
+    /// @dev Revert if a validator has not been registered for this scheme and typeId.
     error ValidatorNotFound(uint32 scheme, uint8 typeId);
 
+    /// @dev Revert if metadata validation failed.
     error InvalidMetadata();
+
+    /// @dev Revert if the admin sets a validator for scheme 0.
+    error InvalidScheme();
+
+    /// @dev Revert if the admin sets a validator for typeId 0.
+    error InvalidTypeId();
 
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
@@ -430,6 +438,8 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      * @param validator Contract implementing IMetadataValidator.
      */
     function setValidator(uint32 scheme, uint8 typeId, IMetadataValidator validator) external onlyOwner {
+        if (scheme == 0) revert InvalidScheme();
+        if (typeId == 0) revert InvalidTypeId();
         emit SetValidator(scheme, typeId, address(validators[scheme][typeId]), address(validator));
         validators[scheme][typeId] = validator;
     }
