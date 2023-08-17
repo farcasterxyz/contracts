@@ -21,7 +21,14 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
     }
 
-    event Add(uint256 indexed fid, uint32 indexed keyType, bytes indexed key, bytes keyBytes, bytes metadata);
+    event Add(
+        uint256 indexed fid,
+        uint32 indexed keyType,
+        bytes indexed key,
+        bytes keyBytes,
+        uint8 metadataType,
+        bytes metadata
+    );
 
     function testFuzzAdd(address to, uint256 signerPk, address recovery, bytes calldata key) public {
         signerPk = _boundPk(signerPk);
@@ -31,19 +38,16 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         uint256 appFid = _register(signer);
 
         uint32 keyType = 1;
-        uint8 typeId = 1;
+        uint8 metadataType = 1;
 
         bytes memory sig = _signMetadata(signerPk, userFid, appFid, key);
 
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(typeId),
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}))
-        );
+        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
 
         vm.expectEmit();
-        emit Add(userFid, keyType, key, key, metadata);
+        emit Add(userFid, keyType, key, key, metadataType, metadata);
         vm.prank(to);
-        keyRegistry.add(keyType, key, metadata);
+        keyRegistry.add(keyType, key, metadataType, metadata);
 
         assertAdded(userFid, key, keyType);
     }
@@ -64,18 +68,15 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         uint256 appFid = _register(signer);
 
         uint32 keyType = 1;
-        uint8 typeId = 1;
+        uint8 metadataType = 1;
 
         bytes memory sig = _signMetadata(otherPk, userFid, appFid, key);
 
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(typeId),
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}))
-        );
+        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
 
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
         vm.prank(to);
-        keyRegistry.add(keyType, key, metadata);
+        keyRegistry.add(keyType, key, metadataType, metadata);
     }
 
     /*//////////////////////////////////////////////////////////////

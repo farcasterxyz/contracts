@@ -124,13 +124,10 @@ contract DeployTest is Test {
         uint256 appFid = idRegistry.trustedRegister(app, address(0));
 
         bytes memory sig = _signMetadata(appPk, 2, appFid, "key");
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(uint8(1)),
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: app, signature: sig}))
-        );
+        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: app, signature: sig}));
 
         vm.prank(bundlerTrustedCaller);
-        bundler.trustedRegister(alice, bob, 1, "key", metadata, 1);
+        bundler.trustedRegister(alice, bob, 1, "key", 1, metadata, 1);
         assertEq(idRegistry.idOf(alice), 2);
 
         vm.startPrank(owner);

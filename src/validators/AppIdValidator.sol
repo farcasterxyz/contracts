@@ -90,7 +90,7 @@ contract AppIdValidator is IMetadataValidator, Ownable2Step, EIP712 {
         bytes memory signerPubKey,
         bytes calldata appIdBytes
     ) external view returns (bool) {
-        AppId memory appId = abi.decode(appIdBytes[1:], (AppId));
+        AppId memory appId = abi.decode(appIdBytes, (AppId));
 
         if (idRegistry.idOf(appId.appSigner) != appId.appFid) return false;
 

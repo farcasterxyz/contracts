@@ -50,8 +50,8 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /// @dev Revert if a key violates KeyState transition rules.
     error InvalidState();
 
-    /// @dev Revert if a validator has not been registered for this keyType and typeId.
-    error ValidatorNotFound(uint32 keyType, uint8 typeId);
+    /// @dev Revert if a validator has not been registered for this keyType and metadataType.
+    error ValidatorNotFound(uint32 keyType, uint8 metadataType);
 
     /// @dev Revert if metadata validation failed.
     error InvalidMetadata();
@@ -59,8 +59,8 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /// @dev Revert if the admin sets a validator for keyType 0.
     error InvalidKeyType();
 
-    /// @dev Revert if the admin sets a validator for typeId 0.
-    error InvalidTypeId();
+    /// @dev Revert if the admin sets a validator for metadataType 0.
+    error InvalidMetadataType();
 
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
@@ -90,13 +90,21 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *
      *      3. For all Add(..., ..., key, keyBytes, ...), key = keccak(keyBytes)
      *
-     * @param fid       The fid associated with the key.
-     * @param keyType   The type of the key.
-     * @param key       The key being registered. (indexed as hash)
-     * @param keyBytes  The bytes of the key being registered.
-     * @param metadata  Metadata about the key.
+     * @param fid          The fid associated with the key.
+     * @param keyType      The type of the key.
+     * @param key          The key being registered. (indexed as hash)
+     * @param keyBytes     The bytes of the key being registered.
+     * @param metadataType The type of the metadata.
+     * @param metadata     Metadata about the key.
      */
-    event Add(uint256 indexed fid, uint32 indexed keyType, bytes indexed key, bytes keyBytes, bytes metadata);
+    event Add(
+        uint256 indexed fid,
+        uint32 indexed keyType,
+        bytes indexed key,
+        bytes keyBytes,
+        uint8 metadataType,
+        bytes metadata
+    );
 
     /**
      * @dev Emit an event when an fid removes an added key.
@@ -163,14 +171,14 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
 
     /**
      * @dev Emit an event when the admin sets a metadata validator contract for a given
-     *      keyType and typeId.
+     *      keyType and metadataType.
      *
      * @param keyType      The numeric keyType associated with this validator.
-     * @param typeId       The metadata typeId associated with this validator.
+     * @param metadataType The metadataType associated with this validator.
      * @param oldValidator The previous validator contract address.
      * @param newValidator The new validator contract address.
      */
-    event SetValidator(uint32 keyType, uint8 typeId, address oldValidator, address newValidator);
+    event SetValidator(uint32 keyType, uint8 metadataType, address oldValidator, address newValidator);
 
     /**
      * @dev Emit an event when the admin sets a new IdRegistry contract address.
@@ -184,8 +192,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    bytes32 internal constant _ADD_TYPEHASH =
-        keccak256("Add(address owner,uint32 keyType,bytes key,bytes metadata,uint256 nonce,uint256 deadline)");
+    bytes32 internal constant _ADD_TYPEHASH = keccak256(
+        "Add(address owner,uint32 keyType,bytes key,uint8 metadataType,bytes metadata,uint256 nonce,uint256 deadline)"
+    );
 
     bytes32 internal constant _REMOVE_TYPEHASH =
         keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
@@ -223,13 +232,13 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     mapping(uint256 fid => mapping(bytes key => KeyData data)) public keys;
 
     /**
-     * @dev Mapping of keyType to metadata typeId to validator contract.
+     * @dev Mapping of keyType to metadataType to validator contract.
      *
-     * @custom:param keyType   Numeric keyType.
-     * @custom:param typeId    Metadata typeId.
-     * @custom:param validator Validator contract implementing IMetadataValidator.
+     * @custom:param keyType      Numeric keyType.
+     * @custom:param metadataType Metadata metadataType.
+     * @custom:param validator    Validator contract implementing IMetadataValidator.
      */
-    mapping(uint32 keyType => mapping(uint8 typeId => IMetadataValidator validator)) public validators;
+    mapping(uint32 keyType => mapping(uint8 metadataType => IMetadataValidator validator)) public validators;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -280,53 +289,58 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @notice Add a key to the caller's fid, setting the key state to ADDED.
      *
-     * @param keyType  The key's numeric keyType.
-     * @param key      Bytes of the key to add.
-     * @param metadata Metadata about the key, which is not stored and only emitted in an event.
+     * @param keyType      The key's numeric keyType.
+     * @param key          Bytes of the key to add.
+     * @param metadataType Metadata type ID.
+     * @param metadata     Metadata about the key, which is not stored and only emitted in an event.
      */
-    function add(uint32 keyType, bytes calldata key, bytes calldata metadata) external {
-        _add(_fidOf(msg.sender), keyType, key, metadata);
+    function add(uint32 keyType, bytes calldata key, uint8 metadataType, bytes calldata metadata) external {
+        _add(_fidOf(msg.sender), keyType, key, metadataType, metadata);
     }
 
     /**
      * @notice Add a key on behalf of another fid owner, setting the key state to ADDED.
      *         caller must supply a valid EIP-712 Add signature from the fid owner.
      *
-     * @param fidOwner The fid owner address.
-     * @param keyType  The key's numeric keyType.
-     * @param key      Bytes of the key to add.
-     * @param metadata Metadata about the key, which is not stored and only emitted in an event.
-     * @param deadline Deadline after which the signature expires.
-     * @param sig      EIP-712 Add signature generated by fid owner.
+     * @param fidOwner     The fid owner address.
+     * @param keyType      The key's numeric keyType.
+     * @param key          Bytes of the key to add.
+     * @param metadataType Metadata type ID.
+     * @param metadata     Metadata about the key, which is not stored and only emitted in an event.
+     * @param deadline     Deadline after which the signature expires.
+     * @param sig          EIP-712 Add signature generated by fid owner.
      */
     function addFor(
         address fidOwner,
         uint32 keyType,
         bytes calldata key,
+        uint8 metadataType,
         bytes calldata metadata,
         uint256 deadline,
         bytes calldata sig
     ) external {
-        _verifyAddSig(fidOwner, keyType, key, metadata, deadline, sig);
-        _add(_fidOf(fidOwner), keyType, key, metadata);
+        _verifyAddSig(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
+        _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
     }
 
     /**
      * @notice Add a key on behalf of another fid owner, setting the key state to ADDED.
      *         Can only be called by the trustedCaller.
      *
-     * @param fidOwner The fid owner address.
-     * @param keyType  The key's numeric keyType.
-     * @param key      Bytes of the key to add.
-     * @param metadata Metadata about the key, which is not stored and only emitted in an event.
+     * @param fidOwner     The fid owner address.
+     * @param keyType      The key's numeric keyType.
+     * @param key          Bytes of the key to add.
+     * @param metadataType Metadata type ID.
+     * @param metadata     Metadata about the key, which is not stored and only emitted in an event.
      */
     function trustedAdd(
         address fidOwner,
         uint32 keyType,
         bytes calldata key,
+        uint8 metadataType,
         bytes calldata metadata
     ) external onlyTrustedCaller {
-        _add(_fidOf(fidOwner), keyType, key, metadata);
+        _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
     }
 
     /**
@@ -392,7 +406,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                 uint256 fid = fids[i];
                 for (uint256 j = 0; j < fidKeys[i].length; j++) {
                     // TODO: add note about griefing during migration
-                    _add(fid, 1, fidKeys[i][j], metadata);
+                    _add(fid, 1, fidKeys[i][j], 1, metadata);
                 }
             }
         }
@@ -433,15 +447,15 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @notice Set the IdRegistry contract address. Only callable by owner.
      *
-     * @param keyType   The numeric keyType associated with this validator.
-     * @param typeId    The metadata typeId associated with this validator.
-     * @param validator Contract implementing IMetadataValidator.
+     * @param keyType      The numeric key type ID associated with this validator.
+     * @param metadataType The numeric metadata type ID associated with this validator.
+     * @param validator    Contract implementing IMetadataValidator.
      */
-    function setValidator(uint32 keyType, uint8 typeId, IMetadataValidator validator) external onlyOwner {
+    function setValidator(uint32 keyType, uint8 metadataType, IMetadataValidator validator) external onlyOwner {
         if (keyType == 0) revert InvalidKeyType();
-        if (typeId == 0) revert InvalidTypeId();
-        emit SetValidator(keyType, typeId, address(validators[keyType][typeId]), address(validator));
-        validators[keyType][typeId] = validator;
+        if (metadataType == 0) revert InvalidMetadataType();
+        emit SetValidator(keyType, metadataType, address(validators[keyType][metadataType]), address(validator));
+        validators[keyType][metadataType] = validator;
     }
 
     /**
@@ -458,23 +472,26 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _add(uint256 fid, uint32 keyType, bytes calldata key, bytes calldata metadata) internal {
+    function _add(
+        uint256 fid,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes calldata metadata
+    ) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
 
-        /* First byte of metadata must encode type ID */
-        uint8 typeId = uint8(metadata[0]);
-
-        IMetadataValidator validator = validators[keyType][typeId];
+        IMetadataValidator validator = validators[keyType][metadataType];
         if (validator == IMetadataValidator(address(0))) {
-            revert ValidatorNotFound(keyType, typeId);
+            revert ValidatorNotFound(keyType, metadataType);
         }
         bool isValid = validator.validate(fid, key, metadata);
         if (!isValid) revert InvalidMetadata();
 
         keyData.state = KeyState.ADDED;
         keyData.keyType = keyType;
-        emit Add(fid, keyType, key, key, metadata);
+        emit Add(fid, keyType, key, key, metadataType, metadata);
     }
 
     function _remove(uint256 fid, bytes calldata key) internal {
@@ -502,6 +519,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         address fidOwner,
         uint32 keyType,
         bytes memory key,
+        uint8 metadataType,
         bytes memory metadata,
         uint256 deadline,
         bytes memory sig
@@ -514,6 +532,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                         fidOwner,
                         keyType,
                         keccak256(key),
+                        metadataType,
                         keccak256(metadata),
                         _useNonce(fidOwner),
                         deadline

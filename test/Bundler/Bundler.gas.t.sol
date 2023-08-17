@@ -45,7 +45,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
         for (uint256 i = 0; i < 10; i++) {
             address account = address(uint160(i));
 
-            bundler.trustedRegister(account, address(0), 1, "key", abi.encodePacked(uint8(1), "metadata"), 1);
+            bundler.trustedRegister(account, address(0), 1, "key", 1, "metadata", 1);
         }
     }
 
@@ -70,7 +70,8 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
                     recovery: address(0),
                     keyType: 1,
                     key: "key",
-                    metadata: abi.encodePacked(uint8(1), "metadata")
+                    metadataType: 1,
+                    metadata: "metadata"
                 });
             }
 

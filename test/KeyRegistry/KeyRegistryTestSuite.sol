@@ -28,10 +28,11 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
         address owner,
         uint32 keyType,
         bytes memory key,
+        uint8 metadataType,
         bytes memory metadata,
         uint256 deadline
     ) internal returns (bytes memory signature) {
-        return _signAdd(pk, owner, keyType, key, metadata, keyRegistry.nonces(owner), deadline);
+        return _signAdd(pk, owner, keyType, key, metadataType, metadata, keyRegistry.nonces(owner), deadline);
     }
 
     function _signAdd(
@@ -39,6 +40,7 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
         address owner,
         uint32 keyType,
         bytes memory key,
+        uint8 metadataType,
         bytes memory metadata,
         uint256 nonce,
         uint256 deadline
@@ -46,7 +48,14 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
         bytes32 digest = keyRegistry.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keyRegistry.addTypehash(), owner, keyType, keccak256(key), keccak256(metadata), nonce, deadline
+                    keyRegistry.addTypehash(),
+                    owner,
+                    keyType,
+                    keccak256(key),
+                    metadataType,
+                    keccak256(metadata),
+                    nonce,
+                    deadline
                 )
             )
         );
@@ -74,9 +83,5 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     function _registerValidator(uint32 keyType, uint8 typeId) internal {
         vm.prank(owner);
         keyRegistry.setValidator(keyType, typeId, IMetadataValidator(address(stubValidator)));
-    }
-
-    function _validMetadata(uint8 typeId, bytes memory fuzzedMetadata) internal pure returns (bytes memory) {
-        return bytes.concat(bytes1(typeId), fuzzedMetadata);
     }
 }

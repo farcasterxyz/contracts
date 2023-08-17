@@ -23,10 +23,7 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
 
         bytes memory sig = _signMetadata(signerPk, userFid, appFid, signerPubKey);
 
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(uint8(1)),
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}))
-        );
+        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -42,10 +39,8 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
 
         bytes memory sig = _signMetadata(signerPk, userFid, unownedFid, signerPubKey);
 
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(uint8(1)),
-            abi.encode(AppIdValidator.AppId({appFid: unownedFid, appSigner: signer, signature: sig}))
-        );
+        bytes memory metadata =
+            abi.encode(AppIdValidator.AppId({appFid: unownedFid, appSigner: signer, signature: sig}));
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -66,10 +61,8 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
 
         bytes memory sig = _signMetadata(signerPk, userFid, appFid, signerPubKey);
 
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(uint8(1)),
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: wrongSigner, signature: sig}))
-        );
+        bytes memory metadata =
+            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: wrongSigner, signature: sig}));
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -90,10 +83,7 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
 
         bytes memory sig = _signMetadata(signerPk, wrongUserFid, appFid, signerPubKey);
 
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(uint8(1)),
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}))
-        );
+        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -114,10 +104,7 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
 
         bytes memory sig = _signMetadata(signerPk, userFid, appFid, wrongPubKey);
 
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(uint8(1)),
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}))
-        );
+        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -139,10 +126,7 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
         /* generate an invalid signature */
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
-        bytes memory metadata = bytes.concat(
-            abi.encodePacked(uint8(1)),
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}))
-        );
+        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 

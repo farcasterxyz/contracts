@@ -30,6 +30,7 @@ contract Bundler is TrustedCaller {
         address recovery;
         uint32 keyType;
         bytes key;
+        uint8 metadataType;
         bytes metadata;
         uint256 units;
     }
@@ -46,6 +47,7 @@ contract Bundler is TrustedCaller {
     struct SignerParams {
         uint32 keyType;
         bytes key;
+        uint8 metadataType;
         bytes metadata;
         uint256 deadline;
         bytes sig;
@@ -117,7 +119,13 @@ contract Bundler is TrustedCaller {
         for (uint256 i; i < signers.length;) {
             SignerParams calldata signer = signers[i];
             keyRegistry.addFor(
-                registration.to, signer.keyType, signer.key, signer.metadata, signer.deadline, signer.sig
+                registration.to,
+                signer.keyType,
+                signer.key,
+                signer.metadataType,
+                signer.metadata,
+                signer.deadline,
+                signer.sig
             );
 
             // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
@@ -149,12 +157,13 @@ contract Bundler is TrustedCaller {
         address recovery,
         uint32 keyType,
         bytes calldata key,
+        uint8 metadataType,
         bytes calldata metadata,
         uint256 storageUnits
     ) external onlyTrustedCaller {
         // Will revert unless IdRegistry is in the Seedable phase
         uint256 fid = idRegistry.trustedRegister(to, recovery);
-        keyRegistry.trustedAdd(to, keyType, key, metadata);
+        keyRegistry.trustedAdd(to, keyType, key, metadataType, metadata);
         storageRegistry.credit(fid, storageUnits);
     }
 
@@ -170,7 +179,7 @@ contract Bundler is TrustedCaller {
         for (uint256 i; i < users.length;) {
             UserData calldata user = users[i];
             uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
-            keyRegistry.trustedAdd(user.to, user.keyType, user.key, user.metadata);
+            keyRegistry.trustedAdd(user.to, user.keyType, user.key, user.metadataType, user.metadata);
             storageRegistry.credit(fid, user.units);
 
             // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
