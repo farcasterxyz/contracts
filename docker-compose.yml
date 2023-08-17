@@ -48,6 +48,7 @@ services:
     entrypoint: |
       sh -c '
         set -e
+        forge install
         export RPC_URL="http://anvil:${PORT:-8545}"
         echo "Waiting for Anvil..."
         while ! nc -z anvil "${PORT:-8545}"; do sleep 0.1; done
