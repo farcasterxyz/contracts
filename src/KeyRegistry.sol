@@ -445,7 +445,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the IdRegistry contract address. Only callable by owner.
+     * @notice Set a metadata validator contract for the given keyType and metadataType. Only callable by owner.
      *
      * @param keyType      The numeric key type ID associated with this validator.
      * @param metadataType The numeric metadata type ID associated with this validator.

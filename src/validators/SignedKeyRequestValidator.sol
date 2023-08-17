@@ -96,9 +96,9 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
         if (idRegistry.idOf(signedKeyRequest.requestSigner) != signedKeyRequest.requestingFid) return false;
 
         /**
-         *  Safety: Since keys may only be registered once, they are not
-         *  vulnerable to replay, so we omit nonce and deadline in the
-         *  validation signature.
+         *  Safety: Since keys may only be registered once, it's
+         *  not possible to replay a request signature. Therefore,
+         *  we omit nonce and deadline in the request signature.
          */
         return idRegistry.verifyFidSignature(
             signedKeyRequest.requestSigner,
