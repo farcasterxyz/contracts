@@ -731,6 +731,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(from), 1);
         assertEq(idRegistry.idOf(to), 0);
 
+        address recoveryBefore = idRegistry.recoveryOf(fid);
+
         vm.expectEmit(true, true, true, true);
         emit Transfer(from, to, 1);
         vm.prank(caller);
@@ -739,6 +741,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 0);
         assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.recoveryOf(fid), recoveryBefore);
     }
 
     function testFuzzTransferForRevertsInvalidFromSig(
@@ -1017,6 +1020,42 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
     }
 
+    function testFuzzTransferForRevertsWhenPaused(
+        address caller,
+        uint256 fromPk,
+        uint256 toPk,
+        uint40 _fromDeadline,
+        uint40 _toDeadline
+    ) public {
+        fromPk = _boundPk(fromPk);
+        toPk = _boundPk(toPk);
+        address from = vm.addr(fromPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+
+        uint256 fromDeadline = _boundDeadline(_fromDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _register(from);
+
+        bytes memory fromSig = _signTransfer(fromPk, fid, to, fromDeadline);
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.prank(owner);
+        idRegistry.pause();
+
+        vm.prank(caller);
+        vm.expectRevert("Pausable: paused");
+        idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           CHANGE RECOVERY TESTS
     //////////////////////////////////////////////////////////////*/
@@ -1148,7 +1187,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.recoveryOf(1), oldRecovery);
     }
 
-    function testFuzzCannotChangeRecoveryAddressWithoutId(
+    function testFuzzCannotChangeRecoveryAddressForWithoutId(
         address caller,
         uint256 alicePk,
         address newRecovery,
@@ -1160,11 +1199,33 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
 
-        vm.warp(deadline + 1);
-
         vm.prank(caller);
         vm.expectRevert(IdRegistry.HasNoId.selector);
         idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
+    }
+
+    function testFuzzCannotChangeRecoveryAddressForWhenPaused(
+        address caller,
+        uint256 alicePk,
+        address oldRecovery,
+        address newRecovery,
+        uint40 _deadline
+    ) public {
+        alicePk = _boundPk(alicePk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address alice = vm.addr(alicePk);
+        _registerWithRecovery(alice, oldRecovery);
+
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+
+        vm.prank(owner);
+        idRegistry.pause();
+
+        vm.prank(caller);
+        vm.expectRevert("Pausable: paused");
+        idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
+
+        assertEq(idRegistry.recoveryOf(1), oldRecovery);
     }
 
     /*//////////////////////////////////////////////////////////////
