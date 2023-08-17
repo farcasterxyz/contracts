@@ -55,6 +55,7 @@ services:
         echo "Enabling impersonation"
         cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploying contract"
+        forge install
         forge script -v script/Deploy.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
         echo "Disabling impersonation"
         cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL" > /dev/null
