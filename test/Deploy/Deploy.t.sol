@@ -128,7 +128,8 @@ contract DeployTest is Test {
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: requestingFid,
                 requestSigner: app,
-                signature: sig
+                signature: sig,
+                deadline: block.timestamp + 60
             })
         );
 

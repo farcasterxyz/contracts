@@ -21,12 +21,12 @@ abstract contract SignedKeyRequestValidatorTestSuite is IdRegistryTestSuite {
 
     function _signMetadata(
         uint256 pk,
-        uint256 userFid,
-        uint256 appFid,
-        bytes memory signerPubKey
+        uint256 requestingFid,
+        bytes memory signerPubKey,
+        uint256 deadline
     ) internal returns (bytes memory signature) {
         bytes32 digest = validator.hashTypedDataV4(
-            keccak256(abi.encode(validator.metadataTypehash(), userFid, appFid, keccak256(signerPubKey)))
+            keccak256(abi.encode(validator.metadataTypehash(), requestingFid, keccak256(signerPubKey), deadline))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);

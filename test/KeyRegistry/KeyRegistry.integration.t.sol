@@ -31,8 +31,9 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         bytes metadata
     );
 
-    function testFuzzAdd(address to, uint256 signerPk, address recovery, bytes calldata key) public {
+    function testFuzzAdd(address to, uint256 signerPk, address recovery, bytes calldata key, uint40 _deadline) public {
         signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
         address signer = vm.addr(signerPk);
 
         uint256 userFid = _registerFid(to, recovery);
@@ -41,13 +42,14 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         uint32 keyType = 1;
         uint8 metadataType = 1;
 
-        bytes memory sig = _signMetadata(signerPk, userFid, requestingFid, key);
+        bytes memory sig = _signMetadata(signerPk, requestingFid, key, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: requestingFid,
                 requestSigner: signer,
-                signature: sig
+                signature: sig,
+                deadline: deadline
             })
         );
 
@@ -64,32 +66,32 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         uint256 signerPk,
         uint256 otherPk,
         address recovery,
-        bytes calldata key
+        bytes calldata key,
+        uint40 _deadline
     ) public {
         signerPk = _boundPk(signerPk);
         otherPk = _boundPk(otherPk);
+        uint256 deadline = _boundDeadline(_deadline);
         vm.assume(signerPk != otherPk);
         address signer = vm.addr(signerPk);
 
-        uint256 userFid = _registerFid(to, recovery);
+        _registerFid(to, recovery);
         uint256 requestingFid = _register(signer);
 
-        uint32 keyType = 1;
-        uint8 metadataType = 1;
-
-        bytes memory sig = _signMetadata(otherPk, userFid, requestingFid, key);
+        bytes memory sig = _signMetadata(otherPk, requestingFid, key, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: requestingFid,
                 requestSigner: signer,
-                signature: sig
+                signature: sig,
+                deadline: deadline
             })
         );
 
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
         vm.prank(to);
-        keyRegistry.add(keyType, key, metadataType, metadata);
+        keyRegistry.add(1, key, 1, metadata);
     }
 
     /*//////////////////////////////////////////////////////////////

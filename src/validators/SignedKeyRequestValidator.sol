@@ -21,11 +21,13 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      *  @param requestSigner Signer address. Must be the owner of
      *                       the requestingFid fid.
      *  @param signature     EIP-712 SignedKeyRequest signature.
+     *  @param deadline      block.timestamp after which signature expires.
      */
     struct SignedKeyRequest {
         uint256 requestingFid;
         address requestSigner;
         bytes signature;
+        uint256 deadline;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -36,7 +38,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      * @dev Emit an event when the admin sets a new IdRegistry contract address.
      *
      * @param oldIdRegistry The previous IdRegistry address.
-     * @param newIdRegistry The ne IdRegistry address.
+     * @param newIdRegistry The new IdRegistry address.
      */
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
@@ -45,7 +47,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
     //////////////////////////////////////////////////////////////*/
 
     bytes32 internal constant _METADATA_TYPEHASH =
-        keccak256("SignedKeyRequest(uint256 userFid,uint256 requestingFid,bytes signerPubKey)");
+        keccak256("SignedKeyRequest(uint256 requestingFid,bytes signerPubKey,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
@@ -79,7 +81,6 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      * @notice Validate the SignedKeyRequest metadata associated with a signer key.
      *         (Key type 1, Metadata type 1)
      *
-     * @param userFid               The fid of the end user adding this signer key.
      * @param signerPubKey          The public key of the signer.
      * @param signedKeyRequestBytes An abi-encoded SignedKeyRequest struct, provided as the
      *                              metadata argument to KeyRegistry.add.
@@ -87,25 +88,26 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      * @return true if signature is valid and signer owns appFid, false otherwise.
      */
     function validate(
-        uint256 userFid,
+        uint256, /* userFid */
         bytes memory signerPubKey,
         bytes calldata signedKeyRequestBytes
     ) external view returns (bool) {
         SignedKeyRequest memory signedKeyRequest = abi.decode(signedKeyRequestBytes, (SignedKeyRequest));
 
         if (idRegistry.idOf(signedKeyRequest.requestSigner) != signedKeyRequest.requestingFid) return false;
+        if (block.timestamp > signedKeyRequest.deadline) return false;
 
-        /**
-         *  Safety: Since keys may only be registered once, it's
-         *  not possible to replay a request signature. Therefore,
-         *  we omit nonce and deadline in the request signature.
-         */
         return idRegistry.verifyFidSignature(
             signedKeyRequest.requestSigner,
             signedKeyRequest.requestingFid,
             _hashTypedDataV4(
                 keccak256(
-                    abi.encode(_METADATA_TYPEHASH, userFid, signedKeyRequest.requestingFid, keccak256(signerPubKey))
+                    abi.encode(
+                        _METADATA_TYPEHASH,
+                        signedKeyRequest.requestingFid,
+                        keccak256(signerPubKey),
+                        signedKeyRequest.deadline
+                    )
                 )
             ),
             signedKeyRequest.signature

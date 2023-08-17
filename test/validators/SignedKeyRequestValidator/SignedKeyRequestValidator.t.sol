@@ -10,7 +10,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
     function testMetadataTypeHash() public {
         assertEq(
             validator.metadataTypehash(),
-            keccak256("SignedKeyRequest(uint256 userFid,uint256 requestingFid,bytes signerPubKey)")
+            keccak256("SignedKeyRequest(uint256 requestingFid,bytes signerPubKey,uint256 deadline)")
         );
     }
 
@@ -18,19 +18,26 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
                               VALIDATION
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzValidate(uint256 signerPk, uint256 userFid, bytes calldata signerPubKey) public {
+    function testFuzzValidate(
+        uint256 signerPk,
+        uint256 userFid,
+        bytes calldata signerPubKey,
+        uint40 _deadline
+    ) public {
         signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
 
         address signer = vm.addr(signerPk);
         uint256 requestingFid = _register(signer);
 
-        bytes memory sig = _signMetadata(signerPk, userFid, requestingFid, signerPubKey);
+        bytes memory sig = _signMetadata(signerPk, requestingFid, signerPubKey, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: requestingFid,
                 requestSigner: signer,
-                signature: sig
+                signature: sig,
+                deadline: deadline
             })
         );
 
@@ -39,20 +46,27 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         assertEq(isValid, true);
     }
 
-    function testFuzzValidateUnownedAppFid(uint256 signerPk, uint256 userFid, bytes calldata signerPubKey) public {
+    function testFuzzValidateUnownedAppFid(
+        uint256 signerPk,
+        uint256 userFid,
+        bytes calldata signerPubKey,
+        uint40 _deadline
+    ) public {
         signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
 
         address signer = vm.addr(signerPk);
         uint256 requestingFid = _register(signer);
         uint256 unownedFid = requestingFid + 1;
 
-        bytes memory sig = _signMetadata(signerPk, userFid, unownedFid, signerPubKey);
+        bytes memory sig = _signMetadata(signerPk, unownedFid, signerPubKey, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: unownedFid,
                 requestSigner: signer,
-                signature: sig
+                signature: sig,
+                deadline: deadline
             })
         );
 
@@ -65,21 +79,24 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         uint256 signerPk,
         uint256 userFid,
         bytes calldata signerPubKey,
-        address wrongSigner
+        address wrongSigner,
+        uint40 _deadline
     ) public {
         signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
 
         address signer = vm.addr(signerPk);
         vm.assume(wrongSigner != signer);
         uint256 requestingFid = _register(signer);
 
-        bytes memory sig = _signMetadata(signerPk, userFid, requestingFid, signerPubKey);
+        bytes memory sig = _signMetadata(signerPk, requestingFid, signerPubKey, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: requestingFid,
                 requestSigner: wrongSigner,
-                signature: sig
+                signature: sig,
+                deadline: deadline
             })
         );
 
@@ -88,27 +105,32 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         assertEq(isValid, false);
     }
 
-    function testFuzzValidateWrongUserFid(
+    function testFuzzValidateExpired(
         uint256 signerPk,
         uint256 userFid,
         bytes calldata signerPubKey,
-        uint256 wrongUserFid
+        uint256 wrongUserFid,
+        uint40 _deadline
     ) public {
         vm.assume(wrongUserFid != userFid);
         signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
 
         address signer = vm.addr(signerPk);
         uint256 requestingFid = _register(signer);
 
-        bytes memory sig = _signMetadata(signerPk, wrongUserFid, requestingFid, signerPubKey);
+        bytes memory sig = _signMetadata(signerPk, requestingFid, signerPubKey, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: requestingFid,
                 requestSigner: signer,
-                signature: sig
+                signature: sig,
+                deadline: deadline
             })
         );
+
+        vm.warp(deadline + 1);
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -119,21 +141,24 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         uint256 signerPk,
         uint256 userFid,
         bytes calldata signerPubKey,
-        bytes calldata wrongPubKey
+        bytes calldata wrongPubKey,
+        uint40 _deadline
     ) public {
         vm.assume(keccak256(wrongPubKey) != keccak256(signerPubKey));
         signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
 
         address signer = vm.addr(signerPk);
         uint256 requestingFid = _register(signer);
 
-        bytes memory sig = _signMetadata(signerPk, userFid, requestingFid, wrongPubKey);
+        bytes memory sig = _signMetadata(signerPk, requestingFid, wrongPubKey, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: requestingFid,
                 requestSigner: signer,
-                signature: sig
+                signature: sig,
+                deadline: deadline
             })
         );
 
@@ -146,10 +171,12 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         uint256 signerPk,
         uint256 userFid,
         bytes calldata signerPubKey,
-        bytes calldata wrongPubKey
+        bytes calldata wrongPubKey,
+        uint40 _deadline
     ) public {
         vm.assume(keccak256(wrongPubKey) != keccak256(signerPubKey));
         signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
 
         address signer = vm.addr(signerPk);
         uint256 requestingFid = _register(signer);
@@ -161,7 +188,8 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestingFid: requestingFid,
                 requestSigner: signer,
-                signature: sig
+                signature: sig,
+                deadline: deadline
             })
         );
 
