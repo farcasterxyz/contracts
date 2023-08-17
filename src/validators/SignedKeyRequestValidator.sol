@@ -8,23 +8,23 @@ import {IMetadataValidator} from "../interfaces/IMetadataValidator.sol";
 import {IdRegistryLike} from "../interfaces/IdRegistryLike.sol";
 import {IdRegistry} from "../IdRegistry.sol";
 
-contract AppIdValidator is IMetadataValidator, Ownable2Step, EIP712 {
+contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
 
     /**
-     *  @notice App ID specific metadata.
+     *  @notice Signed key request specific metadata.
      *
-     *  @param appFid     The fid of the applcation associated with
-     *                       the signer key.
-     *  @param appSigner  Signer address. Must be the owner of
-     *                    the appFid fid.
-     *  @param signature  EIP-712 AppId signature.
+     *  @param requestingFid The fid of the entity requesting to add
+     *                       a signer key.
+     *  @param requestSigner Signer address. Must be the owner of
+     *                       the requestingFid fid.
+     *  @param signature     EIP-712 SignedKeyRequest signature.
      */
-    struct AppId {
-        uint256 appFid;
-        address appSigner;
+    struct SignedKeyRequest {
+        uint256 requestingFid;
+        address requestSigner;
         bytes signature;
     }
 
@@ -44,7 +44,8 @@ contract AppIdValidator is IMetadataValidator, Ownable2Step, EIP712 {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    bytes32 internal constant _METADATA_TYPEHASH = keccak256("AppId(uint256 userFid,uint256 appFid,bytes signerPubKey)");
+    bytes32 internal constant _METADATA_TYPEHASH =
+        keccak256("SignedKeyRequest(uint256 userFid,uint256 requestingFid,bytes signerPubKey)");
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
@@ -75,24 +76,24 @@ contract AppIdValidator is IMetadataValidator, Ownable2Step, EIP712 {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Validate the AppId metadata associated with a signer key.
+     * @notice Validate the SignedKeyRequest metadata associated with a signer key.
      *         (Key type 1, Metadata type 1)
      *
-     * @param userFid       The fid of the end user adding this signer key.
-     * @param signerPubKey  The public key of the signer.
-     * @param appIdBytes    An abi-encoded AppId struct, provided as the
-     *                      metadata argument to KeyRegistry.add.
+     * @param userFid               The fid of the end user adding this signer key.
+     * @param signerPubKey          The public key of the signer.
+     * @param signedKeyRequestBytes An abi-encoded SignedKeyRequest struct, provided as the
+     *                              metadata argument to KeyRegistry.add.
      *
      * @return true if signature is valid and signer owns appFid, false otherwise.
      */
     function validate(
         uint256 userFid,
         bytes memory signerPubKey,
-        bytes calldata appIdBytes
+        bytes calldata signedKeyRequestBytes
     ) external view returns (bool) {
-        AppId memory appId = abi.decode(appIdBytes, (AppId));
+        SignedKeyRequest memory signedKeyRequest = abi.decode(signedKeyRequestBytes, (SignedKeyRequest));
 
-        if (idRegistry.idOf(appId.appSigner) != appId.appFid) return false;
+        if (idRegistry.idOf(signedKeyRequest.requestSigner) != signedKeyRequest.requestingFid) return false;
 
         /**
          *  Safety: Since keys may only be registered once, they are not
@@ -100,10 +101,14 @@ contract AppIdValidator is IMetadataValidator, Ownable2Step, EIP712 {
          *  validation signature.
          */
         return idRegistry.verifyFidSignature(
-            appId.appSigner,
-            appId.appFid,
-            _hashTypedDataV4(keccak256(abi.encode(_METADATA_TYPEHASH, userFid, appId.appFid, keccak256(signerPubKey)))),
-            appId.signature
+            signedKeyRequest.requestSigner,
+            signedKeyRequest.requestingFid,
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(_METADATA_TYPEHASH, userFid, signedKeyRequest.requestingFid, keccak256(signerPubKey))
+                )
+            ),
+            signedKeyRequest.signature
         );
     }
 

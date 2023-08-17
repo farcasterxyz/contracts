@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {AppIdValidator} from "../../../src/validators/AppIdValidator.sol";
-import {AppIdValidatorTestSuite} from "./AppIdValidatorTestSuite.sol";
+import {SignedKeyRequestValidator} from "../../../src/validators/SignedKeyRequestValidator.sol";
+import {SignedKeyRequestValidatorTestSuite} from "./SignedKeyRequestValidatorTestSuite.sol";
 
-contract AppIdValidatorTest is AppIdValidatorTestSuite {
+contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
     function testMetadataTypeHash() public {
-        assertEq(validator.metadataTypehash(), keccak256("AppId(uint256 userFid,uint256 appFid,bytes signerPubKey)"));
+        assertEq(
+            validator.metadataTypehash(),
+            keccak256("SignedKeyRequest(uint256 userFid,uint256 requestingFid,bytes signerPubKey)")
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -19,11 +22,17 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
         signerPk = _boundPk(signerPk);
 
         address signer = vm.addr(signerPk);
-        uint256 appFid = _register(signer);
+        uint256 requestingFid = _register(signer);
 
-        bytes memory sig = _signMetadata(signerPk, userFid, appFid, signerPubKey);
+        bytes memory sig = _signMetadata(signerPk, userFid, requestingFid, signerPubKey);
 
-        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: requestingFid,
+                requestSigner: signer,
+                signature: sig
+            })
+        );
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -34,13 +43,18 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
         signerPk = _boundPk(signerPk);
 
         address signer = vm.addr(signerPk);
-        uint256 appFid = _register(signer);
-        uint256 unownedFid = appFid + 1;
+        uint256 requestingFid = _register(signer);
+        uint256 unownedFid = requestingFid + 1;
 
         bytes memory sig = _signMetadata(signerPk, userFid, unownedFid, signerPubKey);
 
-        bytes memory metadata =
-            abi.encode(AppIdValidator.AppId({appFid: unownedFid, appSigner: signer, signature: sig}));
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: unownedFid,
+                requestSigner: signer,
+                signature: sig
+            })
+        );
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -57,12 +71,17 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
 
         address signer = vm.addr(signerPk);
         vm.assume(wrongSigner != signer);
-        uint256 appFid = _register(signer);
+        uint256 requestingFid = _register(signer);
 
-        bytes memory sig = _signMetadata(signerPk, userFid, appFid, signerPubKey);
+        bytes memory sig = _signMetadata(signerPk, userFid, requestingFid, signerPubKey);
 
-        bytes memory metadata =
-            abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: wrongSigner, signature: sig}));
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: requestingFid,
+                requestSigner: wrongSigner,
+                signature: sig
+            })
+        );
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -79,11 +98,17 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
         signerPk = _boundPk(signerPk);
 
         address signer = vm.addr(signerPk);
-        uint256 appFid = _register(signer);
+        uint256 requestingFid = _register(signer);
 
-        bytes memory sig = _signMetadata(signerPk, wrongUserFid, appFid, signerPubKey);
+        bytes memory sig = _signMetadata(signerPk, wrongUserFid, requestingFid, signerPubKey);
 
-        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: requestingFid,
+                requestSigner: signer,
+                signature: sig
+            })
+        );
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -100,11 +125,17 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
         signerPk = _boundPk(signerPk);
 
         address signer = vm.addr(signerPk);
-        uint256 appFid = _register(signer);
+        uint256 requestingFid = _register(signer);
 
-        bytes memory sig = _signMetadata(signerPk, userFid, appFid, wrongPubKey);
+        bytes memory sig = _signMetadata(signerPk, userFid, requestingFid, wrongPubKey);
 
-        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: requestingFid,
+                requestSigner: signer,
+                signature: sig
+            })
+        );
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 
@@ -121,12 +152,18 @@ contract AppIdValidatorTest is AppIdValidatorTestSuite {
         signerPk = _boundPk(signerPk);
 
         address signer = vm.addr(signerPk);
-        uint256 appFid = _register(signer);
+        uint256 requestingFid = _register(signer);
 
         /* generate an invalid signature */
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
-        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: requestingFid,
+                requestSigner: signer,
+                signature: sig
+            })
+        );
 
         bool isValid = validator.validate(userFid, signerPubKey, metadata);
 

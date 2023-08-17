@@ -7,7 +7,7 @@ import {
     StorageRegistry,
     IdRegistry,
     KeyRegistry,
-    AppIdValidator,
+    SignedKeyRequestValidator,
     Bundler,
     IMetadataValidator
 } from "../../script/Deploy.s.sol";
@@ -19,7 +19,7 @@ contract DeployTest is Test {
     StorageRegistry internal storageRegistry;
     IdRegistry internal idRegistry;
     KeyRegistry internal keyRegistry;
-    AppIdValidator internal validator;
+    SignedKeyRequestValidator internal validator;
     Bundler internal bundler;
 
     address internal alice;
@@ -81,7 +81,7 @@ contract DeployTest is Test {
         storageRegistry = contracts.storageRegistry;
         idRegistry = contracts.idRegistry;
         keyRegistry = contracts.keyRegistry;
-        validator = contracts.appIdValidator;
+        validator = contracts.signedKeyRequestValidator;
         bundler = contracts.bundler;
     }
 
@@ -121,10 +121,16 @@ contract DeployTest is Test {
         storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), address(bundler));
 
         vm.prank(address(bundler));
-        uint256 appFid = idRegistry.trustedRegister(app, address(0));
+        uint256 requestingFid = idRegistry.trustedRegister(app, address(0));
 
-        bytes memory sig = _signMetadata(appPk, 2, appFid, "key");
-        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: app, signature: sig}));
+        bytes memory sig = _signMetadata(appPk, 2, requestingFid, "key");
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: requestingFid,
+                requestSigner: app,
+                signature: sig
+            })
+        );
 
         vm.prank(bundlerTrustedCaller);
         bundler.trustedRegister(alice, bob, 1, "key", 1, metadata, 1);
@@ -144,15 +150,15 @@ contract DeployTest is Test {
     function _signMetadata(
         uint256 pk,
         uint256 userFid,
-        uint256 appFid,
+        uint256 requestingFid,
         bytes memory signerPubKey
     ) internal returns (bytes memory signature) {
         bytes32 digest = validator.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keccak256("AppId(uint256 userFid,uint256 appFid,bytes signerPubKey)"),
+                    keccak256("SignedKeyRequest(uint256 userFid,uint256 requestingFid,bytes signerPubKey)"),
                     userFid,
-                    appFid,
+                    requestingFid,
                     keccak256(signerPubKey)
                 )
             )

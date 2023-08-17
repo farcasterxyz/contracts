@@ -7,7 +7,7 @@ import {FnameResolver} from "../src/FnameResolver.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
-import {AppIdValidator} from "../src/validators/AppIdValidator.sol";
+import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
 import {Bundler} from "../src/Bundler.sol";
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
 import {IERC1271} from "openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -118,8 +118,8 @@ contract StorageRegistryHarness is StorageRegistry {
     }
 }
 
-contract AppIdValidatorHarness is AppIdValidator {
-    constructor(address _idRegistry, address _owner) AppIdValidator(_idRegistry, _owner) {}
+contract SignedKeyRequestValidatorHarness is SignedKeyRequestValidator {
+    constructor(address _idRegistry, address _owner) SignedKeyRequestValidator(_idRegistry, _owner) {}
 
     function metadataTypehash() public pure returns (bytes32) {
         return _METADATA_TYPEHASH;

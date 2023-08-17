@@ -3,17 +3,20 @@ pragma solidity 0.8.21;
 
 import {IdRegistryTestSuite} from "../../IdRegistry/IdRegistryTestSuite.sol";
 
-import {AppIdValidatorHarness} from "../../Utils.sol";
+import {SignedKeyRequestValidatorHarness} from "../../Utils.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract AppIdValidatorTestSuite is IdRegistryTestSuite {
-    AppIdValidatorHarness internal validator;
+abstract contract SignedKeyRequestValidatorTestSuite is IdRegistryTestSuite {
+    SignedKeyRequestValidatorHarness internal validator;
 
     function setUp() public virtual override {
         super.setUp();
 
-        validator = new AppIdValidatorHarness(address(idRegistry), owner);
+        validator = new SignedKeyRequestValidatorHarness(
+            address(idRegistry),
+            owner
+        );
     }
 
     function _signMetadata(

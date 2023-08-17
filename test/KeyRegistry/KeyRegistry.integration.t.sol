@@ -3,15 +3,16 @@ pragma solidity ^0.8.19;
 
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
-import {AppIdValidator} from "../../src/validators/AppIdValidator.sol";
+import {SignedKeyRequestValidator} from "../../src/validators/SignedKeyRequestValidator.sol";
 
-import {AppIdValidatorTestSuite} from "../validators/AppIdValidator/AppIdValidatorTestSuite.sol";
+import {SignedKeyRequestValidatorTestSuite} from
+    "../validators/SignedKeyRequestValidator/SignedKeyRequestValidatorTestSuite.sol";
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestSuite {
-    function setUp() public override(KeyRegistryTestSuite, AppIdValidatorTestSuite) {
+contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestValidatorTestSuite {
+    function setUp() public override(KeyRegistryTestSuite, SignedKeyRequestValidatorTestSuite) {
         super.setUp();
 
         vm.prank(owner);
@@ -35,14 +36,20 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         address signer = vm.addr(signerPk);
 
         uint256 userFid = _registerFid(to, recovery);
-        uint256 appFid = _register(signer);
+        uint256 requestingFid = _register(signer);
 
         uint32 keyType = 1;
         uint8 metadataType = 1;
 
-        bytes memory sig = _signMetadata(signerPk, userFid, appFid, key);
+        bytes memory sig = _signMetadata(signerPk, userFid, requestingFid, key);
 
-        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: requestingFid,
+                requestSigner: signer,
+                signature: sig
+            })
+        );
 
         vm.expectEmit();
         emit Add(userFid, keyType, key, key, metadataType, metadata);
@@ -65,14 +72,20 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         address signer = vm.addr(signerPk);
 
         uint256 userFid = _registerFid(to, recovery);
-        uint256 appFid = _register(signer);
+        uint256 requestingFid = _register(signer);
 
         uint32 keyType = 1;
         uint8 metadataType = 1;
 
-        bytes memory sig = _signMetadata(otherPk, userFid, appFid, key);
+        bytes memory sig = _signMetadata(otherPk, userFid, requestingFid, key);
 
-        bytes memory metadata = abi.encode(AppIdValidator.AppId({appFid: appFid, appSigner: signer, signature: sig}));
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestingFid: requestingFid,
+                requestSigner: signer,
+                signature: sig
+            })
+        );
 
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
         vm.prank(to);
