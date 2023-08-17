@@ -68,7 +68,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
                     to: account,
                     units: 1,
                     recovery: address(0),
-                    scheme: 1,
+                    keyType: 1,
                     key: "key",
                     metadata: abi.encodePacked(uint8(1), "metadata")
                 });

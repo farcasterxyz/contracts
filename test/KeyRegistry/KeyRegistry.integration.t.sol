@@ -21,7 +21,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
     }
 
-    event Add(uint256 indexed fid, uint32 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
+    event Add(uint256 indexed fid, uint32 indexed keyType, bytes indexed key, bytes keyBytes, bytes metadata);
 
     function testFuzzAdd(address to, uint256 signerPk, address recovery, bytes calldata key) public {
         signerPk = _boundPk(signerPk);
@@ -30,7 +30,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         uint256 userFid = _registerFid(to, recovery);
         uint256 appFid = _register(signer);
 
-        uint32 scheme = 1;
+        uint32 keyType = 1;
         uint8 typeId = 1;
 
         bytes memory sig = _signMetadata(signerPk, userFid, appFid, key);
@@ -41,11 +41,11 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         );
 
         vm.expectEmit();
-        emit Add(userFid, scheme, key, key, metadata);
+        emit Add(userFid, keyType, key, key, metadata);
         vm.prank(to);
-        keyRegistry.add(scheme, key, metadata);
+        keyRegistry.add(keyType, key, metadata);
 
-        assertAdded(userFid, key, scheme);
+        assertAdded(userFid, key, keyType);
     }
 
     function testFuzzAddRevertsInvalidSig(
@@ -63,7 +63,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
         uint256 userFid = _registerFid(to, recovery);
         uint256 appFid = _register(signer);
 
-        uint32 scheme = 1;
+        uint32 keyType = 1;
         uint8 typeId = 1;
 
         bytes memory sig = _signMetadata(otherPk, userFid, appFid, key);
@@ -75,7 +75,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
 
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
         vm.prank(to);
-        keyRegistry.add(scheme, key, metadata);
+        keyRegistry.add(keyType, key, metadata);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -93,11 +93,11 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, AppIdValidatorTestS
 
     function assertNull(uint256 fid, bytes memory key) internal {
         assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.NULL);
-        assertEq(keyRegistry.keyDataOf(fid, key).scheme, 0);
+        assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
     }
 
-    function assertAdded(uint256 fid, bytes memory key, uint32 scheme) internal {
+    function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {
         assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
-        assertEq(keyRegistry.keyDataOf(fid, key).scheme, scheme);
+        assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
     }
 }

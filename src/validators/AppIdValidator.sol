@@ -76,7 +76,7 @@ contract AppIdValidator is IMetadataValidator, Ownable2Step, EIP712 {
 
     /**
      * @notice Validate the AppId metadata associated with a signer key.
-     *         (Scheme 1, Metadata typeId 1)
+     *         (Key type 1, Metadata type 1)
      *
      * @param userFid       The fid of the end user adding this signer key.
      * @param signerPubKey  The public key of the signer.
