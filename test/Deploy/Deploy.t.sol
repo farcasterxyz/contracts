@@ -122,14 +122,15 @@ contract DeployTest is Test {
 
         vm.prank(address(bundler));
         uint256 requestFid = idRegistry.trustedRegister(app, address(0));
+        uint256 deadline = block.timestamp + 60;
 
-        bytes memory sig = _signMetadata(appPk, 2, requestFid, "key");
+        bytes memory sig = _signMetadata(appPk, requestFid, "key", deadline);
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestFid: requestFid,
                 requestSigner: app,
                 signature: sig,
-                deadline: block.timestamp + 60
+                deadline: deadline
             })
         );
 
@@ -150,17 +151,17 @@ contract DeployTest is Test {
 
     function _signMetadata(
         uint256 pk,
-        uint256 userFid,
         uint256 requestFid,
-        bytes memory signerPubKey
+        bytes memory signerPubKey,
+        uint256 deadline
     ) internal returns (bytes memory signature) {
         bytes32 digest = validator.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keccak256("SignedKeyRequest(uint256 userFid,uint256 requestFid,bytes signerPubKey)"),
-                    userFid,
+                    keccak256("SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)"),
                     requestFid,
-                    keccak256(signerPubKey)
+                    keccak256(signerPubKey),
+                    deadline
                 )
             )
         );
