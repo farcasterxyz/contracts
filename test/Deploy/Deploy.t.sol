@@ -121,12 +121,12 @@ contract DeployTest is Test {
         storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), address(bundler));
 
         vm.prank(address(bundler));
-        uint256 requestingFid = idRegistry.trustedRegister(app, address(0));
+        uint256 requestFid = idRegistry.trustedRegister(app, address(0));
 
-        bytes memory sig = _signMetadata(appPk, 2, requestingFid, "key");
+        bytes memory sig = _signMetadata(appPk, 2, requestFid, "key");
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
-                requestingFid: requestingFid,
+                requestFid: requestFid,
                 requestSigner: app,
                 signature: sig,
                 deadline: block.timestamp + 60
@@ -151,15 +151,15 @@ contract DeployTest is Test {
     function _signMetadata(
         uint256 pk,
         uint256 userFid,
-        uint256 requestingFid,
+        uint256 requestFid,
         bytes memory signerPubKey
     ) internal returns (bytes memory signature) {
         bytes32 digest = validator.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keccak256("SignedKeyRequest(uint256 userFid,uint256 requestingFid,bytes signerPubKey)"),
+                    keccak256("SignedKeyRequest(uint256 userFid,uint256 requestFid,bytes signerPubKey)"),
                     userFid,
-                    requestingFid,
+                    requestFid,
                     keccak256(signerPubKey)
                 )
             )

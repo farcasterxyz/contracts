@@ -24,7 +24,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      *  @param deadline      block.timestamp after which signature expires.
      */
     struct SignedKeyRequest {
-        uint256 requestingFid;
+        uint256 requestFid;
         address requestSigner;
         bytes signature;
         uint256 deadline;
@@ -47,7 +47,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
     //////////////////////////////////////////////////////////////*/
 
     bytes32 internal constant _METADATA_TYPEHASH =
-        keccak256("SignedKeyRequest(uint256 requestingFid,bytes signerPubKey,uint256 deadline)");
+        keccak256("SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
@@ -81,32 +81,29 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      * @notice Validate the SignedKeyRequest metadata associated with a signer key.
      *         (Key type 1, Metadata type 1)
      *
-     * @param signerPubKey          The public key of the signer.
+     * @param key                   The EdDSA public key of the signer.
      * @param signedKeyRequestBytes An abi-encoded SignedKeyRequest struct, provided as the
      *                              metadata argument to KeyRegistry.add.
      *
-     * @return true if signature is valid and signer owns appFid, false otherwise.
+     * @return true if signature is valid and signer owns requestFid, false otherwise.
      */
     function validate(
         uint256, /* userFid */
-        bytes memory signerPubKey,
+        bytes memory key,
         bytes calldata signedKeyRequestBytes
     ) external view returns (bool) {
         SignedKeyRequest memory signedKeyRequest = abi.decode(signedKeyRequestBytes, (SignedKeyRequest));
 
-        if (idRegistry.idOf(signedKeyRequest.requestSigner) != signedKeyRequest.requestingFid) return false;
+        if (idRegistry.idOf(signedKeyRequest.requestSigner) != signedKeyRequest.requestFid) return false;
         if (block.timestamp > signedKeyRequest.deadline) return false;
 
         return idRegistry.verifyFidSignature(
             signedKeyRequest.requestSigner,
-            signedKeyRequest.requestingFid,
+            signedKeyRequest.requestFid,
             _hashTypedDataV4(
                 keccak256(
                     abi.encode(
-                        _METADATA_TYPEHASH,
-                        signedKeyRequest.requestingFid,
-                        keccak256(signerPubKey),
-                        signedKeyRequest.deadline
+                        _METADATA_TYPEHASH, signedKeyRequest.requestFid, keccak256(key), signedKeyRequest.deadline
                     )
                 )
             ),

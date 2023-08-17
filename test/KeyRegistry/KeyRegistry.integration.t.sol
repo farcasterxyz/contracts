@@ -37,16 +37,16 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         address signer = vm.addr(signerPk);
 
         uint256 userFid = _registerFid(to, recovery);
-        uint256 requestingFid = _register(signer);
+        uint256 requestFid = _register(signer);
 
         uint32 keyType = 1;
         uint8 metadataType = 1;
 
-        bytes memory sig = _signMetadata(signerPk, requestingFid, key, deadline);
+        bytes memory sig = _signMetadata(signerPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
-                requestingFid: requestingFid,
+                requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
                 deadline: deadline
@@ -76,13 +76,13 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         address signer = vm.addr(signerPk);
 
         _registerFid(to, recovery);
-        uint256 requestingFid = _register(signer);
+        uint256 requestFid = _register(signer);
 
-        bytes memory sig = _signMetadata(otherPk, requestingFid, key, deadline);
+        bytes memory sig = _signMetadata(otherPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
-                requestingFid: requestingFid,
+                requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
                 deadline: deadline
