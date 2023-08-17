@@ -302,10 +302,10 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     }
 
     /**
-     * @notice Change the recovery address of the given owner. Caller must provide an
+     * @notice Change the recovery address of fid owned by the owner. Caller must provide an
      *         EIP-712 ChangeRecoveryAddress message signed by the owner.
      *
-     * @param owner    Owner address of the fid whose recovery address will be changed.
+     * @param owner    Custody address of the fid whose recovery address will be changed.
      * @param recovery The address which can recover the fid. Set to 0x0 to disable recovery.
      * @param deadline Expiration timestamp of the ChangeRecoveryAddress signature.
      * @param sig      EIP-712 ChangeRecoveryAddress message signed by the owner address.
