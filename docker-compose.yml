@@ -5,20 +5,9 @@ services:
     build:
       dockerfile: Dockerfile.foundry
       context: .
-    command: |
-      sh -c '
-        set -e
-        command_args="--host 0.0.0.0 --port ${PORT:-8545} --state /var/lib/anvil/state"
-        if [ -n "$$MAINNET_RPC_URL" ]; then
-          echo "Starting Anvil from a forked chain"
-          exec anvil $$command_args --rpc-url $$MAINNET_RPC_URL --retries 3 --timeout 10000
-        else
-          echo "Starting Anvil with a blank slate chain"
-          exec anvil $$command_args --chain-id $$CHAIN_ID
-        fi
-      '
+    entrypoint: ""
+    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL', '--state', '/var/lib/anvil/state', '--retries', '3', '--timeout', '10000']
     environment:
-      - CHAIN_ID
       - MAINNET_RPC_URL
     volumes:
       - anvil-data:/var/lib/anvil
