@@ -1431,6 +1431,375 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        RECOVER FOR TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzRecoverFor(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, fid, to, recoveryDeadline);
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        address recoveryBefore = idRegistry.recoveryOf(fid);
+
+        vm.expectEmit();
+        emit Recover(from, to, 1);
+        vm.expectEmit();
+        emit Transfer(from, to, 1);
+        vm.prank(caller);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.recoveryOf(fid), recoveryBefore);
+    }
+
+    function testFuzzRecoverForRevertsInvalidRecoverySig(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, fid, to, recoveryDeadline + 1);
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
+    function testFuzzRecoverForForRevertsInvalidToSig(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, fid, to, recoveryDeadline);
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline + 1);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
+    function testFuzzTransferForRevertsBadRecoverySig(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+
+        bytes memory recoverySig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
+    function testFuzzTransferForRevertsBadToSig(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, fid, to, recoveryDeadline);
+        bytes memory toSig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
+    function testFuzzTransferForRevertsExpiredRecoverySig(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, fid, to, recoveryDeadline);
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.warp(recoveryDeadline + 1);
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.SignatureExpired.selector);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
+    function testFuzzTransferForRevertsExpiredToSig(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, fid, to, recoveryDeadline);
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.warp(toDeadline + 1);
+
+        vm.prank(caller);
+        vm.expectRevert(Signatures.SignatureExpired.selector);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
+    function testFuzzCannotRecoverForToAddressWithId(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+        _register(to);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, fid, to, recoveryDeadline);
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 2);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 2);
+
+        vm.warp(toDeadline + 1);
+
+        vm.prank(caller);
+        vm.expectRevert(IdRegistry.HasId.selector);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 2);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 2);
+    }
+
+    function testFuzzCannotRecoverForFromAddressWithNoId(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, 1, to, recoveryDeadline);
+        bytes memory toSig = _signTransfer(toPk, 1, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 0);
+        assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.prank(caller);
+        vm.expectRevert(IdRegistry.HasNoId.selector);
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 0);
+        assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
+    function testFuzzRecoverForRevertsWhenPaused(
+        address caller,
+        uint256 recoveryPk,
+        uint256 toPk,
+        address from,
+        uint40 _recoveryDeadline,
+        uint40 _toDeadline
+    ) public {
+        recoveryPk = _boundPk(recoveryPk);
+        toPk = _boundPk(toPk);
+        address recovery = vm.addr(recoveryPk);
+        address to = vm.addr(toPk);
+        vm.assume(from != to);
+        vm.assume(recovery != to);
+
+        uint256 recoveryDeadline = _boundDeadline(_recoveryDeadline);
+        uint256 toDeadline = _boundDeadline(_toDeadline);
+        uint256 fid = _registerWithRecovery(from, recovery);
+
+        bytes memory recoverySig = _signTransfer(recoveryPk, fid, to, recoveryDeadline);
+        bytes memory toSig = _signTransfer(toPk, fid, to, toDeadline);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+
+        vm.prank(owner);
+        idRegistry.pause();
+
+        vm.prank(caller);
+        vm.expectRevert("Pausable: paused");
+        idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.idOf(to), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         EOA VERIFY FID SIGNATURE
     //////////////////////////////////////////////////////////////*/
 

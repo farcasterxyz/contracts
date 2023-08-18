@@ -356,6 +356,47 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         _unsafeTransfer(fromId, from, to);
     }
 
+    /**
+     * @notice Transfer the fid owned by the from address to another address that does not
+     *         have an fid. Caller must provide two signed Transfer messages: one signed by
+     *         the from address and one signed by the to address.
+     *
+     * @param from             The owner address of the fid to transfer.
+     * @param to               The address to transfer the fid to.
+     * @param recoveryDeadline Expiration timestamp of the recovery signature.
+     * @param recoverySig      EIP-712 Transfer signature signed by the recovery address.
+     * @param toDeadline       Expiration timestamp of the to signature.
+     * @param toSig            EIP-712 Transfer signature signed by the to address.
+     */
+    function recoverFor(
+        address from,
+        address to,
+        uint256 recoveryDeadline,
+        bytes calldata recoverySig,
+        uint256 toDeadline,
+        bytes calldata toSig
+    ) external {
+        /* Revert if from does not own an fid */
+        uint256 fromId = idOf[from];
+        if (fromId == 0) revert HasNoId();
+
+        /* Revert if destination(to) already has an fid */
+        if (idOf[to] != 0) revert HasId();
+
+        /* Revert if either signature is invalid */
+        _verifyTransferSig({
+            fid: fromId,
+            to: to,
+            deadline: recoveryDeadline,
+            signer: recoveryOf[fromId],
+            sig: recoverySig
+        });
+        _verifyTransferSig({fid: fromId, to: to, deadline: toDeadline, signer: to, sig: toSig});
+
+        emit Recover(from, to, fromId);
+        _unsafeTransfer(fromId, from, to);
+    }
+
     /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
