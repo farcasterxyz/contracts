@@ -28,11 +28,16 @@ contract Bundler is TrustedCaller {
     struct UserData {
         address to;
         address recovery;
+        SignerData[] signers;
+        uint256 units;
+    }
+
+    /// @notice Data needed to trusted register a signer with the key registry
+    struct SignerData {
         uint32 keyType;
         bytes key;
         uint8 metadataType;
         bytes metadata;
-        uint256 units;
     }
 
     /// @notice Data needed to register an fid with signature.
@@ -116,7 +121,8 @@ contract Bundler is TrustedCaller {
         uint256 fid =
             idRegistry.registerFor(registration.to, registration.recovery, registration.deadline, registration.sig);
 
-        for (uint256 i; i < signers.length;) {
+        uint256 signersLen = signers.length;
+        for (uint256 i; i < signersLen;) {
             SignerParams calldata signer = signers[i];
             keyRegistry.addFor(
                 registration.to,
@@ -145,26 +151,20 @@ contract Bundler is TrustedCaller {
      * @notice Register an fid, add a signer, and credit storage to an address in a single transaction. Can only
      *         be called by the trustedCaller during the Seedable phase.
      *
-     * @param to           Address of the fid to register
-     * @param recovery     Address that is allowed to perform a recovery
-     * @param keyType      Signer key's numeric type
-     * @param key          Bytes of signer key
-     * @param metadata     Signer key metadata
-     * @param storageUnits Number of storage units to rent
+     * @param user UserData struct including to/recovery address, key params, and number of storage units.
      */
-    function trustedRegister(
-        address to,
-        address recovery,
-        uint32 keyType,
-        bytes calldata key,
-        uint8 metadataType,
-        bytes calldata metadata,
-        uint256 storageUnits
-    ) external onlyTrustedCaller {
+    function trustedRegister(UserData calldata user) external onlyTrustedCaller {
         // Will revert unless IdRegistry is in the Seedable phase
-        uint256 fid = idRegistry.trustedRegister(to, recovery);
-        keyRegistry.trustedAdd(to, keyType, key, metadataType, metadata);
-        storageRegistry.credit(fid, storageUnits);
+        uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
+        uint256 signersLen = user.signers.length;
+        for (uint256 i; i < signersLen;) {
+            SignerData calldata signer = user.signers[i];
+            keyRegistry.trustedAdd(user.to, signer.keyType, signer.key, signer.metadataType, signer.metadata);
+            unchecked {
+                ++i;
+            }
+        }
+        storageRegistry.credit(fid, user.units);
     }
 
     /**
@@ -176,10 +176,20 @@ contract Bundler is TrustedCaller {
      */
     function trustedBatchRegister(UserData[] calldata users) external onlyTrustedCaller {
         // Safety: calls inside a loop are safe since caller is trusted
-        for (uint256 i; i < users.length;) {
+        uint256 usersLen = users.length;
+        for (uint256 i; i < usersLen;) {
             UserData calldata user = users[i];
             uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
-            keyRegistry.trustedAdd(user.to, user.keyType, user.key, user.metadataType, user.metadata);
+            uint256 signersLen = user.signers.length;
+
+            for (uint256 j; j < signersLen;) {
+                SignerData calldata signer = user.signers[j];
+                keyRegistry.trustedAdd(user.to, signer.keyType, signer.key, signer.metadataType, signer.metadata);
+                unchecked {
+                    ++j;
+                }
+            }
+
             storageRegistry.credit(fid, user.units);
 
             // We know this will not overflow because it's less than the length of the array, which is a `uint256`.

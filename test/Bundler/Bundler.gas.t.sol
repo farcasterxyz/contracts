@@ -49,8 +49,10 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
         for (uint256 i = 0; i < 10; i++) {
             address account = address(uint160(i));
+            Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
+            signers[0] = Bundler.SignerData({keyType: 1, key: "key", metadataType: 1, metadata: "metadata"});
 
-            bundler.trustedRegister(account, address(0), 1, "key", 1, "metadata", 1);
+            bundler.trustedRegister(Bundler.UserData({to: account, recovery: address(0), signers: signers, units: 1}));
         }
     }
 
@@ -69,15 +71,11 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
             for (uint256 j = 0; j < 10; j++) {
                 address account = address(uint160(((i * 10) + j + 1)));
-                batchArray[j] = Bundler.UserData({
-                    to: account,
-                    units: 1,
-                    recovery: address(0),
-                    keyType: 1,
-                    key: "key",
-                    metadataType: 1,
-                    metadata: "metadata"
-                });
+                Bundler.SignerData[] memory signers = new Bundler.SignerData[](
+                    1
+                );
+                signers[0] = Bundler.SignerData({keyType: 1, key: "key", metadataType: 1, metadata: "metadata"});
+                batchArray[j] = Bundler.UserData({to: account, recovery: address(0), signers: signers, units: 1});
             }
 
             bundler.trustedBatchRegister(batchArray);
