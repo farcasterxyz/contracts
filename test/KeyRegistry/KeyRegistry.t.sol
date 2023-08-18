@@ -89,10 +89,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyType = uint32(bound(keyType, 1, type(uint32).max));
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
 
-        /* We set a validator for keyType 1, type 1 during setup. Remove it.*/
-        vm.prank(owner);
-        keyRegistry.setValidator(1, 1, IMetadataValidator(address(0)));
-
         uint256 fid = _registerFid(to, recovery);
 
         vm.prank(to);
@@ -744,13 +740,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                 BULK ADD
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkAddSignerForMigration(
-        uint256[] memory _ids,
-        uint8 _numKeys,
-        uint8 metadataType,
-        bytes memory metadata
-    ) public {
-        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+    function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys, bytes memory metadata) public {
+        _registerValidator(1, 1);
 
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
@@ -759,8 +750,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256[] memory ids = _dedupeFuzzedIds(_ids, len);
         uint256 idsLength = ids.length;
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
-
-        _registerValidator(1, metadataType);
 
         vm.prank(owner);
         keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
@@ -773,6 +762,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testBulkAddEmitsEvent() public {
+        _registerValidator(1, 1);
+
         uint256[] memory ids = new uint256[](3);
         bytes[][] memory keys = new bytes[][](3);
         bytes memory metadata = abi.encodePacked(uint8(1));
@@ -842,6 +833,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testBulkAddCannotReAdd() public {
+        _registerValidator(1, 1);
+
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](2);
         bytes memory metadata = abi.encodePacked(uint8(1));
@@ -866,6 +859,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testFuzzBulkAddSignerForMigrationRevertsMismatchedInput() public {
+        _registerValidator(1, 1);
+
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](1);
         bytes memory metadata = abi.encodePacked(uint8(1));
@@ -884,10 +879,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzBulkRemoveSignerForMigration(
         uint256[] memory _ids,
         uint8 _numKeys,
-        uint8 metadataType,
         bytes memory metadata
     ) public {
-        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+        _registerValidator(1, 1);
+
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
@@ -895,8 +890,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256[] memory ids = _dedupeFuzzedIds(_ids, len);
         uint256 idsLength = ids.length;
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
-
-        _registerValidator(1, metadataType);
 
         vm.startPrank(owner);
 
@@ -913,6 +906,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testBulkResetEmitsEvent() public {
+        _registerValidator(1, 1);
+
         uint256[] memory ids = new uint256[](3);
         bytes[][] memory keys = new bytes[][](3);
         bytes memory metadata = abi.encodePacked(uint8(1));
@@ -954,6 +949,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testBulkResetRevertsWithoutAdding() public {
+        _registerValidator(1, 1);
+
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](2);
 
@@ -972,6 +969,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testBulkResetRevertsIfRunTwice() public {
+        _registerValidator(1, 1);
+
         uint256[] memory ids = new uint256[](2);
         bytes[][] memory keys = new bytes[][](2);
         bytes memory metadata = abi.encodePacked(uint8(1));
@@ -1100,10 +1099,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzSetValidator(uint32 keyType, uint8 metadataType, IMetadataValidator validator) public {
         keyType = uint32(bound(keyType, 1, type(uint32).max));
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
-
-        /* We set a validator for keyType 1, type 1 during setup. Remove it.*/
-        vm.prank(owner);
-        keyRegistry.setValidator(1, 1, IMetadataValidator(address(0)));
 
         assertEq(address(keyRegistry.validators(keyType, metadataType)), address(0));
 

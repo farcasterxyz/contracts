@@ -18,9 +18,6 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
 
         keyRegistry = new KeyRegistryHarness(address(idRegistry), owner);
         stubValidator = new StubValidator();
-
-        vm.prank(owner);
-        keyRegistry.setValidator(1, 1, IMetadataValidator(address(stubValidator)));
     }
 
     function _signAdd(
