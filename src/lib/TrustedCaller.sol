@@ -52,7 +52,7 @@ abstract contract TrustedCaller is Ownable2Step {
      *      functions when set to 0. The value is set to 1 and can be changed to 0,
      *      but never back to 1.
      */
-    uint256 internal trustedOnly = 1;
+    uint256 public trustedOnly = 1;
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
