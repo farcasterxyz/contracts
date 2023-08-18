@@ -16,10 +16,10 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
     /**
      *  @notice Signed key request specific metadata.
      *
-     *  @param requestingFid The fid of the entity requesting to add
+     *  @param requestFid    The fid of the entity requesting to add
      *                       a signer key.
      *  @param requestSigner Signer address. Must be the owner of
-     *                       the requestingFid fid.
+     *                       requestFid.
      *  @param signature     EIP-712 SignedKeyRequest signature.
      *  @param deadline      block.timestamp after which signature expires.
      */
@@ -96,6 +96,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
 
         if (idRegistry.idOf(signedKeyRequest.requestSigner) != signedKeyRequest.requestFid) return false;
         if (block.timestamp > signedKeyRequest.deadline) return false;
+        if (key.length != 32) return false;
 
         return idRegistry.verifyFidSignature(
             signedKeyRequest.requestSigner,
@@ -112,11 +113,15 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            EIP-712 HELPERS
+                              HELPERS
     //////////////////////////////////////////////////////////////*/
 
     function hashTypedDataV4(bytes32 structHash) external view returns (bytes32) {
         return _hashTypedDataV4(structHash);
+    }
+
+    function encodeMetadata(SignedKeyRequest calldata metadata) external pure returns (bytes memory) {
+        return abi.encode(metadata);
     }
 
     /*//////////////////////////////////////////////////////////////
