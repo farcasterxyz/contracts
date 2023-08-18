@@ -28,8 +28,9 @@ contract Bundler is TrustedCaller {
     struct UserData {
         address to;
         address recovery;
-        uint32 scheme;
+        uint32 keyType;
         bytes key;
+        uint8 metadataType;
         bytes metadata;
         uint256 units;
     }
@@ -44,8 +45,9 @@ contract Bundler is TrustedCaller {
 
     /// @notice Data needed to add a signer with signature.
     struct SignerParams {
-        uint32 scheme;
+        uint32 keyType;
         bytes key;
+        uint8 metadataType;
         bytes metadata;
         uint256 deadline;
         bytes sig;
@@ -101,7 +103,7 @@ contract Bundler is TrustedCaller {
      * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
      *
      * @param registration Struct containing registration parameters: to, recovery, deadline, and signature.
-     * @param signers      Array of structs containing signer parameters: scheme, key, metadata, deadline, and signature.
+     * @param signers      Array of structs containing signer parameters: keyType, key, metadata, deadline, and signature.
      * @param storageUnits Number of storage units to rent
      *
      */
@@ -116,7 +118,15 @@ contract Bundler is TrustedCaller {
 
         for (uint256 i; i < signers.length;) {
             SignerParams calldata signer = signers[i];
-            keyRegistry.addFor(registration.to, signer.scheme, signer.key, signer.metadata, signer.deadline, signer.sig);
+            keyRegistry.addFor(
+                registration.to,
+                signer.keyType,
+                signer.key,
+                signer.metadataType,
+                signer.metadata,
+                signer.deadline,
+                signer.sig
+            );
 
             // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
             unchecked {
@@ -137,7 +147,7 @@ contract Bundler is TrustedCaller {
      *
      * @param to           Address of the fid to register
      * @param recovery     Address that is allowed to perform a recovery
-     * @param scheme       Signer key's numeric scheme
+     * @param keyType      Signer key's numeric type
      * @param key          Bytes of signer key
      * @param metadata     Signer key metadata
      * @param storageUnits Number of storage units to rent
@@ -145,14 +155,15 @@ contract Bundler is TrustedCaller {
     function trustedRegister(
         address to,
         address recovery,
-        uint32 scheme,
+        uint32 keyType,
         bytes calldata key,
+        uint8 metadataType,
         bytes calldata metadata,
         uint256 storageUnits
     ) external onlyTrustedCaller {
         // Will revert unless IdRegistry is in the Seedable phase
         uint256 fid = idRegistry.trustedRegister(to, recovery);
-        keyRegistry.trustedAdd(to, scheme, key, metadata);
+        keyRegistry.trustedAdd(to, keyType, key, metadataType, metadata);
         storageRegistry.credit(fid, storageUnits);
     }
 
@@ -168,7 +179,7 @@ contract Bundler is TrustedCaller {
         for (uint256 i; i < users.length;) {
             UserData calldata user = users[i];
             uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
-            keyRegistry.trustedAdd(user.to, user.scheme, user.key, user.metadata);
+            keyRegistry.trustedAdd(user.to, user.keyType, user.key, user.metadataType, user.metadata);
             storageRegistry.credit(fid, user.units);
 
             // We know this will not overflow because it's less than the length of the array, which is a `uint256`.

@@ -133,7 +133,7 @@ abstract contract ImmutableCreate2Deployer is Script {
      * @dev Deploy all registered contracts.
      */
     function deploy() internal {
-        console.log(pad("State", 10), pad("Name", 17), pad("Address", 43), "Initcode hash");
+        console.log(pad("State", 10), pad("Name", 27), pad("Address", 43), "Initcode hash");
         for (uint256 i; i < names.length; i++) {
             _deploy(names[i]);
         }
@@ -162,7 +162,7 @@ abstract contract ImmutableCreate2Deployer is Script {
         }
         console.log(
             pad((deployment.status == Status.DEPLOYED) ? "Deploying" : "Found", 10),
-            pad(deployment.name, 17),
+            pad(deployment.name, 27),
             pad(Strings.toHexString(deployment.deploymentAddress), 43),
             Strings.toHexString(uint256(deployment.initCodeHash))
         );

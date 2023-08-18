@@ -18,7 +18,9 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
             bytes memory sig = _signRegister(i, account, address(0), type(uint40).max);
             uint256 price = storageRegistry.price(1);
 
-            Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+            Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](
+                0
+            );
 
             vm.deal(account, 10_000 ether);
             vm.prank(account);
@@ -43,7 +45,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
         for (uint256 i = 0; i < 10; i++) {
             address account = address(uint160(i));
 
-            bundler.trustedRegister(account, address(0), 0, "key", "metadata", 1);
+            bundler.trustedRegister(account, address(0), 1, "key", 1, "metadata", 1);
         }
     }
 
@@ -66,8 +68,9 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
                     to: account,
                     units: 1,
                     recovery: address(0),
-                    scheme: 0,
+                    keyType: 1,
                     key: "key",
+                    metadataType: 1,
                     metadata: "metadata"
                 });
             }

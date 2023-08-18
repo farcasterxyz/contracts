@@ -7,6 +7,7 @@ import {FnameResolver} from "../src/FnameResolver.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
+import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
 import {Bundler} from "../src/Bundler.sol";
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
 import {IERC1271} from "openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -114,6 +115,30 @@ contract StorageRegistryHarness is StorageRegistry {
 
     function treasurerRoleId() external pure returns (bytes32) {
         return TREASURER_ROLE;
+    }
+}
+
+contract SignedKeyRequestValidatorHarness is SignedKeyRequestValidator {
+    constructor(address _idRegistry, address _owner) SignedKeyRequestValidator(_idRegistry, _owner) {}
+
+    function metadataTypehash() public pure returns (bytes32) {
+        return _METADATA_TYPEHASH;
+    }
+}
+
+contract StubValidator {
+    bool isValid = true;
+
+    function validate(
+        uint256, /* userFid */
+        bytes memory, /* signerPubKey */
+        bytes memory /* appIdBytes */
+    ) external view returns (bool) {
+        return isValid;
+    }
+
+    function setIsValid(bool val) external {
+        isValid = val;
     }
 }
 

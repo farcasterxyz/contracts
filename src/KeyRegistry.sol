@@ -4,13 +4,11 @@ pragma solidity 0.8.21;
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 
+import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
+import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {IdRegistry} from "./IdRegistry.sol";
 import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
-
-interface IdRegistryLike {
-    function idOf(address fidOwner) external view returns (uint256);
-}
 
 /**
  * @title KeyRegistry
@@ -38,11 +36,11 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *  @notice Data about a key.
      *
      *  @param state   The current state of the key.
-     *  @param scheme  The manner in which the key should be used.
+     *  @param keyType Numeric ID representing the manner in which the key should be used.
      */
     struct KeyData {
         KeyState state;
-        uint32 scheme;
+        uint32 keyType;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -51,6 +49,18 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
 
     /// @dev Revert if a key violates KeyState transition rules.
     error InvalidState();
+
+    /// @dev Revert if a validator has not been registered for this keyType and metadataType.
+    error ValidatorNotFound(uint32 keyType, uint8 metadataType);
+
+    /// @dev Revert if metadata validation failed.
+    error InvalidMetadata();
+
+    /// @dev Revert if the admin sets a validator for keyType 0.
+    error InvalidKeyType();
+
+    /// @dev Revert if the admin sets a validator for metadataType 0.
+    error InvalidMetadataType();
 
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
@@ -68,7 +78,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @dev Emit an event when an admin or fid adds a new key.
      *
-     *      Hubs listen for this, validate that keyBytes is an EdDSA pub key and scheme == 1 and
+     *      Hubs listen for this, validate that keyBytes is an EdDSA pub key and keyType == 1 and
      *      add keyBytes to its SignerStore. Messages signed by keyBytes with `fid` are now valid
      *      and accepted over gossip, sync and client apis. Hubs assume the invariants:
      *
@@ -80,18 +90,26 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *
      *      3. For all Add(..., ..., key, keyBytes, ...), key = keccak(keyBytes)
      *
-     * @param fid       The fid associated with the key.
-     * @param scheme    The type of the key.
-     * @param key       The key being registered. (indexed as hash)
-     * @param keyBytes  The bytes of the key being registered.
-     * @param metadata  Metadata about the key.
+     * @param fid          The fid associated with the key.
+     * @param keyType      The type of the key.
+     * @param key          The key being registered. (indexed as hash)
+     * @param keyBytes     The bytes of the key being registered.
+     * @param metadataType The type of the metadata.
+     * @param metadata     Metadata about the key.
      */
-    event Add(uint256 indexed fid, uint32 indexed scheme, bytes indexed key, bytes keyBytes, bytes metadata);
+    event Add(
+        uint256 indexed fid,
+        uint32 indexed keyType,
+        bytes indexed key,
+        bytes keyBytes,
+        uint8 metadataType,
+        bytes metadata
+    );
 
     /**
      * @dev Emit an event when an fid removes an added key.
      *
-     *      Hubs listen for this, validate that scheme == 1 and keyBytes exists in its SignerStore.
+     *      Hubs listen for this, validate that keyType == 1 and keyBytes exists in its SignerStore.
      *      keyBytes is marked as removed, messages signed by keyBytes with `fid` are invalid,
      *      dropped immediately and no longer accepted. Hubs assume the invariants:
      *
@@ -112,7 +130,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @dev Emit an event when an admin resets an added key.
      *
-     *      Hubs listen for this, validate that scheme == 1 and that keyBytes exists in its SignerStore.
+     *      Hubs listen for this, validate that keyType == 1 and that keyBytes exists in its SignerStore.
      *      keyBytes is no longer tracked, messages signed by keyBytes with `fid` are invalid, dropped
      *      immediately and not accepted. Hubs assume the following invariants:
      *
@@ -152,6 +170,17 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     event Migrated(uint256 indexed keysMigratedAt);
 
     /**
+     * @dev Emit an event when the admin sets a metadata validator contract for a given
+     *      keyType and metadataType.
+     *
+     * @param keyType      The numeric keyType associated with this validator.
+     * @param metadataType The metadataType associated with this validator.
+     * @param oldValidator The previous validator contract address.
+     * @param newValidator The new validator contract address.
+     */
+    event SetValidator(uint32 keyType, uint8 metadataType, address oldValidator, address newValidator);
+
+    /**
      * @dev Emit an event when the admin sets a new IdRegistry contract address.
      *
      * @param oldIdRegistry The previous IdRegistry address.
@@ -163,15 +192,12 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    bytes32 internal constant _ADD_TYPEHASH =
-        keccak256("Add(address owner,uint32 scheme,bytes key,bytes metadata,uint256 nonce,uint256 deadline)");
+    bytes32 internal constant _ADD_TYPEHASH = keccak256(
+        "Add(address owner,uint32 keyType,bytes key,uint8 metadataType,bytes metadata,uint256 nonce,uint256 deadline)"
+    );
 
     bytes32 internal constant _REMOVE_TYPEHASH =
         keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
-
-    /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
-    //////////////////////////////////////////////////////////////*/
 
     /**
      * @dev Period in seconds after migration during which admin can bulk add/reset keys.
@@ -196,21 +222,30 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     uint40 public keysMigratedAt;
 
     /**
-     * @dev Mapping of fid to a key to the key's metadata.
+     * @dev Mapping of fid to a key to the key's data.
      *
      * @custom:param fid       The fid associated with the key.
      * @custom:param key       Bytes of the key.
      * @custom:param data      Struct with the state and key type. In the initial migration
-     *                         all keys will have data.scheme == 1.
+     *                         all keys will have data.keyType == 1.
      */
     mapping(uint256 fid => mapping(bytes key => KeyData data)) public keys;
+
+    /**
+     * @dev Mapping of keyType to metadataType to validator contract.
+     *
+     * @custom:param keyType      Numeric keyType.
+     * @custom:param metadataType Metadata metadataType.
+     * @custom:param validator    Validator contract implementing IMetadataValidator.
+     */
+    mapping(uint32 keyType => mapping(uint8 metadataType => IMetadataValidator validator)) public validators;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the IdRegistry, migration grace period, and owner.
+     * @notice Set the IdRegistry and owner.
      *
      * @param _idRegistry   IdRegistry contract address.
      * @param _initialOwner Initial contract owner address.
@@ -232,7 +267,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      * @param fid   The fid associated with the key.
      * @param key   Bytes of the key.
      *
-     * @return KeyData struct that contains the state and scheme.
+     * @return KeyData struct that contains the state and keyType.
      */
     function keyDataOf(uint256 fid, bytes calldata key) external view returns (KeyData memory) {
         return keys[fid][key];
@@ -254,53 +289,58 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @notice Add a key to the caller's fid, setting the key state to ADDED.
      *
-     * @param scheme   The key's numeric scheme.
-     * @param key      Bytes of the key to add.
-     * @param metadata Metadata about the key, which is not stored and only emitted in an event.
+     * @param keyType      The key's numeric keyType.
+     * @param key          Bytes of the key to add.
+     * @param metadataType Metadata type ID.
+     * @param metadata     Metadata about the key, which is not stored and only emitted in an event.
      */
-    function add(uint32 scheme, bytes calldata key, bytes calldata metadata) external {
-        _add(_fidOf(msg.sender), scheme, key, metadata);
+    function add(uint32 keyType, bytes calldata key, uint8 metadataType, bytes calldata metadata) external {
+        _add(_fidOf(msg.sender), keyType, key, metadataType, metadata);
     }
 
     /**
      * @notice Add a key on behalf of another fid owner, setting the key state to ADDED.
      *         caller must supply a valid EIP-712 Add signature from the fid owner.
      *
-     * @param fidOwner    The fid owner address.
-     * @param scheme   The key's numeric scheme.
-     * @param key      Bytes of the key to add.
-     * @param metadata Metadata about the key, which is not stored and only emitted in an event.
-     * @param deadline Deadline after which the signature expires.
-     * @param sig      EIP-712 Add signature generated by fid owner.
+     * @param fidOwner     The fid owner address.
+     * @param keyType      The key's numeric keyType.
+     * @param key          Bytes of the key to add.
+     * @param metadataType Metadata type ID.
+     * @param metadata     Metadata about the key, which is not stored and only emitted in an event.
+     * @param deadline     Deadline after which the signature expires.
+     * @param sig          EIP-712 Add signature generated by fid owner.
      */
     function addFor(
         address fidOwner,
-        uint32 scheme,
+        uint32 keyType,
         bytes calldata key,
+        uint8 metadataType,
         bytes calldata metadata,
         uint256 deadline,
         bytes calldata sig
     ) external {
-        _verifyAddSig(fidOwner, scheme, key, metadata, deadline, sig);
-        _add(_fidOf(fidOwner), scheme, key, metadata);
+        _verifyAddSig(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
+        _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
     }
 
     /**
      * @notice Add a key on behalf of another fid owner, setting the key state to ADDED.
      *         Can only be called by the trustedCaller.
      *
-     * @param fidOwner    The fid owner address.
-     * @param scheme   The key's numeric scheme.
-     * @param key      Bytes of the key to add.
-     * @param metadata Metadata about the key, which is not stored and only emitted in an event.
+     * @param fidOwner     The fid owner address.
+     * @param keyType      The key's numeric keyType.
+     * @param key          Bytes of the key to add.
+     * @param metadataType Metadata type ID.
+     * @param metadata     Metadata about the key, which is not stored and only emitted in an event.
      */
     function trustedAdd(
         address fidOwner,
-        uint32 scheme,
+        uint32 keyType,
         bytes calldata key,
+        uint8 metadataType,
         bytes calldata metadata
     ) external onlyTrustedCaller {
-        _add(_fidOf(fidOwner), scheme, key, metadata);
+        _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
     }
 
     /**
@@ -366,7 +406,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                 uint256 fid = fids[i];
                 for (uint256 j = 0; j < fidKeys[i].length; j++) {
                     // TODO: add note about griefing during migration
-                    _add(fid, 1, fidKeys[i][j], metadata);
+                    _add(fid, 1, fidKeys[i][j], 1, metadata);
                 }
             }
         }
@@ -405,6 +445,20 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Set a metadata validator contract for the given keyType and metadataType. Only callable by owner.
+     *
+     * @param keyType      The numeric key type ID associated with this validator.
+     * @param metadataType The numeric metadata type ID associated with this validator.
+     * @param validator    Contract implementing IMetadataValidator.
+     */
+    function setValidator(uint32 keyType, uint8 metadataType, IMetadataValidator validator) external onlyOwner {
+        if (keyType == 0) revert InvalidKeyType();
+        if (metadataType == 0) revert InvalidMetadataType();
+        emit SetValidator(keyType, metadataType, address(validators[keyType][metadataType]), address(validator));
+        validators[keyType][metadataType] = validator;
+    }
+
+    /**
      * @notice Set the IdRegistry contract address. Only callable by owner.
      *
      * @param _idRegistry The new IdRegistry address.
@@ -418,13 +472,26 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _add(uint256 fid, uint32 scheme, bytes calldata key, bytes calldata metadata) internal {
+    function _add(
+        uint256 fid,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes calldata metadata
+    ) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
 
+        IMetadataValidator validator = validators[keyType][metadataType];
+        if (validator == IMetadataValidator(address(0))) {
+            revert ValidatorNotFound(keyType, metadataType);
+        }
+        bool isValid = validator.validate(fid, key, metadata);
+        if (!isValid) revert InvalidMetadata();
+
         keyData.state = KeyState.ADDED;
-        keyData.scheme = scheme;
-        emit Add(fid, scheme, key, key, metadata);
+        keyData.keyType = keyType;
+        emit Add(fid, keyType, key, key, metadataType, metadata);
     }
 
     function _remove(uint256 fid, bytes calldata key) internal {
@@ -440,7 +507,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
         keyData.state = KeyState.NULL;
-        delete keyData.scheme;
+        delete keyData.keyType;
         emit AdminReset(fid, key, key);
     }
 
@@ -450,8 +517,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
 
     function _verifyAddSig(
         address fidOwner,
-        uint32 scheme,
+        uint32 keyType,
         bytes memory key,
+        uint8 metadataType,
         bytes memory metadata,
         uint256 deadline,
         bytes memory sig
@@ -462,8 +530,9 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                     abi.encode(
                         _ADD_TYPEHASH,
                         fidOwner,
-                        scheme,
+                        keyType,
                         keccak256(key),
+                        metadataType,
                         keccak256(metadata),
                         _useNonce(fidOwner),
                         deadline
