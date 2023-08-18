@@ -135,8 +135,10 @@ contract DeployTest is Test {
             })
         );
 
+        Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
+        signers[0] = Bundler.SignerData({keyType: 1, key: key, metadataType: 1, metadata: metadata});
         vm.prank(bundlerTrustedCaller);
-        bundler.trustedRegister(alice, bob, 1, key, 1, metadata, 1);
+        bundler.trustedRegister(Bundler.UserData({to: alice, recovery: bob, signers: signers, units: 1}));
         assertEq(idRegistry.idOf(alice), 2);
 
         vm.startPrank(owner);
