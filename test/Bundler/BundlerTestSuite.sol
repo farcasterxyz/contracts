@@ -15,7 +15,7 @@ abstract contract BundlerTestSuite is StorageRegistryTestSuite, KeyRegistryTestS
     // Instance of the BundleRegistry contract wrapped in its test wrapper
     BundlerHarness bundler;
 
-    function setUp() public override(StorageRegistryTestSuite, KeyRegistryTestSuite) {
+    function setUp() public virtual override(StorageRegistryTestSuite, KeyRegistryTestSuite) {
         super.setUp();
 
         // Set up the BundleRegistry

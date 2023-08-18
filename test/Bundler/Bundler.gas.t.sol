@@ -4,11 +4,16 @@ pragma solidity 0.8.21;
 import "forge-std/Test.sol";
 
 import {Bundler} from "../../src/Bundler.sol";
-import {BundlerTestSuite} from "./BundlerTestSuite.sol";
+import {BundlerTestSuite, StorageRegistryTestSuite, KeyRegistryTestSuite} from "./BundlerTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
 contract BundleRegistryGasUsageTest is BundlerTestSuite {
+    function setUp() public override {
+        super.setUp();
+        _registerValidator(1, 1);
+    }
+
     function testGasRegisterWithSig() public {
         vm.prank(owner);
         idRegistry.disableTrustedOnly();

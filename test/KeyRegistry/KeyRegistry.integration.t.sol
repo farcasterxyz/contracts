@@ -31,16 +31,20 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         bytes metadata
     );
 
-    function testFuzzAdd(address to, uint256 signerPk, address recovery, bytes calldata key, uint40 _deadline) public {
+    function testFuzzAdd(
+        address to,
+        uint256 signerPk,
+        address recovery,
+        bytes calldata _keyBytes,
+        uint40 _deadline
+    ) public {
         signerPk = _boundPk(signerPk);
         uint256 deadline = _boundDeadline(_deadline);
         address signer = vm.addr(signerPk);
 
         uint256 userFid = _registerFid(to, recovery);
         uint256 requestFid = _register(signer);
-
-        uint32 keyType = 1;
-        uint8 metadataType = 1;
+        bytes memory key = _validKey(_keyBytes);
 
         bytes memory sig = _signMetadata(signerPk, requestFid, key, deadline);
 
@@ -54,11 +58,78 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         );
 
         vm.expectEmit();
-        emit Add(userFid, keyType, key, key, metadataType, metadata);
+        emit Add(userFid, 1, key, key, 1, metadata);
         vm.prank(to);
-        keyRegistry.add(keyType, key, metadataType, metadata);
+        keyRegistry.add(1, key, 1, metadata);
 
-        assertAdded(userFid, key, keyType);
+        assertAdded(userFid, key, 1);
+    }
+
+    function testFuzzAddRevertsShortKey(
+        address to,
+        uint256 signerPk,
+        address recovery,
+        bytes calldata _keyBytes,
+        uint40 _deadline,
+        uint8 _shortenBy
+    ) public {
+        _registerFid(to, recovery);
+        bytes memory key = _shortKey(_keyBytes, _shortenBy);
+
+        signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address signer = vm.addr(signerPk);
+        vm.assume(signer != to);
+
+        uint256 requestFid = _register(signer);
+
+        bytes memory sig = _signMetadata(signerPk, requestFid, key, deadline);
+
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestFid: requestFid,
+                requestSigner: signer,
+                signature: sig,
+                deadline: deadline
+            })
+        );
+
+        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
+        vm.prank(to);
+        keyRegistry.add(1, key, 1, metadata);
+    }
+
+    function testFuzzAddRevertsLongKey(
+        address to,
+        uint256 signerPk,
+        address recovery,
+        bytes calldata _keyBytes,
+        uint40 _deadline,
+        uint8 _lengthenBy
+    ) public {
+        _registerFid(to, recovery);
+        bytes memory key = _longKey(_keyBytes, _lengthenBy);
+
+        signerPk = _boundPk(signerPk);
+        uint256 deadline = _boundDeadline(_deadline);
+        address signer = vm.addr(signerPk);
+
+        uint256 requestFid = _register(signer);
+
+        bytes memory sig = _signMetadata(signerPk, requestFid, key, deadline);
+
+        bytes memory metadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequest({
+                requestFid: requestFid,
+                requestSigner: signer,
+                signature: sig,
+                deadline: deadline
+            })
+        );
+
+        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
+        vm.prank(to);
+        keyRegistry.add(1, key, 1, metadata);
     }
 
     function testFuzzAddRevertsInvalidSig(

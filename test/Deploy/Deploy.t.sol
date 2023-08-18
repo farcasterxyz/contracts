@@ -124,7 +124,8 @@ contract DeployTest is Test {
         uint256 requestFid = idRegistry.trustedRegister(app, address(0));
         uint256 deadline = block.timestamp + 60;
 
-        bytes memory sig = _signMetadata(appPk, requestFid, "key", deadline);
+        bytes memory key = bytes.concat("key", bytes29(0));
+        bytes memory sig = _signMetadata(appPk, requestFid, key, deadline);
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequest({
                 requestFid: requestFid,
@@ -135,7 +136,7 @@ contract DeployTest is Test {
         );
 
         vm.prank(bundlerTrustedCaller);
-        bundler.trustedRegister(alice, bob, 1, "key", 1, metadata, 1);
+        bundler.trustedRegister(alice, bob, 1, key, 1, metadata, 1);
         assertEq(idRegistry.idOf(alice), 2);
 
         vm.startPrank(owner);
