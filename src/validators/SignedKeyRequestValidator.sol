@@ -68,7 +68,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      * @param _idRegistry   IdRegistry contract address.
      * @param _initialOwner Initial contract owner address.
      */
-    constructor(address _idRegistry, address _initialOwner) EIP712("Farcaster MetadataValidator", "1") {
+    constructor(address _idRegistry, address _initialOwner) EIP712("Farcaster SignedKeyRequestValidator", "1") {
         idRegistry = IdRegistryLike(_idRegistry);
         _transferOwnership(_initialOwner);
     }
