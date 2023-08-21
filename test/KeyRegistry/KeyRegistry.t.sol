@@ -751,19 +751,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
 
-        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty();
         uint256[] memory ids = _dedupeFuzzedIds(_ids, len);
         uint256 idsLength = ids.length;
-        for (uint256 i; i < idsLength; ++i) {
-            addItems = addItems.addFid(ids[i]);
-        }
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
-        for (uint256 i; i < keys.length; ++i) {
-            bytes[] memory fidKeys = keys[i];
-            for (uint256 j; j < fidKeys.length; ++j) {
-                addItems = addItems.addKey(i, fidKeys[j], bytes.concat("metadata-", fidKeys[j]));
-            }
-        }
+        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFidsWithKeys(ids, keys);
 
         vm.prank(owner);
         keyRegistry.bulkAddKeysForMigration(addItems);
@@ -773,6 +764,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                 assertAdded(ids[i], keys[i][j], 1);
             }
         }
+    }
+
+    function test_assertNeverRuns(uint256 n) public {
+        vm.assume(n < type(uint128).max);
+        assertEq(n, n);
     }
 
     function testBulkAddEmitsEvent() public {

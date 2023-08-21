@@ -20,6 +20,21 @@ library BulkAddDataBuilder {
         return newData;
     }
 
+    function addFidsWithKeys(
+        KeyRegistry.BulkAddData[] memory addData,
+        uint256[] memory fids,
+        bytes[][] memory keys
+    ) internal pure returns (KeyRegistry.BulkAddData[] memory) {
+        for (uint256 i; i < fids.length; ++i) {
+            addData = addFid(addData, fids[i]);
+            bytes[] memory fidKeys = keys[i];
+            for (uint256 j; j < fidKeys.length; ++j) {
+                addData = addKey(addData, i, fidKeys[j], bytes.concat("metadata-", fidKeys[j]));
+            }
+        }
+        return addData;
+    }
+
     function addKey(
         KeyRegistry.BulkAddData[] memory addData,
         uint256 index,
@@ -47,32 +62,47 @@ library BulkResetDataBuilder {
     }
 
     function addFid(
-        KeyRegistry.BulkResetData[] memory removeData,
+        KeyRegistry.BulkResetData[] memory resetData,
         uint256 fid
     ) internal pure returns (KeyRegistry.BulkResetData[] memory) {
         KeyRegistry.BulkResetData[] memory newData = new KeyRegistry.BulkResetData[](
-                removeData.length + 1
+                resetData.length + 1
             );
-        for (uint256 i; i < removeData.length; i++) {
-            newData[i] = removeData[i];
+        for (uint256 i; i < resetData.length; i++) {
+            newData[i] = resetData[i];
         }
-        newData[removeData.length].fid = fid;
+        newData[resetData.length].fid = fid;
         return newData;
     }
 
+    function addFidsWithKeys(
+        KeyRegistry.BulkResetData[] memory resetData,
+        uint256[] memory fids,
+        bytes[][] memory keys
+    ) internal pure returns (KeyRegistry.BulkResetData[] memory) {
+        for (uint256 i; i < fids.length; ++i) {
+            resetData = addFid(resetData, fids[i]);
+            bytes[] memory fidKeys = keys[i];
+            for (uint256 j; j < fidKeys.length; ++j) {
+                resetData = addKey(resetData, i, fidKeys[j]);
+            }
+        }
+        return resetData;
+    }
+
     function addKey(
-        KeyRegistry.BulkResetData[] memory removeData,
+        KeyRegistry.BulkResetData[] memory resetData,
         uint256 index,
         bytes memory key
     ) internal pure returns (KeyRegistry.BulkResetData[] memory) {
-        bytes[] memory prevKeys = removeData[index].keys;
+        bytes[] memory prevKeys = resetData[index].keys;
         bytes[] memory newKeys = new bytes[](prevKeys.length + 1);
 
         for (uint256 i; i < prevKeys.length; i++) {
             newKeys[i] = prevKeys[i];
         }
         newKeys[prevKeys.length] = key;
-        removeData[index].keys = newKeys;
-        return removeData;
+        resetData[index].keys = newKeys;
+        return resetData;
     }
 }
