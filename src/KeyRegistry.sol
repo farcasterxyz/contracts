@@ -68,9 +68,6 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /// @dev Revert if the owner calls migrateKeys more than once.
     error AlreadyMigrated();
 
-    /// @dev Revert if migration batch input arrays are not the same length.
-    error InvalidBatchInput();
-
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -371,6 +368,21 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
 
+    struct BulkAddData {
+        uint256 fid;
+        BulkAddKey[] keys;
+    }
+
+    struct BulkAddKey {
+        bytes key;
+        bytes metadata;
+    }
+
+    struct BulkResetData {
+        uint256 fid;
+        bytes[] keys;
+    }
+
     /**
      * @notice Set the time of the key migration and emit an event. Hubs will watch this event and
      *         cut over to use the onchain registry as their source of truth after this timestamp.
@@ -385,28 +397,21 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @notice Add multiple keys as part of the initial migration. Only callable by the contract owner.
      *
-     * @param fids     A list of fids to associate with keys.
-     * @param fidKeys  A list of public keys to register for each fid, in the same order as the fids array.
-     * @param metadata Metadata to apply to each key.
+     * @param items An array of BulkAddData structs including fid and array of BulkAddKey structs.
      */
-    function bulkAddKeysForMigration(
-        uint256[] calldata fids,
-        bytes[][] calldata fidKeys,
-        bytes calldata metadata
-    ) external onlyOwner {
+    function bulkAddKeysForMigration(BulkAddData[] calldata items) external onlyOwner {
         if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) {
             revert Unauthorized();
         }
-        if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
-        // Safety: i and j can be incremented unchecked since they are bound by fids.length and
-        // fidKeys[i].length respectively.
+        // Safety: i and j can be incremented unchecked since they are bound by items.length and
+        // item[i].keys.length respectively.
         unchecked {
-            for (uint256 i = 0; i < fids.length; i++) {
-                uint256 fid = fids[i];
-                for (uint256 j = 0; j < fidKeys[i].length; j++) {
+            for (uint256 i = 0; i < items.length; i++) {
+                BulkAddData calldata item = items[i];
+                for (uint256 j = 0; j < item.keys.length; j++) {
                     // TODO: add note about griefing during migration
-                    _add(fid, 1, fidKeys[i][j], 1, metadata);
+                    _add(item.fid, 1, item.keys[j].key, 1, item.keys[j].metadata);
                 }
             }
         }
@@ -418,23 +423,21 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
      *         rather than REMOVED. This allows the owner to correct any errors in the initial migration until
      *         the grace period expires.
      *
-     * @param fids    A list of fids whose added keys should be removed.
-     * @param fidKeys A list of keys to remove for each fid, in the same order as the fids array.
+     * @param items    A list of BulkResetData structs including an fid and array of keys.
      */
-    function bulkResetKeysForMigration(uint256[] calldata fids, bytes[][] calldata fidKeys) external onlyOwner {
+    function bulkResetKeysForMigration(BulkResetData[] calldata items) external onlyOwner {
         if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) {
             revert Unauthorized();
         }
-        if (fids.length != fidKeys.length) revert InvalidBatchInput();
 
-        // Safety: i and j can be incremented unchecked since they are bound by fids.length and
+        // Safety: i and j can be incremented unchecked since they are bound by items.length and
         // fidKeys[i].length respectively.
         unchecked {
-            for (uint256 i = 0; i < fids.length; i++) {
-                uint256 fid = fids[i];
-                for (uint256 j = 0; j < fidKeys[i].length; j++) {
+            for (uint256 i = 0; i < items.length; i++) {
+                BulkResetData calldata item = items[i];
+                for (uint256 j = 0; j < item.keys.length; j++) {
                     // TODO: add note about griefing during migration
-                    _reset(fid, fidKeys[i][j]);
+                    _reset(item.fid, item.keys[j]);
                 }
             }
         }

@@ -49,7 +49,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         bytes memory sig = _signMetadata(signerPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -86,7 +86,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         bytes memory sig = _signMetadata(signerPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -119,7 +119,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         bytes memory sig = _signMetadata(signerPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -152,7 +152,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         bytes memory sig = _signMetadata(otherPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,

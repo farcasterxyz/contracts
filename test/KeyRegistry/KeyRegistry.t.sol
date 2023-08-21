@@ -7,10 +7,14 @@ import {Signatures} from "../../src/lib/Signatures.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
+import {BulkAddDataBuilder, BulkResetDataBuilder} from "./KeyRegistryTestHelpers.sol";
 
 /* solhint-disable state-visibility */
 
 contract KeyRegistryTest is KeyRegistryTestSuite {
+    using BulkAddDataBuilder for KeyRegistry.BulkAddData[];
+    using BulkResetDataBuilder for KeyRegistry.BulkResetData[];
+
     function setUp() public override {
         super.setUp();
 
@@ -740,19 +744,29 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                 BULK ADD
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys, bytes memory metadata) public {
+    function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
         _registerValidator(1, 1);
 
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
 
+        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty();
         uint256[] memory ids = _dedupeFuzzedIds(_ids, len);
         uint256 idsLength = ids.length;
+        for (uint256 i; i < idsLength; ++i) {
+            addItems = addItems.addFid(ids[i]);
+        }
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
+        for (uint256 i; i < keys.length; ++i) {
+            bytes[] memory fidKeys = keys[i];
+            for (uint256 j; j < fidKeys.length; ++j) {
+                addItems = addItems.addKey(i, fidKeys[j], bytes.concat("metadata-", fidKeys[j]));
+            }
+        }
 
         vm.prank(owner);
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
+        keyRegistry.bulkAddKeysForMigration(addItems);
 
         for (uint256 i; i < idsLength; ++i) {
             for (uint256 j; j < numKeys; ++j) {
@@ -764,42 +778,32 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testBulkAddEmitsEvent() public {
         _registerValidator(1, 1);
 
-        uint256[] memory ids = new uint256[](3);
-        bytes[][] memory keys = new bytes[][](3);
-        bytes memory metadata = abi.encodePacked(uint8(1));
-
-        ids[0] = 1;
-        ids[1] = 2;
-        ids[2] = 3;
-
-        keys[0] = new bytes[](1);
-        keys[1] = new bytes[](1);
-        keys[2] = new bytes[](2);
-
-        keys[0][0] = abi.encodePacked(uint256(1));
-        keys[1][0] = abi.encodePacked(uint256(2));
-        keys[2][0] = abi.encodePacked(uint256(3));
-        keys[2][1] = abi.encodePacked(uint256(4));
+        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1")
+            .addFid(2).addKey(1, "key2", "metadata2").addFid(3).addKey(2, "key3", "metadata3").addKey(
+            2, "key4", "metadata4"
+        );
 
         vm.expectEmit();
-        emit Add(ids[0], 1, keys[0][0], keys[0][0], 1, metadata);
+        emit Add(1, 1, "key1", "key1", 1, "metadata1");
 
         vm.expectEmit();
-        emit Add(ids[1], 1, keys[1][0], keys[1][0], 1, metadata);
+        emit Add(2, 1, "key2", "key2", 1, "metadata2");
 
         vm.expectEmit();
-        emit Add(ids[2], 1, keys[2][0], keys[2][0], 1, metadata);
+        emit Add(3, 1, "key3", "key3", 1, "metadata3");
 
         vm.expectEmit();
-        emit Add(ids[2], 1, keys[2][1], keys[2][1], 1, metadata);
+        emit Add(3, 1, "key4", "key4", 1, "metadata4");
 
         vm.prank(owner);
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
+        keyRegistry.bulkAddKeysForMigration(addItems);
     }
 
-    function testFuzzBulkAddKeyForMigrationDuringGracePeriod(uint40 _warpForward, bytes calldata metadata) public {
-        uint256[] memory ids = new uint256[](1);
-        bytes[][] memory keys = new bytes[][](1);
+    function testFuzzBulkAddKeyForMigrationDuringGracePeriod(uint40 _warpForward) public {
+        _registerValidator(1, 1);
+
+        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1");
+
         uint256 warpForward = bound(_warpForward, 1, keyRegistry.gracePeriod() - 1);
 
         vm.startPrank(owner);
@@ -807,17 +811,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.migrateKeys();
         vm.warp(keyRegistry.keysMigratedAt() + warpForward);
 
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
+        keyRegistry.bulkAddKeysForMigration(addItems);
 
         vm.stopPrank();
     }
 
-    function testFuzzBulkAddSignerForMigrationAfterGracePeriodRevertsUnauthorized(
-        uint40 _warpForward,
-        bytes calldata metadata
-    ) public {
-        uint256[] memory ids = new uint256[](1);
-        bytes[][] memory keys = new bytes[][](1);
+    function testFuzzBulkAddSignerForMigrationAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
+        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1");
+
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - keyRegistry.gracePeriod() - keyRegistry.keysMigratedAt());
 
@@ -827,7 +828,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(keyRegistry.keysMigratedAt() + keyRegistry.gracePeriod() + warpForward);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
+        keyRegistry.bulkAddKeysForMigration(addItems);
 
         vm.stopPrank();
     }
@@ -835,39 +836,15 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testBulkAddCannotReAdd() public {
         _registerValidator(1, 1);
 
-        uint256[] memory ids = new uint256[](2);
-        bytes[][] memory keys = new bytes[][](2);
-        bytes memory metadata = abi.encodePacked(uint8(1));
-
-        ids[0] = 1;
-        ids[1] = 2;
-
-        keys[0] = new bytes[](1);
-        keys[1] = new bytes[](1);
-
-        keys[0][0] = abi.encodePacked(uint256(1));
-        keys[1][0] = abi.encodePacked(uint256(2));
+        KeyRegistry.BulkAddData[] memory addItems =
+            BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1").addFid(2).addKey(1, "key2", "metadata2");
 
         vm.startPrank(owner);
 
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
+        keyRegistry.bulkAddKeysForMigration(addItems);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzBulkAddSignerForMigrationRevertsMismatchedInput() public {
-        _registerValidator(1, 1);
-
-        uint256[] memory ids = new uint256[](2);
-        bytes[][] memory keys = new bytes[][](1);
-        bytes memory metadata = abi.encodePacked(uint8(1));
-
-        vm.startPrank(owner);
-        vm.expectRevert(KeyRegistry.InvalidBatchInput.selector);
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
+        keyRegistry.bulkAddKeysForMigration(addItems);
 
         vm.stopPrank();
     }
@@ -876,25 +853,35 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                BULK REMOVE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkRemoveSignerForMigration(
-        uint256[] memory _ids,
-        uint8 _numKeys,
-        bytes memory metadata
-    ) public {
+    function testFuzzBulkRemoveSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
         _registerValidator(1, 1);
 
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         uint256 numKeys = bound(_numKeys, 1, 10);
 
+        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty();
+        KeyRegistry.BulkResetData[] memory resetItems = BulkResetDataBuilder.empty();
+
         uint256[] memory ids = _dedupeFuzzedIds(_ids, len);
         uint256 idsLength = ids.length;
+        for (uint256 i; i < idsLength; ++i) {
+            addItems = addItems.addFid(ids[i]);
+            resetItems = resetItems.addFid(ids[i]);
+        }
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
+        for (uint256 i; i < keys.length; ++i) {
+            bytes[] memory fidKeys = keys[i];
+            for (uint256 j; j < fidKeys.length; ++j) {
+                addItems = addItems.addKey(i, fidKeys[j], bytes.concat("metadata-", fidKeys[j]));
+                resetItems = resetItems.addKey(i, fidKeys[j]);
+            }
+        }
 
         vm.startPrank(owner);
 
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
-        keyRegistry.bulkResetKeysForMigration(ids, keys);
+        keyRegistry.bulkAddKeysForMigration(addItems);
+        keyRegistry.bulkResetKeysForMigration(resetItems);
 
         for (uint256 i; i < idsLength; ++i) {
             for (uint256 j; j < numKeys; ++j) {
@@ -907,43 +894,32 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
     function testBulkResetEmitsEvent() public {
         _registerValidator(1, 1);
+        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1")
+            .addFid(2).addKey(1, "key2", "metadata2").addFid(3).addKey(2, "key3", "metadata3").addKey(
+            2, "key4", "metadata4"
+        );
 
-        uint256[] memory ids = new uint256[](3);
-        bytes[][] memory keys = new bytes[][](3);
-        bytes memory metadata = abi.encodePacked(uint8(1));
-
-        ids[0] = 1;
-        ids[1] = 2;
-        ids[2] = 3;
-
-        keys[0] = new bytes[](1);
-        keys[1] = new bytes[](1);
-        keys[2] = new bytes[](2);
-
-        // TODO: make a reusable helper to handle key and id generation
-
-        keys[0][0] = abi.encodePacked(uint256(1));
-        keys[1][0] = abi.encodePacked(uint256(2));
-        keys[2][0] = abi.encodePacked(uint256(3));
-        keys[2][1] = abi.encodePacked(uint256(4));
+        KeyRegistry.BulkResetData[] memory resetItems = BulkResetDataBuilder.empty().addFid(1).addKey(0, "key1").addFid(
+            2
+        ).addKey(1, "key2").addFid(3).addKey(2, "key3").addKey(2, "key4");
 
         vm.startPrank(owner);
 
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
+        keyRegistry.bulkAddKeysForMigration(addItems);
 
         vm.expectEmit();
-        emit AdminReset(ids[0], keys[0][0], keys[0][0]);
+        emit AdminReset(1, "key1", "key1");
 
         vm.expectEmit();
-        emit AdminReset(ids[1], keys[1][0], keys[1][0]);
+        emit AdminReset(2, "key2", "key2");
 
         vm.expectEmit();
-        emit AdminReset(ids[2], keys[2][0], keys[2][0]);
+        emit AdminReset(3, "key3", "key3");
 
         vm.expectEmit();
-        emit AdminReset(ids[2], keys[2][1], keys[2][1]);
+        emit AdminReset(3, "key4", "key4");
 
-        keyRegistry.bulkResetKeysForMigration(ids, keys);
+        keyRegistry.bulkResetKeysForMigration(resetItems);
 
         vm.stopPrank();
     }
@@ -951,68 +927,56 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testBulkResetRevertsWithoutAdding() public {
         _registerValidator(1, 1);
 
-        uint256[] memory ids = new uint256[](2);
-        bytes[][] memory keys = new bytes[][](2);
-
-        ids[0] = 1;
-        ids[1] = 2;
-
-        keys[0] = new bytes[](1);
-        keys[1] = new bytes[](1);
-
-        keys[0][0] = abi.encodePacked(uint256(1));
-        keys[1][0] = abi.encodePacked(uint256(2));
+        KeyRegistry.BulkResetData[] memory resetItems =
+            BulkResetDataBuilder.empty().addFid(1).addKey(0, "key1").addFid(2).addKey(1, "key2");
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
         vm.prank(owner);
-        keyRegistry.bulkResetKeysForMigration(ids, keys);
+        keyRegistry.bulkResetKeysForMigration(resetItems);
     }
 
     function testBulkResetRevertsIfRunTwice() public {
         _registerValidator(1, 1);
 
-        uint256[] memory ids = new uint256[](2);
-        bytes[][] memory keys = new bytes[][](2);
-        bytes memory metadata = abi.encodePacked(uint8(1));
+        KeyRegistry.BulkAddData[] memory addItems =
+            BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1").addFid(2).addKey(1, "key2", "metadata2");
 
-        ids[0] = 1;
-        ids[1] = 2;
-
-        keys[0] = new bytes[](1);
-        keys[1] = new bytes[](1);
-
-        keys[0][0] = abi.encodePacked(uint256(1));
-        keys[1][0] = abi.encodePacked(uint256(2));
+        KeyRegistry.BulkResetData[] memory resetItems =
+            BulkResetDataBuilder.empty().addFid(1).addKey(0, "key1").addFid(2).addKey(1, "key2");
 
         vm.startPrank(owner);
 
-        keyRegistry.bulkAddKeysForMigration(ids, keys, metadata);
-        keyRegistry.bulkResetKeysForMigration(ids, keys);
+        keyRegistry.bulkAddKeysForMigration(addItems);
+        keyRegistry.bulkResetKeysForMigration(resetItems);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyRegistry.bulkResetKeysForMigration(ids, keys);
+        keyRegistry.bulkResetKeysForMigration(resetItems);
 
         vm.stopPrank();
     }
 
     function testFuzzBulkRemoveSignerForMigrationDuringGracePeriod(uint40 _warpForward) public {
-        uint256[] memory ids = new uint256[](1);
-        bytes[][] memory keys = new bytes[][](1);
+        _registerValidator(1, 1);
+
+        KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFid(1).addKey(0, "key", "metadata");
+
+        KeyRegistry.BulkResetData[] memory resetItems = BulkResetDataBuilder.empty().addFid(1).addKey(0, "key");
+
         uint256 warpForward = bound(_warpForward, 1, keyRegistry.gracePeriod() - 1);
 
         vm.startPrank(owner);
 
+        keyRegistry.bulkAddKeysForMigration(addItems);
         keyRegistry.migrateKeys();
         vm.warp(keyRegistry.keysMigratedAt() + warpForward);
 
-        keyRegistry.bulkResetKeysForMigration(ids, keys);
+        keyRegistry.bulkResetKeysForMigration(resetItems);
 
         vm.stopPrank();
     }
 
     function testFuzzBulkRemoveSignerForMigrationAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
-        uint256[] memory ids = new uint256[](1);
-        bytes[][] memory keys = new bytes[][](1);
+        KeyRegistry.BulkResetData[] memory items = BulkResetDataBuilder.empty().addFid(1).addKey(0, "key");
 
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - keyRegistry.gracePeriod() - keyRegistry.keysMigratedAt());
@@ -1023,18 +987,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(keyRegistry.keysMigratedAt() + keyRegistry.gracePeriod() + warpForward);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        keyRegistry.bulkResetKeysForMigration(ids, keys);
-
-        vm.stopPrank();
-    }
-
-    function testFuzzBulkRemoveSignerForMigrationRevertsMismatchedInput() public {
-        uint256[] memory ids = new uint256[](2);
-        bytes[][] memory keys = new bytes[][](1);
-
-        vm.startPrank(owner);
-        vm.expectRevert(KeyRegistry.InvalidBatchInput.selector);
-        keyRegistry.bulkResetKeysForMigration(ids, keys);
+        keyRegistry.bulkResetKeysForMigration(items);
 
         vm.stopPrank();
     }
