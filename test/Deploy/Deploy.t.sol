@@ -127,7 +127,7 @@ contract DeployTest is Test {
         bytes memory key = bytes.concat("key", bytes29(0));
         bytes memory sig = _signMetadata(appPk, requestFid, key, deadline);
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: app,
                 signature: sig,

@@ -34,7 +34,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes memory sig = _signMetadata(requesterPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -65,7 +65,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes memory sig = _signMetadata(requesterPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -96,7 +96,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes memory sig = _signMetadata(requesterPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -126,7 +126,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes memory sig = _signMetadata(requesterPk, unownedFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: unownedFid,
                 requestSigner: signer,
                 signature: sig,
@@ -157,7 +157,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes memory sig = _signMetadata(requesterPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: wrongSigner,
                 signature: sig,
@@ -188,7 +188,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes memory sig = _signMetadata(requesterPk, requestFid, key, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -221,7 +221,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes memory sig = _signMetadata(requesterPk, requestFid, wrongPubKey, deadline);
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -251,7 +251,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
         bytes memory metadata = abi.encode(
-            SignedKeyRequestValidator.SignedKeyRequest({
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
                 requestFid: requestFid,
                 requestSigner: signer,
                 signature: sig,
@@ -274,7 +274,8 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         bytes calldata signature,
         uint256 deadline
     ) public {
-        SignedKeyRequestValidator.SignedKeyRequest memory request = SignedKeyRequestValidator.SignedKeyRequest({
+        SignedKeyRequestValidator.SignedKeyRequestMetadata memory request = SignedKeyRequestValidator
+            .SignedKeyRequestMetadata({
             requestFid: requestFid,
             requestSigner: requestSigner,
             signature: signature,
@@ -282,8 +283,8 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         });
 
         bytes memory encoded = validator.encodeMetadata(request);
-        SignedKeyRequestValidator.SignedKeyRequest memory decoded =
-            abi.decode(encoded, (SignedKeyRequestValidator.SignedKeyRequest));
+        SignedKeyRequestValidator.SignedKeyRequestMetadata memory decoded =
+            abi.decode(encoded, (SignedKeyRequestValidator.SignedKeyRequestMetadata));
 
         assertEq(request.requestFid, decoded.requestFid);
         assertEq(request.requestSigner, decoded.requestSigner);

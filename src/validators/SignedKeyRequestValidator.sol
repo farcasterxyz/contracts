@@ -23,7 +23,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      *  @param signature     EIP-712 SignedKeyRequest signature.
      *  @param deadline      block.timestamp after which signature expires.
      */
-    struct SignedKeyRequest {
+    struct SignedKeyRequestMetadata {
         uint256 requestFid;
         address requestSigner;
         bytes signature;
@@ -92,23 +92,21 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
         bytes memory key,
         bytes calldata signedKeyRequestBytes
     ) external view returns (bool) {
-        SignedKeyRequest memory signedKeyRequest = abi.decode(signedKeyRequestBytes, (SignedKeyRequest));
+        SignedKeyRequestMetadata memory metadata = abi.decode(signedKeyRequestBytes, (SignedKeyRequestMetadata));
 
-        if (idRegistry.idOf(signedKeyRequest.requestSigner) != signedKeyRequest.requestFid) return false;
-        if (block.timestamp > signedKeyRequest.deadline) return false;
+        if (idRegistry.idOf(metadata.requestSigner) != metadata.requestFid) {
+            return false;
+        }
+        if (block.timestamp > metadata.deadline) return false;
         if (key.length != 32) return false;
 
         return idRegistry.verifyFidSignature(
-            signedKeyRequest.requestSigner,
-            signedKeyRequest.requestFid,
+            metadata.requestSigner,
+            metadata.requestFid,
             _hashTypedDataV4(
-                keccak256(
-                    abi.encode(
-                        _METADATA_TYPEHASH, signedKeyRequest.requestFid, keccak256(key), signedKeyRequest.deadline
-                    )
-                )
+                keccak256(abi.encode(_METADATA_TYPEHASH, metadata.requestFid, keccak256(key), metadata.deadline))
             ),
-            signedKeyRequest.signature
+            metadata.signature
         );
     }
 
@@ -120,7 +118,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
         return _hashTypedDataV4(structHash);
     }
 
-    function encodeMetadata(SignedKeyRequest calldata metadata) external pure returns (bytes memory) {
+    function encodeMetadata(SignedKeyRequestMetadata calldata metadata) external pure returns (bytes memory) {
         return abi.encode(metadata);
     }
 
