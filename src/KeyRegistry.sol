@@ -368,16 +368,37 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Struct argument for bulk add function, representing an FID
+     *      and its associated keys.
+     *
+     * @param fid  Fid associated with provided keys to add.
+     * @param keys Array of BulkAddKey structs, including key and metadata.
+     */
     struct BulkAddData {
         uint256 fid;
         BulkAddKey[] keys;
     }
 
+    /**
+     * @dev Struct argument for bulk add function, representing a key
+     *      and its associated metadata.
+     *
+     * @param key  Bytes of the signer key.
+     * @param keys Metadata metadata of the signer key.
+     */
     struct BulkAddKey {
         bytes key;
         bytes metadata;
     }
 
+    /**
+     * @dev Struct argument for bulk reset function, representing an FID
+     *      and its associated keys.
+     *
+     * @param fid  Fid associated with provided keys to reset.
+     * @param keys Array of keys to reset.
+     */
     struct BulkResetData {
         uint256 fid;
         bytes[] keys;
