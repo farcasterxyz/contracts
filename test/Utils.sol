@@ -28,10 +28,6 @@ contract BundlerHarness is Bundler {
 contract FnameResolverHarness is FnameResolver {
     constructor(string memory _url, address _signer, address _owner) FnameResolver(_url, _signer, _owner) {}
 
-    function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
-        return _hashTypedDataV4(structHash);
-    }
-
     function usernameProofTypehash() public pure returns (bytes32) {
         return _USERNAME_PROOF_TYPEHASH;
     }

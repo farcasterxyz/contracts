@@ -172,6 +172,14 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     }
 
     /*//////////////////////////////////////////////////////////////
+                           EIP-712 HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function hashTypedDataV4(bytes32 structHash) external view returns (bytes32) {
+        return _hashTypedDataV4(structHash);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 

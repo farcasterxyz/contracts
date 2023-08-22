@@ -9,7 +9,7 @@ import {Bundler} from "../src/Bundler.sol";
 import {IMetadataValidator} from "../src/interfaces/IMetadataValidator.sol";
 import {console, ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
 
-contract Deploy is ImmutableCreate2Deployer {
+contract DeployL2 is ImmutableCreate2Deployer {
     uint256 public constant INITIAL_USD_UNIT_PRICE = 5e8; // $5 USD
     uint256 public constant INITIAL_MAX_UNITS = 200_000;
     uint256 public constant INITIAL_PRICE_FEED_CACHE_DURATION = 1 days;
