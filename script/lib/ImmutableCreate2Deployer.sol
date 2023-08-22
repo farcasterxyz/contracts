@@ -132,11 +132,15 @@ abstract contract ImmutableCreate2Deployer is Script {
     /**
      * @dev Deploy all registered contracts.
      */
-    function deploy() internal {
+    function deploy(bool broadcast) internal {
         console.log(pad("State", 10), pad("Name", 27), pad("Address", 43), "Initcode hash");
         for (uint256 i; i < names.length; i++) {
-            _deploy(names[i]);
+            _deploy(names[i], broadcast);
         }
+    }
+
+    function deploy() internal {
+        deploy(true);
     }
 
     /**
@@ -144,15 +148,19 @@ abstract contract ImmutableCreate2Deployer is Script {
      *
      * @param name Contract name
      */
-    function deploy(string memory name) internal {
+    function deploy(string memory name, bool broadcast) public {
         console.log(pad("State", 10), pad("Name", 17), pad("Address", 43), "Initcode hash");
-        _deploy(name);
+        _deploy(name, broadcast);
     }
 
-    function _deploy(string memory name) internal {
+    function deploy(string memory name) internal {
+        deploy(name, true);
+    }
+
+    function _deploy(string memory name, bool broadcast) internal {
         Deployment storage deployment = contracts[name];
         if (!IMMUTABLE_CREATE2_FACTORY.hasBeenDeployed(deployment.deploymentAddress)) {
-            vm.broadcast();
+            if (broadcast) vm.broadcast();
             deployment.deploymentAddress = IMMUTABLE_CREATE2_FACTORY.safeCreate2(
                 deployment.salt, bytes.concat(deployment.creationCode, deployment.constructorArgs)
             );
