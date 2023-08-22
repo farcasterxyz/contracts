@@ -224,7 +224,7 @@ contract StorageRegistry is AccessControlEnumerable, Pausable {
     /**
      * @dev Contract version specified in the Farcaster protocol version scheme.
      */
-    string public constant VERSION = "2023.07.12";
+    string public constant VERSION = "2023.08.23";
 
     bytes32 internal constant OWNER_ROLE = keccak256("OWNER_ROLE");
     bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");

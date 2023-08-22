@@ -21,7 +21,7 @@ contract Bundler is TrustedCaller {
     error InvalidAmount();
 
     /*//////////////////////////////////////////////////////////////
-                                 STORAGE
+                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Data needed to trusted register a user with the fid and storage contracts.
@@ -57,6 +57,15 @@ contract Bundler is TrustedCaller {
         uint256 deadline;
         bytes sig;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Contract version specified using Farcaster protocol version scheme.
+     */
+    string public constant VERSION = "2023.08.23";
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES

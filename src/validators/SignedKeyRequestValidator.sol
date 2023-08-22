@@ -46,6 +46,11 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Contract version specified using Farcaster protocol version scheme.
+     */
+    string public constant VERSION = "2023.08.23";
+
     bytes32 public constant METADATA_TYPEHASH =
         keccak256("SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)");
 

@@ -25,6 +25,10 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assertEq(resolver.signers(signer), true);
     }
 
+    function testVersion() public {
+        assertEq(resolver.VERSION(), "2023.08.23");
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  RESOLVE
     //////////////////////////////////////////////////////////////*/

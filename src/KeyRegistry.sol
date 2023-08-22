@@ -190,12 +190,10 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    bytes32 public constant ADD_TYPEHASH = keccak256(
-        "Add(address owner,uint32 keyType,bytes key,uint8 metadataType,bytes metadata,uint256 nonce,uint256 deadline)"
-    );
-
-    bytes32 public constant REMOVE_TYPEHASH =
-        keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
+    /**
+     * @dev Contract version specified using Farcaster protocol version scheme.
+     */
+    string public constant VERSION = "2023.08.23";
 
     /**
      * @dev Period in seconds after migration during which admin can bulk add/reset keys.
@@ -203,6 +201,13 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
      *      but cannot make changes after it expires.
      */
     uint24 public constant gracePeriod = uint24(24 hours);
+
+    bytes32 public constant ADD_TYPEHASH = keccak256(
+        "Add(address owner,uint32 keyType,bytes key,uint8 metadataType,bytes metadata,uint256 nonce,uint256 deadline)"
+    );
+
+    bytes32 public constant REMOVE_TYPEHASH =
+        keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE

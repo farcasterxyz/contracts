@@ -45,6 +45,10 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(bundler.trustedCaller()), address(this));
     }
 
+    function testVersion() public {
+        assertEq(bundler.VERSION(), "2023.08.23");
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 REGISTER
     //////////////////////////////////////////////////////////////*/
