@@ -3,6 +3,7 @@ pragma solidity 0.8.21;
 
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
+import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
 import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
@@ -16,7 +17,7 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  * @notice See ../docs/docs.md for an overview.
  */
 
-contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
+contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /**
      *  @notice State enumeration for a key in the registry. During migration, an admin can change
      *          the state of any fids key from NULL to ADDED or ADDED to NULL. After migration, an
@@ -492,6 +493,22 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         idRegistry = IdRegistryLike(_idRegistry);
     }
 
+    /**
+     * @notice Pause add, remove, and reset.e registration, transfer, and recovery.
+     *         Must be called by the owner.
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Unpause add, remove, and reset.otice Unpause registration, transfer, and recovery.
+     *         Must be called by the owner.
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -502,7 +519,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         bytes calldata key,
         uint8 metadataType,
         bytes calldata metadata
-    ) internal {
+    ) internal whenNotPaused {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
 
@@ -518,7 +535,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         emit Add(fid, keyType, key, key, metadataType, metadata);
     }
 
-    function _remove(uint256 fid, bytes calldata key) internal {
+    function _remove(uint256 fid, bytes calldata key) internal whenNotPaused {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
@@ -526,7 +543,7 @@ contract KeyRegistry is TrustedCaller, Signatures, EIP712, Nonces {
         emit Remove(fid, key, key);
     }
 
-    function _reset(uint256 fid, bytes calldata key) internal {
+    function _reset(uint256 fid, bytes calldata key) internal whenNotPaused {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
