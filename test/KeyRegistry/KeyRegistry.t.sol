@@ -201,6 +201,28 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertRemoved(fid, key, keyType);
     }
 
+    function testFuzzAddRevertsPaused(
+        address to,
+        address recovery,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes memory metadata
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.pause();
+
+        vm.prank(to);
+        vm.expectRevert("Pausable: paused");
+        keyRegistry.add(keyType, key, metadataType, metadata);
+    }
+
     function testFuzzAddFor(
         address registrar,
         uint256 ownerPk,
@@ -338,6 +360,35 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertNull(fid, key);
     }
 
+    function testFuzzAddForRevertsPaused(
+        address registrar,
+        uint256 fidOwnerPk,
+        address recovery,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes calldata metadata,
+        uint40 _deadline
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+
+        uint256 deadline = _boundDeadline(_deadline);
+        fidOwnerPk = _boundPk(fidOwnerPk);
+
+        address fidOwner = vm.addr(fidOwnerPk);
+        uint256 fid = _registerFid(fidOwner, recovery);
+        bytes memory sig = _signAdd(fidOwnerPk, fidOwner, keyType, key, metadataType, metadata, deadline);
+
+        vm.prank(owner);
+        keyRegistry.pause();
+
+        vm.prank(registrar);
+        vm.expectRevert("Pausable: paused");
+        keyRegistry.addFor(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
+
+        assertNull(fid, key);
+    }
+
     function testFuzzTrustedAdd(
         address to,
         address recovery,
@@ -428,6 +479,32 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(trustedCaller);
         vm.expectRevert(TrustedCaller.Registrable.selector);
+        keyRegistry.trustedAdd(to, keyType, key, metadataType, metadata);
+
+        assertNull(fid, key);
+    }
+
+    function testFuzzTrustedAddRevertsPaused(
+        address to,
+        address recovery,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes calldata metadata
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+        _registerValidator(keyType, metadataType);
+
+        vm.startPrank(owner);
+        keyRegistry.setTrustedCaller(trustedCaller);
+        keyRegistry.pause();
+        vm.stopPrank();
+
+        uint256 fid = _registerFid(to, recovery);
+
+        vm.prank(trustedCaller);
+        vm.expectRevert("Pausable: paused");
         keyRegistry.trustedAdd(to, keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
@@ -534,6 +611,35 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.remove(key);
 
         vm.stopPrank();
+        assertRemoved(fid, key, keyType);
+    }
+
+    function testFuzzRemoveRevertsWhenPaused(
+        address to,
+        address recovery,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes memory metadata
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.startPrank(to);
+        keyRegistry.add(keyType, key, metadataType, metadata);
+        keyRegistry.remove(key);
+        vm.stopPrank();
+
+        vm.prank(owner);
+        keyRegistry.pause();
+
+        vm.prank(to);
+        vm.expectRevert("Pausable: paused");
+        keyRegistry.remove(key);
+
         assertRemoved(fid, key, keyType);
     }
 
@@ -687,6 +793,42 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.prank(registrar);
         vm.expectRevert(Signatures.SignatureExpired.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
+
+        assertAdded(fid, key, keyType);
+    }
+
+    function testFuzzRemoveForRevertsWhenPaused(
+        address registrar,
+        uint256 fidOwnerPk,
+        address recovery,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes memory metadata,
+        uint40 _deadline
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 deadline = _boundDeadline(_deadline);
+        fidOwnerPk = _boundPk(fidOwnerPk);
+        _registerValidator(keyType, metadataType);
+
+        address fidOwner = vm.addr(fidOwnerPk);
+        uint256 fid = _registerFid(fidOwner, recovery);
+        bytes memory sig = _signRemove(fidOwnerPk, fidOwner, key, deadline);
+
+        vm.prank(fidOwner);
+        keyRegistry.add(keyType, key, metadataType, metadata);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
+
+        vm.prank(owner);
+        keyRegistry.pause();
+
+        vm.prank(registrar);
+        vm.expectRevert("Pausable: paused");
+        keyRegistry.removeFor(fidOwner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
     }
@@ -845,6 +987,20 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
+    function testBulkAddRevertsWhenPaused() public {
+        _registerValidator(1, 1);
+
+        KeyRegistry.BulkAddData[] memory addItems =
+            BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1").addFid(2).addKey(1, "key2", "metadata2");
+
+        vm.startPrank(owner);
+        keyRegistry.pause();
+
+        vm.expectRevert("Pausable: paused");
+        keyRegistry.bulkAddKeysForMigration(addItems);
+        vm.stopPrank();
+    }
+
     /*//////////////////////////////////////////////////////////////
                                BULK REMOVE
     //////////////////////////////////////////////////////////////*/
@@ -986,6 +1142,44 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.bulkResetKeysForMigration(items);
 
         vm.stopPrank();
+    }
+
+    function testFuzzBulkRemoveSignerForMigrationRevertsWhenPaused() public {
+        KeyRegistry.BulkResetData[] memory items = BulkResetDataBuilder.empty().addFid(1).addKey(0, "key");
+
+        vm.startPrank(owner);
+        keyRegistry.pause();
+
+        vm.expectRevert("Pausable: paused");
+        keyRegistry.bulkResetKeysForMigration(items);
+
+        vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           PAUSABILITY
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyAdminCanPause(address caller) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        keyRegistry.pause();
+    }
+
+    function testPauseUnpause() public {
+        assertEq(keyRegistry.paused(), false);
+
+        vm.prank(owner);
+        keyRegistry.pause();
+
+        assertEq(keyRegistry.paused(), true);
+
+        vm.prank(owner);
+        keyRegistry.unpause();
+
+        assertEq(keyRegistry.paused(), false);
     }
 
     /*//////////////////////////////////////////////////////////////
