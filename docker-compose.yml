@@ -1,34 +1,45 @@
 version: '3.9'
 
+x-build-defaults: &build-defaults
+  build:
+    dockerfile: Dockerfile.foundry
+    context: .
+  networks:
+    - contracts_subnet
+
+x-anvil-defaults: &anvil-defaults
+  <<: *build-defaults
+  restart: on-failure
+  healthcheck:
+    test: ['CMD', '/usr/bin/nc', '-z', 'localhost', '${PORT:-8545}']
+    interval: 1s
+    timeout: 1s
+    retries: 3
+
+x-deployer-defaults: &deployer-defaults
+  <<: *build-defaults
+  environment:
+    - DEPLOYER
+  volumes:
+    - .:/app
+  working_dir: /app
+
 services:
-  anvil:
-    build:
-      dockerfile: Dockerfile.foundry
-      context: .
-    entrypoint: ""
+  l2-anvil:
+    <<: *anvil-defaults
     command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$L2_MAINNET_RPC_URL', '--state', '/var/lib/anvil/state', '--retries', '3', '--timeout', '10000']
     environment:
       - L2_MAINNET_RPC_URL
     volumes:
-      - anvil-data:/var/lib/anvil
-      - anvil-cache:/root/.foundry/cache
+      - l2-anvil-data:/var/lib/anvil
+      - l2-anvil-cache:/root/.foundry/cache
     ports:
       - '${PORT:-8545}:${PORT:-8545}'
-    restart: on-failure
-    healthcheck:
-      test: ['CMD', '/usr/bin/nc', '-z', 'localhost', '${PORT:-8545}']
-      interval: 1s
-      timeout: 1s
-      retries: 3
-    networks:
-      - contracts_subnet
 
-  deployer:
-    build:
-      dockerfile: Dockerfile.foundry
-      context: .
+  l2-deployer:
+    <<: *deployer-defaults
     depends_on:
-      - anvil
+      - l2-anvil
     environment:
       - DEPLOYER
       - ID_REGISTRY_OWNER_ADDRESS
@@ -42,15 +53,12 @@ services:
       - STORAGE_RENT_OPERATOR_ADDRESS
       - STORAGE_RENT_TREASURER_ADDRESS
       - BUNDLER_TRUSTED_CALLER_ADDRESS
-    volumes:
-      - .:/app
-    working_dir: /app
     entrypoint: |
       sh -c '
         set -e
-        export RPC_URL="http://anvil:${PORT:-8545}"
+        export RPC_URL="http://l2-anvil:${PORT:-8545}"
         echo "Waiting for Anvil..."
-        while ! nc -z anvil "${PORT:-8545}"; do sleep 0.1; done
+        while ! nc -z l2-anvil "${PORT:-8545}"; do sleep 0.1; done
         echo "Anvil online"
         echo "Enabling impersonation"
         cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
@@ -61,12 +69,49 @@ services:
         cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploy complete"
       '
-    networks:
-      - contracts_subnet
+  
+  l1-anvil:
+    <<: *anvil-defaults
+    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$L1_MAINNET_RPC_URL', '--state', '/var/lib/anvil/state', '--retries', '3', '--timeout', '10000']
+    environment:
+      - L1_MAINNET_RPC_URL
+    volumes:
+      - l1-anvil-data:/var/lib/anvil
+      - l1-anvil-cache:/root/.foundry/cache
+    ports:
+      - '${PORT:-8546}:${PORT:-8545}'
+  
+  l1-deployer:
+    <<: *deployer-defaults
+    depends_on:
+      - l1-anvil
+    environment:
+      - DEPLOYER
+      - FNAME_RESOLVER_SERVER_URL
+      - FNAME_RESOLVER_SIGNER_ADDRESS
+      - FNAME_RESOLVER_OWNER_ADDRESS
+    entrypoint: |
+      sh -c '
+        set -e
+        export RPC_URL="http://l1-anvil:${PORT:-8545}"
+        echo "Waiting for Anvil..."
+        while ! nc -z l1-anvil "${PORT:-8545}"; do sleep 0.1; done
+        echo "Anvil online"
+        echo "Enabling impersonation"
+        cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
+        echo "Deploying contract"
+        forge install
+        forge script -v script/DeployL1.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
+        echo "Disabling impersonation"
+        cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL" > /dev/null
+        echo "Deploy complete"
+      '
 
 volumes:
-  anvil-cache:
-  anvil-data:
+  l1-anvil-cache:
+  l1-anvil-data:
+  l2-anvil-cache:
+  l2-anvil-data:
 
 networks:
   # Allows us to share the services in this file with other Docker Compose files
