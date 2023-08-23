@@ -13,6 +13,10 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         );
     }
 
+    function testVersion() public {
+        assertEq(validator.VERSION(), "2023.08.23");
+    }
+
     /*//////////////////////////////////////////////////////////////
                               VALIDATION
     //////////////////////////////////////////////////////////////*/

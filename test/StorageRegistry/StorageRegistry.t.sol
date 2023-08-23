@@ -39,7 +39,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testVersion() public {
-        assertEq(storageRegistry.VERSION(), "2023.07.12");
+        assertEq(storageRegistry.VERSION(), "2023.08.23");
     }
 
     function testRoles() public {

@@ -74,7 +74,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /**
      * @dev Contract version specified using Farcaster protocol version scheme.
      */
-    string public constant VERSION = "2023.07.12";
+    string public constant VERSION = "2023.08.23";
 
     /**
      * @dev EIP-712 typehash of the UsernameProof struct.

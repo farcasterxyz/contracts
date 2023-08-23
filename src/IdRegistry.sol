@@ -89,6 +89,11 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @dev Contract version specified using Farcaster protocol version scheme.
+     */
+    string public constant VERSION = "2023.08.23";
+
     bytes32 public constant REGISTER_TYPEHASH =
         keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
 

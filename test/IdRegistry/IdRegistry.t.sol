@@ -22,6 +22,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
     /*//////////////////////////////////////////////////////////////
+                              PARAMETERS
+    //////////////////////////////////////////////////////////////*/
+
+    function testVersion() public {
+        assertEq(idRegistry.VERSION(), "2023.08.23");
+    }
+
+    /*//////////////////////////////////////////////////////////////
                              REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 

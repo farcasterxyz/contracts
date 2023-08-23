@@ -56,6 +56,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.isMigrated(), false);
     }
 
+    function testVersion() public {
+        assertEq(keyRegistry.VERSION(), "2023.08.23");
+    }
+
     /*//////////////////////////////////////////////////////////////
                                    ADD
     //////////////////////////////////////////////////////////////*/
