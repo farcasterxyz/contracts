@@ -499,7 +499,7 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     }
 
     /**
-     * @notice Pause add, remove, and reset.e registration, transfer, and recovery.
+     * @notice Pause add, remove, and reset.e add, remove, and reset.e registration, transfer, and recovery.
      *         Must be called by the owner.
      */
     function pause() external onlyOwner {
@@ -507,7 +507,7 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     }
 
     /**
-     * @notice Unpause add, remove, and reset.otice Unpause registration, transfer, and recovery.
+     * @notice Unpause add, remove, and reset.otice Unpause add, remove, and reset.otice Unpause registration, transfer, and recovery.
      *         Must be called by the owner.
      */
     function unpause() external onlyOwner {
