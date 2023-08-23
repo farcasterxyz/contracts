@@ -3,19 +3,19 @@ pragma solidity 0.8.21;
 
 import {Test} from "forge-std/Test.sol";
 import {
-    Deploy,
+    DeployL2,
     StorageRegistry,
     IdRegistry,
     KeyRegistry,
     SignedKeyRequestValidator,
     Bundler,
     IMetadataValidator
-} from "../../script/Deploy.s.sol";
+} from "../../script/DeployL2.s.sol";
 import "forge-std/console.sol";
 
 /* solhint-disable state-visibility */
 
-contract DeployTest is Deploy, Test {
+contract DeployL2Test is DeployL2, Test {
     StorageRegistry internal storageRegistry;
     IdRegistry internal idRegistry;
     KeyRegistry internal keyRegistry;
@@ -50,7 +50,7 @@ contract DeployTest is Deploy, Test {
     address internal uptimeFeed = address(0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389);
 
     function setUp() public {
-        vm.createSelectFork("mainnet");
+        vm.createSelectFork("l2_mainnet");
 
         (alice, alicePk) = makeAddrAndKey("alice");
         (bob, bobPk) = makeAddrAndKey("bob");
@@ -58,7 +58,7 @@ contract DeployTest is Deploy, Test {
         (dave, davePk) = makeAddrAndKey("dave");
         (app, appPk) = makeAddrAndKey("app");
 
-        Deploy.DeploymentParams memory params = Deploy.DeploymentParams({
+        DeployL2.DeploymentParams memory params = DeployL2.DeploymentParams({
             initialIdRegistryOwner: alpha,
             initialKeyRegistryOwner: alpha,
             initialBundlerOwner: alpha,
@@ -74,7 +74,7 @@ contract DeployTest is Deploy, Test {
             deployer: deployer
         });
 
-        Deploy.Contracts memory contracts = runDeploy(params, false);
+        DeployL2.Contracts memory contracts = runDeploy(params, false);
         runSetup(contracts, params, false);
 
         storageRegistry = contracts.storageRegistry;
@@ -85,6 +85,7 @@ contract DeployTest is Deploy, Test {
     }
 
     function test_deploymentParams() public {
+        // Check deployment parameters
         assertEq(address(storageRegistry.priceFeed()), priceFeed);
         assertEq(address(storageRegistry.uptimeFeed()), uptimeFeed);
         assertEq(storageRegistry.deprecationTimestamp(), block.timestamp + 365 days);
@@ -93,33 +94,43 @@ contract DeployTest is Deploy, Test {
         assertEq(storageRegistry.priceFeedCacheDuration(), INITIAL_PRICE_FEED_CACHE_DURATION);
         assertEq(storageRegistry.uptimeFeedGracePeriod(), INITIAL_UPTIME_FEED_GRACE_PERIOD);
 
+        // Role admin revoked from deployer and transferred to alpha multisig
         assertEq(storageRegistry.getRoleMemberCount(bytes32(0)), 1);
         assertEq(storageRegistry.hasRole(bytes32(0), deployer), false);
+        assertEq(storageRegistry.hasRole(bytes32(0), alpha), true);
 
+        // Owner role revoked from deployer and transferred to beta address
         assertEq(storageRegistry.getRoleMemberCount(keccak256("OWNER_ROLE")), 1);
         assertEq(storageRegistry.hasRole(keccak256("OWNER_ROLE"), deployer), false);
         assertEq(storageRegistry.hasRole(keccak256("OWNER_ROLE"), beta), true);
 
+        // Operator role revoked from deployer, granted to relay and bundler
         assertEq(storageRegistry.getRoleMemberCount(keccak256("OPERATOR_ROLE")), 2);
         assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), deployer), false);
         assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), address(bundler)), true);
         assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), relayer), true);
 
+        // Treasurer role revoked from deployer, granted to relay
         assertEq(storageRegistry.getRoleMemberCount(keccak256("TREASURER_ROLE")), 1);
         assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), deployer), false);
         assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), relayer), true);
 
+        // Ownership transfers initiated from deployer to multisig
         assertEq(idRegistry.owner(), deployer);
         assertEq(idRegistry.pendingOwner(), alpha);
 
         assertEq(keyRegistry.owner(), deployer);
         assertEq(keyRegistry.pendingOwner(), alpha);
+
+        // Check key registry parameters
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
         assertEq(keyRegistry.gracePeriod(), KEY_REGISTRY_MIGRATION_GRACE_PERIOD);
 
+        // Validator owned by multisig, check deploy parameters
         assertEq(validator.owner(), alpha);
         assertEq(address(validator.idRegistry()), address(idRegistry));
 
+        // Bundler owned by multisig, check deploy parameters
         assertEq(bundler.owner(), alpha);
         assertEq(address(bundler.idRegistry()), address(idRegistry));
         assertEq(address(bundler.storageRegistry()), address(storageRegistry));
@@ -128,11 +139,13 @@ contract DeployTest is Deploy, Test {
     }
 
     function test_e2e() public {
+        // Multisig accepts ownership transferred from deployer
         vm.startPrank(alpha);
         idRegistry.acceptOwnership();
         keyRegistry.acceptOwnership();
         vm.stopPrank();
 
+        // Bundler trusted registers an app fid
         vm.prank(address(bundler));
         uint256 requestFid = idRegistry.trustedRegister(app, address(0));
         uint256 deadline = block.timestamp + 60;
@@ -150,16 +163,20 @@ contract DeployTest is Deploy, Test {
 
         Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
         signers[0] = Bundler.SignerData({keyType: 1, key: key, metadataType: 1, metadata: metadata});
+
+        // Relayer trusted registers a user fid
         vm.prank(relayer);
         bundler.trustedRegister(Bundler.UserData({to: alice, recovery: bob, signers: signers, units: 1}));
         assertEq(idRegistry.idOf(alice), 2);
 
+        // Multisig disables trusted mode
         vm.startPrank(alpha);
         idRegistry.disableTrustedOnly();
         keyRegistry.disableTrustedOnly();
         bundler.disableTrustedOnly();
         vm.stopPrank();
 
+        // Carol permissionlessly registers an fid with Dave as recovery
         vm.prank(carol);
         idRegistry.register(dave);
         assertEq(idRegistry.idOf(carol), 3);

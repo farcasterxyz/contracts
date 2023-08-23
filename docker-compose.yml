@@ -6,9 +6,9 @@ services:
       dockerfile: Dockerfile.foundry
       context: .
     entrypoint: ""
-    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$MAINNET_RPC_URL', '--state', '/var/lib/anvil/state', '--retries', '3', '--timeout', '10000']
+    command: ['anvil', '--host', '0.0.0.0', '--port', '${PORT:-8545}', '--rpc-url', '$L2_MAINNET_RPC_URL', '--state', '/var/lib/anvil/state', '--retries', '3', '--timeout', '10000']
     environment:
-      - MAINNET_RPC_URL
+      - L2_MAINNET_RPC_URL
     volumes:
       - anvil-data:/var/lib/anvil
       - anvil-cache:/root/.foundry/cache
@@ -56,7 +56,7 @@ services:
         cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploying contract"
         forge install
-        forge script -v script/Deploy.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
+        forge script -v script/DeployL2.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
         echo "Disabling impersonation"
         cast rpc anvil_autoImpersonateAccount false --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploy complete"

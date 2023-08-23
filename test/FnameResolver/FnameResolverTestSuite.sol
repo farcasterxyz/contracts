@@ -38,7 +38,7 @@ abstract contract FnameResolverTestSuite is TestSuiteSetup {
     address internal mallory;
     uint256 internal malloryPk;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         (signer, signerPk) = makeAddrAndKey("signer");
         (mallory, malloryPk) = makeAddrAndKey("mallory");
         resolver = new FnameResolverHarness(FNAME_SERVER_URL, signer, owner);
