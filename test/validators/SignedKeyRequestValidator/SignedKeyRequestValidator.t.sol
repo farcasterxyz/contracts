@@ -9,7 +9,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
 
     function testMetadataTypeHash() public {
         assertEq(
-            validator.metadataTypehash(), keccak256("SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)")
+            validator.METADATA_TYPEHASH(), keccak256("SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)")
         );
     }
 

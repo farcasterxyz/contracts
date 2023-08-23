@@ -5,18 +5,19 @@ import "forge-std/Test.sol";
 
 import {IdRegistryTestSuite} from "../IdRegistry/IdRegistryTestSuite.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
-import {KeyRegistryHarness, StubValidator} from "../Utils.sol";
+import {StubValidator} from "../Utils.sol";
+import {KeyRegistry} from "../../src/KeyRegistry.sol";
 
 /* solhint-disable state-visibility */
 
 abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
-    KeyRegistryHarness internal keyRegistry;
+    KeyRegistry internal keyRegistry;
     StubValidator internal stubValidator;
 
     function setUp() public virtual override {
         super.setUp();
 
-        keyRegistry = new KeyRegistryHarness(address(idRegistry), owner);
+        keyRegistry = new KeyRegistry(address(idRegistry), owner);
         stubValidator = new StubValidator();
     }
 
@@ -45,7 +46,7 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
         bytes32 digest = keyRegistry.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keyRegistry.addTypehash(),
+                    keyRegistry.ADD_TYPEHASH(),
                     owner,
                     keyType,
                     keccak256(key),
@@ -69,7 +70,7 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     ) internal returns (bytes memory signature) {
         bytes32 digest = keyRegistry.hashTypedDataV4(
             keccak256(
-                abi.encode(keyRegistry.removeTypehash(), owner, keccak256(key), keyRegistry.nonces(owner), deadline)
+                abi.encode(keyRegistry.REMOVE_TYPEHASH(), owner, keccak256(key), keyRegistry.nonces(owner), deadline)
             )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);

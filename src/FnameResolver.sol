@@ -3,8 +3,9 @@ pragma solidity 0.8.21;
 
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ERC165} from "openzeppelin/contracts/utils/introspection/ERC165.sol";
+
+import {EIP712} from "./lib/EIP712.sol";
 
 interface IAddressQuery {
     function addr(bytes32 node) external view returns (address);
@@ -78,7 +79,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /**
      * @dev EIP-712 typehash of the UsernameProof struct.
      */
-    bytes32 internal constant _USERNAME_PROOF_TYPEHASH =
+    bytes32 public constant USERNAME_PROOF_TYPEHASH =
         keccak256("UserNameProof(string name,uint256 timestamp,address owner)");
 
     /*//////////////////////////////////////////////////////////////
@@ -162,21 +163,13 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
             abi.decode(response, (string, uint256, address, bytes));
 
         bytes32 proofHash =
-            keccak256(abi.encode(_USERNAME_PROOF_TYPEHASH, keccak256(bytes(fname)), timestamp, fnameOwner));
+            keccak256(abi.encode(USERNAME_PROOF_TYPEHASH, keccak256(bytes(fname)), timestamp, fnameOwner));
         bytes32 eip712hash = _hashTypedDataV4(proofHash);
         address signer = ECDSA.recover(eip712hash, signature);
 
         if (!signers[signer]) revert InvalidSigner();
 
         return abi.encode(fnameOwner);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                           EIP-712 HELPERS
-    //////////////////////////////////////////////////////////////*/
-
-    function hashTypedDataV4(bytes32 structHash) external view returns (bytes32) {
-        return _hashTypedDataV4(structHash);
     }
 
     /*//////////////////////////////////////////////////////////////

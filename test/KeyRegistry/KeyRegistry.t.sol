@@ -512,7 +512,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
     function testAddTypeHash() public {
         assertEq(
-            keyRegistry.addTypehash(),
+            keyRegistry.ADD_TYPEHASH(),
             keccak256(
                 "Add(address owner,uint32 keyType,bytes key,uint8 metadataType,bytes metadata,uint256 nonce,uint256 deadline)"
             )
@@ -835,7 +835,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
     function testRemoveTypeHash() public {
         assertEq(
-            keyRegistry.removeTypehash(), keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)")
+            keyRegistry.REMOVE_TYPEHASH(), keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)")
         );
     }
 

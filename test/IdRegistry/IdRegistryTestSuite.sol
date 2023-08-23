@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {IdRegistryHarness} from "../Utils.sol";
+import {IdRegistry} from "../../src/IdRegistry.sol";
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 
 /* solhint-disable state-visibility */
 
 abstract contract IdRegistryTestSuite is TestSuiteSetup {
-    IdRegistryHarness idRegistry;
+    IdRegistry idRegistry;
 
     function setUp() public virtual override {
         super.setUp();
 
-        idRegistry = new IdRegistryHarness(owner);
+        idRegistry = new IdRegistry(owner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -63,7 +63,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     ) internal returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
-            keccak256(abi.encode(idRegistry.registerTypehash(), to, recovery, idRegistry.nonces(signer), deadline))
+            keccak256(abi.encode(idRegistry.REGISTER_TYPEHASH(), to, recovery, idRegistry.nonces(signer), deadline))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);
@@ -78,7 +78,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     ) internal returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
-            keccak256(abi.encode(idRegistry.transferTypehash(), fid, to, idRegistry.nonces(signer), deadline))
+            keccak256(abi.encode(idRegistry.TRANSFER_TYPEHASH(), fid, to, idRegistry.nonces(signer), deadline))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);
@@ -95,7 +95,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         bytes32 digest = idRegistry.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    idRegistry.changeRecoveryAddressTypehash(), fid, recovery, idRegistry.nonces(signer), deadline
+                    idRegistry.CHANGE_RECOVERY_ADDRESS_TYPEHASH(), fid, recovery, idRegistry.nonces(signer), deadline
                 )
             )
         );
