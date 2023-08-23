@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
+import {EIP712} from "./lib/EIP712.sol";
 import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {IdRegistry} from "./IdRegistry.sol";
@@ -190,11 +190,11 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    bytes32 internal constant _ADD_TYPEHASH = keccak256(
+    bytes32 public constant ADD_TYPEHASH = keccak256(
         "Add(address owner,uint32 keyType,bytes key,uint8 metadataType,bytes metadata,uint256 nonce,uint256 deadline)"
     );
 
-    bytes32 internal constant _REMOVE_TYPEHASH =
+    bytes32 public constant REMOVE_TYPEHASH =
         keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
 
     /**
@@ -569,7 +569,7 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
             _hashTypedDataV4(
                 keccak256(
                     abi.encode(
-                        _ADD_TYPEHASH,
+                        ADD_TYPEHASH,
                         fidOwner,
                         keyType,
                         keccak256(key),
@@ -589,7 +589,7 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     function _verifyRemoveSig(address fidOwner, bytes memory key, uint256 deadline, bytes memory sig) internal {
         _verifySig(
             _hashTypedDataV4(
-                keccak256(abi.encode(_REMOVE_TYPEHASH, fidOwner, keccak256(key), _useNonce(fidOwner), deadline))
+                keccak256(abi.encode(REMOVE_TYPEHASH, fidOwner, keccak256(key), _useNonce(fidOwner), deadline))
             ),
             fidOwner,
             deadline,

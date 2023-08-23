@@ -117,7 +117,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
 
     function testProofTypehash() public {
         assertEq(
-            resolver.usernameProofTypehash(), keccak256("UserNameProof(string name,uint256 timestamp,address owner)")
+            resolver.USERNAME_PROOF_TYPEHASH(), keccak256("UserNameProof(string name,uint256 timestamp,address owner)")
         );
     }
 
@@ -181,31 +181,5 @@ contract FnameResolverTest is FnameResolverTestSuite {
     function testFuzzInterfaceDetectionUnsupportedInterface(bytes4 interfaceId) public {
         vm.assume(interfaceId != type(IExtendedResolver).interfaceId && interfaceId != type(IERC165).interfaceId);
         assertEq(resolver.supportsInterface(interfaceId), false);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 HELPERS
-    //////////////////////////////////////////////////////////////*/
-
-    function _signProof(
-        string memory name,
-        uint256 timestamp,
-        address owner
-    ) internal returns (bytes memory signature) {
-        return _signProof(signerPk, name, timestamp, owner);
-    }
-
-    function _signProof(
-        uint256 pk,
-        string memory name,
-        uint256 timestamp,
-        address owner
-    ) internal returns (bytes memory signature) {
-        bytes32 eip712hash = resolver.hashTypedDataV4(
-            keccak256(abi.encode(resolver.usernameProofTypehash(), keccak256(bytes(name)), timestamp, owner))
-        );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, eip712hash);
-        signature = abi.encodePacked(r, s, v);
-        assertEq(signature.length, 65);
     }
 }

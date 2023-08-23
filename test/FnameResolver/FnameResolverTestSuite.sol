@@ -4,12 +4,12 @@ pragma solidity 0.8.21;
 import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
-import {FnameResolverHarness} from "../Utils.sol";
+import {FnameResolver} from "../../src/FnameResolver.sol";
 
 /* solhint-disable state-visibility */
 
 abstract contract FnameResolverTestSuite is TestSuiteSetup {
-    FnameResolverHarness internal resolver;
+    FnameResolver internal resolver;
 
     string internal constant FNAME_SERVER_URL = "https://fnames.fcast.id/ccip/{sender}/{data}.json";
 
@@ -41,6 +41,32 @@ abstract contract FnameResolverTestSuite is TestSuiteSetup {
     function setUp() public virtual override {
         (signer, signerPk) = makeAddrAndKey("signer");
         (mallory, malloryPk) = makeAddrAndKey("mallory");
-        resolver = new FnameResolverHarness(FNAME_SERVER_URL, signer, owner);
+        resolver = new FnameResolver(FNAME_SERVER_URL, signer, owner);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _signProof(
+        string memory name,
+        uint256 timestamp,
+        address owner
+    ) internal returns (bytes memory signature) {
+        return _signProof(signerPk, name, timestamp, owner);
+    }
+
+    function _signProof(
+        uint256 pk,
+        string memory name,
+        uint256 timestamp,
+        address owner
+    ) internal returns (bytes memory signature) {
+        bytes32 eip712hash = resolver.hashTypedDataV4(
+            keccak256(abi.encode(resolver.USERNAME_PROOF_TYPEHASH(), keccak256(bytes(name)), timestamp, owner))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, eip712hash);
+        signature = abi.encodePacked(r, s, v);
+        assertEq(signature.length, 65);
     }
 }

@@ -2,10 +2,10 @@
 pragma solidity 0.8.21;
 
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
+import {EIP712} from "./lib/EIP712.sol";
 import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
@@ -89,13 +89,13 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    bytes32 internal constant _REGISTER_TYPEHASH =
+    bytes32 public constant REGISTER_TYPEHASH =
         keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
 
-    bytes32 internal constant _TRANSFER_TYPEHASH =
+    bytes32 public constant TRANSFER_TYPEHASH =
         keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)");
 
-    bytes32 internal constant _CHANGE_RECOVERY_ADDRESS_TYPEHASH =
+    bytes32 public constant CHANGE_RECOVERY_ADDRESS_TYPEHASH =
         keccak256("ChangeRecoveryAddress(uint256 fid,address recovery,uint256 nonce,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
@@ -446,7 +446,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
         _verifySig(
-            _hashTypedDataV4(keccak256(abi.encode(_REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline))),
+            _hashTypedDataV4(keccak256(abi.encode(REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline))),
             to,
             deadline,
             sig
@@ -455,7 +455,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
 
     function _verifyTransferSig(uint256 fid, address to, uint256 deadline, address signer, bytes memory sig) internal {
         _verifySig(
-            _hashTypedDataV4(keccak256(abi.encode(_TRANSFER_TYPEHASH, fid, to, _useNonce(signer), deadline))),
+            _hashTypedDataV4(keccak256(abi.encode(TRANSFER_TYPEHASH, fid, to, _useNonce(signer), deadline))),
             signer,
             deadline,
             sig
@@ -471,7 +471,7 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     ) internal {
         _verifySig(
             _hashTypedDataV4(
-                keccak256(abi.encode(_CHANGE_RECOVERY_ADDRESS_TYPEHASH, fid, recovery, _useNonce(signer), deadline))
+                keccak256(abi.encode(CHANGE_RECOVERY_ADDRESS_TYPEHASH, fid, recovery, _useNonce(signer), deadline))
             ),
             signer,
             deadline,

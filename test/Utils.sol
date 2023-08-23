@@ -15,71 +15,6 @@ import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/Signat
 
 /* solhint-disable no-empty-blocks */
 
-contract BundlerHarness is Bundler {
-    constructor(
-        address _idRegistry,
-        address _storageRegistry,
-        address _keyRegistry,
-        address _trustedCaller,
-        address _owner
-    ) Bundler(_idRegistry, _storageRegistry, _keyRegistry, _trustedCaller, _owner) {}
-}
-
-contract FnameResolverHarness is FnameResolver {
-    constructor(string memory _url, address _signer, address _owner) FnameResolver(_url, _signer, _owner) {}
-
-    function usernameProofTypehash() public pure returns (bytes32) {
-        return _USERNAME_PROOF_TYPEHASH;
-    }
-}
-
-/**
- * @dev IdRegistryHarness exposes IdRegistry's private methods for test assertions.
- */
-contract IdRegistryHarness is IdRegistry {
-    constructor(address owner) IdRegistry(owner) {}
-
-    function getTrustedCaller() public view returns (address) {
-        return trustedCaller;
-    }
-
-    function getTrustedOnly() public view returns (uint256) {
-        return trustedOnly;
-    }
-
-    function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
-        return _hashTypedDataV4(structHash);
-    }
-
-    function registerTypehash() public pure returns (bytes32) {
-        return _REGISTER_TYPEHASH;
-    }
-
-    function transferTypehash() public pure returns (bytes32) {
-        return _TRANSFER_TYPEHASH;
-    }
-
-    function changeRecoveryAddressTypehash() public pure returns (bytes32) {
-        return _CHANGE_RECOVERY_ADDRESS_TYPEHASH;
-    }
-}
-
-contract KeyRegistryHarness is KeyRegistry {
-    constructor(address _idRegistry, address _owner) KeyRegistry(_idRegistry, _owner) {}
-
-    function hashTypedDataV4(bytes32 structHash) public view returns (bytes32) {
-        return _hashTypedDataV4(structHash);
-    }
-
-    function addTypehash() public pure returns (bytes32) {
-        return _ADD_TYPEHASH;
-    }
-
-    function removeTypehash() public pure returns (bytes32) {
-        return _REMOVE_TYPEHASH;
-    }
-}
-
 contract StorageRegistryHarness is StorageRegistry {
     constructor(
         AggregatorV3Interface _priceFeed,
@@ -115,14 +50,6 @@ contract StorageRegistryHarness is StorageRegistry {
 
     function treasurerRoleId() external pure returns (bytes32) {
         return TREASURER_ROLE;
-    }
-}
-
-contract SignedKeyRequestValidatorHarness is SignedKeyRequestValidator {
-    constructor(address _idRegistry, address _owner) SignedKeyRequestValidator(_idRegistry, _owner) {}
-
-    function metadataTypehash() public pure returns (bytes32) {
-        return _METADATA_TYPEHASH;
     }
 }
 

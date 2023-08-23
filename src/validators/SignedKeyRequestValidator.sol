@@ -2,8 +2,8 @@
 pragma solidity 0.8.21;
 
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
-import {EIP712} from "openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
+import {EIP712} from "../lib/EIP712.sol";
 import {IMetadataValidator} from "../interfaces/IMetadataValidator.sol";
 import {IdRegistryLike} from "../interfaces/IdRegistryLike.sol";
 import {IdRegistry} from "../IdRegistry.sol";
@@ -46,7 +46,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
-    bytes32 internal constant _METADATA_TYPEHASH =
+    bytes32 public constant METADATA_TYPEHASH =
         keccak256("SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
@@ -104,7 +104,7 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
             metadata.requestSigner,
             metadata.requestFid,
             _hashTypedDataV4(
-                keccak256(abi.encode(_METADATA_TYPEHASH, metadata.requestFid, keccak256(key), metadata.deadline))
+                keccak256(abi.encode(METADATA_TYPEHASH, metadata.requestFid, keccak256(key), metadata.deadline))
             ),
             metadata.signature
         );
@@ -114,10 +114,13 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
                               HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function hashTypedDataV4(bytes32 structHash) external view returns (bytes32) {
-        return _hashTypedDataV4(structHash);
-    }
-
+    /**
+     * @notice ABI-encode a SignedKeyRequestMetadata struct.
+     *
+     * @param metadata The SignedKeyRequestMetadata struct to encode.
+     *
+     * @return bytes memory Bytes of ABI-encoded struct.
+     */
     function encodeMetadata(SignedKeyRequestMetadata calldata metadata) external pure returns (bytes memory) {
         return abi.encode(metadata);
     }

@@ -41,6 +41,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         signerPk = _boundPk(signerPk);
         uint256 deadline = _boundDeadline(_deadline);
         address signer = vm.addr(signerPk);
+        vm.assume(signer != to);
 
         uint256 userFid = _registerFid(to, recovery);
         uint256 requestFid = _register(signer);

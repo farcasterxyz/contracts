@@ -53,13 +53,13 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
 
     function testDisableTrustedCaller() public {
         assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.getTrustedOnly(), 1);
+        assertEq(idRegistry.trustedOnly(), 1);
 
         vm.prank(owner);
         vm.expectEmit();
         emit DisableTrustedOnly();
         idRegistry.disableTrustedOnly();
-        assertEq(idRegistry.getTrustedOnly(), 0);
+        assertEq(idRegistry.trustedOnly(), 0);
     }
 
     function testFuzzCannotDisableTrustedCallerUnlessOwner(address alice) public {
@@ -69,7 +69,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
         idRegistry.disableTrustedOnly();
-        assertEq(idRegistry.getTrustedOnly(), 1);
+        assertEq(idRegistry.trustedOnly(), 1);
     }
 
     /*//////////////////////////////////////////////////////////////

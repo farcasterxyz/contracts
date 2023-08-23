@@ -47,7 +47,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
     function testFuzzCannotRegisterIfSeedable(address caller, address recovery) public {
         assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.getTrustedOnly(), 1);
+        assertEq(idRegistry.trustedOnly(), 1);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
@@ -231,7 +231,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
-        assertEq(idRegistry.getTrustedOnly(), 1);
+        assertEq(idRegistry.trustedOnly(), 1);
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
@@ -306,7 +306,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
     function testRegisterTypehash() public {
         assertEq(
-            idRegistry.registerTypehash(),
+            idRegistry.REGISTER_TYPEHASH(),
             keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)")
         );
     }
@@ -699,7 +699,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
     function testTransferTypehash() public {
         assertEq(
-            idRegistry.transferTypehash(), keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)")
+            idRegistry.TRANSFER_TYPEHASH(), keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)")
         );
     }
 
