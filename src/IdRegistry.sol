@@ -5,6 +5,7 @@ import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/Signat
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
+import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
@@ -14,7 +15,7 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  *
  * @notice See ../docs/docs.md for an overview.
  */
-contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
+contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/

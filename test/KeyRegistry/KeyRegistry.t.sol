@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import {KeyRegistry} from "../../src/KeyRegistry.sol";
+import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
@@ -543,14 +543,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(to);
         keyRegistry.add(keyType, key, metadataType, metadata);
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.expectEmit();
         emit Remove(fid, key, key);
         vm.prank(to);
         keyRegistry.remove(key);
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.REMOVED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         assertRemoved(fid, key, keyType);
@@ -670,14 +670,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(owner);
         keyRegistry.add(keyType, key, metadataType, metadata);
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.expectEmit();
         emit Remove(fid, key, key);
         vm.prank(registrar);
         keyRegistry.removeFor(owner, key, deadline, sig);
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.REMOVED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         assertRemoved(fid, key, keyType);
@@ -723,7 +723,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(owner);
         keyRegistry.add(keyType, key, metadataType, metadata);
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(registrar);
@@ -756,7 +756,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(owner);
         keyRegistry.add(keyType, key, metadataType, metadata);
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(registrar);
@@ -789,7 +789,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(owner);
         keyRegistry.add(keyType, key, metadataType, metadata);
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.warp(deadline + 1);
@@ -824,7 +824,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(fidOwner);
         keyRegistry.add(keyType, key, metadataType, metadata);
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(owner);
@@ -1267,22 +1267,22 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         return idRegistry.register(recovery);
     }
 
-    function assertEq(KeyRegistry.KeyState a, KeyRegistry.KeyState b) internal {
+    function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal {
         assertEq(uint8(a), uint8(b));
     }
 
     function assertNull(uint256 fid, bytes memory key) internal {
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.NULL);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.NULL);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
     }
 
     function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
     }
 
     function assertRemoved(uint256 fid, bytes memory key, uint32 keyType) internal {
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.REMOVED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
     }
 

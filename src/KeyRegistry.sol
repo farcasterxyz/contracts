@@ -4,10 +4,11 @@ pragma solidity 0.8.21;
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
-import {EIP712} from "./lib/EIP712.sol";
-import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
-import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {IdRegistry} from "./IdRegistry.sol";
+import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
+import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
+import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
+import {EIP712} from "./lib/EIP712.sol";
 import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
@@ -17,33 +18,7 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  * @notice See ../docs/docs.md for an overview.
  */
 
-contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
-    /**
-     *  @notice State enumeration for a key in the registry. During migration, an admin can change
-     *          the state of any fids key from NULL to ADDED or ADDED to NULL. After migration, an
-     *          fid can change the state of a key from NULL to ADDED or ADDED to REMOVED only.
-     *
-     *          - NULL: The key is not in the registry.
-     *          - ADDED: The key has been added to the registry.
-     *          - REMOVED: The key was added to the registry but is now removed.
-     */
-    enum KeyState {
-        NULL,
-        ADDED,
-        REMOVED
-    }
-
-    /**
-     *  @notice Data about a key.
-     *
-     *  @param state   The current state of the key.
-     *  @param keyType Numeric ID representing the manner in which the key should be used.
-     */
-    struct KeyData {
-        KeyState state;
-        uint32 keyType;
-    }
-
+contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -373,42 +348,6 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Struct argument for bulk add function, representing an FID
-     *      and its associated keys.
-     *
-     * @param fid  Fid associated with provided keys to add.
-     * @param keys Array of BulkAddKey structs, including key and metadata.
-     */
-    struct BulkAddData {
-        uint256 fid;
-        BulkAddKey[] keys;
-    }
-
-    /**
-     * @dev Struct argument for bulk add function, representing a key
-     *      and its associated metadata.
-     *
-     * @param key  Bytes of the signer key.
-     * @param keys Metadata metadata of the signer key.
-     */
-    struct BulkAddKey {
-        bytes key;
-        bytes metadata;
-    }
-
-    /**
-     * @dev Struct argument for bulk reset function, representing an FID
-     *      and its associated keys.
-     *
-     * @param fid  Fid associated with provided keys to reset.
-     * @param keys Array of keys to reset.
-     */
-    struct BulkResetData {
-        uint256 fid;
-        bytes[] keys;
-    }
 
     /**
      * @notice Set the time of the key migration and emit an event. Hubs will watch this event and
