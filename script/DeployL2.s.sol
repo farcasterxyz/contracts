@@ -6,6 +6,7 @@ import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
 import {Bundler} from "../src/Bundler.sol";
+import {RecoveryProxy} from "../src/RecoveryProxy.sol";
 import {IMetadataValidator} from "../src/interfaces/IMetadataValidator.sol";
 import {console, ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
 
@@ -22,12 +23,14 @@ contract DeployL2 is ImmutableCreate2Deployer {
     bytes32 internal constant KEY_REGISTRY_CREATE2_SALT = bytes32(0);
     bytes32 internal constant SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT = bytes32(0);
     bytes32 internal constant BUNDLER_CREATE2_SALT = bytes32(0);
+    bytes32 internal constant RECOVERY_PROXY_CREATE2_SALT = bytes32(0);
 
     struct DeploymentParams {
         address initialIdRegistryOwner;
         address initialKeyRegistryOwner;
         address initialBundlerOwner;
         address initialValidatorOwner;
+        address initialRecoveryProxyOwner;
         address priceFeed;
         address uptimeFeed;
         address vault;
@@ -45,6 +48,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
         KeyRegistry keyRegistry;
         SignedKeyRequestValidator signedKeyRequestValidator;
         Bundler bundler;
+        RecoveryProxy recoveryProxy;
     }
 
     function run() public {
@@ -94,6 +98,12 @@ contract DeployL2 is ImmutableCreate2Deployer {
                 idRegistry, storageRegistry, keyRegistry, params.bundlerTrustedCaller, params.initialBundlerOwner
             )
         );
+        address recoveryProxy = register(
+            "RecoveryProxy",
+            RECOVERY_PROXY_CREATE2_SALT,
+            type(RecoveryProxy).creationCode,
+            abi.encode(idRegistry, params.initialRecoveryProxyOwner)
+        );
 
         deploy(broadcast);
 
@@ -102,7 +112,8 @@ contract DeployL2 is ImmutableCreate2Deployer {
             idRegistry: IdRegistry(idRegistry),
             keyRegistry: KeyRegistry(keyRegistry),
             signedKeyRequestValidator: SignedKeyRequestValidator(signedKeyRequestValidator),
-            bundler: Bundler(payable(bundler))
+            bundler: Bundler(payable(bundler)),
+            recoveryProxy: RecoveryProxy(recoveryProxy)
         });
     }
 
@@ -139,6 +150,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             initialKeyRegistryOwner: vm.envAddress("KEY_REGISTRY_OWNER_ADDRESS"),
             initialBundlerOwner: vm.envAddress("BUNDLER_OWNER_ADDRESS"),
             initialValidatorOwner: vm.envAddress("METADATA_VALIDATOR_OWNER_ADDRESS"),
+            initialRecoveryProxyOwner: vm.envAddress("RECOVERY_PROXY_OWNER_ADDRESS"),
             priceFeed: vm.envAddress("STORAGE_RENT_PRICE_FEED_ADDRESS"),
             uptimeFeed: vm.envAddress("STORAGE_RENT_UPTIME_FEED_ADDRESS"),
             vault: vm.envAddress("STORAGE_RENT_VAULT_ADDRESS"),
