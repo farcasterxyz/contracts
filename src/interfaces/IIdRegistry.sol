@@ -106,7 +106,7 @@ interface IIdRegistry {
     /**
      * @notice Transfer the fid owned by the from address to another address that does not
      *         have an fid. Caller must provide two signed Transfer messages: one signed by
-     *         the from address and one signed by the to address.
+     *         the recovery address and one signed by the to address.
      *
      * @param from             The owner address of the fid to transfer.
      * @param to               The address to transfer the fid to.

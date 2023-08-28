@@ -202,13 +202,13 @@ interface IKeyRegistry {
     function setIdRegistry(address _idRegistry) external;
 
     /**
-     * @notice Pause add, remove, and reset.e add, remove, and reset.e registration, transfer, and recovery.
+     * @notice Pause add, remove, and reset.
      *         Must be called by the owner.
      */
     function pause() external;
 
     /**
-     * @notice Unpause add, remove, and reset.otice Unpause add, remove, and reset.otice Unpause registration, transfer, and recovery.
+     * @notice Unpause add, remove, and reset.
      *         Must be called by the owner.
      */
     function unpause() external;
