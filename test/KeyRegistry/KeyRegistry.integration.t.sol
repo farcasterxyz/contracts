@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import "forge-std/console.sol";
+
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 import {SignedKeyRequestValidator} from "../../src/validators/SignedKeyRequestValidator.sol";
@@ -114,6 +116,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         signerPk = _boundPk(signerPk);
         uint256 deadline = _boundDeadline(_deadline);
         address signer = vm.addr(signerPk);
+        vm.assume(signer != to);
 
         uint256 requestFid = _register(signer);
 
@@ -146,6 +149,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         uint256 deadline = _boundDeadline(_deadline);
         vm.assume(signerPk != otherPk);
         address signer = vm.addr(signerPk);
+        vm.assume(signer != to);
 
         _registerFid(to, recovery);
         uint256 requestFid = _register(signer);
