@@ -90,6 +90,12 @@ contract IdRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @dev Defined for compatibility with tools like Etherscan that detect fid
+     *      transfers as token transfers. This is intentionally lowercased.
+     */
+    string public constant name = "Farcaster FID";
+
+    /**
      * @dev Contract version specified using Farcaster protocol version scheme.
      */
     string public constant VERSION = "2023.08.23";
