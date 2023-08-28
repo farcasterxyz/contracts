@@ -11,5 +11,5 @@ RUN curl -L https://foundry.paradigm.xyz | bash
 
 ENV RUST_BACKTRACE=full PATH="$PATH:/root/.foundry/bin"
 
-# TODO: Install a specific version so builds don't unexpected break in the future
-RUN foundryup
+# Install a specific version so builds don't unexpected break in the future
+RUN foundryup --version nightly-bff4ed912bb023d7bf9b20eda581aa4867a1cf70
