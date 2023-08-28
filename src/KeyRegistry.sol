@@ -432,7 +432,7 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         }
 
         // Safety: i and j can be incremented unchecked since they are bound by items.length and
-        // item[i].keys.length respectively.
+        // items[i].keys.length respectively.
         unchecked {
             for (uint256 i = 0; i < items.length; i++) {
                 BulkAddData calldata item = items[i];
@@ -458,7 +458,7 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         }
 
         // Safety: i and j can be incremented unchecked since they are bound by items.length and
-        // fidKeys[i].length respectively.
+        // items[i].keys.length respectively.
         unchecked {
             for (uint256 i = 0; i < items.length; i++) {
                 BulkResetData calldata item = items[i];
@@ -499,7 +499,7 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     }
 
     /**
-     * @notice Pause add, remove, and reset.e add, remove, and reset.e registration, transfer, and recovery.
+     * @notice Pause add, remove, and reset.
      *         Must be called by the owner.
      */
     function pause() external onlyOwner {
@@ -507,7 +507,7 @@ contract KeyRegistry is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     }
 
     /**
-     * @notice Unpause add, remove, and reset.otice Unpause add, remove, and reset.otice Unpause registration, transfer, and recovery.
+     * @notice Unpause add, remove, and reset.
      *         Must be called by the owner.
      */
     function unpause() external onlyOwner {
