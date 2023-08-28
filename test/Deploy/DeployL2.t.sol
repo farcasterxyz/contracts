@@ -9,6 +9,7 @@ import {
     KeyRegistry,
     SignedKeyRequestValidator,
     Bundler,
+    RecoveryProxy,
     IMetadataValidator
 } from "../../script/DeployL2.s.sol";
 import "forge-std/console.sol";
@@ -21,6 +22,7 @@ contract DeployL2Test is DeployL2, Test {
     KeyRegistry internal keyRegistry;
     SignedKeyRequestValidator internal validator;
     Bundler internal bundler;
+    RecoveryProxy internal recoveryProxy;
 
     address internal alice;
     uint256 internal alicePk;
@@ -63,6 +65,7 @@ contract DeployL2Test is DeployL2, Test {
             initialKeyRegistryOwner: alpha,
             initialBundlerOwner: alpha,
             initialValidatorOwner: alpha,
+            initialRecoveryProxyOwner: alpha,
             priceFeed: priceFeed,
             uptimeFeed: uptimeFeed,
             vault: vault,
@@ -82,6 +85,7 @@ contract DeployL2Test is DeployL2, Test {
         keyRegistry = contracts.keyRegistry;
         validator = contracts.signedKeyRequestValidator;
         bundler = contracts.bundler;
+        recoveryProxy = contracts.recoveryProxy;
     }
 
     function test_deploymentParams() public {
@@ -136,6 +140,10 @@ contract DeployL2Test is DeployL2, Test {
         assertEq(address(bundler.storageRegistry()), address(storageRegistry));
         assertEq(address(bundler.keyRegistry()), address(keyRegistry));
         assertEq(bundler.trustedCaller(), relayer);
+
+        // Recovery proxy owned by multisig, check deploy parameters
+        assertEq(recoveryProxy.owner(), alpha);
+        assertEq(address(recoveryProxy.idRegistry()), address(idRegistry));
     }
 
     function test_e2e() public {
@@ -166,7 +174,9 @@ contract DeployL2Test is DeployL2, Test {
 
         // Relayer trusted registers a user fid
         vm.prank(relayer);
-        bundler.trustedRegister(Bundler.UserData({to: alice, recovery: bob, signers: signers, units: 1}));
+        bundler.trustedRegister(
+            Bundler.UserData({to: alice, recovery: address(recoveryProxy), signers: signers, units: 1})
+        );
         assertEq(idRegistry.idOf(alice), 2);
 
         // Multisig disables trusted mode
@@ -180,6 +190,27 @@ contract DeployL2Test is DeployL2, Test {
         vm.prank(carol);
         idRegistry.register(dave);
         assertEq(idRegistry.idOf(carol), 3);
+
+        // Multisig recovers Alice's FID to bob
+        uint256 recoverDeadline = block.timestamp + 30;
+        bytes memory recoverSig = _signTransfer(bobPk, 2, bob, recoverDeadline);
+        vm.prank(alpha);
+        recoveryProxy.recover(alice, bob, recoverDeadline, recoverSig);
+    }
+
+    function _signTransfer(
+        uint256 pk,
+        uint256 fid,
+        address to,
+        uint256 deadline
+    ) internal returns (bytes memory signature) {
+        address signer = vm.addr(pk);
+        bytes32 digest = idRegistry.hashTypedDataV4(
+            keccak256(abi.encode(idRegistry.TRANSFER_TYPEHASH(), fid, to, idRegistry.nonces(signer), deadline))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        signature = abi.encodePacked(r, s, v);
+        assertEq(signature.length, 65);
     }
 
     function _signMetadata(
