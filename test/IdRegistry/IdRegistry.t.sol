@@ -29,6 +29,10 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.VERSION(), "2023.08.23");
     }
 
+    function testName() public {
+        assertEq(idRegistry.name(), "Farcaster FID");
+    }
+
     /*//////////////////////////////////////////////////////////////
                              REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
