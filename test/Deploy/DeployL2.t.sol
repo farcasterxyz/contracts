@@ -10,6 +10,7 @@ import {
     SignedKeyRequestValidator,
     Bundler,
     RecoveryProxy,
+    IBundler,
     IMetadataValidator
 } from "../../script/DeployL2.s.sol";
 import "forge-std/console.sol";
@@ -169,13 +170,13 @@ contract DeployL2Test is DeployL2, Test {
             })
         );
 
-        Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
-        signers[0] = Bundler.SignerData({keyType: 1, key: key, metadataType: 1, metadata: metadata});
+        IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
+        signers[0] = IBundler.SignerData({keyType: 1, key: key, metadataType: 1, metadata: metadata});
 
         // Relayer trusted registers a user fid
         vm.prank(relayer);
         bundler.trustedRegister(
-            Bundler.UserData({to: alice, recovery: address(recoveryProxy), signers: signers, units: 1})
+            IBundler.UserData({to: alice, recovery: address(recoveryProxy), signers: signers, units: 1})
         );
         assertEq(idRegistry.idOf(alice), 2);
 

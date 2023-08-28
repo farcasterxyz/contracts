@@ -5,7 +5,7 @@ import {IdRegistry} from "../src/IdRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
-import {Bundler} from "../src/Bundler.sol";
+import {Bundler, IBundler} from "../src/Bundler.sol";
 import {RecoveryProxy} from "../src/RecoveryProxy.sol";
 import {IMetadataValidator} from "../src/interfaces/IMetadataValidator.sol";
 import {console, ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
