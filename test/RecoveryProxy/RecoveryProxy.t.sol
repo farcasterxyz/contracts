@@ -6,10 +6,6 @@ import {RecoveryProxyTestSuite} from "./RecoveryProxyTestSuite.sol";
 /* solhint-disable state-visibility */
 
 contract RecoveryProxyTest is RecoveryProxyTestSuite {
-    function testVersion() public {
-        assertEq(recoveryProxy.VERSION(), "2023.08.23");
-    }
-
     function testIdRegistry() public {
         assertEq(address(recoveryProxy.idRegistry()), address(idRegistry));
     }

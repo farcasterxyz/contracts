@@ -4,16 +4,20 @@ pragma solidity 0.8.21;
 import {IdRegistry} from "./IdRegistry.sol";
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
+/**
+ * @title RecoveryProxy
+ *
+ * @notice  RecoveryProxy allows the recovery execution logic to be changed
+ *          without changing the recovery address.
+ *
+ *          The proxy is set to the recovery address and it delegates
+ *          permissions to execute the recovery to its owner. The owner
+ *          can be changed at any time, for example from an EOA to a 2/3
+ *          multisig. This allows a recovery service operator to change the
+ *          recovery mechanisms in the future without requiring each user to
+ *          come online and execute a transaction.
+ */
 contract RecoveryProxy is Ownable2Step {
-    /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Contract version specified using Farcaster protocol version scheme.
-     */
-    string public constant VERSION = "2023.08.23";
-
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
