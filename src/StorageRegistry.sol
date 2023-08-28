@@ -6,6 +6,7 @@ import {AccessControlEnumerable} from "openzeppelin/contracts/access/AccessContr
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
+import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
 /**
@@ -13,7 +14,7 @@ import {TransferHelper} from "./lib/TransferHelper.sol";
  *
  * @notice See ../docs/docs.md for an overview.
  */
-contract StorageRegistry is AccessControlEnumerable, Pausable {
+contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable {
     using FixedPointMathLib for uint256;
     using TransferHelper for address;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import {KeyRegistry} from "../../src/KeyRegistry.sol";
+import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 import {SignedKeyRequestValidator} from "../../src/validators/SignedKeyRequestValidator.sol";
 
@@ -175,17 +175,17 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         return idRegistry.register(recovery);
     }
 
-    function assertEq(KeyRegistry.KeyState a, KeyRegistry.KeyState b) internal {
+    function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal {
         assertEq(uint8(a), uint8(b));
     }
 
     function assertNull(uint256 fid, bytes memory key) internal {
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.NULL);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.NULL);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
     }
 
     function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {
-        assertEq(keyRegistry.keyDataOf(fid, key).state, KeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
     }
 }

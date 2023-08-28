@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {stdError} from "forge-std/StdError.sol";
 
-import {Bundler} from "../../src/Bundler.sol";
+import {Bundler, IBundler} from "../../src/Bundler.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {StorageRegistry} from "../../src/StorageRegistry.sol";
@@ -58,8 +58,8 @@ contract BundlerTest is BundlerTestSuite {
         address account,
         uint256 deadline,
         uint256 numSigners
-    ) internal returns (Bundler.SignerParams[] memory) {
-        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](
+    ) internal returns (IBundler.SignerParams[] memory) {
+        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](
             numSigners
         );
         uint256 nonce = keyRegistry.nonces(account);
@@ -67,7 +67,7 @@ contract BundlerTest is BundlerTestSuite {
         // The duplication below is ugly but necessary to work around a stack too deep error.
         for (uint256 i = 0; i < numSigners; i++) {
             _registerValidator(uint32(i + 1), uint8(i + 1));
-            signers[i] = Bundler.SignerParams({
+            signers[i] = IBundler.SignerParams({
                 keyType: uint32(i + 1),
                 key: abi.encodePacked("key", keccak256(abi.encode(i))),
                 metadataType: uint8(i + 1),
@@ -113,12 +113,12 @@ contract BundlerTest is BundlerTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory registerSig = _signRegister(accountPk, account, recovery, deadline);
 
-        Bundler.SignerParams[] memory signers = _generateSigners(accountPk, account, deadline, numSigners);
+        IBundler.SignerParams[] memory signers = _generateSigners(accountPk, account, deadline, numSigners);
 
         vm.deal(caller, price);
         vm.prank(caller);
         bundler.register{value: price}(
-            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: registerSig}),
+            IBundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: registerSig}),
             signers,
             storageUnits
         );
@@ -158,13 +158,13 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, price - 1);
 
-        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](0);
 
         vm.deal(caller, price);
         vm.prank(caller);
         vm.expectRevert(StorageRegistry.InvalidPayment.selector);
         bundler.register{value: price - delta}(
-            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            IBundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
             signers,
             storageUnits
         );
@@ -190,12 +190,12 @@ contract BundlerTest is BundlerTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
 
-        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](0);
 
         vm.prank(caller);
         vm.expectRevert(StorageRegistry.InvalidAmount.selector);
         bundler.register(
-            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            IBundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
             signers,
             storageUnits
         );
@@ -226,12 +226,12 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, type(uint256).max - price);
 
-        Bundler.SignerParams[] memory signers = new Bundler.SignerParams[](0);
+        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](0);
 
         vm.deal(caller, price + delta);
         vm.prank(caller);
         bundler.register{value: price + delta}(
-            Bundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            IBundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
             signers,
             storageUnits
         );
@@ -275,12 +275,12 @@ contract BundlerTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
-        signers[0] = Bundler.SignerData({keyType: keyType, key: key, metadataType: metadataType, metadata: metadata});
+        IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
+        signers[0] = IBundler.SignerData({keyType: keyType, key: key, metadataType: metadataType, metadata: metadata});
 
         vm.prank(bundler.trustedCaller());
         bundler.trustedRegister(
-            Bundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits})
+            IBundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits})
         );
 
         _assertSuccessfulRegistration(account, recovery);
@@ -310,11 +310,11 @@ contract BundlerTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        Bundler.SignerData[] memory signers = new Bundler.SignerData[](0);
+        IBundler.SignerData[] memory signers = new IBundler.SignerData[](0);
 
         vm.prank(bundler.trustedCaller());
         bundler.trustedRegister(
-            Bundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits})
+            IBundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits})
         );
 
         _assertSuccessfulRegistration(account, recovery);
@@ -351,13 +351,13 @@ contract BundlerTest is BundlerTestSuite {
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
-        Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
-        signers[0] = Bundler.SignerData({keyType: keyType, key: key, metadataType: metadataType, metadata: metadata});
+        IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
+        signers[0] = IBundler.SignerData({keyType: keyType, key: key, metadataType: metadataType, metadata: metadata});
 
         vm.prank(caller);
         vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
         bundler.trustedRegister(
-            Bundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits})
+            IBundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits})
         );
 
         _assertUnsuccessfulRegistration(account);
@@ -382,7 +382,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
-        Bundler.UserData[] memory batchArray = new Bundler.UserData[](
+        IBundler.UserData[] memory batchArray = new IBundler.UserData[](
             registrations
         );
 
@@ -398,9 +398,9 @@ contract BundlerTest is BundlerTestSuite {
             uint32 keyType = uint32(i + 1);
             bytes memory key = bytes.concat(bytes("key"), abi.encode(i));
             bytes memory metadata = abi.encodePacked(bytes("metadata"), abi.encode(i));
-            Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
-            signers[0] = Bundler.SignerData({keyType: keyType, key: key, metadataType: 1, metadata: metadata});
-            batchArray[i] = Bundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits});
+            IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
+            signers[0] = IBundler.SignerData({keyType: keyType, key: key, metadataType: 1, metadata: metadata});
+            batchArray[i] = IBundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits});
 
             vm.expectEmit(true, true, true, true);
             emit Register(account, fid, recovery);
@@ -451,7 +451,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
-        Bundler.UserData[] memory batchArray = new Bundler.UserData[](
+        IBundler.UserData[] memory batchArray = new IBundler.UserData[](
             registrations
         );
 
@@ -460,8 +460,8 @@ contract BundlerTest is BundlerTestSuite {
             address account = address(fid);
             address recovery = address(uint160(i + 1000));
 
-            Bundler.SignerData[] memory signers = new Bundler.SignerData[](0);
-            batchArray[i] = Bundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits});
+            IBundler.SignerData[] memory signers = new IBundler.SignerData[](0);
+            batchArray[i] = IBundler.UserData({to: account, recovery: recovery, signers: signers, units: storageUnits});
 
             vm.expectEmit(true, true, true, true);
             emit Register(account, fid, recovery);
@@ -501,11 +501,11 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
-        Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
-        signers[0] = Bundler.SignerData({keyType: 1, key: "", metadataType: 1, metadata: ""});
+        IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
+        signers[0] = IBundler.SignerData({keyType: 1, key: "", metadataType: 1, metadata: ""});
 
-        Bundler.UserData[] memory batchArray = new Bundler.UserData[](2);
-        batchArray[0] = Bundler.UserData({to: account, recovery: address(0), signers: signers, units: 1});
+        IBundler.UserData[] memory batchArray = new IBundler.UserData[](2);
+        batchArray[0] = IBundler.UserData({to: account, recovery: address(0), signers: signers, units: 1});
 
         vm.expectRevert(StorageRegistry.InvalidAmount.selector);
         bundler.trustedBatchRegister(batchArray);
@@ -528,11 +528,11 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
-        Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
-        signers[0] = Bundler.SignerData({keyType: 1, key: "", metadataType: 1, metadata: ""});
+        IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
+        signers[0] = IBundler.SignerData({keyType: 1, key: "", metadataType: 1, metadata: ""});
 
-        Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
-        batchArray[0] = Bundler.UserData({to: alice, recovery: address(0), signers: signers, units: 1});
+        IBundler.UserData[] memory batchArray = new IBundler.UserData[](1);
+        batchArray[0] = IBundler.UserData({to: alice, recovery: address(0), signers: signers, units: 1});
 
         vm.prank(untrustedCaller);
         vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
@@ -550,11 +550,11 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(roleAdmin);
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
-        Bundler.SignerData[] memory signers = new Bundler.SignerData[](1);
-        signers[0] = Bundler.SignerData({keyType: 1, key: "key", metadataType: 1, metadata: "metadata"});
+        IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
+        signers[0] = IBundler.SignerData({keyType: 1, key: "key", metadataType: 1, metadata: "metadata"});
 
-        Bundler.UserData[] memory batchArray = new Bundler.UserData[](1);
-        batchArray[0] = Bundler.UserData({to: alice, recovery: address(0), signers: signers, units: 1});
+        IBundler.UserData[] memory batchArray = new IBundler.UserData[](1);
+        batchArray[0] = IBundler.UserData({to: alice, recovery: address(0), signers: signers, units: 1});
 
         vm.expectRevert(TrustedCaller.Registrable.selector);
         bundler.trustedBatchRegister(batchArray);

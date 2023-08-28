@@ -4,10 +4,11 @@ pragma solidity 0.8.21;
 import {IdRegistry} from "./IdRegistry.sol";
 import {StorageRegistry} from "./StorageRegistry.sol";
 import {KeyRegistry} from "./KeyRegistry.sol";
+import {IBundler} from "./interfaces/IBundler.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
-contract Bundler is TrustedCaller {
+contract Bundler is IBundler, TrustedCaller {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -19,44 +20,6 @@ contract Bundler is TrustedCaller {
 
     /// @dev Revert if the caller attempts to rent zero storage units.
     error InvalidAmount();
-
-    /*//////////////////////////////////////////////////////////////
-                                 STRUCTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Data needed to trusted register a user with the fid and storage contracts.
-    struct UserData {
-        address to;
-        address recovery;
-        SignerData[] signers;
-        uint256 units;
-    }
-
-    /// @notice Data needed to trusted register a signer with the key registry
-    struct SignerData {
-        uint32 keyType;
-        bytes key;
-        uint8 metadataType;
-        bytes metadata;
-    }
-
-    /// @notice Data needed to register an fid with signature.
-    struct RegistrationParams {
-        address to;
-        address recovery;
-        uint256 deadline;
-        bytes sig;
-    }
-
-    /// @notice Data needed to add a signer with signature.
-    struct SignerParams {
-        uint32 keyType;
-        bytes key;
-        uint8 metadataType;
-        bytes metadata;
-        uint256 deadline;
-        bytes sig;
-    }
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
