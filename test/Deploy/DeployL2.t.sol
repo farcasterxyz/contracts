@@ -2,7 +2,17 @@
 pragma solidity 0.8.21;
 
 import {Test} from "forge-std/Test.sol";
-import {DeployL2, StorageRegistry, IdRegistry, KeyRegistry, SignedKeyRequestValidator, Bundler, RecoveryProxy, IBundler, IMetadataValidator} from "../../script/DeployL2.s.sol";
+import {
+    DeployL2,
+    StorageRegistry,
+    IdRegistry,
+    KeyRegistry,
+    SignedKeyRequestValidator,
+    Bundler,
+    RecoveryProxy,
+    IBundler,
+    IMetadataValidator
+} from "../../script/DeployL2.s.sol";
 import "forge-std/console.sol";
 
 /* solhint-disable state-visibility */
@@ -37,12 +47,10 @@ contract DeployL2Test is DeployL2, Test {
     address internal relayer = makeAddr("relayer");
 
     // @dev OP Mainnet ETH/USD price feed
-    address internal priceFeed =
-        address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
+    address internal priceFeed = address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
 
     // @dev OP Mainnet sequencer uptime feed
-    address internal uptimeFeed =
-        address(0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389);
+    address internal uptimeFeed = address(0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389);
 
     function setUp() public {
         vm.createSelectFork("l2_mainnet");
@@ -85,20 +93,11 @@ contract DeployL2Test is DeployL2, Test {
         // Check deployment parameters
         assertEq(address(storageRegistry.priceFeed()), priceFeed);
         assertEq(address(storageRegistry.uptimeFeed()), uptimeFeed);
-        assertEq(
-            storageRegistry.deprecationTimestamp(),
-            block.timestamp + 365 days
-        );
+        assertEq(storageRegistry.deprecationTimestamp(), block.timestamp + 365 days);
         assertEq(storageRegistry.usdUnitPrice(), INITIAL_USD_UNIT_PRICE);
         assertEq(storageRegistry.maxUnits(), INITIAL_MAX_UNITS);
-        assertEq(
-            storageRegistry.priceFeedCacheDuration(),
-            INITIAL_PRICE_FEED_CACHE_DURATION
-        );
-        assertEq(
-            storageRegistry.uptimeFeedGracePeriod(),
-            INITIAL_UPTIME_FEED_GRACE_PERIOD
-        );
+        assertEq(storageRegistry.priceFeedCacheDuration(), INITIAL_PRICE_FEED_CACHE_DURATION);
+        assertEq(storageRegistry.uptimeFeedGracePeriod(), INITIAL_UPTIME_FEED_GRACE_PERIOD);
 
         // Role admin revoked from deployer and transferred to alpha multisig
         assertEq(storageRegistry.getRoleMemberCount(bytes32(0)), 1);
@@ -106,50 +105,20 @@ contract DeployL2Test is DeployL2, Test {
         assertEq(storageRegistry.hasRole(bytes32(0), alpha), true);
 
         // Owner role revoked from deployer and transferred to beta address
-        assertEq(
-            storageRegistry.getRoleMemberCount(keccak256("OWNER_ROLE")),
-            1
-        );
-        assertEq(
-            storageRegistry.hasRole(keccak256("OWNER_ROLE"), deployer),
-            false
-        );
+        assertEq(storageRegistry.getRoleMemberCount(keccak256("OWNER_ROLE")), 1);
+        assertEq(storageRegistry.hasRole(keccak256("OWNER_ROLE"), deployer), false);
         assertEq(storageRegistry.hasRole(keccak256("OWNER_ROLE"), beta), true);
 
         // Operator role revoked from deployer, granted to relay and bundler
-        assertEq(
-            storageRegistry.getRoleMemberCount(keccak256("OPERATOR_ROLE")),
-            2
-        );
-        assertEq(
-            storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), deployer),
-            false
-        );
-        assertEq(
-            storageRegistry.hasRole(
-                keccak256("OPERATOR_ROLE"),
-                address(bundler)
-            ),
-            true
-        );
-        assertEq(
-            storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), relayer),
-            true
-        );
+        assertEq(storageRegistry.getRoleMemberCount(keccak256("OPERATOR_ROLE")), 2);
+        assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), deployer), false);
+        assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), address(bundler)), true);
+        assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), relayer), true);
 
         // Treasurer role revoked from deployer, granted to relay
-        assertEq(
-            storageRegistry.getRoleMemberCount(keccak256("TREASURER_ROLE")),
-            1
-        );
-        assertEq(
-            storageRegistry.hasRole(keccak256("TREASURER_ROLE"), deployer),
-            false
-        );
-        assertEq(
-            storageRegistry.hasRole(keccak256("TREASURER_ROLE"), relayer),
-            true
-        );
+        assertEq(storageRegistry.getRoleMemberCount(keccak256("TREASURER_ROLE")), 1);
+        assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), deployer), false);
+        assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), relayer), true);
 
         // Ownership transfers initiated from deployer to multisig
         assertEq(idRegistry.owner(), deployer);
@@ -160,10 +129,7 @@ contract DeployL2Test is DeployL2, Test {
 
         // Check key registry parameters
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
-        assertEq(
-            keyRegistry.gracePeriod(),
-            KEY_REGISTRY_MIGRATION_GRACE_PERIOD
-        );
+        assertEq(keyRegistry.gracePeriod(), KEY_REGISTRY_MIGRATION_GRACE_PERIOD);
 
         // Validator owned by multisig, check deploy parameters
         assertEq(validator.owner(), alpha);
@@ -205,22 +171,12 @@ contract DeployL2Test is DeployL2, Test {
         );
 
         IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
-        signers[0] = IBundler.SignerData({
-            keyType: 1,
-            key: key,
-            metadataType: 1,
-            metadata: metadata
-        });
+        signers[0] = IBundler.SignerData({keyType: 1, key: key, metadataType: 1, metadata: metadata});
 
         // Relayer trusted registers a user fid
         vm.prank(relayer);
         bundler.trustedRegister(
-            IBundler.UserData({
-                to: alice,
-                recovery: address(recoveryProxy),
-                signers: signers,
-                units: 1
-            })
+            IBundler.UserData({to: alice, recovery: address(recoveryProxy), signers: signers, units: 1})
         );
         assertEq(idRegistry.idOf(alice), 2);
 
@@ -251,15 +207,7 @@ contract DeployL2Test is DeployL2, Test {
     ) internal returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    idRegistry.TRANSFER_TYPEHASH(),
-                    fid,
-                    to,
-                    idRegistry.nonces(signer),
-                    deadline
-                )
-            )
+            keccak256(abi.encode(idRegistry.TRANSFER_TYPEHASH(), fid, to, idRegistry.nonces(signer), deadline))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);
@@ -275,9 +223,7 @@ contract DeployL2Test is DeployL2, Test {
         bytes32 digest = validator.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keccak256(
-                        "SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)"
-                    ),
+                    keccak256("SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)"),
                     requestFid,
                     keccak256(signerPubKey),
                     deadline

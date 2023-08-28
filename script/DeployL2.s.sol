@@ -21,8 +21,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
     bytes32 internal constant STORAGE_RENT_CREATE2_SALT = bytes32(0);
     bytes32 internal constant ID_REGISTRY_CREATE2_SALT = bytes32(0);
     bytes32 internal constant KEY_REGISTRY_CREATE2_SALT = bytes32(0);
-    bytes32 internal constant SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT =
-        bytes32(0);
+    bytes32 internal constant SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT = bytes32(0);
     bytes32 internal constant BUNDLER_CREATE2_SALT = bytes32(0);
     bytes32 internal constant RECOVERY_PROXY_CREATE2_SALT = bytes32(0);
 
@@ -56,17 +55,11 @@ contract DeployL2 is ImmutableCreate2Deployer {
         runSetup(runDeploy(loadDeploymentParams()));
     }
 
-    function runDeploy(DeploymentParams memory params)
-        public
-        returns (Contracts memory)
-    {
+    function runDeploy(DeploymentParams memory params) public returns (Contracts memory) {
         return runDeploy(params, true);
     }
 
-    function runDeploy(DeploymentParams memory params, bool broadcast)
-        public
-        returns (Contracts memory)
-    {
+    function runDeploy(DeploymentParams memory params, bool broadcast) public returns (Contracts memory) {
         address storageRegistry = register(
             "StorageRegistry",
             STORAGE_RENT_CREATE2_SALT,
@@ -83,12 +76,8 @@ contract DeployL2 is ImmutableCreate2Deployer {
                 params.treasurer
             )
         );
-        address idRegistry = register(
-            "IdRegistry",
-            ID_REGISTRY_CREATE2_SALT,
-            type(IdRegistry).creationCode,
-            abi.encode(params.deployer)
-        );
+        address idRegistry =
+            register("IdRegistry", ID_REGISTRY_CREATE2_SALT, type(IdRegistry).creationCode, abi.encode(params.deployer));
         address keyRegistry = register(
             "KeyRegistry",
             KEY_REGISTRY_CREATE2_SALT,
@@ -106,11 +95,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             BUNDLER_CREATE2_SALT,
             type(Bundler).creationCode,
             abi.encode(
-                idRegistry,
-                storageRegistry,
-                keyRegistry,
-                params.bundlerTrustedCaller,
-                params.initialBundlerOwner
+                idRegistry, storageRegistry, keyRegistry, params.bundlerTrustedCaller, params.initialBundlerOwner
             )
         );
         address recoveryProxy = register(
@@ -122,48 +107,30 @@ contract DeployL2 is ImmutableCreate2Deployer {
 
         deploy(broadcast);
 
-        return
-            Contracts({
-                storageRegistry: StorageRegistry(storageRegistry),
-                idRegistry: IdRegistry(idRegistry),
-                keyRegistry: KeyRegistry(keyRegistry),
-                signedKeyRequestValidator: SignedKeyRequestValidator(
-                    signedKeyRequestValidator
-                ),
-                bundler: Bundler(payable(bundler)),
-                recoveryProxy: RecoveryProxy(recoveryProxy)
-            });
+        return Contracts({
+            storageRegistry: StorageRegistry(storageRegistry),
+            idRegistry: IdRegistry(idRegistry),
+            keyRegistry: KeyRegistry(keyRegistry),
+            signedKeyRequestValidator: SignedKeyRequestValidator(signedKeyRequestValidator),
+            bundler: Bundler(payable(bundler)),
+            recoveryProxy: RecoveryProxy(recoveryProxy)
+        });
     }
 
-    function runSetup(
-        Contracts memory contracts,
-        DeploymentParams memory params,
-        bool broadcast
-    ) public {
+    function runSetup(Contracts memory contracts, DeploymentParams memory params, bool broadcast) public {
         if (deploymentChanged()) {
             console.log("Running setup");
             address bundler = address(contracts.bundler);
 
             if (broadcast) vm.startBroadcast();
             contracts.idRegistry.setTrustedCaller(bundler);
-            contracts.idRegistry.transferOwnership(
-                params.initialIdRegistryOwner
-            );
+            contracts.idRegistry.transferOwnership(params.initialIdRegistryOwner);
 
             contracts.keyRegistry.setTrustedCaller(bundler);
-            contracts.keyRegistry.setValidator(
-                1,
-                1,
-                IMetadataValidator(address(contracts.signedKeyRequestValidator))
-            );
-            contracts.keyRegistry.transferOwnership(
-                params.initialKeyRegistryOwner
-            );
+            contracts.keyRegistry.setValidator(1, 1, IMetadataValidator(address(contracts.signedKeyRequestValidator)));
+            contracts.keyRegistry.transferOwnership(params.initialKeyRegistryOwner);
 
-            contracts.storageRegistry.grantRole(
-                keccak256("OPERATOR_ROLE"),
-                bundler
-            );
+            contracts.storageRegistry.grantRole(keccak256("OPERATOR_ROLE"), bundler);
             contracts.storageRegistry.grantRole(0x00, params.roleAdmin);
             contracts.storageRegistry.renounceRole(0x00, params.deployer);
             if (broadcast) vm.stopBroadcast();
@@ -177,37 +144,22 @@ contract DeployL2 is ImmutableCreate2Deployer {
         runSetup(contracts, params, true);
     }
 
-    function loadDeploymentParams()
-        internal
-        view
-        returns (DeploymentParams memory)
-    {
-        return
-            DeploymentParams({
-                initialIdRegistryOwner: vm.envAddress(
-                    "ID_REGISTRY_OWNER_ADDRESS"
-                ),
-                initialKeyRegistryOwner: vm.envAddress(
-                    "KEY_REGISTRY_OWNER_ADDRESS"
-                ),
-                initialBundlerOwner: vm.envAddress("BUNDLER_OWNER_ADDRESS"),
-                initialValidatorOwner: vm.envAddress(
-                    "METADATA_VALIDATOR_OWNER_ADDRESS"
-                ),
-                initialRecoveryProxyOwner: vm.envAddress(
-                    "RECOVERY_PROXY_OWNER_ADDRESS"
-                ),
-                priceFeed: vm.envAddress("STORAGE_RENT_PRICE_FEED_ADDRESS"),
-                uptimeFeed: vm.envAddress("STORAGE_RENT_UPTIME_FEED_ADDRESS"),
-                vault: vm.envAddress("STORAGE_RENT_VAULT_ADDRESS"),
-                roleAdmin: vm.envAddress("STORAGE_RENT_ROLE_ADMIN_ADDRESS"),
-                admin: vm.envAddress("STORAGE_RENT_ADMIN_ADDRESS"),
-                operator: vm.envAddress("STORAGE_RENT_OPERATOR_ADDRESS"),
-                treasurer: vm.envAddress("STORAGE_RENT_TREASURER_ADDRESS"),
-                bundlerTrustedCaller: vm.envAddress(
-                    "BUNDLER_TRUSTED_CALLER_ADDRESS"
-                ),
-                deployer: vm.envAddress("DEPLOYER")
-            });
+    function loadDeploymentParams() internal view returns (DeploymentParams memory) {
+        return DeploymentParams({
+            initialIdRegistryOwner: vm.envAddress("ID_REGISTRY_OWNER_ADDRESS"),
+            initialKeyRegistryOwner: vm.envAddress("KEY_REGISTRY_OWNER_ADDRESS"),
+            initialBundlerOwner: vm.envAddress("BUNDLER_OWNER_ADDRESS"),
+            initialValidatorOwner: vm.envAddress("METADATA_VALIDATOR_OWNER_ADDRESS"),
+            initialRecoveryProxyOwner: vm.envAddress("RECOVERY_PROXY_OWNER_ADDRESS"),
+            priceFeed: vm.envAddress("STORAGE_RENT_PRICE_FEED_ADDRESS"),
+            uptimeFeed: vm.envAddress("STORAGE_RENT_UPTIME_FEED_ADDRESS"),
+            vault: vm.envAddress("STORAGE_RENT_VAULT_ADDRESS"),
+            roleAdmin: vm.envAddress("STORAGE_RENT_ROLE_ADMIN_ADDRESS"),
+            admin: vm.envAddress("STORAGE_RENT_ADMIN_ADDRESS"),
+            operator: vm.envAddress("STORAGE_RENT_OPERATOR_ADDRESS"),
+            treasurer: vm.envAddress("STORAGE_RENT_TREASURER_ADDRESS"),
+            bundlerTrustedCaller: vm.envAddress("BUNDLER_TRUSTED_CALLER_ADDRESS"),
+            deployer: vm.envAddress("DEPLOYER")
+        });
     }
 }

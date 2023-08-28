@@ -2,6 +2,7 @@
 pragma solidity ^0.8.21;
 
 import {IMetadataValidator} from "./IMetadataValidator.sol";
+import {IdRegistryLike} from "./IdRegistryLike.sol";
 
 interface IKeyRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -69,6 +70,47 @@ interface IKeyRegistry {
         uint256 fid;
         bytes[] keys;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                              CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Contract version specified in the Farcaster protocol version scheme.
+     */
+    function VERSION() external view returns (string memory);
+
+    /**
+     * @notice Period in seconds after migration during which admin can bulk add/reset keys.
+     *         Admins can make corrections to the migrated data during the grace period if necessary,
+     *         but cannot make changes after it expires.
+     */
+    function gracePeriod() external view returns (uint24);
+
+    /**
+     * @notice EIP-712 typehash for Add signatures.
+     */
+    function ADD_TYPEHASH() external view returns (bytes32);
+
+    /**
+     * @notice EIP-712 typehash for Remove signatures.
+     */
+    function REMOVE_TYPEHASH() external view returns (bytes32);
+
+    /*//////////////////////////////////////////////////////////////
+                                STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice The IdRegistry contract.
+     */
+    function idRegistry() external view returns (IdRegistryLike);
+
+    /**
+     * @notice Timestamp at which keys migrated. Hubs will cut over to use this KeyRegistry as their
+     *         source of truth after this timestamp.
+     */
+    function keysMigratedAt() external view returns (uint40);
 
     /*//////////////////////////////////////////////////////////////
                                   VIEWS

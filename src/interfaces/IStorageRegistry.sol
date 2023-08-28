@@ -5,6 +5,109 @@ import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Inter
 
 interface IStorageRegistry {
     /*//////////////////////////////////////////////////////////////
+                                CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Contract version specified in the Farcaster protocol version scheme.
+     */
+    function VERSION() external view returns (string memory);
+
+    /*//////////////////////////////////////////////////////////////
+                              PARAMETERS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Chainlink ETH/USD price feed.
+     */
+    function priceFeed() external view returns (AggregatorV3Interface);
+
+    /**
+     * @notice Chainlink L2 sequencer uptime feed.
+     */
+    function uptimeFeed() external view returns (AggregatorV3Interface);
+
+    /**
+     * @notice Block timestamp at which this contract will no longer accept storage rent payments.
+     *         Changeable by owner.
+     */
+    function deprecationTimestamp() external view returns (uint256);
+
+    /**
+     * @notice Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD.
+     *         Changeable by owner.
+     */
+    function usdUnitPrice() external view returns (uint256);
+
+    /**
+     * @notice A fixed ETH/USD price which overrides the Chainlink feed. If this value is nonzero,
+     *         we disable external calls to the price feed and use this price. Changeable by owner.
+     *         To be used in the event of a price feed failure.
+     */
+    function fixedEthUsdPrice() external view returns (uint256);
+
+    /**
+     * @notice Total capacity of storage units. Changeable by owner.
+     */
+    function maxUnits() external view returns (uint256);
+
+    /**
+     * @notice Duration to cache ethUsdPrice before updating from the price feed. Changeable by owner.
+     */
+    function priceFeedCacheDuration() external view returns (uint256);
+
+    /**
+     * @notice Max age of a price feed answer before it is considered stale. Changeable by owner.
+     */
+    function priceFeedMaxAge() external view returns (uint256);
+
+    /**
+     * @notice Lower bound on acceptable price feed answer. Changeable by owner.
+     */
+    function priceFeedMinAnswer() external view returns (uint256);
+
+    /**
+     * @notice Upper bound on acceptable price feed answer. Changeable by owner.
+     */
+    function priceFeedMaxAnswer() external view returns (uint256);
+
+    /**
+     * @notice Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
+     *         See: https://docs.chain.link/data-feeds/l2-sequencer-feeds. Changeable by owner.
+     */
+    function uptimeFeedGracePeriod() external view returns (uint256);
+
+    /**
+     * @notice Address to which the treasurer role can withdraw funds. Changeable by owner.
+     */
+    function vault() external view returns (address);
+
+    /**
+     * @notice Total number of storage units that have been rented.
+     */
+    function rentedUnits() external view returns (uint256);
+
+    /**
+     * @notice Cached Chainlink ETH/USD price.
+     */
+    function ethUsdPrice() external view returns (uint256);
+
+    /**
+     * @notice Previously cached Chainlink ETH/USD price.
+     */
+    function prevEthUsdPrice() external view returns (uint256);
+
+    /**
+     * @notice Timestamp of the last update to ethUsdPrice.
+     */
+    function lastPriceFeedUpdateTime() external view returns (uint256);
+
+    /**
+     * @notice Block number of the last update to ethUsdPrice.
+     */
+    function lastPriceFeedUpdateBlock() external view returns (uint256);
+
+    /*//////////////////////////////////////////////////////////////
                         STORAGE RENTAL LOGIC
     //////////////////////////////////////////////////////////////*/
 

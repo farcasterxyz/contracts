@@ -3,6 +3,49 @@ pragma solidity ^0.8.21;
 
 interface IIdRegistry {
     /*//////////////////////////////////////////////////////////////
+                              CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Contract version specified in the Farcaster protocol version scheme.
+     */
+    function VERSION() external view returns (string memory);
+
+    /**
+     * @notice EIP-712 typehash for Register signatures.
+     */
+    function REGISTER_TYPEHASH() external view returns (bytes32);
+
+    /**
+     * @notice EIP-712 typehash for Transfer signatures.
+     */
+    function TRANSFER_TYPEHASH() external view returns (bytes32);
+
+    /**
+     * @notice EIP-712 typehash for ChangeRecoveryAddress signatures.
+     */
+    function CHANGE_RECOVERY_ADDRESS_TYPEHASH() external view returns (bytes32);
+
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice The last Farcaster id that was issued.
+     */
+    function idCounter() external view returns (uint256);
+
+    /**
+     * @notice Maps each address to an fid, or zero if it does not own an fid.
+     */
+    function idOf(address owner) external view returns (uint256 fid);
+
+    /**
+     * @notice Maps each fid to an address that can initiate a recovery.
+     */
+    function recoveryOf(uint256 fid) external view returns (address recovery);
+
+    /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
