@@ -5,7 +5,7 @@ import {IdRegistry} from "./IdRegistry.sol";
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
- * @title RecoveryProxy
+ * @title Farcaster RecoveryProxy
  *
  * @notice  RecoveryProxy allows the recovery execution logic to be changed
  *          without changing the recovery address.
@@ -16,6 +16,8 @@ import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
  *          multisig. This allows a recovery service operator to change the
  *          recovery mechanisms in the future without requiring each user to
  *          come online and execute a transaction.
+ *
+ * @custom:security-contact security@farcaster.xyz
  */
 contract RecoveryProxy is Ownable2Step {
     /*//////////////////////////////////////////////////////////////

@@ -10,9 +10,11 @@ import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
 /**
- * @title StorageRegistry
+ * @title Farcaster StorageRegistry
  *
- * @notice See ../docs/docs.md for an overview.
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ *
+ * @custom:security-contact security@farcaster.xyz
  */
 contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable {
     using FixedPointMathLib for uint256;

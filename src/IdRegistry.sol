@@ -11,9 +11,11 @@ import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
 /**
- * @title IdRegistry
+ * @title Farcaster IdRegistry
  *
- * @notice See ../docs/docs.md for an overview.
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ *
+ * @custom:security-contact security@farcaster.xyz
  */
 contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////

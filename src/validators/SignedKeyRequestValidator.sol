@@ -8,6 +8,13 @@ import {IMetadataValidator} from "../interfaces/IMetadataValidator.sol";
 import {IdRegistryLike} from "../interfaces/IdRegistryLike.sol";
 import {IdRegistry} from "../IdRegistry.sol";
 
+/**
+ * @title Farcaster SignedKeyRequestValidator
+ *
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ *
+ * @custom:security-contact security@farcaster.xyz
+ */
 contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS

@@ -13,11 +13,12 @@ import {Signatures} from "./lib/Signatures.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
 /**
- * @title KeyRegistry
+ * @title Farcaster KeyRegistry
  *
- * @notice See ../docs/docs.md for an overview.
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ *
+ * @custom:security-contact security@farcaster.xyz
  */
-
 contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
