@@ -126,6 +126,13 @@ interface IKeyRegistry {
      */
     function keyDataOf(uint256 fid, bytes calldata key) external view returns (KeyData memory);
 
+    /**
+     * @notice Check if the contract has been migrated.
+     *
+     * @return true if the contract has been migrated, false otherwise.
+     */
+    function isMigrated() external view returns (bool);
+
     /*//////////////////////////////////////////////////////////////
                               REGISTRATION
     //////////////////////////////////////////////////////////////*/

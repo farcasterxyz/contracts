@@ -225,7 +225,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Contract version specified in the Farcaster protocol version scheme.
+     * @inheritdoc IStorageRegistry
      */
     string public constant VERSION = "2023.08.23";
 
@@ -238,67 +238,62 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Chainlink ETH/USD price feed.
+     * @inheritdoc IStorageRegistry
      */
     AggregatorV3Interface public priceFeed;
 
     /**
-     * @dev Chainlink L2 sequencer uptime feed.
+     * @inheritdoc IStorageRegistry
      */
     AggregatorV3Interface public uptimeFeed;
 
     /**
-     * @dev Block timestamp at which this contract will no longer accept storage rent payments.
-     *      Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public deprecationTimestamp;
 
     /**
-     * @dev Price per storage unit in USD. Fixed point value with 8 decimals, e.g. 5e8 = $5 USD.
-     *      Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public usdUnitPrice;
 
     /**
-     * @dev A fixed ETH/USD price which overrides the Chainlink feed. If this value is nonzero,
-     *      we disable external calls to the price feed and use this price. Changeable by owner.
-     *      To be used in the event of a price feed failure.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public fixedEthUsdPrice;
 
     /**
-     * @dev Total capacity of storage units. Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public maxUnits;
 
     /**
-     * @dev Duration to cache ethUsdPrice before updating from the price feed. Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public priceFeedCacheDuration;
 
     /**
-     * @dev Max age of a price feed answer before it is considered stale. Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public priceFeedMaxAge;
 
     /**
-     * @dev Lower bound on acceptable price feed answer. Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public priceFeedMinAnswer;
 
     /**
-     * @dev Upper bound on acceptable price feed answer. Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public priceFeedMaxAnswer;
 
     /**
-     * @dev Period in seconds to wait after the L2 sequencer restarts before resuming rentals.
-     *      See: https://docs.chain.link/data-feeds/l2-sequencer-feeds. Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public uptimeFeedGracePeriod;
 
     /**
-     * @dev Address to which the treasurer role can withdraw funds. Changeable by owner.
+     * @inheritdoc IStorageRegistry
      */
     address public vault;
 
@@ -307,27 +302,27 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Total number of storage units that have been rented.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public rentedUnits;
 
     /**
-     * @dev Cached Chainlink ETH/USD price.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public ethUsdPrice;
 
     /**
-     * @dev Previously cached Chainlink ETH/USD price.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public prevEthUsdPrice;
 
     /**
-     * @dev Timestamp of the last update to ethUsdPrice.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public lastPriceFeedUpdateTime;
 
     /**
-     * @dev Block number of the last update to ethUsdPrice.
+     * @inheritdoc IStorageRegistry
      */
     uint256 public lastPriceFeedUpdateBlock;
 
@@ -431,17 +426,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Rent storage for a given fid for a year. The caller must provide at least
-     *         price(units) wei of payment. Any excess payment will be refunded to the caller. Hubs
-     *         will issue storage for 365 days + 30 day grace period after which it expires.
-     *
-     *         RentedUnits is never decremented on the contract even as the assigned storage expires
-     *         on the hubs. This is done to keep the contract simple since we expect to launch a new
-     *         storage contract within the year and deprecate this one. Even if that does not occur,
-     *         the existing maxUnits parameter can be tweaked to account for expired units.
-     *
-     * @param fid   The fid that will receive the storage units.
-     * @param units Number of storage units to rent.
+     * @inheritdoc IStorageRegistry
      */
     function rent(
         uint256 fid,
@@ -466,12 +451,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Rent storage for multiple fids for a year. The caller must provide at least
-     *         price(units) wei of payment where units is the sum of storage units requested across
-     *         the fids. See comments on rent() for additional details.
-     *
-     * @param fids  An array of fids.
-     * @param units An array of storage unit quantities. Must be the same length as the fids array.
+     * @inheritdoc IStorageRegistry
      */
     function batchRent(
         uint256[] calldata fids,
@@ -512,19 +492,14 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Calculate the cost in wei to rent one storage unit.
-     *
-     * @return uint256 cost in wei.
+     * @inheritdoc IStorageRegistry
      */
     function unitPrice() external view returns (uint256) {
         return price(1);
     }
 
     /**
-     * @notice Calculate the cost in wei to rent the given number of storage units.
-     *
-     * @param units Number of storage units.
-     * @return uint256 cost in wei.
+     * @inheritdoc IStorageRegistry
      */
     function price(uint256 units) public view returns (uint256) {
         uint256 ethPrice;
@@ -665,10 +640,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Credit a single fid with free storage units. Only callable by operator.
-     *
-     * @param fid   The fid that will receive the credit.
-     * @param units Number of storage units to credit.
+     * @inheritdoc IStorageRegistry
      */
     function credit(uint256 fid, uint256 units) external onlyOperator whenNotDeprecated whenNotPaused {
         if (units == 0) revert InvalidAmount();
@@ -679,10 +651,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Credit multiple fids with free storage units. Only callable by operator.
-     *
-     * @param fids  An array of fids.
-     * @param units Number of storage units per fid.
+     * @inheritdoc IStorageRegistry
      */
     function batchCredit(
         uint256[] calldata fids,
@@ -698,11 +667,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Credit a continuous sequence of fids with free storage units. Only callable by operator.
-     *
-     * @param start Lowest fid in sequence (inclusive).
-     * @param end   Highest fid in sequence (inclusive).
-     * @param units Number of storage units per fid.
+     * @inheritdoc IStorageRegistry
      */
     function continuousCredit(
         uint256 start,
@@ -722,7 +687,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Force refresh the cached Chainlink ETH/USD price. Callable by owner and treasurer.
+     * @inheritdoc IStorageRegistry
      */
     function refreshPrice() external {
         if (!hasRole(OWNER_ROLE, msg.sender) && !hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
@@ -730,9 +695,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the price feed addresss. Callable by owner.
-     *
-     * @param feed The new price feed.
+     * @inheritdoc IStorageRegistry
      */
     function setPriceFeed(AggregatorV3Interface feed) external onlyOwner {
         emit SetPriceFeed(address(priceFeed), address(feed));
@@ -740,9 +703,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the uptime feed addresss. Callable by owner.
-     *
-     * @param feed The new uptime feed.
+     * @inheritdoc IStorageRegistry
      */
     function setUptimeFeed(AggregatorV3Interface feed) external onlyOwner {
         emit SetUptimeFeed(address(uptimeFeed), address(feed));
@@ -750,9 +711,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the USD price per storage unit. Callable by owner.
-     *
-     * @param usdPrice The new unit price in USD. Fixed point value with 8 decimals.
+     * @inheritdoc IStorageRegistry
      */
     function setPrice(uint256 usdPrice) external onlyOwner {
         emit SetPrice(usdUnitPrice, usdPrice);
@@ -760,13 +719,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Set the fixed ETH/USD price, disabling the price feed if the value is
-     *         nonzero. This is an emergency fallback in case of a price feed failure.
-     *         Only callable by owner.
-     *
-     * @param fixedPrice The new fixed ETH/USD price. Fixed point value with 8 decimals.
-     *                   Setting this value back to zero from a nonzero value will
-     *                   re-enable the price feed.
+     * @inheritdoc IStorageRegistry
      */
     function setFixedEthUsdPrice(uint256 fixedPrice) external onlyOwner {
         if (fixedPrice != 0) {
@@ -777,9 +730,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the maximum supply of storage units. Only callable by owner.
-     *
-     * @param max The new maximum supply of storage units.
+     * @inheritdoc IStorageRegistry
      */
     function setMaxUnits(uint256 max) external onlyOwner {
         emit SetMaxUnits(maxUnits, max);
@@ -787,9 +738,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the deprecationTimestamp. Only callable by owner.
-     *
-     * @param timestamp The new deprecationTimestamp. Must be at least equal to block.timestamp.
+     * @inheritdoc IStorageRegistry
      */
     function setDeprecationTimestamp(uint256 timestamp) external onlyOwner {
         if (timestamp < block.timestamp) revert InvalidDeprecationTimestamp();
@@ -798,9 +747,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the priceFeedCacheDuration. Only callable by owner.
-     *
-     * @param duration The new priceFeedCacheDuration.
+     * @inheritdoc IStorageRegistry
      */
     function setCacheDuration(uint256 duration) external onlyOwner {
         emit SetCacheDuration(priceFeedCacheDuration, duration);
@@ -808,9 +755,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the priceFeedMaxAge. Only callable by owner.
-     *
-     * @param age The new priceFeedMaxAge.
+     * @inheritdoc IStorageRegistry
      */
     function setMaxAge(uint256 age) external onlyOwner {
         emit SetMaxAge(priceFeedMaxAge, age);
@@ -818,9 +763,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the priceFeedMinAnswer. Only callable by owner.
-     *
-     * @param minPrice The new priceFeedMinAnswer. Must be less than current priceFeedMaxAnswer.
+     * @inheritdoc IStorageRegistry
      */
     function setMinAnswer(uint256 minPrice) external onlyOwner {
         if (minPrice >= priceFeedMaxAnswer) revert InvalidMinAnswer();
@@ -829,9 +772,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the priceFeedMaxAnswer. Only callable by owner.
-     *
-     * @param maxPrice The new priceFeedMaxAnswer. Must be greater than current priceFeedMinAnswer.
+     * @inheritdoc IStorageRegistry
      */
     function setMaxAnswer(uint256 maxPrice) external onlyOwner {
         if (maxPrice <= priceFeedMinAnswer) revert InvalidMaxAnswer();
@@ -840,9 +781,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the uptimeFeedGracePeriod. Only callable by owner.
-     *
-     * @param period The new uptimeFeedGracePeriod.
+     * @inheritdoc IStorageRegistry
      */
     function setGracePeriod(uint256 period) external onlyOwner {
         emit SetGracePeriod(uptimeFeedGracePeriod, period);
@@ -850,10 +789,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Change the vault address that can receive funds from this contract.
-     *         Only callable by owner.
-     *
-     * @param vaultAddr The new vault address.
+     * @inheritdoc IStorageRegistry
      */
     function setVault(address vaultAddr) external onlyOwner {
         if (vaultAddr == address(0)) revert InvalidAddress();
@@ -862,10 +798,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Withdraw a specified amount of ether from the contract balance to the vault.
-     *         Only callable by treasurer.
-     *
-     * @param amount The amount of ether to withdraw.
+     * @inheritdoc IStorageRegistry
      */
     function withdraw(uint256 amount) external onlyTreasurer {
         emit Withdraw(vault, amount);
@@ -873,16 +806,14 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     }
 
     /**
-     * @notice Pause, disabling rentals and credits.
-     *         Only callable by owner.
+     * @inheritdoc IStorageRegistry
      */
     function pause() external onlyOwner {
         _pause();
     }
 
     /**
-     * @notice Unpause, enabling rentals and credits.
-     *         Only callable by owner.
+     * @inheritdoc IStorageRegistry
      */
     function unpause() external onlyOwner {
         _unpause();

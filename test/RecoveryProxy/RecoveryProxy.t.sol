@@ -64,6 +64,7 @@ contract RecoveryProxyTest is RecoveryProxyTestSuite {
     }
 
     function testFuzzChangeOwner(address from, uint256 toPk, uint40 _deadline, address newOwner) public {
+        vm.assume(newOwner != owner);
         toPk = _boundPk(toPk);
         address to = vm.addr(toPk);
         vm.assume(from != to);
