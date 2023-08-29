@@ -93,22 +93,30 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Defined for compatibility with tools like Etherscan that detect fid
-     *      transfers as token transfers. This is intentionally lowercased.
+     * @inheritdoc IIdRegistry
      */
     string public constant name = "Farcaster FID";
 
     /**
-     * @dev Contract version specified using Farcaster protocol version scheme.
+     * @inheritdoc IIdRegistry
      */
     string public constant VERSION = "2023.08.23";
 
+    /**
+     * @inheritdoc IIdRegistry
+     */
     bytes32 public constant REGISTER_TYPEHASH =
         keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
 
+    /**
+     * @inheritdoc IIdRegistry
+     */
     bytes32 public constant TRANSFER_TYPEHASH =
         keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)");
 
+    /**
+     * @inheritdoc IIdRegistry
+     */
     bytes32 public constant CHANGE_RECOVERY_ADDRESS_TYPEHASH =
         keccak256("ChangeRecoveryAddress(uint256 fid,address recovery,uint256 nonce,uint256 deadline)");
 
@@ -117,17 +125,17 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev The last Farcaster id that was issued.
+     * @inheritdoc IIdRegistry
      */
     uint256 public idCounter;
 
     /**
-     * @dev Maps each address to an fid, or zero if it does not own an fid.
+     * @inheritdoc IIdRegistry
      */
     mapping(address owner => uint256 fid) public idOf;
 
     /**
-     * @dev Maps each fid to an address that can initiate a recovery.
+     * @inheritdoc IIdRegistry
      */
     mapping(uint256 fid => address recovery) public recoveryOf;
 
@@ -149,28 +157,14 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Register a new Farcaster ID (fid) to the caller. The caller must not have an fid.
-     *         The contract must not be in the Registrable (trustedOnly = 0) state.
-     *
-     * @param recovery Address which can recover the fid. Set to zero to disable recovery.
-     *
-     * @return fid registered FID.
+     * @inheritdoc IIdRegistry
      */
     function register(address recovery) external returns (uint256 fid) {
         return _register(msg.sender, recovery);
     }
 
     /**
-     * @notice Register a new Farcaster ID (fid) to any address. A signed message from the address
-     *         must be provided which approves both the to and the recovery. The address must not
-     *         have an fid. The contract must be in the Registrable (trustedOnly = 0) state.
-     *
-     * @param to       Address which will own the fid.
-     * @param recovery Address which can recover the fid. Set to zero to disable recovery.
-     * @param deadline Expiration timestamp of the signature.
-     * @param sig      EIP-712 Register signature signed by the to address.
-     *
-     * @return fid registered FID.
+     * @inheritdoc IIdRegistry
      */
     function registerFor(
         address to,
@@ -184,13 +178,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     }
 
     /**
-     * @notice Register a new Farcaster ID (fid) to any address. The address must not have an fid.
-     *         The contract must be in the Seedable (trustedOnly = 1) state.
-     *
-     * @param to       The address which will own the fid.
-     * @param recovery The address which can recover the fid.
-     *
-     * @return fid registered FID.
+     * @inheritdoc IIdRegistry
      */
     function trustedRegister(address to, address recovery) external onlyTrustedCaller returns (uint256 fid) {
         fid = _unsafeRegister(to, recovery);
@@ -229,12 +217,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Transfer the fid owned by this address to another address that does not have an fid.
-     *         A signed Transfer message from the destination address must be provided.
-     *
-     * @param to       The address to transfer the fid to.
-     * @param deadline Expiration timestamp of the signature.
-     * @param sig      EIP-712 Transfer signature signed by the to address.
+     * @inheritdoc IIdRegistry
      */
     function transfer(address to, uint256 deadline, bytes calldata sig) external {
         address from = msg.sender;
@@ -252,16 +235,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     }
 
     /**
-     * @notice Transfer the fid owned by the from address to another address that does not
-     *         have an fid. Caller must provide two signed Transfer messages: one signed by
-     *         the from address and one signed by the to address.
-     *
-     * @param from         The owner address of the fid to transfer.
-     * @param to           The address to transfer the fid to.
-     * @param fromDeadline Expiration timestamp of the from signature.
-     * @param fromSig      EIP-712 Transfer signature signed by the from address.
-     * @param toDeadline   Expiration timestamp of the to signature.
-     * @param toSig        EIP-712 Transfer signature signed by the to address.
+     * @inheritdoc IIdRegistry
      */
     function transferFor(
         address from,
@@ -300,9 +274,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Change the recovery address of the fid owned by the caller.
-     *
-     * @param recovery The address which can recover the fid. Set to 0x0 to disable recovery.
+     * @inheritdoc IIdRegistry
      */
     function changeRecoveryAddress(address recovery) external whenNotPaused {
         /* Revert if the caller does not own an fid */
@@ -316,13 +288,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     }
 
     /**
-     * @notice Change the recovery address of fid owned by the owner. Caller must provide an
-     *         EIP-712 ChangeRecoveryAddress message signed by the owner.
-     *
-     * @param owner    Custody address of the fid whose recovery address will be changed.
-     * @param recovery The address which can recover the fid. Set to 0x0 to disable recovery.
-     * @param deadline Expiration timestamp of the ChangeRecoveryAddress signature.
-     * @param sig      EIP-712 ChangeRecoveryAddress message signed by the owner address.
+     * @inheritdoc IIdRegistry
      */
     function changeRecoveryAddressFor(
         address owner,
@@ -343,13 +309,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     }
 
     /**
-     * @notice Transfer the fid from the from address to the to address. Must be called by the
-     *         recovery address. A signed message from the to address must be provided.
-     *
-     * @param from     The address that currently owns the fid.
-     * @param to       The address to transfer the fid to.
-     * @param deadline Expiration timestamp of the signature.
-     * @param sig      EIP-712 Transfer signature signed by the to address.
+     * @inheritdoc IIdRegistry
      */
     function recover(address from, address to, uint256 deadline, bytes calldata sig) external {
         /* Revert if from does not own an fid */
@@ -371,16 +331,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     }
 
     /**
-     * @notice Transfer the fid owned by the from address to another address that does not
-     *         have an fid. Caller must provide two signed Transfer messages: one signed by
-     *         the recovery address and one signed by the to address.
-     *
-     * @param from             The owner address of the fid to transfer.
-     * @param to               The address to transfer the fid to.
-     * @param recoveryDeadline Expiration timestamp of the recovery signature.
-     * @param recoverySig      EIP-712 Transfer signature signed by the recovery address.
-     * @param toDeadline       Expiration timestamp of the to signature.
-     * @param toSig            EIP-712 Transfer signature signed by the to address.
+     * @inheritdoc IIdRegistry
      */
     function recoverFor(
         address from,
@@ -416,16 +367,14 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Pause registration, transfer, and recovery.
-     *         Must be called by the owner.
+     * @inheritdoc IIdRegistry
      */
     function pause() external onlyOwner {
         _pause();
     }
 
     /**
-     * @notice Unpause registration, transfer, and recovery.
-     *         Must be called by the owner.
+     * @inheritdoc IIdRegistry
      */
     function unpause() external onlyOwner {
         _unpause();
@@ -436,14 +385,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Verify that a signature was produced by the custody address that owns an fid.
-     *
-     * @param custodyAddress   The address to check the signature of.
-     * @param fid              The fid to check the signature of.
-     * @param digest           The digest that was signed.
-     * @param sig              The signature to check.
-     *
-     * @return isValid Whether provided signature is valid.
+     * @inheritdoc IIdRegistry
      */
     function verifyFidSignature(
         address custodyAddress,

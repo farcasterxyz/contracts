@@ -7,6 +7,12 @@ interface IIdRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Defined for compatibility with tools like Etherscan that detect fid
+     *         transfers as token transfers. This is intentionally lowercased.
+     */
+    function name() external view returns (string memory);
+
+    /**
      * @notice Contract version specified in the Farcaster protocol version scheme.
      */
     function VERSION() external view returns (string memory);
@@ -166,6 +172,27 @@ interface IIdRegistry {
         uint256 toDeadline,
         bytes calldata toSig
     ) external;
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Verify that a signature was produced by the custody address that owns an fid.
+     *
+     * @param custodyAddress   The address to check the signature of.
+     * @param fid              The fid to check the signature of.
+     * @param digest           The digest that was signed.
+     * @param sig              The signature to check.
+     *
+     * @return isValid Whether provided signature is valid.
+     */
+    function verifyFidSignature(
+        address custodyAddress,
+        uint256 fid,
+        bytes32 digest,
+        bytes calldata sig
+    ) external view returns (bool isValid);
 
     /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
