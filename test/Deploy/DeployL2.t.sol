@@ -40,7 +40,6 @@ contract DeployL2Test is DeployL2, Test {
     address internal app;
     uint256 internal appPk;
 
-    address internal deployer = address(this);
     address internal alpha = makeAddr("alpha");
     address internal beta = makeAddr("beta");
     address internal vault = makeAddr("vault");
@@ -51,6 +50,8 @@ contract DeployL2Test is DeployL2, Test {
 
     // @dev OP Mainnet sequencer uptime feed
     address internal uptimeFeed = address(0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389);
+
+    address internal deployer = address(0x6D2b70e39C6bc63763098e336323591eb77Cd0C6);
 
     function setUp() public {
         vm.createSelectFork("l2_mainnet");
@@ -78,8 +79,10 @@ contract DeployL2Test is DeployL2, Test {
             deployer: deployer
         });
 
+        vm.startPrank(deployer);
         DeployL2.Contracts memory contracts = runDeploy(params, false);
         runSetup(contracts, params, false);
+        vm.stopPrank();
 
         storageRegistry = contracts.storageRegistry;
         idRegistry = contracts.idRegistry;
