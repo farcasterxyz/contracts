@@ -8,6 +8,13 @@ import {IBundler} from "./interfaces/IBundler.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
+/**
+ * @title Farcaster Bundler
+ *
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ *
+ * @custom:security-contact security@farcaster.xyz
+ */
 contract Bundler is IBundler, TrustedCaller {
     using TransferHelper for address;
 
