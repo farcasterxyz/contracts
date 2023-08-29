@@ -29,7 +29,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
     bytes32 internal constant BUNDLER_CREATE2_SALT =
         bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6e451fc0a34ec4c008c9a31fa);
     bytes32 internal constant RECOVERY_PROXY_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c63f5aeb3ca385240029dc78fe);
+        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6110eaaca06f77900dac1cad3);
 
     struct DeploymentParams {
         address initialIdRegistryOwner;
