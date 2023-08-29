@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
