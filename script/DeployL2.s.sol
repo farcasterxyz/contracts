@@ -19,17 +19,17 @@ contract DeployL2 is ImmutableCreate2Deployer {
     uint24 public constant KEY_REGISTRY_MIGRATION_GRACE_PERIOD = 1 days;
 
     bytes32 internal constant STORAGE_RENT_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c64ca5b8f698ba40006af55441);
+        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c65360d99ba6ea4e0161f2b96c);
     bytes32 internal constant ID_REGISTRY_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6c17f2545f7f321033d058399);
+        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c63e0688f6d95afa008febf4d7);
     bytes32 internal constant KEY_REGISTRY_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c61cfdac57930bbf02f9bf306b);
+        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c62af4de6e1f0355029f357f47);
     bytes32 internal constant SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6034573d08102c1025c2a4b0a);
+        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6610c0841333604016684800c);
     bytes32 internal constant BUNDLER_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c65c016829deb72903e93e5d10);
+        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6e451fc0a34ec4c008c9a31fa);
     bytes32 internal constant RECOVERY_PROXY_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6f1a1a35faf58f403ecfeeddb);
+        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c63f5aeb3ca385240029dc78fe);
 
     struct DeploymentParams {
         address initialIdRegistryOwner;

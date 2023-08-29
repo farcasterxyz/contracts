@@ -11,6 +11,7 @@ remappings = [
 ]
 no_match_path = "test/Deploy/*"
 libs = ["node_modules", "lib"]
+bytecode_hash = 'none'
 
 [profile.ci]
 verbosity = 3
