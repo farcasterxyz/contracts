@@ -30,6 +30,10 @@ jobs:
       - name: Install Docker buildx
         uses: docker/setup-buildx-action@v2
 
+      - name: Copy .env.example
+        run: cp .env.example .env
+        shell: bash
+
       - name: Build Docker images defined in Docker Compose file
         uses: docker/bake-action@v3
         with:
@@ -48,6 +52,42 @@ jobs:
           shell: bash
           command: '[ "$(cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266)" = 10000000000000000000000 ]' # Default address
           on_retry_command: docker compose logs
+
+      - name: Wait for contract to be deployed
+        uses: nick-fields/retry@v2
+        with:
+          timeout_seconds: 5
+          retry_wait_seconds: 5
+          max_attempts: 10
+          shell: bash
+          command: |
+            set -e -o pipefail
+            docker compose logs | grep Bundler | awk '{ print $5 }'
+          on_retry_command: docker compose logs
+
+      - name: Get contract addresses
+        run: |
+          echo "ID_CONTRACT_ADDRESS=$(docker compose logs | grep IdRegistry | awk '{ print $5 }')" >> $GITHUB_ENV
+          echo "KEY_CONTRACT_ADDRESS=$(docker compose logs | grep KeyRegistry | awk '{ print $5 }')" >> $GITHUB_ENV
+          echo "STORAGE_CONTRACT_ADDRESS=$(docker compose logs | grep StorageRegistry | awk '{ print $5 }')" >> $GITHUB_ENV
+          echo "BUNDLER_CONTRACT_ADDRESS=$(docker compose logs | grep Bundler | awk '{ print $5 }')" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Confirm ID Registry contract was deployed
+        shell: bash
+        run: '[ $(cast call $ID_CONTRACT_ADDRESS "owner()") = 0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266 ]'
+
+      - name: Confirm Key Registry contract was deployed
+        shell: bash
+        run: '[ $(cast call $KEY_CONTRACT_ADDRESS "owner()") = 0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266 ]'
+
+      - name: Confirm Storage Registry contract was deployed
+        shell: bash
+        run: '[ $(cast call $STORAGE_CONTRACT_ADDRESS "paused()") = 0x0000000000000000000000000000000000000000000000000000000000000000 ]'
+
+      - name: Confirm Bundler contract was deployed
+        shell: bash
+        run: '[ $(cast call $BUNDLER_CONTRACT_ADDRESS "owner()") = 0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266 ]'
 
   test:
     strategy:

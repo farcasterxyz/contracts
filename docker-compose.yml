@@ -60,6 +60,7 @@ services:
     entrypoint: |
       sh -c '
         set -e
+        git config --global --add safe.directory "*"
         export RPC_URL="http://l2-anvil:${PORT:-8545}"
         echo "Waiting for Anvil..."
         while ! nc -z l2-anvil "${PORT:-8545}"; do sleep 0.1; done
@@ -100,6 +101,7 @@ services:
     entrypoint: |
       sh -c '
         set -e
+        git config --global --add safe.directory "*"
         export RPC_URL="http://l1-anvil:${PORT:-8545}"
         echo "Waiting for Anvil..."
         while ! nc -z l1-anvil "${PORT:-8545}"; do sleep 0.1; done

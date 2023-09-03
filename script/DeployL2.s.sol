@@ -19,17 +19,17 @@ contract DeployL2 is ImmutableCreate2Deployer {
     uint24 public constant KEY_REGISTRY_MIGRATION_GRACE_PERIOD = 1 days;
 
     bytes32 internal constant STORAGE_RENT_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c65360d99ba6ea4e0161f2b96c);
+        bytes32(0);
     bytes32 internal constant ID_REGISTRY_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c63e0688f6d95afa008febf4d7);
+        bytes32(0);
     bytes32 internal constant KEY_REGISTRY_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c62af4de6e1f0355029f357f47);
+        bytes32(0);
     bytes32 internal constant SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6610c0841333604016684800c);
+        bytes32(0);
     bytes32 internal constant BUNDLER_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6e451fc0a34ec4c008c9a31fa);
+        bytes32(0);
     bytes32 internal constant RECOVERY_PROXY_CREATE2_SALT =
-        bytes32(0x6d2b70e39c6bc63763098e336323591eb77cd0c6110eaaca06f77900dac1cad3);
+        bytes32(0);
 
     struct DeploymentParams {
         address initialIdRegistryOwner;
