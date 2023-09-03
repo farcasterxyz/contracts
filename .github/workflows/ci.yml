@@ -14,6 +14,41 @@ env:
 
 
 jobs:
+  build-image:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install Docker buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker images defined in Docker Compose file
+        uses: docker/bake-action@v3
+        with:
+          load: true # Load images into local Docker engine after build
+
+      - name: Run containers defined in Docker Compose
+        shell: bash
+        run: docker compose up --detach
+
+      - name: Check that Anvil is running
+        uses: nick-fields/retry@v2
+        with:
+          timeout_seconds: 5
+          retry_wait_seconds: 5
+          max_attempts: 3
+          shell: bash
+          command: '[ "$(cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266)" = 10000000000000000000000 ]' # Default address
+          on_retry_command: docker compose logs
+
   test:
     strategy:
       fail-fast: true
