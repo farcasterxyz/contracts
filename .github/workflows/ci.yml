@@ -16,7 +16,7 @@ env:
 jobs:
   build-image:
     timeout-minutes: 5
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'ubuntu-latest' || 'buildjet-16vcpu-ubuntu-2204' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -94,7 +94,7 @@ jobs:
       fail-fast: true
 
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'ubuntu-latest' || 'buildjet-16vcpu-ubuntu-2204' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -120,7 +120,7 @@ jobs:
         run: forge snapshot --check --match-contract Gas
 
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'ubuntu-latest' || 'buildjet-2vcpu-ubuntu-2204' }}
     steps:
       - uses: actions/checkout@v3
 
