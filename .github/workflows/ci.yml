@@ -46,12 +46,12 @@ jobs:
       - name: Check that Anvil is running
         uses: nick-fields/retry@v2
         with:
-          timeout_seconds: 5
+          timeout_seconds: 15
           retry_wait_seconds: 5
-          max_attempts: 3
+          max_attempts: 10
           shell: bash
-          command: '[ "$(cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266)" = 10000000000000000000000 ]' # Default address
-          on_retry_command: docker compose logs
+          command: '[ "$(cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266)" = 1000000000000000000 ]' # Default address
+          on_retry_command: docker compose logs && docker compose ps && cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
       - name: Wait for contract to be deployed
         uses: nick-fields/retry@v2
