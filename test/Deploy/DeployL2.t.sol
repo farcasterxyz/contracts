@@ -76,7 +76,15 @@ contract DeployL2Test is DeployL2, Test {
             operator: relayer,
             treasurer: relayer,
             bundlerTrustedCaller: relayer,
-            deployer: deployer
+            deployer: deployer,
+            salts: DeployL2.Salts({
+                storageRegistry: 0,
+                idRegistry: 0,
+                keyRegistry: 0,
+                signedKeyRequestValidator: 0,
+                bundler: 0,
+                recoveryProxy: 0
+            })
         });
 
         vm.startPrank(deployer);

@@ -60,12 +60,15 @@ services:
     entrypoint: |
       sh -c '
         set -e
+        git config --global --add safe.directory "*"
         export RPC_URL="http://l2-anvil:${PORT:-8545}"
         echo "Waiting for Anvil..."
         while ! nc -z l2-anvil "${PORT:-8545}"; do sleep 0.1; done
         echo "Anvil online"
         echo "Enabling impersonation"
         cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
+        echo "Funding deployer"
+        cast rpc anvil_setBalance "$$DEPLOYER" 0xde0b6b3a7640000 --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploying contract"
         forge install
         forge script -v script/DeployL2.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
@@ -100,12 +103,15 @@ services:
     entrypoint: |
       sh -c '
         set -e
+        git config --global --add safe.directory "*"
         export RPC_URL="http://l1-anvil:${PORT:-8545}"
         echo "Waiting for Anvil..."
         while ! nc -z l1-anvil "${PORT:-8545}"; do sleep 0.1; done
         echo "Anvil online"
         echo "Enabling impersonation"
         cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
+        echo "Funding deployer"
+        cast rpc anvil_setBalance "$$DEPLOYER" 0xde0b6b3a7640000 --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploying contract"
         forge install
         forge script -v script/DeployL1.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
