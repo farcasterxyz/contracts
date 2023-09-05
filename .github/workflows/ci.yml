@@ -30,8 +30,8 @@ jobs:
       - name: Install Docker buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Copy .env.example
-        run: cp .env.example .env
+      - name: Copy .env.local
+        run: cp .env.local .env
         shell: bash
 
       - name: Build Docker images defined in Docker Compose file
