@@ -18,18 +18,14 @@ contract DeployL2 is ImmutableCreate2Deployer {
 
     uint24 public constant KEY_REGISTRY_MIGRATION_GRACE_PERIOD = 1 days;
 
-    bytes32 internal constant STORAGE_RENT_CREATE2_SALT =
-        bytes32(0);
-    bytes32 internal constant ID_REGISTRY_CREATE2_SALT =
-        bytes32(0);
-    bytes32 internal constant KEY_REGISTRY_CREATE2_SALT =
-        bytes32(0);
-    bytes32 internal constant SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT =
-        bytes32(0);
-    bytes32 internal constant BUNDLER_CREATE2_SALT =
-        bytes32(0);
-    bytes32 internal constant RECOVERY_PROXY_CREATE2_SALT =
-        bytes32(0);
+    struct Salts {
+        bytes32 storageRegistry;
+        bytes32 idRegistry;
+        bytes32 keyRegistry;
+        bytes32 signedKeyRequestValidator;
+        bytes32 bundler;
+        bytes32 recoveryProxy;
+    }
 
     struct DeploymentParams {
         address initialIdRegistryOwner;
@@ -46,6 +42,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
         address treasurer;
         address bundlerTrustedCaller;
         address deployer;
+        Salts salts;
     }
 
     struct Contracts {
@@ -68,7 +65,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
     function runDeploy(DeploymentParams memory params, bool broadcast) public returns (Contracts memory) {
         address storageRegistry = register(
             "StorageRegistry",
-            STORAGE_RENT_CREATE2_SALT,
+            params.salts.storageRegistry,
             type(StorageRegistry).creationCode,
             abi.encode(
                 params.priceFeed,
@@ -83,22 +80,22 @@ contract DeployL2 is ImmutableCreate2Deployer {
             )
         );
         address idRegistry =
-            register("IdRegistry", ID_REGISTRY_CREATE2_SALT, type(IdRegistry).creationCode, abi.encode(params.deployer));
+            register("IdRegistry", params.salts.idRegistry, type(IdRegistry).creationCode, abi.encode(params.deployer));
         address keyRegistry = register(
             "KeyRegistry",
-            KEY_REGISTRY_CREATE2_SALT,
+            params.salts.keyRegistry,
             type(KeyRegistry).creationCode,
             abi.encode(idRegistry, params.deployer)
         );
         address signedKeyRequestValidator = register(
             "SignedKeyRequestValidator",
-            SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT,
+            params.salts.signedKeyRequestValidator,
             type(SignedKeyRequestValidator).creationCode,
             abi.encode(idRegistry, params.initialValidatorOwner)
         );
         address bundler = register(
             "Bundler",
-            BUNDLER_CREATE2_SALT,
+            params.salts.bundler,
             type(Bundler).creationCode,
             abi.encode(
                 idRegistry, storageRegistry, keyRegistry, params.bundlerTrustedCaller, params.initialBundlerOwner
@@ -106,7 +103,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
         );
         address recoveryProxy = register(
             "RecoveryProxy",
-            RECOVERY_PROXY_CREATE2_SALT,
+            params.salts.recoveryProxy,
             type(RecoveryProxy).creationCode,
             abi.encode(idRegistry, params.initialRecoveryProxyOwner)
         );
@@ -150,7 +147,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
         runSetup(contracts, params, true);
     }
 
-    function loadDeploymentParams() internal view returns (DeploymentParams memory) {
+    function loadDeploymentParams() internal returns (DeploymentParams memory) {
         return DeploymentParams({
             initialIdRegistryOwner: vm.envAddress("ID_REGISTRY_OWNER_ADDRESS"),
             initialKeyRegistryOwner: vm.envAddress("KEY_REGISTRY_OWNER_ADDRESS"),
@@ -165,7 +162,15 @@ contract DeployL2 is ImmutableCreate2Deployer {
             operator: vm.envAddress("STORAGE_RENT_OPERATOR_ADDRESS"),
             treasurer: vm.envAddress("STORAGE_RENT_TREASURER_ADDRESS"),
             bundlerTrustedCaller: vm.envAddress("BUNDLER_TRUSTED_CALLER_ADDRESS"),
-            deployer: vm.envAddress("DEPLOYER")
+            deployer: vm.envAddress("DEPLOYER"),
+            salts: Salts({
+                storageRegistry: vm.envOr("STORAGE_RENT_CREATE2_SALT", bytes32(0)),
+                idRegistry: vm.envOr("ID_REGISTRY_CREATE2_SALT", bytes32(0)),
+                keyRegistry: vm.envOr("KEY_REGISTRY_CREATE2_SALT", bytes32(0)),
+                signedKeyRequestValidator: vm.envOr("SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT", bytes32(0)),
+                bundler: vm.envOr("BUNDLER_CREATE2_SALT", bytes32(0)),
+                recoveryProxy: vm.envOr("RECOVERY_PROXY_CREATE2_SALT", bytes32(0))
+            })
         });
     }
 }
