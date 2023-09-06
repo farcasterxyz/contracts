@@ -119,6 +119,26 @@ jobs:
       - name: Check forge snapshots
         run: forge snapshot --check --match-contract Gas
 
+  halmos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install halmos
+        run: pip install halmos
+
+      - name: Run halmos
+        run: halmos --error-unknown --test-parallel --solver-parallel --solver-timeout-assertion 0
+
   coverage:
     runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'ubuntu-latest' || 'buildjet-2vcpu-ubuntu-2204' }}
     steps:
