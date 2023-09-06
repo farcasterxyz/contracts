@@ -4,17 +4,17 @@ pragma solidity ^0.8.19;
 import {SymTest} from "halmos-cheatcodes/SymTest.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {IdRegistryHarness} from "../Utils.sol";
+import {IdRegistry} from "../../src/IdRegistry.sol";
 
 contract IdRegistrySymTest is SymTest, Test {
-    IdRegistryHarness idRegistry;
+    IdRegistry idRegistry;
     address trustedCaller;
     address x;
     address y;
 
     function setUp() public {
         // Setup IdRegistry
-        idRegistry = new IdRegistryHarness(address(this));
+        idRegistry = new IdRegistry(address(this));
 
         trustedCaller = address(0x1000);
         idRegistry.setTrustedCaller(trustedCaller);
@@ -167,12 +167,37 @@ contract IdRegistrySymTest is SymTest, Test {
             );
         } else if (selector == idRegistry.transfer.selector) {
             args = abi.encode(svm.createAddress("to"), svm.createUint256("deadline"), svm.createBytes(65, "sig"));
+        } else if (selector == idRegistry.transferFor.selector) {
+            args = abi.encode(
+                svm.createAddress("from"),
+                svm.createAddress("to"),
+                svm.createUint256("fromDeadline"),
+                svm.createBytes(65, "fromSig"),
+                svm.createUint256("toDeadline"),
+                svm.createBytes(65, "toSig")
+            );
+        } else if (selector == idRegistry.changeRecoveryAddressFor.selector) {
+            args = abi.encode(
+                svm.createAddress("owner"),
+                svm.createAddress("recovery"),
+                svm.createUint256("deadline"),
+                svm.createBytes(65, "sig")
+            );
         } else if (selector == idRegistry.recover.selector) {
             args = abi.encode(
                 svm.createAddress("from"),
                 svm.createAddress("to"),
                 svm.createUint256("deadline"),
                 svm.createBytes(65, "sig")
+            );
+        } else if (selector == idRegistry.recoverFor.selector) {
+            args = abi.encode(
+                svm.createAddress("from"),
+                svm.createAddress("to"),
+                svm.createUint256("recoveryDeadline"),
+                svm.createBytes(65, "recoverySig"),
+                svm.createUint256("toDeadline"),
+                svm.createBytes(65, "toSig")
             );
         } else if (selector == idRegistry.verifyFidSignature.selector) {
             args = abi.encode(

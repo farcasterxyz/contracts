@@ -4,21 +4,28 @@ pragma solidity ^0.8.19;
 import {SymTest} from "halmos-cheatcodes/SymTest.sol";
 import {Test} from "forge-std/Test.sol";
 
+import {IKeyRegistry} from "../../src/interfaces/IKeyRegistry.sol";
+import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
-import {IdRegistryHarness} from "../Utils.sol";
+import {IdRegistry} from "../../src/IdRegistry.sol";
+import {StubValidator} from "../Utils.sol";
 
 contract KeyRegistrySymTest is SymTest, Test {
-    IdRegistryHarness idRegistry;
+    IdRegistry idRegistry;
     address trustedCaller;
 
     KeyRegistry keyRegistry;
+    StubValidator validator;
 
     uint256 x;
     bytes xkey;
 
     function setUp() public {
+        // Setup metadata validator
+        validator = new StubValidator();
+
         // Setup IdRegistry
-        idRegistry = new IdRegistryHarness(address(this));
+        idRegistry = new IdRegistry(address(this));
 
         trustedCaller = address(0x1000);
         idRegistry.setTrustedCaller(trustedCaller);
@@ -40,11 +47,9 @@ contract KeyRegistrySymTest is SymTest, Test {
         assert(idRegistry.recoveryOf(3) == address(0x2003));
 
         // Setup KeyRegistry
-        keyRegistry = new KeyRegistry(
-            address(idRegistry),
-            address(this)
-        );
+        keyRegistry = new KeyRegistry(address(idRegistry), address(this));
         keyRegistry.setTrustedCaller(trustedCaller);
+        keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
 
         // Set initial states:
         // - fid 1: removed
@@ -53,15 +58,15 @@ contract KeyRegistrySymTest is SymTest, Test {
 
         bytes memory key1 = svm.createBytes(32, "key1");
         vm.prank(address(0x1001));
-        keyRegistry.add(1, key1, "");
+        keyRegistry.add(1, key1, 1, "");
         vm.prank(address(0x1001));
         keyRegistry.remove(key1);
-        assert(keyRegistry.keyDataOf(1, key1).state == KeyRegistry.KeyState.REMOVED);
+        assert(keyRegistry.keyDataOf(1, key1).state == IKeyRegistry.KeyState.REMOVED);
 
         bytes memory key2 = svm.createBytes(32, "key2");
         vm.prank(address(0x1002));
-        keyRegistry.add(1, key2, "");
-        assert(keyRegistry.keyDataOf(2, key2).state == KeyRegistry.KeyState.ADDED);
+        keyRegistry.add(1, key2, 1, "");
+        assert(keyRegistry.keyDataOf(2, key2).state == IKeyRegistry.KeyState.ADDED);
 
         // Create symbolic fid and key
         x = svm.createUint256("x");
@@ -87,7 +92,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         address user = svm.createAddress("user");
 
         // Record pre-state
-        KeyRegistry.KeyState oldStateX = keyRegistry.keyDataOf(x, xkey).state;
+        IKeyRegistry.KeyState oldStateX = keyRegistry.keyDataOf(x, xkey).state;
 
         uint256 oldCallerId = idRegistry.idOf(caller);
 
@@ -102,7 +107,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         vm.assume(success); // ignore reverting cases
 
         // Record post-state
-        KeyRegistry.KeyState newStateX = keyRegistry.keyDataOf(x, xkey).state;
+        IKeyRegistry.KeyState newStateX = keyRegistry.keyDataOf(x, xkey).state;
 
         // Verify invariant properties
 
@@ -111,12 +116,12 @@ contract KeyRegistrySymTest is SymTest, Test {
             // ensure that the state transition satisfies the following properties.
 
             // Ensure that the REMOVED state does not allow any state transitions.
-            assert(oldStateX != KeyRegistry.KeyState.REMOVED);
+            assert(oldStateX != IKeyRegistry.KeyState.REMOVED);
 
-            if (newStateX == KeyRegistry.KeyState.REMOVED) {
+            if (newStateX == IKeyRegistry.KeyState.REMOVED) {
                 // For a transition to REMOVED, ensure that:
                 // - The previous state must be ADD.
-                assert(oldStateX == KeyRegistry.KeyState.ADDED);
+                assert(oldStateX == IKeyRegistry.KeyState.ADDED);
                 // - The transition can only be made by remove() or removeFor()
                 if (selector == keyRegistry.remove.selector) {
                     //   - remove() must be called by the owner of fid x.
@@ -127,11 +132,11 @@ contract KeyRegistrySymTest is SymTest, Test {
                 } else {
                     assert(false);
                 }
-            } else if (newStateX == KeyRegistry.KeyState.ADDED) {
+            } else if (newStateX == IKeyRegistry.KeyState.ADDED) {
                 // For a transition to ADDED, ensure that:
                 // - The previous state must be NULL.
                 // - The transition can only be made by add(), addFor(), trustedAdd() or bulkAddKeysForMigration()
-                assert(oldStateX == KeyRegistry.KeyState.NULL);
+                assert(oldStateX == IKeyRegistry.KeyState.NULL);
                 if (selector == keyRegistry.add.selector) {
                     //   - add() must be called by the owner of fid x.
                     assert(oldCallerId == x);
@@ -151,13 +156,13 @@ contract KeyRegistrySymTest is SymTest, Test {
                 } else {
                     assert(false);
                 }
-            } else if (newStateX == KeyRegistry.KeyState.NULL) {
+            } else if (newStateX == IKeyRegistry.KeyState.NULL) {
                 // For a transition to NULL, ensure that:
                 // - The previous state must be ADDED.
                 // - The transition can only be made by bulkReset(), where:
                 //   - It must be called by the owner of KeyRegistry.
                 //   - It must be called before the key migration or within the grade period following the migration.
-                assert(oldStateX == KeyRegistry.KeyState.ADDED);
+                assert(oldStateX == IKeyRegistry.KeyState.ADDED);
                 assert(selector == keyRegistry.bulkResetKeysForMigration.selector);
                 assert(caller == address(this)); // `this` is the owner of KeyRegistry
                 assert(isNotMigratedOrGracePeriod);
@@ -175,40 +180,58 @@ contract KeyRegistrySymTest is SymTest, Test {
 
         // Create symbolic values to be included in calldata
         uint256 fid = svm.createUint256("fid");
-        uint32 scheme = uint32(svm.createUint(32, "scheme"));
+        uint32 keyType = uint32(svm.createUint(32, "keyType"));
         bytes memory key = svm.createBytes(32, "key");
+        uint8 metadataType = uint8(svm.createUint(8, "metadataType"));
         bytes memory metadata = svm.createBytes(32, "metadata");
         uint256 deadline = svm.createUint256("deadline");
         bytes memory sig = svm.createBytes(65, "sig");
 
         // Halmos requires symbolic dynamic arrays to be given with a specific size.
         // In this test, we provide arrays with length 2.
-        uint256[] memory fids = new uint256[](2);
-        fids[0] = fid;
-        fids[1] = svm.createUint256("fid2");
+        IKeyRegistry.BulkAddData[] memory addData = new IKeyRegistry.BulkAddData[](2);
+        IKeyRegistry.BulkResetData[] memory resetData = new IKeyRegistry.BulkResetData[](2);
 
-        bytes[][] memory fidKeys = new bytes[][](2);
-        fidKeys[0] = new bytes[](1);
-        fidKeys[0][0] = key;
-        fidKeys[1] = new bytes[](1);
-        fidKeys[1][0] = svm.createBytes(32, "key2");
+        // New scope, stack workaround.
+        {
+            bytes[][] memory fidKeys = new bytes[][](2);
+            fidKeys[0] = new bytes[](1);
+            fidKeys[0][0] = key;
+
+            bytes memory key2 = svm.createBytes(32, "key2");
+            fidKeys[1] = new bytes[](1);
+            fidKeys[1][0] = key2;
+
+            uint256 fid2 = svm.createUint256("fid2");
+
+            IKeyRegistry.BulkAddKey[] memory keyData1 = new IKeyRegistry.BulkAddKey[](1);
+            IKeyRegistry.BulkAddKey[] memory keyData2 = new IKeyRegistry.BulkAddKey[](1);
+            keyData1[0] = IKeyRegistry.BulkAddKey({key: key, metadata: ""});
+            keyData2[0] = IKeyRegistry.BulkAddKey({key: key2, metadata: ""});
+
+            addData[0] = IKeyRegistry.BulkAddData({fid: fid, keys: keyData1});
+            addData[1] = IKeyRegistry.BulkAddData({fid: fid2, keys: keyData2});
+
+            resetData[0] = IKeyRegistry.BulkResetData({fid: fid, keys: fidKeys[0]});
+            resetData[1] = IKeyRegistry.BulkResetData({fid: fid2, keys: fidKeys[1]});
+        }
 
         // Generate calldata based on the function selector
         bytes memory args;
         if (selector == keyRegistry.add.selector) {
-            args = abi.encode(scheme, key, metadata);
+            args = abi.encode(keyType, key, metadataType, metadata);
         } else if (selector == keyRegistry.addFor.selector) {
-            args = abi.encode(user, scheme, key, metadata, deadline, sig);
+            args = abi.encode(user, keyType, key, metadataType, metadata, deadline, sig);
         } else if (selector == keyRegistry.trustedAdd.selector) {
-            args = abi.encode(user, scheme, key, metadata);
+            args = abi.encode(user, keyType, key, metadataType, metadata);
         } else if (selector == keyRegistry.remove.selector) {
             args = abi.encode(key);
         } else if (selector == keyRegistry.removeFor.selector) {
             args = abi.encode(user, key, deadline, sig);
         } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
-            args = abi.encode(fids, fidKeys, metadata);
+            args = abi.encode(addData);
         } else if (selector == keyRegistry.bulkResetKeysForMigration.selector) {
-            args = abi.encode(fids, fidKeys);
+            args = abi.encode(resetData);
         } else {
             // For functions where all parameters are static (not dynamic arrays or bytes),
             // a raw byte array is sufficient instead of explicitly specifying each argument.
