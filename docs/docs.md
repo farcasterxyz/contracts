@@ -2,7 +2,7 @@
 
 Users create accounts by registering with on-chain contracts. Farcaster contracts help set up identity key pairs, signing key pairs, usernames and with acquiring storage on off-chain systems. Contracts are deployed across multiple chains and off-chain services track the state of the these contracts by watching for events.
 
-This documentation is focussed on the contracts but also clarifies assumptions made by off-chain services. For a full overview of the Farcaster protocol, please [read the docs](https://docs.farcaster.xyz/) or watch the [overview videos](https://www.youtube.com/playlist?list=PL0eq1PLf6eUdm35v_840EGLXkVJDhxhcF).
+This documentation is focused on the contracts but also clarifies assumptions made by off-chain services. For a full overview of the Farcaster protocol, please [read the docs](https://docs.farcaster.xyz/) or watch the [overview videos](https://www.youtube.com/playlist?list=PL0eq1PLf6eUdm35v_840EGLXkVJDhxhcF).
 
 ```mermaid
 
@@ -23,8 +23,10 @@ graph TD
     end
 
     subgraph ETHL2["Ethereum L2: OP Mainnet"]
-    BN(Bundler) --> IR(Id Registry) & SR(Storage Registry) & KR(Key Registry)
+    RP(Recovery Proxy) --> IR(Id Registry)
+    BN(Bundler) --> IR & SR(Storage Registry) & KR(Key Registry)
     KR --> IR
+    KR --> SKRV(Signed Key Request Validator)
     end
 
 
@@ -40,7 +42,9 @@ graph TD
    1. [Id Registry](#11-id-registry)
    2. [Storage Registry](#12-storage-registry)
    3. [Key Registry](#13-key-registry)
-   4. [Bundler](#14-bundler)
+   4. [Validators](#14-validators)
+   5. [Bundler](#15-bundler)
+   6. [Recovery Proxy](#16-recovery-proxy)
 2. [L1 Contracts](#2-l1-contracts)
    1. [Fname Resolver](#21-fname-resolver)
 3. [Off-chain Systems](#3-off-chain-systems)
@@ -160,18 +164,23 @@ The StorageRegistry contract may need to be upgraded in case a bug is discovered
 
 ## 1.3. Key Registry
 
-The Key Registry contract lets addresses with an fid add or remove public keys. Keys added onchain are tracked by Hubs and can be used to sign Farcaster messages. The same key can be added by different fids and can exist in different states. Keys contain a scheme that indicates how they should be interpreted and used. During registration, metadata can also be emitted to provide additional context about the key.
+The Key Registry contract lets addresses with an fid add or remove public keys. Keys added onchain are tracked by Hubs and can be used to sign Farcaster messages. The same key can be added by different fids and can exist in different states. Keys contain a key type that indicates how they should be interpreted and used. During registration, metadata can also be emitted to provide additional context about the key. Keys contain a metadata type indicating how this metadata should be validated and interpreted. The Key Registry validates metadata at registration time and rejects keys with invalid metadata.
 
-### Schemes
+### Key Types
 
-The only scheme today is SCHEME_1 that indicates that a key is an EdDSA key and should be allowed to sign messages on behalf of this fid on Farcaster Hubs.
+The only key type today is TYPE_1 that indicates that a key is an EdDSA key and should be allowed to sign messages on behalf of this fid on Farcaster Hubs.
+
+### Metadata Types
+
+Key types may have multiple associated metadata types, indicating how their associated metadata should be validated and interpreted. The only metadata type today is key TYPE_1, metadata TYPE_1, for "signed key request" metadata. See section [1.4.1](#141-signed-key-request-validator) for more on signed key requests.
 
 ### Invariants
 
 1. Addition: A key can only move to the added state if it was previously in the null state.
-2. Removal: A key can only move to the removed state if it was previously in the added state.
-3. Reset: A key can only move to the null state if it was previously in the added state, the contract hasn't been migrated, and the action was performed by the owner.
-4. Events: Event invariants are specified in comments above each event.
+2. Valid metadata: A key can only move to the added state if its metadata passes validation.
+3. Removal: A key can only move to the removed state if it was previously in the added state.
+4. Reset: A key can only move to the null state if it was previously in the added state, the contract hasn't been migrated, and the action was performed by the owner.
+5. Events: Event invariants are specified in comments above each event.
 
 ### Assumptions
 
@@ -222,9 +231,29 @@ The KeyRegistry contract may need to be upgraded in case a bug is discovered or 
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The contract is set to untrusted state where anyone can register keys.
 
-## 1.4. Bundler
+## 1.4 Validators
+
+Validators are single purpose contracts that implement a simple interface to validate key metadata. At registration time, the Key Registry looks up the associated validator by key type and metadata type, and calls it to validate the format of provided metadata. This makes the key registry extensible to future key types and metadata formats.
+
+### 1.4.1 Signed Key Request Validator
+
+The only validator today is the Signed Key Request Validator, which validates that EdDSA key metadata is a "signed key request." A signed key request represents a third party request to add a public key associated with an fid. Requesting parties must own an fid in order to identify their key requests, and sign a message over their fid and the public key in order to authenticate their request. This allows third party applications requesting signer keys to identify themselves to users, and users to validate the authenticity of signer requests before approving them onchain.
+
+#### Administration
+
+An `owner` can update the address of the Id Registry contract.
+
+## 1.5. Bundler
 
 The Bundler contract lets a caller register an fid, rent storage units and register a key in a single transaction to save gas. It is a simple wrapper around contract methods and contains little logic beyond tracking contract addresses, collecting parameters and invoking the appropriate functions.
+
+## 1.6 Recovery Proxy
+
+The Recovery Proxy is an immutable proxy contract that allows the recovery execution logic to change without changing the recovery address associated with an fid. A client or recovery service operator can deploy a recovery proxy and use it as the recovery address for fids. For example, the Warpcast client uses a recovery proxy owned by a 2/3 multisig as the default recovery address for new accounts.
+
+#### Administration
+
+A recovery proxy can change its `owner`, and may be owned by an EOA, multisig, or smart contract. 
 
 # 2. L1 Contracts
 
