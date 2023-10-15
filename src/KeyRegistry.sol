@@ -27,6 +27,9 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     /// @dev Revert if a key violates KeyState transition rules.
     error InvalidState();
 
+    /// @dev Revert if adding a key exceeds the maximum number of allowed keys per fid.
+    error ExceedsMaximum();
+
     /// @dev Revert if a validator has not been registered for this keyType and metadataType.
     error ValidatorNotFound(uint32 keyType, uint8 metadataType);
 
@@ -162,6 +165,8 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
      */
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
+    event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
+
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -203,6 +208,16 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
      */
     uint40 public keysMigratedAt;
 
+    uint256 public maxKeysPerFid;
+
+    /**
+     * @dev Mapping of fid to number of registered keys.
+     *
+     * @custom:param fid       The fid associated with the keys.
+     * @custom:param count     Number of registered keys
+     */
+    mapping(uint256 fid => uint256 count) public totalKeys;
+
     /**
      * @dev Mapping of fid to a key to the key's data.
      *
@@ -229,14 +244,19 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     /**
      * @notice Set the IdRegistry and owner.
      *
-     * @param _idRegistry   IdRegistry contract address.
-     * @param _initialOwner Initial contract owner address.
+     * @param _idRegistry    IdRegistry contract address.
+     * @param _initialOwner  Initial contract owner address.
+     * @param _maxKeysPerFid Maximum number of keys per fid.
      */
     constructor(
         address _idRegistry,
-        address _initialOwner
+        address _initialOwner,
+        uint256 _maxKeysPerFid
     ) TrustedCaller(_initialOwner) EIP712("Farcaster KeyRegistry", "1") {
         idRegistry = IdRegistryLike(_idRegistry);
+        maxKeysPerFid = _maxKeysPerFid;
+        emit SetIdRegistry(address(0), _idRegistry);
+        emit SetMaxKeysPerFid(0, _maxKeysPerFid);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -389,6 +409,11 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         idRegistry = IdRegistryLike(_idRegistry);
     }
 
+    function setMaxKeysPerFid(uint256 _maxKeysPerFid) external onlyOwner {
+        emit SetMaxKeysPerFid(maxKeysPerFid, _maxKeysPerFid);
+        maxKeysPerFid = _maxKeysPerFid;
+    }
+
     /**
      * @inheritdoc IKeyRegistry
      */
@@ -416,6 +441,7 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     ) internal whenNotPaused {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
+        if (totalKeys[fid] >= maxKeysPerFid) revert ExceedsMaximum();
 
         IMetadataValidator validator = validators[keyType][metadataType];
         if (validator == IMetadataValidator(address(0))) {
@@ -424,6 +450,7 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         bool isValid = validator.validate(fid, key, metadata);
         if (!isValid) revert InvalidMetadata();
 
+        totalKeys[fid]++;
         keyData.state = KeyState.ADDED;
         keyData.keyType = keyType;
         emit Add(fid, keyType, key, key, metadataType, metadata);
@@ -433,6 +460,7 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
+        totalKeys[fid]--;
         keyData.state = KeyState.REMOVED;
         emit Remove(fid, key, key);
     }
@@ -441,6 +469,7 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
+        totalKeys[fid]--;
         keyData.state = KeyState.NULL;
         delete keyData.keyType;
         emit AdminReset(fid, key, key);
@@ -492,7 +521,7 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     }
 
     /*//////////////////////////////////////////////////////////////
-                           FID HELPERS 
+                           FID HELPERS
     //////////////////////////////////////////////////////////////*/
 
     function _fidOf(address fidOwner) internal view returns (uint256 fid) {

@@ -40,7 +40,7 @@ contract LocalDeploy is Script {
         );
         KeyRegistry keyRegistry = new KeyRegistry{
             salt: KEY_REGISTRY_CREATE2_SALT
-        }(address(idRegistry), initialKeyRegistryOwner);
+        }(address(idRegistry), initialKeyRegistryOwner, 1000);
         StorageRegistry storageRegistry = new StorageRegistry{
             salt: STORAGE_RENT_CREATE2_SALT
         }(

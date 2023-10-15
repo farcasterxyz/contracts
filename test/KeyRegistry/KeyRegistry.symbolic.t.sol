@@ -49,7 +49,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         assert(idRegistry.recoveryOf(3) == address(0x2003));
 
         // Setup KeyRegistry
-        keyRegistry = new KeyRegistry(address(idRegistry), address(this));
+        keyRegistry = new KeyRegistry(address(idRegistry), address(this), 1000);
         keyRegistry.setTrustedCaller(trustedCaller);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
 

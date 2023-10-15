@@ -32,6 +32,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event Migrated(uint256 indexed keysMigratedAt);
     event SetValidator(uint32 keyType, uint8 metadataType, address oldValidator, address newValidator);
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
+    event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
 
     function testInitialIdRegistry() public {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
@@ -75,11 +76,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
+        assertEq(keyRegistry.totalKeys(fid), 0);
+
         vm.expectEmit();
         emit Add(fid, keyType, key, key, metadataType, metadata);
         vm.prank(to);
         keyRegistry.add(keyType, key, metadataType, metadata);
 
+        assertEq(keyRegistry.totalKeys(fid), 1);
         assertAdded(fid, key, keyType);
     }
 
@@ -221,6 +225,32 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.prank(to);
         vm.expectRevert("Pausable: paused");
+        keyRegistry.add(keyType, key, metadataType, metadata);
+    }
+
+    function testFuzzAddRevertsMaxKeys(
+        address to,
+        address recovery,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes memory metadata
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        // Create 10 keys
+        for (uint256 i; i < 10; i++) {
+            vm.prank(to);
+            keyRegistry.add(keyType, bytes.concat(key, bytes32(i)), metadataType, metadata);
+        }
+
+        // 11th key reverts
+        vm.prank(to);
+        vm.expectRevert(KeyRegistry.ExceedsMaximum.selector);
         keyRegistry.add(keyType, key, metadataType, metadata);
     }
 
@@ -542,6 +572,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.add(keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
+        assertEq(keyRegistry.totalKeys(fid), 1);
 
         vm.expectEmit();
         emit Remove(fid, key, key);
@@ -549,6 +580,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.remove(key);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
+        assertEq(keyRegistry.totalKeys(fid), 0);
 
         assertRemoved(fid, key, keyType);
     }
@@ -1256,6 +1288,30 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
+                           SET MAX KEYS PER FID
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOnlyAdminCanSetMaxKeysPerFid(address caller, uint256 newMax) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        keyRegistry.setMaxKeysPerFid(newMax);
+    }
+
+    function testFuzzSetMaxKeysPerFid(uint256 newMax) public {
+        uint256 currentMax = keyRegistry.maxKeysPerFid();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetMaxKeysPerFid(currentMax, newMax);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(newMax);
+
+        assertEq(keyRegistry.maxKeysPerFid(), newMax);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
@@ -1271,6 +1327,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function assertNull(uint256 fid, bytes memory key) internal {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.NULL);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
+        assertEq(keyRegistry.totalKeys(fid), 0);
     }
 
     function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {
