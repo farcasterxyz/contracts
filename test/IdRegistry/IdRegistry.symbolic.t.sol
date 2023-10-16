@@ -8,22 +8,22 @@ import {IdRegistry} from "../../src/IdRegistry.sol";
 
 contract IdRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
-    address trustedCaller;
+    address registration;
     address x;
     address y;
 
     function setUp() public {
+        registration = address(0x1000);
+
         // Setup IdRegistry
         idRegistry = new IdRegistry(address(this));
-
-        trustedCaller = address(0x1000);
-        idRegistry.setTrustedCaller(trustedCaller);
+        idRegistry.setRegistration(address(registration));
 
         // Register fids
-        vm.prank(trustedCaller);
-        idRegistry.trustedRegister(address(0x1001), address(0x2001));
-        vm.prank(trustedCaller);
-        idRegistry.trustedRegister(address(0x1002), address(0x2002));
+        vm.prank(registration);
+        idRegistry.register(address(0x1001), address(0x2001));
+        vm.prank(registration);
+        idRegistry.register(address(0x1002), address(0x2002));
 
         assert(idRegistry.idOf(address(0x1001)) == 1);
         assert(idRegistry.idOf(address(0x1002)) == 2);
@@ -145,9 +145,6 @@ contract IdRegistrySymTest is SymTest, Test {
      * @dev Initialize IdRegistry with symbolic arguments for state.
      */
     function _initState() public {
-        if (svm.createBool("disableTrustedOnly?")) {
-            idRegistry.disableTrustedOnly();
-        }
         if (svm.createBool("pause?")) {
             idRegistry.pause();
         }
@@ -158,14 +155,7 @@ contract IdRegistrySymTest is SymTest, Test {
      */
     function _calldataFor(bytes4 selector) internal returns (bytes memory) {
         bytes memory args;
-        if (selector == idRegistry.registerFor.selector) {
-            args = abi.encode(
-                svm.createAddress("to"),
-                svm.createAddress("recovery"),
-                svm.createUint256("deadline"),
-                svm.createBytes(65, "sig")
-            );
-        } else if (selector == idRegistry.transfer.selector) {
+        if (selector == idRegistry.transfer.selector) {
             args = abi.encode(svm.createAddress("to"), svm.createUint256("deadline"), svm.createBytes(65, "sig"));
         } else if (selector == idRegistry.transferFor.selector) {
             args = abi.encode(

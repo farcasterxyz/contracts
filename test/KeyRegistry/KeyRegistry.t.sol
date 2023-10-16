@@ -17,9 +17,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
     function setUp() public override {
         super.setUp();
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
     }
 
     event Add(
@@ -1263,8 +1260,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
-        vm.prank(to);
-        return idRegistry.register(recovery);
+        vm.prank(idRegistry.registration());
+        return idRegistry.register(to, recovery);
     }
 
     function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal {

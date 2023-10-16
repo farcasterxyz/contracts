@@ -20,6 +20,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
     event Recover(address indexed from, address indexed to, uint256 indexed id);
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
+    event SetRegistration(address oldRegistration, address newRegistration);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -37,449 +38,81 @@ contract IdRegistryTest is IdRegistryTestSuite {
                              REGISTER TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzRegister(address caller, address recovery) public {
+    function testFuzzRegister(address to, address recovery) public {
         assertEq(idRegistry.idCounter(), 0);
 
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(caller), 0);
+        assertEq(idRegistry.idOf(to), 0);
+        assertEq(idRegistry.custodyOf(1), address(0));
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.expectEmit();
-        emit Register(caller, 1, recovery);
-        vm.prank(caller);
-        idRegistry.register(recovery);
+        emit Register(to, 1, recovery);
+        vm.prank(idRegistry.registration());
+        idRegistry.register(to, recovery);
 
         assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(caller), 1);
+        assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
-    function testFuzzCannotRegisterIfSeedable(address caller, address recovery) public {
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.trustedOnly(), 1);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(caller), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(caller);
-        vm.expectRevert(TrustedCaller.Seedable.selector);
-        idRegistry.register(recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(caller), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotRegisterToAnAddressThatOwnsAnId(address caller, address recovery) public {
-        _register(caller);
+    function testFuzzCannotRegisterToAnAddressThatOwnsAnId(address to, address recovery) public {
+        _register(to);
 
         assertEq(idRegistry.idCounter(), 1);
 
         assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(caller), 1);
+        assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        vm.prank(caller);
+        vm.prank(idRegistry.registration());
         vm.expectRevert(IdRegistry.HasId.selector);
-        idRegistry.register(recovery);
+        idRegistry.register(to, recovery);
 
         assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(caller), 1);
+        assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
-    function testFuzzCannotRegisterIfPaused(address caller, address recovery) public {
+    function testFuzzCannotRegisterIfPaused(address to, address recovery) public {
         assertEq(idRegistry.idCounter(), 0);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        _pause();
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(caller), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(caller);
-        vm.expectRevert("Pausable: paused");
-        idRegistry.register(recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(caller), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                           REGISTER FOR TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzRegisterFor(address registrar, uint256 recipientPk, address recovery, uint40 _deadline) public {
-        uint256 deadline = _boundDeadline(_deadline);
-        recipientPk = _boundPk(recipientPk);
-
-        address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.expectEmit();
-        emit Register(recipient, 1, recovery);
-        vm.prank(registrar);
-        idRegistry.registerFor(recipient, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(recipient), 1);
-        assertEq(idRegistry.recoveryOf(1), recovery);
-    }
-
-    function testFuzzRegisterForRevertsInvalidSig(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        recipientPk = _boundPk(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
-
-        address recipient = vm.addr(recipientPk);
-        /* generate a signature with an invalid parameter (wrong deadline) */
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline + 1);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
-        idRegistry.registerFor(recipient, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzRegisterForRevertsBadSig(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        recipientPk = _boundPk(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
-
-        address recipient = vm.addr(recipientPk);
-        /* generate an invalid signature */
-        bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
-        idRegistry.registerFor(recipient, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzRegisterForRevertsExpiredSig(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        recipientPk = _boundPk(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
-
-        address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
-        vm.warp(deadline + 1);
-
-        vm.prank(registrar);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
-        idRegistry.registerFor(recipient, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotRegisterForIfSeedable(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        recipientPk = _boundPk(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
-
-        address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
-
-        assertEq(idRegistry.trustedOnly(), 1);
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(registrar);
-        vm.expectRevert(TrustedCaller.Seedable.selector);
-        idRegistry.registerFor(recipient, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotRegisterForToAnAddressThatOwnsAnId(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        recipientPk = _boundPk(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
-
-        address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        _register(recipient);
-
-        assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(recipient), 1);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(registrar);
-        vm.expectRevert(IdRegistry.HasId.selector);
-        idRegistry.registerFor(recipient, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(recipient), 1);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotRegisterForIfPaused(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        recipientPk = _boundPk(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
-
-        address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
 
         _pause();
 
         assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.idOf(to), 0);
+        assertEq(idRegistry.custodyOf(1), address(0));
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        vm.prank(registrar);
+        vm.prank(idRegistry.registration());
         vm.expectRevert("Pausable: paused");
-        idRegistry.registerFor(recipient, recovery, deadline, sig);
+        idRegistry.register(to, recovery);
 
         assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.idOf(to), 0);
+        assertEq(idRegistry.custodyOf(1), address(0));
         assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
-    function testRegisterTypehash() public {
-        assertEq(
-            idRegistry.REGISTER_TYPEHASH(),
-            keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)")
-        );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                       ERC1271 REGISTER FOR TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzRegisterForERC1271(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        uint256 deadline = _boundDeadline(_deadline);
-        recipientPk = _boundPk(recipientPk);
-
-        address recipient = vm.addr(recipientPk);
-        (, address mockWalletAddress) = _createMockERC1271(recipient);
-
-        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, recovery, deadline);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
+    function testFuzzRegisterRevertsUnauthorized(address caller, address to, address recovery) public {
+        vm.assume(caller != idRegistry.registration());
+        assertEq(idRegistry.idCounter(), 0);
 
         assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(mockWalletAddress), 0);
+        assertEq(idRegistry.idOf(to), 0);
+        assertEq(idRegistry.custodyOf(1), address(0));
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        vm.expectEmit(true, true, true, true);
-        emit Register(mockWalletAddress, 1, recovery);
-        vm.prank(registrar);
-        idRegistry.registerFor(mockWalletAddress, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(mockWalletAddress), 1);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), recovery);
-    }
-
-    function testFuzzRegisterForRevertsMaliciousERC1271(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        recipientPk = _boundPk(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
-        address recipient = vm.addr(recipientPk);
-        (, address mockWalletAddress) = _createMaliciousMockERC1271(recipient);
-        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, recovery, deadline);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
+        vm.prank(caller);
+        vm.expectRevert(IdRegistry.Unauthorized.selector);
+        idRegistry.register(to, recovery);
 
         assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(mockWalletAddress), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
-        idRegistry.registerFor(mockWalletAddress, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(mockWalletAddress), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         TRUSTED REGISTER TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzTrustedRegister(address recipient, address trustedCaller, address recovery) public {
-        vm.assume(trustedCaller != address(0));
-        vm.prank(owner);
-        idRegistry.setTrustedCaller(trustedCaller);
-        assertEq(idRegistry.idCounter(), 0);
-
-        vm.prank(trustedCaller);
-        vm.expectEmit();
-        emit Register(recipient, 1, recovery);
-        idRegistry.trustedRegister(recipient, recovery);
-
-        assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(recipient), 1);
-        assertEq(idRegistry.recoveryOf(1), recovery);
-    }
-
-    function testFuzzCannotTrustedRegisterUnlessTrustedOnly(
-        address alice,
-        address trustedCaller,
-        address recovery
-    ) public {
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
-        vm.prank(trustedCaller);
-        vm.expectRevert(TrustedCaller.Registrable.selector);
-        idRegistry.trustedRegister(alice, recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(alice), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotTrustedRegisterFromUntrustedCaller(
-        address alice,
-        address trustedCaller,
-        address untrustedCaller,
-        address recovery
-    ) public {
-        vm.assume(untrustedCaller != trustedCaller);
-        vm.assume(trustedCaller != address(0));
-        vm.prank(owner);
-        idRegistry.setTrustedCaller(trustedCaller);
-
-        vm.prank(untrustedCaller);
-        vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
-        idRegistry.trustedRegister(alice, recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(alice), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotTrustedRegisterToAnAddressThatOwnsAnID(
-        address alice,
-        address trustedCaller,
-        address recovery
-    ) public {
-        vm.assume(trustedCaller != address(0));
-        vm.prank(owner);
-        idRegistry.setTrustedCaller(trustedCaller);
-
-        vm.prank(trustedCaller);
-        idRegistry.trustedRegister(alice, address(0));
-        assertEq(idRegistry.idCounter(), 1);
-
-        vm.prank(trustedCaller);
-        vm.expectRevert(IdRegistry.HasId.selector);
-        idRegistry.trustedRegister(alice, recovery);
-
-        assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotTrustedRegisterWhenPaused(address alice, address trustedCaller, address recovery) public {
-        vm.assume(trustedCaller != address(0));
-        vm.prank(owner);
-        idRegistry.setTrustedCaller(trustedCaller);
-        assertEq(idRegistry.idCounter(), 0);
-
-        _pause();
-
-        vm.prank(trustedCaller);
-        vm.expectRevert("Pausable: paused");
-        idRegistry.trustedRegister(alice, recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(alice), 0);
+        assertEq(idRegistry.idOf(to), 0);
+        assertEq(idRegistry.custodyOf(1), address(0));
         assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
@@ -498,6 +131,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.expectEmit(true, true, true, true);
@@ -507,6 +141,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.idOf(to), 1);
     }
 
@@ -522,6 +157,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(from);
@@ -530,6 +166,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -545,6 +182,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.expectRevert(Signatures.InvalidSignature.selector);
@@ -553,6 +191,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -567,6 +206,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.warp(deadline + 1);
@@ -577,6 +217,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -596,6 +237,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.recoveryOf(1), recovery);
 
@@ -606,6 +248,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.idOf(to), 1);
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
@@ -621,6 +264,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         _pause();
@@ -631,6 +275,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -651,6 +296,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 2);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
 
         vm.expectRevert(IdRegistry.HasId.selector);
@@ -659,6 +305,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 2);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
     }
 
@@ -672,6 +319,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.custodyOf(0), address(0));
         assertEq(idRegistry.idOf(to), 0);
 
         vm.expectRevert(IdRegistry.HasNoId.selector);
@@ -680,6 +328,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.custodyOf(0), address(0));
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -694,6 +343,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(from);
@@ -701,11 +351,13 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.idOf(to), 1);
 
         _register(from);
         assertEq(idRegistry.idCounter(), 2);
         assertEq(idRegistry.idOf(from), 2);
+        assertEq(idRegistry.custodyOf(2), from);
         assertEq(idRegistry.idOf(to), 1);
     }
 
@@ -741,6 +393,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         address recoveryBefore = idRegistry.recoveryOf(fid);
@@ -752,6 +405,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.idOf(to), 1);
         assertEq(idRegistry.recoveryOf(fid), recoveryBefore);
     }
@@ -779,6 +433,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
@@ -787,6 +442,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -813,6 +469,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
@@ -821,6 +478,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -847,6 +505,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
@@ -855,6 +514,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -881,6 +541,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
@@ -889,6 +550,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -914,6 +576,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.warp(fromDeadline + 1);
@@ -924,6 +587,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -949,6 +613,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.warp(toDeadline + 1);
@@ -959,6 +624,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -985,6 +651,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 2);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
 
         vm.warp(toDeadline + 1);
@@ -995,6 +662,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 2);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
     }
 
@@ -1019,6 +687,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.custodyOf(0), address(0));
         assertEq(idRegistry.idOf(to), 0);
 
         vm.warp(toDeadline + 1);
@@ -1029,6 +698,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(from), 0);
+        assertEq(idRegistry.custodyOf(0), address(0));
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1054,6 +724,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(owner);
@@ -1065,6 +736,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1254,6 +926,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         bytes memory sig = _signTransfer(toPk, fid, to, deadline);
 
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.recoveryOf(1), recovery);
 
@@ -1266,6 +939,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idOf(from), 0);
         assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
@@ -1280,6 +954,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.expectRevert(Signatures.InvalidSignature.selector);
@@ -1288,6 +963,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1302,6 +978,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.expectRevert(Signatures.InvalidSignature.selector);
@@ -1310,6 +987,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1324,6 +1002,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.warp(deadline + 1);
@@ -1334,6 +1013,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1349,6 +1029,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         _pause();
 
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.recoveryOf(1), recovery);
 
@@ -1357,6 +1038,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.recover(from, to, deadline, sig);
 
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
@@ -1400,6 +1082,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         bytes memory sig = _signTransfer(toPk, fid, to, deadline);
 
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.recoveryOf(1), recovery);
 
@@ -1408,6 +1091,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.recover(from, to, deadline, sig);
 
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
@@ -1428,7 +1112,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         bytes memory sig = _signTransfer(toPk, fid, to, deadline);
 
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
+        assertEq(idRegistry.custodyOf(2), to);
         assertEq(idRegistry.recoveryOf(1), recovery);
         assertEq(idRegistry.recoveryOf(2), address(0));
 
@@ -1437,7 +1123,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.recover(from, to, deadline, sig);
 
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
+        assertEq(idRegistry.custodyOf(2), to);
         assertEq(idRegistry.recoveryOf(1), recovery);
         assertEq(idRegistry.recoveryOf(2), address(0));
     }
@@ -1470,6 +1158,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         address recoveryBefore = idRegistry.recoveryOf(fid);
@@ -1484,6 +1173,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 0);
         assertEq(idRegistry.idOf(to), 1);
+        assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.recoveryOf(fid), recoveryBefore);
     }
 
@@ -1511,6 +1201,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
@@ -1519,6 +1210,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1546,6 +1238,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
@@ -1554,6 +1247,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1581,6 +1275,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
@@ -1589,6 +1284,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1616,6 +1312,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
@@ -1624,6 +1321,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1651,6 +1349,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.warp(recoveryDeadline + 1);
@@ -1661,6 +1360,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1688,6 +1388,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.warp(toDeadline + 1);
@@ -1698,6 +1399,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1726,7 +1428,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 2);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
+        assertEq(idRegistry.custodyOf(2), to);
 
         vm.warp(toDeadline + 1);
 
@@ -1736,7 +1440,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 2);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
+        assertEq(idRegistry.custodyOf(2), to);
     }
 
     function testFuzzCannotRecoverForFromAddressWithNoId(
@@ -1797,6 +1503,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(owner);
@@ -1808,6 +1515,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(from), 1);
+        assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
     }
 
@@ -1818,15 +1526,12 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzVerifyFidSignature(uint256 recipientPk, bytes32 digest) public {
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, address(0), 10);
 
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        idRegistry.registerFor(recipient, address(0), 10, sig);
+        _register(recipient);
         assertEq(idRegistry.idCounter(), 1);
 
-        bytes memory msg_sig = _signDigest(recipientPk, digest);
-        assertEq(idRegistry.verifyFidSignature(recipient, 1, digest, msg_sig), true);
+        bytes memory msgSig = _signDigest(recipientPk, digest);
+        assertEq(idRegistry.verifyFidSignature(recipient, 1, digest, msgSig), true);
     }
 
     function testFuzzCannotVerifyFidSignatureIfBadDigest(
@@ -1837,11 +1542,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.assume(digest != badDigest);
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, address(0), 10);
 
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        idRegistry.registerFor(recipient, address(0), 10, sig);
+        _register(recipient);
         assertEq(idRegistry.idCounter(), 1);
 
         bytes memory msgSig = _signDigest(recipientPk, digest);
@@ -1851,11 +1553,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzCannotVerifyFidSignatureIfBadFid(uint256 recipientPk, bytes32 digest) public {
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, address(0), 10);
 
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        idRegistry.registerFor(recipient, address(0), 10, sig);
+        _register(recipient);
         assertEq(idRegistry.idCounter(), 1);
 
         bytes memory msgSig = _signDigest(recipientPk, digest);
@@ -1870,11 +1569,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
         vm.assume(recipient != badCustodyAddress);
-        bytes memory sig = _signRegister(recipientPk, recipient, address(0), 10);
 
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        idRegistry.registerFor(recipient, address(0), 10, sig);
+        _register(recipient);
         assertEq(idRegistry.idCounter(), 1);
 
         bytes memory msgSig = _signDigest(recipientPk, digest);
@@ -1890,11 +1586,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address recipient = vm.addr(recipientPk);
         (, address mockWalletAddress) = _createMockERC1271(recipient);
 
-        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, address(0), 10);
-
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        idRegistry.registerFor(mockWalletAddress, address(0), 10, sig);
+        _register(mockWalletAddress);
         assertEq(idRegistry.idCounter(), 1);
 
         bytes memory msg_sig = _signDigest(recipientPk, digest);
@@ -1910,11 +1602,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
         (, address mockWalletAddress) = _createMockERC1271(recipient);
-        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, address(0), 10);
 
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        idRegistry.registerFor(mockWalletAddress, address(0), 10, sig);
+        _register(mockWalletAddress);
         assertEq(idRegistry.idCounter(), 1);
 
         bytes memory msgSig = _signDigest(recipientPk, digest);
@@ -1925,11 +1614,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
         (, address mockWalletAddress) = _createMockERC1271(recipient);
-        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, address(0), 10);
 
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-        idRegistry.registerFor(mockWalletAddress, address(0), 10, sig);
+        _register(mockWalletAddress);
         assertEq(idRegistry.idCounter(), 1);
 
         bytes memory msgSig = _signDigest(recipientPk, digest);
@@ -1940,17 +1626,38 @@ contract IdRegistryTest is IdRegistryTestSuite {
         recipientPk = _boundPk(recipientPk);
         address recipient = vm.addr(recipientPk);
         (ERC1271MaliciousMockForceRevert mockWallet, address mockWalletAddress) = _createMaliciousMockERC1271(recipient);
-        bytes memory sig = _signRegister(recipientPk, mockWalletAddress, address(0), 10);
 
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
         mockWallet.setForceRevert(false);
-        idRegistry.registerFor(mockWalletAddress, address(0), 10, sig);
+        _register(mockWalletAddress);
         assertEq(idRegistry.idCounter(), 1);
 
         mockWallet.setForceRevert(true);
 
         bytes memory msgSig = _signDigest(recipientPk, digest);
         assertEq(idRegistry.verifyFidSignature(mockWalletAddress, 1, digest, msgSig), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          SET REGISTRATION
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzSetRegistration(address registration) public {
+        address prevRegistration = idRegistry.registration();
+
+        vm.expectEmit();
+        emit SetRegistration(prevRegistration, registration);
+
+        vm.prank(owner);
+        idRegistry.setRegistration(registration);
+
+        assertEq(idRegistry.registration(), registration);
+    }
+
+    function testFuzzOnlyOwnerCanSetRegistration(address caller, address registration) public {
+        vm.assume(caller != owner);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        idRegistry.setRegistration(registration);
     }
 }

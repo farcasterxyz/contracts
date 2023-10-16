@@ -2,23 +2,22 @@
 pragma solidity 0.8.21;
 
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
-import {StorageRegistryTestSuite} from "../StorageRegistry/StorageRegistryTestSuite.sol";
-import {IdRegistryTestSuite} from "../IdRegistry/IdRegistryTestSuite.sol";
-import {KeyRegistryTestSuite} from "../KeyRegistry/KeyRegistryTestSuite.sol";
+import {RegistrationTestSuite} from "../Registration/RegistrationTestSuite.sol";
 
+import {IdRegistry} from "../../src/IdRegistry.sol";
 import {Bundler} from "../../src/Bundler.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract BundlerTestSuite is StorageRegistryTestSuite, KeyRegistryTestSuite {
+abstract contract BundlerTestSuite is RegistrationTestSuite {
     Bundler bundler;
 
-    function setUp() public virtual override(StorageRegistryTestSuite, KeyRegistryTestSuite) {
+    function setUp() public virtual override {
         super.setUp();
 
         // Set up the BundleRegistry
         bundler = new Bundler(
-            address(idRegistry),
+            address(registration),
             address(storageRegistry),
             address(keyRegistry),
             address(this),

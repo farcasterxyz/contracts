@@ -4,11 +4,11 @@ pragma solidity 0.8.21;
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
+import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {Signatures} from "./lib/Signatures.sol";
-import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
 /**
  * @title Farcaster IdRegistry
@@ -17,7 +17,7 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712, Nonces {
+contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -88,6 +88,8 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
      */
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
+    event SetRegistration(address oldRegistration, address newRegistration);
+
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -105,12 +107,6 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     /**
      * @inheritdoc IIdRegistry
      */
-    bytes32 public constant REGISTER_TYPEHASH =
-        keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
-
-    /**
-     * @inheritdoc IIdRegistry
-     */
     bytes32 public constant TRANSFER_TYPEHASH =
         keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)");
 
@@ -124,6 +120,8 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    address public registration;
+
     /**
      * @inheritdoc IIdRegistry
      */
@@ -133,6 +131,8 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
      * @inheritdoc IIdRegistry
      */
     mapping(address owner => uint256 fid) public idOf;
+
+    mapping(uint256 fid => address custody) public custodyOf;
 
     /**
      * @inheritdoc IIdRegistry
@@ -150,55 +150,21 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
      *
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _initialOwner) TrustedCaller(_initialOwner) EIP712("Farcaster IdRegistry", "1") {}
+    constructor(address _initialOwner) EIP712("Farcaster IdRegistry", "1") {
+        _transferOwnership(_initialOwner);
+    }
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IIdRegistry
+     * @dev Registers an fid and sets up a recovery address for a target. May only be called by
+     *      the configured registration address.
      */
-    function register(address recovery) external returns (uint256 fid) {
-        return _register(msg.sender, recovery);
-    }
+    function register(address to, address recovery) external whenNotPaused returns (uint256 fid) {
+        if (msg.sender != registration) revert Unauthorized();
 
-    /**
-     * @inheritdoc IIdRegistry
-     */
-    function registerFor(
-        address to,
-        address recovery,
-        uint256 deadline,
-        bytes calldata sig
-    ) external returns (uint256 fid) {
-        /* Revert if signature is invalid */
-        _verifyRegisterSig({to: to, recovery: recovery, deadline: deadline, sig: sig});
-        return _register(to, recovery);
-    }
-
-    /**
-     * @inheritdoc IIdRegistry
-     */
-    function trustedRegister(address to, address recovery) external onlyTrustedCaller returns (uint256 fid) {
-        fid = _unsafeRegister(to, recovery);
-        emit Register(to, idCounter, recovery);
-    }
-
-    /**
-     * @dev Registers an fid and sets up a recovery address for a target. The contract must not be
-     *      in the Seedable (trustedOnly = 1) state and target must not have an fid.
-     */
-    function _register(address to, address recovery) internal whenNotTrusted returns (uint256 fid) {
-        fid = _unsafeRegister(to, recovery);
-        emit Register(to, idCounter, recovery);
-    }
-
-    /**
-     * @dev Registers an fid and sets up a recovery address for a target. Does not check all
-     *      invariants or emit events.
-     */
-    function _unsafeRegister(address to, address recovery) internal whenNotPaused returns (uint256 fid) {
         /* Revert if the target(to) has an fid */
         if (idOf[to] != 0) revert HasId();
 
@@ -209,7 +175,9 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
         }
 
         idOf[to] = fid;
+        custodyOf[fid] = to;
         recoveryOf[fid] = recovery;
+        emit Register(to, idCounter, recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -264,6 +232,7 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
      */
     function _unsafeTransfer(uint256 id, address from, address to) internal whenNotPaused {
         idOf[to] = id;
+        custodyOf[id] = to;
         delete idOf[from];
 
         emit Transfer(from, to, id);
@@ -366,6 +335,11 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function setRegistration(address _registration) external onlyOwner {
+        emit SetRegistration(registration, _registration);
+        registration = _registration;
+    }
+
     /**
      * @inheritdoc IIdRegistry
      */
@@ -399,15 +373,6 @@ contract IdRegistry is IIdRegistry, TrustedCaller, Signatures, Pausable, EIP712,
     /*//////////////////////////////////////////////////////////////
                      SIGNATURE VERIFICATION HELPERS
     //////////////////////////////////////////////////////////////*/
-
-    function _verifyRegisterSig(address to, address recovery, uint256 deadline, bytes memory sig) internal {
-        _verifySig(
-            _hashTypedDataV4(keccak256(abi.encode(REGISTER_TYPEHASH, to, recovery, _useNonce(to), deadline))),
-            to,
-            deadline,
-            sig
-        );
-    }
 
     function _verifyTransferSig(uint256 fid, address to, uint256 deadline, address signer, bytes memory sig) internal {
         _verifySig(

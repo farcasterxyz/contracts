@@ -12,6 +12,7 @@ import {StubValidator} from "../Utils.sol";
 
 contract KeyRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
+    address registration;
     address trustedCaller;
 
     KeyRegistry keyRegistry;
@@ -23,24 +24,25 @@ contract KeyRegistrySymTest is SymTest, Test {
     function setUp() public {
         // Setup metadata validator
         validator = new StubValidator();
+        registration = address(0x1000);
 
         // Setup IdRegistry
         idRegistry = new IdRegistry(address(this));
+        idRegistry.setRegistration(address(registration));
 
-        trustedCaller = address(0x1000);
-        idRegistry.setTrustedCaller(trustedCaller);
+        trustedCaller = address(0x1001);
 
         // Register fids
-        vm.prank(trustedCaller);
-        idRegistry.trustedRegister(address(0x1001), address(0x2001));
-        vm.prank(trustedCaller);
-        idRegistry.trustedRegister(address(0x1002), address(0x2002));
-        vm.prank(trustedCaller);
-        idRegistry.trustedRegister(address(0x1003), address(0x2003));
+        vm.prank(registration);
+        idRegistry.register(address(0x1002), address(0x2001));
+        vm.prank(registration);
+        idRegistry.register(address(0x1003), address(0x2002));
+        vm.prank(registration);
+        idRegistry.register(address(0x1004), address(0x2003));
 
-        assert(idRegistry.idOf(address(0x1001)) == 1);
-        assert(idRegistry.idOf(address(0x1002)) == 2);
-        assert(idRegistry.idOf(address(0x1003)) == 3);
+        assert(idRegistry.idOf(address(0x1002)) == 1);
+        assert(idRegistry.idOf(address(0x1003)) == 2);
+        assert(idRegistry.idOf(address(0x1004)) == 3);
 
         assert(idRegistry.recoveryOf(1) == address(0x2001));
         assert(idRegistry.recoveryOf(2) == address(0x2002));
@@ -57,14 +59,14 @@ contract KeyRegistrySymTest is SymTest, Test {
         // - fid 3: null
 
         bytes memory key1 = svm.createBytes(32, "key1");
-        vm.prank(address(0x1001));
+        vm.prank(address(0x1002));
         keyRegistry.add(1, key1, 1, "");
-        vm.prank(address(0x1001));
+        vm.prank(address(0x1002));
         keyRegistry.remove(key1);
         assert(keyRegistry.keyDataOf(1, key1).state == IKeyRegistry.KeyState.REMOVED);
 
         bytes memory key2 = svm.createBytes(32, "key2");
-        vm.prank(address(0x1002));
+        vm.prank(address(0x1003));
         keyRegistry.add(1, key2, 1, "");
         assert(keyRegistry.keyDataOf(2, key2).state == IKeyRegistry.KeyState.ADDED);
 

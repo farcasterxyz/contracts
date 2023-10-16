@@ -5,6 +5,7 @@ import {IdRegistry} from "../src/IdRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
+import {Registration} from "../src/Registration.sol";
 import {Bundler, IBundler} from "../src/Bundler.sol";
 import {RecoveryProxy} from "../src/RecoveryProxy.sol";
 import {IMetadataValidator} from "../src/interfaces/IMetadataValidator.sol";
@@ -126,7 +127,6 @@ contract DeployL2 is ImmutableCreate2Deployer {
             address bundler = address(contracts.bundler);
 
             if (broadcast) vm.startBroadcast();
-            contracts.idRegistry.setTrustedCaller(bundler);
             contracts.idRegistry.transferOwnership(params.initialIdRegistryOwner);
 
             contracts.keyRegistry.setTrustedCaller(bundler);

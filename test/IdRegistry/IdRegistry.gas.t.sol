@@ -12,21 +12,15 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     // Perform actions many times to get a good median, since the first run initializes storage
 
     function testGasRegister() public {
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
         for (uint256 i = 1; i < 15; i++) {
             address caller = vm.addr(i);
-            vm.prank(caller);
-            idRegistry.register(RECOVERY);
+            vm.prank(idRegistry.registration());
+            idRegistry.register(caller, RECOVERY);
             assertEq(idRegistry.idOf(caller), i);
         }
     }
 
     function testGasRegisterForAndRecover() public {
-        vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
         for (uint256 i = 1; i < 15; i++) {
             address registrationRecipient = vm.addr(i);
             uint40 deadline = type(uint40).max;
@@ -34,8 +28,8 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
             uint256 recoveryRecipientPk = i + 100;
             address recoveryRecipient = vm.addr(recoveryRecipientPk);
 
-            bytes memory registerSig = _signRegister(i, registrationRecipient, RECOVERY, deadline);
-            uint256 fid = idRegistry.registerFor(registrationRecipient, RECOVERY, deadline, registerSig);
+            vm.prank(idRegistry.registration());
+            uint256 fid = idRegistry.register(registrationRecipient, RECOVERY);
             assertEq(idRegistry.idOf(registrationRecipient), i);
 
             bytes memory transferSig = _signTransfer(recoveryRecipientPk, fid, recoveryRecipient, deadline);
@@ -45,7 +39,7 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     }
 
     function testGasRegisterFromTrustedCaller() public {
-        vm.prank(owner);
+        /* vm.prank(owner);
         idRegistry.setTrustedCaller(TRUSTED_SENDER);
 
         for (uint256 i = 0; i < 25; i++) {
@@ -53,6 +47,6 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
             vm.prank(TRUSTED_SENDER);
             idRegistry.trustedRegister(alice, address(0));
             assertEq(idRegistry.idOf(alice), i + 1);
-        }
+        } */
     }
 }

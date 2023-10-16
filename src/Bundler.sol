@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {IdRegistry} from "./IdRegistry.sol";
+import {Registration} from "./Registration.sol";
 import {StorageRegistry} from "./StorageRegistry.sol";
 import {KeyRegistry} from "./KeyRegistry.sol";
 import {IBundler} from "./interfaces/IBundler.sol";
@@ -25,9 +25,6 @@ contract Bundler is IBundler, TrustedCaller {
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
 
-    /// @dev Revert if the caller attempts to rent zero storage units.
-    error InvalidAmount();
-
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -42,9 +39,9 @@ contract Bundler is IBundler, TrustedCaller {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Address of the IdRegistry contract
+     * @dev Address of the Registration contract
      */
-    IdRegistry public immutable idRegistry;
+    Registration public immutable registration;
 
     /**
      * @dev Address of the StorageRegistry contract
@@ -64,20 +61,20 @@ contract Bundler is IBundler, TrustedCaller {
      * @notice Configure the addresses of the Registry contracts and the trusted caller, which is
      *         allowed to register users during the bootstrap phase.
      *
-     * @param _idRegistry      Address of the IdRegistry contract
+     * @param _registration    Address of the Registration contract
      * @param _storageRegistry Address of the StorageRegistry contract
      * @param _keyRegistry     Address of the KeyRegistry contract
      * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
      * @param _initialOwner    Address that can set the trusted caller
      */
     constructor(
-        address _idRegistry,
+        address _registration,
         address _storageRegistry,
         address _keyRegistry,
         address _trustedCaller,
         address _initialOwner
     ) TrustedCaller(_initialOwner) {
-        idRegistry = IdRegistry(_idRegistry);
+        registration = Registration(payable(_registration));
         storageRegistry = StorageRegistry(_storageRegistry);
         keyRegistry = KeyRegistry(_keyRegistry);
         _setTrustedCaller(_trustedCaller);
@@ -86,26 +83,26 @@ contract Bundler is IBundler, TrustedCaller {
     /**
      * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
      *
-     * @param registration Struct containing registration parameters: to, recovery, deadline, and signature.
-     * @param signers      Array of structs containing signer parameters: keyType, key, metadataType,
+     * @param registrationParams Struct containing registration parameters: to, recovery, deadline, and signature.
+     * @param signerParams      Array of structs containing signer parameters: keyType, key, metadataType,
      *                        metadata, deadline, and signature.
-     * @param storageUnits Number of storage units to rent
+     * @param extraStorage Number of additional storage units to rent
      *
      */
     function register(
-        RegistrationParams calldata registration,
-        SignerParams[] calldata signers,
-        uint256 storageUnits
+        RegistrationParams calldata registrationParams,
+        SignerParams[] calldata signerParams,
+        uint256 extraStorage
     ) external payable {
-        if (storageUnits == 0) revert InvalidAmount();
-        uint256 fid =
-            idRegistry.registerFor(registration.to, registration.recovery, registration.deadline, registration.sig);
+        (uint256 fid, uint256 balance) = registration.registerFor{value: msg.value}(
+            registrationParams.to, registrationParams.recovery, registrationParams.deadline, registrationParams.sig
+        );
 
-        uint256 signersLen = signers.length;
+        uint256 signersLen = signerParams.length;
         for (uint256 i; i < signersLen;) {
-            SignerParams calldata signer = signers[i];
+            SignerParams calldata signer = signerParams[i];
             keyRegistry.addFor(
-                registration.to,
+                registrationParams.to,
                 signer.keyType,
                 signer.key,
                 signer.metadataType,
@@ -120,10 +117,11 @@ contract Bundler is IBundler, TrustedCaller {
             }
         }
 
-        uint256 overpayment = storageRegistry.rent{value: msg.value}(fid, storageUnits);
-
-        if (overpayment > 0) {
-            msg.sender.sendNative(overpayment);
+        if (extraStorage > 0) {
+            uint256 overpayment = storageRegistry.rent{value: balance}(fid, extraStorage);
+            if (overpayment > 0) {
+                msg.sender.sendNative(overpayment);
+            }
         }
     }
 
@@ -135,7 +133,7 @@ contract Bundler is IBundler, TrustedCaller {
      */
     function trustedRegister(UserData calldata user) external onlyTrustedCaller {
         // Will revert unless IdRegistry is in the Seedable phase
-        uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
+        uint256 fid = registration.trustedRegister(user.to, user.recovery);
         uint256 signersLen = user.signers.length;
         for (uint256 i; i < signersLen;) {
             SignerData calldata signer = user.signers[i];
@@ -159,7 +157,7 @@ contract Bundler is IBundler, TrustedCaller {
         uint256 usersLen = users.length;
         for (uint256 i; i < usersLen;) {
             UserData calldata user = users[i];
-            uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
+            uint256 fid = registration.trustedRegister(user.to, user.recovery);
             uint256 signersLen = user.signers.length;
 
             for (uint256 j; j < signersLen;) {
@@ -179,8 +177,7 @@ contract Bundler is IBundler, TrustedCaller {
         }
     }
 
-    // solhint-disable-next-line no-empty-blocks
     receive() external payable {
-        if (msg.sender != address(storageRegistry)) revert Unauthorized();
+        if (msg.sender != address(storageRegistry) && msg.sender != address(registration)) revert Unauthorized();
     }
 }

@@ -18,9 +18,6 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         super.setUp();
 
         vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
-        vm.prank(owner);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
     }
 
@@ -175,8 +172,8 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
     //////////////////////////////////////////////////////////////*/
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
-        vm.prank(to);
-        return idRegistry.register(recovery);
+        vm.prank(idRegistry.registration());
+        return idRegistry.register(to, recovery);
     }
 
     function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal {

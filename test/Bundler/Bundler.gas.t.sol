@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import "forge-std/Test.sol";
 
 import {Bundler, IBundler} from "../../src/Bundler.sol";
-import {BundlerTestSuite, StorageRegistryTestSuite, KeyRegistryTestSuite} from "./BundlerTestSuite.sol";
+import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
@@ -16,12 +16,12 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
     function testGasRegisterWithSig() public {
         vm.prank(owner);
-        idRegistry.disableTrustedOnly();
+        registration.disableTrustedOnly();
 
         for (uint256 i = 1; i < 10; i++) {
             address account = vm.addr(i);
             bytes memory sig = _signRegister(i, account, address(0), type(uint40).max);
-            uint256 price = storageRegistry.price(1);
+            uint256 price = storageRegistry.price(2);
 
             IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](
                 0
@@ -39,7 +39,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
     function testGasTrustedRegister() public {
         vm.startPrank(owner);
-        idRegistry.setTrustedCaller(address(bundler));
+        registration.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -58,7 +58,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
     function testGasTrustedBatchRegister() public {
         vm.startPrank(owner);
-        idRegistry.setTrustedCaller(address(bundler));
+        registration.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
