@@ -4,7 +4,6 @@ pragma solidity 0.8.21;
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
-import {IdRegistry} from "./IdRegistry.sol";
 import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
@@ -359,8 +358,7 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
             for (uint256 i = 0; i < items.length; i++) {
                 BulkAddData calldata item = items[i];
                 for (uint256 j = 0; j < item.keys.length; j++) {
-                    // TODO: add note about griefing during migration
-                    _add(item.fid, 1, item.keys[j].key, 1, item.keys[j].metadata);
+                    _add(item.fid, 1, item.keys[j].key, 1, item.keys[j].metadata, false);
                 }
             }
         }
@@ -380,7 +378,6 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
             for (uint256 i = 0; i < items.length; i++) {
                 BulkResetData calldata item = items[i];
                 for (uint256 j = 0; j < item.keys.length; j++) {
-                    // TODO: add note about griefing during migration
                     _reset(item.fid, item.keys[j]);
                 }
             }
@@ -438,6 +435,17 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         bytes calldata key,
         uint8 metadataType,
         bytes calldata metadata
+    ) internal {
+        _add(fid, keyType, key, metadataType, metadata, true);
+    }
+
+    function _add(
+        uint256 fid,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes calldata metadata,
+        bool validate
     ) internal whenNotPaused {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
@@ -447,8 +455,10 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         if (validator == IMetadataValidator(address(0))) {
             revert ValidatorNotFound(keyType, metadataType);
         }
-        bool isValid = validator.validate(fid, key, metadata);
-        if (!isValid) revert InvalidMetadata();
+        if (validate) {
+            bool isValid = validator.validate(fid, key, metadata);
+            if (!isValid) revert InvalidMetadata();
+        }
 
         totalKeys[fid]++;
         keyData.state = KeyState.ADDED;

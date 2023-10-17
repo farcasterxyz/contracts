@@ -79,7 +79,12 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     }
 
     function _registerValidator(uint32 keyType, uint8 typeId) internal {
+        _registerValidator(keyType, typeId, true);
+    }
+
+    function _registerValidator(uint32 keyType, uint8 typeId, bool isValid) internal {
         vm.prank(owner);
         keyRegistry.setValidator(keyType, typeId, IMetadataValidator(address(stubValidator)));
+        stubValidator.setIsValid(isValid);
     }
 }

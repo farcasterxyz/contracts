@@ -920,7 +920,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzBulkAddSignerForMigration(uint256[] memory _ids, uint8 _numKeys) public {
-        _registerValidator(1, 1);
+        _registerValidator(1, 1, false);
 
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);

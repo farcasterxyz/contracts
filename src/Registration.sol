@@ -52,7 +52,7 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         address _initialOwner,
         address _idRegistry,
         address _storageRegistry
-    ) TrustedCaller(_initialOwner) EIP712("Farcaster FID Registration", "1") {
+    ) TrustedCaller(_initialOwner) EIP712("Farcaster Registration", "1") {
         idRegistry = IIdRegistry(_idRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
     }
@@ -88,14 +88,6 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         fid = idRegistry.register(to, recovery);
     }
 
-    function _rentStorage(uint256 fid, uint256 payment, address payer) internal returns (uint256 overpayment) {
-        overpayment = storageRegistry.rent{value: payment}(fid, 1);
-
-        if (overpayment > 0) {
-            payer.sendNative(overpayment);
-        }
-    }
-
     /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
@@ -119,6 +111,18 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
             deadline,
             sig
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     STORAGE RENTAL HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _rentStorage(uint256 fid, uint256 payment, address payer) internal returns (uint256 overpayment) {
+        overpayment = storageRegistry.rent{value: payment}(fid, 1);
+
+        if (overpayment > 0) {
+            payer.sendNative(overpayment);
+        }
     }
 
     receive() external payable {
