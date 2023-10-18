@@ -88,7 +88,13 @@ contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, 
      */
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
-    event SetRegistration(address oldRegistration, address newRegistration);
+    /**
+     * @dev Emit an event when the contract owner sets a new IdManager address.
+     *
+     * @param oldIdManager The old IdManager address.
+     * @param newIdManager The new IdManager address.
+     */
+    event SetIdManager(address oldIdManager, address newIdManager);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
@@ -102,7 +108,7 @@ contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, 
     /**
      * @inheritdoc IIdRegistry
      */
-    string public constant VERSION = "2023.08.23";
+    string public constant VERSION = "2023.10.04";
 
     /**
      * @inheritdoc IIdRegistry
@@ -120,7 +126,10 @@ contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, 
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    address public registration;
+    /**
+     * @inheritdoc IIdRegistry
+     */
+    address public idManager;
 
     /**
      * @inheritdoc IIdRegistry
@@ -132,6 +141,9 @@ contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, 
      */
     mapping(address owner => uint256 fid) public idOf;
 
+    /**
+     * @inheritdoc IIdRegistry
+     */
     mapping(uint256 fid => address custody) public custodyOf;
 
     /**
@@ -159,11 +171,10 @@ contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, 
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Registers an fid and sets up a recovery address for a target. May only be called by
-     *      the configured registration address.
+     * @inheritdoc IIdRegistry
      */
     function register(address to, address recovery) external whenNotPaused returns (uint256 fid) {
-        if (msg.sender != registration) revert Unauthorized();
+        if (msg.sender != idManager) revert Unauthorized();
 
         /* Revert if the target(to) has an fid */
         if (idOf[to] != 0) revert HasId();
@@ -335,9 +346,12 @@ contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, 
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function setRegistration(address _registration) external onlyOwner {
-        emit SetRegistration(registration, _registration);
-        registration = _registration;
+    /**
+     * @inheritdoc IIdRegistry
+     */
+    function setIdManager(address _idManager) external onlyOwner {
+        emit SetIdManager(idManager, _idManager);
+        idManager = _idManager;
     }
 
     /**

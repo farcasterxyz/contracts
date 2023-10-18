@@ -16,7 +16,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
     function testGasRegisterWithSig() public {
         vm.prank(owner);
-        registration.disableTrustedOnly();
+        idManager.disableTrustedOnly();
 
         for (uint256 i = 1; i < 10; i++) {
             address account = vm.addr(i);
@@ -39,7 +39,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
     function testGasTrustedRegister() public {
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -58,7 +58,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
     function testGasTrustedBatchRegister() public {
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 

@@ -20,14 +20,14 @@ contract IdRegistryTest is IdRegistryTestSuite {
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
     event Recover(address indexed from, address indexed to, uint256 indexed id);
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
-    event SetRegistration(address oldRegistration, address newRegistration);
+    event SetIdManager(address oldIdManager, address newIdManager);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
     function testVersion() public {
-        assertEq(idRegistry.VERSION(), "2023.08.23");
+        assertEq(idRegistry.VERSION(), "2023.10.04");
     }
 
     function testName() public {
@@ -48,7 +48,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.expectEmit();
         emit Register(to, 1, recovery);
-        vm.prank(idRegistry.registration());
+        vm.prank(idRegistry.idManager());
         idRegistry.register(to, recovery);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -67,7 +67,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.custodyOf(1), to);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        vm.prank(idRegistry.registration());
+        vm.prank(idRegistry.idManager());
         vm.expectRevert(IdRegistry.HasId.selector);
         idRegistry.register(to, recovery);
 
@@ -87,7 +87,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.custodyOf(1), address(0));
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        vm.prank(idRegistry.registration());
+        vm.prank(idRegistry.idManager());
         vm.expectRevert("Pausable: paused");
         idRegistry.register(to, recovery);
 
@@ -98,7 +98,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     function testFuzzRegisterRevertsUnauthorized(address caller, address to, address recovery) public {
-        vm.assume(caller != idRegistry.registration());
+        vm.assume(caller != idRegistry.idManager());
         assertEq(idRegistry.idCounter(), 0);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -1638,26 +1638,26 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          SET REGISTRATION
+                          SET ID MANAGER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzSetRegistration(address registration) public {
-        address prevRegistration = idRegistry.registration();
+    function testFuzzSetIdManager(address idManager) public {
+        address prevIdManager = idRegistry.idManager();
 
         vm.expectEmit();
-        emit SetRegistration(prevRegistration, registration);
+        emit SetIdManager(prevIdManager, idManager);
 
         vm.prank(owner);
-        idRegistry.setRegistration(registration);
+        idRegistry.setIdManager(idManager);
 
-        assertEq(idRegistry.registration(), registration);
+        assertEq(idRegistry.idManager(), idManager);
     }
 
-    function testFuzzOnlyOwnerCanSetRegistration(address caller, address registration) public {
+    function testFuzzOnlyOwnerCanSetIdManager(address caller, address idManager) public {
         vm.assume(caller != owner);
 
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(caller);
-        idRegistry.setRegistration(registration);
+        idRegistry.setIdManager(idManager);
     }
 }

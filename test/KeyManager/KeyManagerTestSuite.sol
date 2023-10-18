@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {TestSuiteSetup} from "../TestSuiteSetup.sol";
-import {IdManagerTestSuite} from "../IdManager/IdManagerTestSuite.sol";
+import "forge-std/Test.sol";
 
+import {KeyRegistryTestSuite} from "../KeyRegistry/KeyRegistryTestSuite.sol";
+import {StorageRegistryTestSuite} from "../StorageRegistry/StorageRegistryTestSuite.sol";
 import {KeyManager} from "../../src/KeyManager.sol";
-import {Bundler} from "../../src/Bundler.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract BundlerTestSuite is IdManagerTestSuite {
-    KeyManager keyManager;
-    Bundler bundler;
+abstract contract KeyManagerTestSuite is KeyRegistryTestSuite, StorageRegistryTestSuite {
+    KeyManager internal keyManager;
 
-    function setUp() public virtual override {
+    function setUp() public virtual override(KeyRegistryTestSuite, StorageRegistryTestSuite) {
         super.setUp();
 
         keyManager = new KeyManager(address(keyRegistry), address(storageRegistry), owner, vault, 10e6);
@@ -21,27 +20,7 @@ abstract contract BundlerTestSuite is IdManagerTestSuite {
         vm.prank(owner);
         keyRegistry.setKeyManager(address(keyManager));
 
-        // Set up the BundleRegistry
-        bundler = new Bundler(
-            address(idManager),
-            address(keyManager),
-            address(storageRegistry),
-            address(keyRegistry),
-            address(this),
-            owner
-        );
-    }
-
-    // Assert that a given fname was correctly registered with id 1 and recovery
-    function _assertSuccessfulRegistration(address account, address recovery) internal {
-        assertEq(idRegistry.idOf(account), 1);
-        assertEq(idRegistry.recoveryOf(1), recovery);
-    }
-
-    // Assert that a given fname was not registered and the contracts have no registrations
-    function _assertUnsuccessfulRegistration(address account) internal {
-        assertEq(idRegistry.idOf(account), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
+        addKnownContract(address(keyManager));
     }
 
     function _signAdd(

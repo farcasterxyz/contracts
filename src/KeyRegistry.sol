@@ -160,10 +160,24 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
      * @dev Emit an event when the admin sets a new IdRegistry contract address.
      *
      * @param oldIdRegistry The previous IdRegistry address.
-     * @param newIdRegistry The ne IdRegistry address.
+     * @param newIdRegistry The new IdRegistry address.
      */
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
+    /**
+     * @dev Emit an event when the admin sets a new KeyManager address.
+     *
+     * @param oldKeyManager The previous KeyManager address.
+     * @param newKeyManager The new KeyManager address.
+     */
+    event SetKeyManager(address oldKeyManager, address newKeyManager);
+
+    /**
+     * @dev Emit an event when the admin sets a new maximum keys per fid.
+     *
+     * @param oldMax The previous maximum.
+     * @param newMax The new maximum.
+     */
     event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
 
     /*//////////////////////////////////////////////////////////////
@@ -173,7 +187,7 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     /**
      * @inheritdoc IKeyRegistry
      */
-    string public constant VERSION = "2023.08.23";
+    string public constant VERSION = "2023.10.04";
 
     /**
      * @inheritdoc IKeyRegistry
@@ -205,8 +219,16 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     /**
      * @inheritdoc IKeyRegistry
      */
+    address public keyManager;
+
+    /**
+     * @inheritdoc IKeyRegistry
+     */
     uint40 public keysMigratedAt;
 
+    /**
+     * @inheritdoc IKeyRegistry
+     */
     uint256 public maxKeysPerFid;
 
     /**
@@ -283,23 +305,14 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     /**
      * @inheritdoc IKeyRegistry
      */
-    function add(uint32 keyType, bytes calldata key, uint8 metadataType, bytes calldata metadata) external {
-        _add(_fidOf(msg.sender), keyType, key, metadataType, metadata);
-    }
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
-    function addFor(
+    function add(
         address fidOwner,
         uint32 keyType,
         bytes calldata key,
         uint8 metadataType,
-        bytes calldata metadata,
-        uint256 deadline,
-        bytes calldata sig
+        bytes calldata metadata
     ) external {
-        _verifyAddSig(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
+        if (msg.sender != keyManager) revert Unauthorized();
         _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
     }
 
@@ -406,6 +419,17 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         idRegistry = IdRegistryLike(_idRegistry);
     }
 
+    /**
+     * @inheritdoc IKeyRegistry
+     */
+    function setKeyManager(address _keyManager) external onlyOwner {
+        emit SetKeyManager(keyManager, _keyManager);
+        keyManager = _keyManager;
+    }
+
+    /**
+     * @inheritdoc IKeyRegistry
+     */
     function setMaxKeysPerFid(uint256 _maxKeysPerFid) external onlyOwner {
         emit SetMaxKeysPerFid(maxKeysPerFid, _maxKeysPerFid);
         maxKeysPerFid = _maxKeysPerFid;
@@ -488,36 +512,6 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     /*//////////////////////////////////////////////////////////////
                      SIGNATURE VERIFICATION HELPERS
     //////////////////////////////////////////////////////////////*/
-
-    function _verifyAddSig(
-        address fidOwner,
-        uint32 keyType,
-        bytes memory key,
-        uint8 metadataType,
-        bytes memory metadata,
-        uint256 deadline,
-        bytes memory sig
-    ) internal {
-        _verifySig(
-            _hashTypedDataV4(
-                keccak256(
-                    abi.encode(
-                        ADD_TYPEHASH,
-                        fidOwner,
-                        keyType,
-                        keccak256(key),
-                        metadataType,
-                        keccak256(metadata),
-                        _useNonce(fidOwner),
-                        deadline
-                    )
-                )
-            ),
-            fidOwner,
-            deadline,
-            sig
-        );
-    }
 
     function _verifyRemoveSig(address fidOwner, bytes memory key, uint256 deadline, bytes memory sig) internal {
         _verifySig(

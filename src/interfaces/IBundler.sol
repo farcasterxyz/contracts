@@ -50,7 +50,7 @@ interface IBundler {
     function VERSION() external view returns (string memory);
 
     /*//////////////////////////////////////////////////////////////
-                                 REGISTRATION
+                          REGISTRATION
     //////////////////////////////////////////////////////////////*/
 
     /**

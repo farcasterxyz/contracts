@@ -30,7 +30,7 @@ contract BundlerTest is BundlerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testHasIDRegistry() public {
-        assertEq(address(bundler.registration()), address(registration));
+        assertEq(address(bundler.idManager()), address(idManager));
     }
 
     function testHasStorageRegistry() public {
@@ -46,7 +46,7 @@ contract BundlerTest is BundlerTestSuite {
     }
 
     function testVersion() public {
-        assertEq(bundler.VERSION(), "2023.08.23");
+        assertEq(bundler.VERSION(), "2023.10.04");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -106,9 +106,9 @@ contract BundlerTest is BundlerTestSuite {
 
         // State: Trusted Registration is disabled in ID registry
         vm.prank(owner);
-        registration.disableTrustedOnly();
+        idManager.disableTrustedOnly();
 
-        uint256 price = storageRegistry.price(storageUnits + 1);
+        uint256 price = bundler.price(numSigners, storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory registerSig = _signRegister(accountPk, account, recovery, deadline);
@@ -128,7 +128,8 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageAfter = storageRegistry.rentedUnits();
 
         assertEq(storageAfter - storageBefore, storageUnits + 1);
-        assertEq(address(storageRegistry).balance, price);
+        assertEq(address(storageRegistry).balance, price - keyManager.fee() * numSigners);
+        assertEq(address(keyManager).balance, price - storageRegistry.price(storageUnits + 1));
         assertEq(address(bundler).balance, 0 ether);
         assertEq(address(caller).balance, 0 ether);
     }
@@ -150,7 +151,7 @@ contract BundlerTest is BundlerTestSuite {
 
         // State: Trusted Registration is disabled in ID registry
         vm.prank(owner);
-        registration.disableTrustedOnly();
+        idManager.disableTrustedOnly();
 
         uint256 price = storageRegistry.price(storageUnits + 1);
         address account = vm.addr(accountPk);
@@ -187,7 +188,7 @@ contract BundlerTest is BundlerTestSuite {
 
         // State: Trusted Registration is disabled in ID registry
         vm.prank(owner);
-        registration.disableTrustedOnly();
+        idManager.disableTrustedOnly();
 
         uint256 price = storageRegistry.price(storageUnits + 1);
         address account = vm.addr(accountPk);
@@ -240,7 +241,7 @@ contract BundlerTest is BundlerTestSuite {
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -275,7 +276,7 @@ contract BundlerTest is BundlerTestSuite {
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -316,7 +317,7 @@ contract BundlerTest is BundlerTestSuite {
         storageRegistry.grantRole(operatorRoleId, address(bundler));
 
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -343,7 +344,7 @@ contract BundlerTest is BundlerTestSuite {
 
         // Configure the trusted callers correctly
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -412,7 +413,7 @@ contract BundlerTest is BundlerTestSuite {
 
         // Configure the trusted callers correctly
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -460,7 +461,7 @@ contract BundlerTest is BundlerTestSuite {
 
         // Configure the trusted callers correctly
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -489,7 +490,7 @@ contract BundlerTest is BundlerTestSuite {
 
         // Configure the trusted callers correctly
         vm.startPrank(owner);
-        registration.setTrustedCaller(address(bundler));
+        idManager.setTrustedCaller(address(bundler));
         keyRegistry.setTrustedCaller(address(bundler));
         vm.stopPrank();
 
@@ -513,7 +514,7 @@ contract BundlerTest is BundlerTestSuite {
     function testFuzzTrustedBatchRegisterIfIdRegistryDisabled(address alice) public {
         // State: Trusted registration is disabled in IdRegistry
         vm.prank(owner);
-        registration.disableTrustedOnly();
+        idManager.disableTrustedOnly();
 
         bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);
@@ -640,7 +641,8 @@ contract BundlerTest is BundlerTestSuite {
 
     function testFuzzRevertsDirectPayments(address sender, uint256 amount) public {
         vm.assume(sender != address(storageRegistry));
-        vm.assume(sender != address(registration));
+        vm.assume(sender != address(idManager));
+        vm.assume(sender != address(keyManager));
 
         deal(sender, amount);
         vm.prank(sender);

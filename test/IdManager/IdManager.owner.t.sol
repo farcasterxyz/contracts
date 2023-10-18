@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import {Registration} from "../../src/Registration.sol";
+import {IdManager} from "../../src/IdManager.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
-import {RegistrationTestSuite} from "./RegistrationTestSuite.sol";
+import {IdManagerTestSuite} from "./IdManagerTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract RegistrationOwnerTest is RegistrationTestSuite {
+contract IdManagerOwnerTest is IdManagerTestSuite {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -22,54 +22,54 @@ contract RegistrationOwnerTest is RegistrationTestSuite {
 
     function testFuzzSetTrustedCaller(address alice) public {
         vm.assume(alice != address(0));
-        assertEq(registration.owner(), owner);
+        assertEq(idManager.owner(), owner);
 
         vm.prank(owner);
         vm.expectEmit();
         emit SetTrustedCaller(address(0), alice, owner);
-        registration.setTrustedCaller(alice);
-        assertEq(registration.trustedCaller(), alice);
+        idManager.setTrustedCaller(alice);
+        assertEq(idManager.trustedCaller(), alice);
     }
 
     function testFuzzCannotSetTrustedCallerToZeroAddr() public {
-        assertEq(registration.owner(), owner);
+        assertEq(idManager.owner(), owner);
 
         vm.prank(owner);
         vm.expectRevert(TrustedCaller.InvalidAddress.selector);
-        registration.setTrustedCaller(address(0));
+        idManager.setTrustedCaller(address(0));
 
-        assertEq(registration.trustedCaller(), address(0));
+        assertEq(idManager.trustedCaller(), address(0));
     }
 
     function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
         vm.assume(bob != address(0));
-        vm.assume(registration.owner() != alice);
+        vm.assume(idManager.owner() != alice);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        registration.setTrustedCaller(bob);
-        assertEq(registration.trustedCaller(), address(0));
+        idManager.setTrustedCaller(bob);
+        assertEq(idManager.trustedCaller(), address(0));
     }
 
     function testDisableTrustedCaller() public {
-        assertEq(registration.owner(), owner);
-        assertEq(registration.trustedOnly(), 1);
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.trustedOnly(), 1);
 
         vm.prank(owner);
         vm.expectEmit();
         emit DisableTrustedOnly();
-        registration.disableTrustedOnly();
-        assertEq(registration.trustedOnly(), 0);
+        idManager.disableTrustedOnly();
+        assertEq(idManager.trustedOnly(), 0);
     }
 
     function testFuzzCannotDisableTrustedCallerUnlessOwner(address alice) public {
         vm.assume(alice != address(0));
-        vm.assume(registration.owner() != alice);
+        vm.assume(idManager.owner() != alice);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        registration.disableTrustedOnly();
-        assertEq(registration.trustedOnly(), 1);
+        idManager.disableTrustedOnly();
+        assertEq(idManager.trustedOnly(), 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -78,31 +78,31 @@ contract RegistrationOwnerTest is RegistrationTestSuite {
 
     function testFuzzTransferOwnership(address newOwner, address newOwner2) public {
         vm.assume(newOwner != address(0) && newOwner2 != address(0));
-        assertEq(registration.owner(), owner);
-        assertEq(registration.pendingOwner(), address(0));
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.pendingOwner(), address(0));
 
         vm.prank(owner);
-        registration.transferOwnership(newOwner);
-        assertEq(registration.owner(), owner);
-        assertEq(registration.pendingOwner(), newOwner);
+        idManager.transferOwnership(newOwner);
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.pendingOwner(), newOwner);
 
         vm.prank(owner);
-        registration.transferOwnership(newOwner2);
-        assertEq(registration.owner(), owner);
-        assertEq(registration.pendingOwner(), newOwner2);
+        idManager.transferOwnership(newOwner2);
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.pendingOwner(), newOwner2);
     }
 
     function testFuzzCannotTransferOwnershipUnlessOwner(address alice, address newOwner) public {
         vm.assume(alice != owner && newOwner != address(0));
-        assertEq(registration.owner(), owner);
-        assertEq(registration.pendingOwner(), address(0));
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.pendingOwner(), address(0));
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        registration.transferOwnership(newOwner);
+        idManager.transferOwnership(newOwner);
 
-        assertEq(registration.owner(), owner);
-        assertEq(registration.pendingOwner(), address(0));
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.pendingOwner(), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -112,15 +112,15 @@ contract RegistrationOwnerTest is RegistrationTestSuite {
     function testFuzzAcceptOwnership(address newOwner) public {
         vm.assume(newOwner != owner && newOwner != address(0));
         vm.prank(owner);
-        registration.transferOwnership(newOwner);
+        idManager.transferOwnership(newOwner);
 
         vm.expectEmit();
         emit OwnershipTransferred(owner, newOwner);
         vm.prank(newOwner);
-        registration.acceptOwnership();
+        idManager.acceptOwnership();
 
-        assertEq(registration.owner(), newOwner);
-        assertEq(registration.pendingOwner(), address(0));
+        assertEq(idManager.owner(), newOwner);
+        assertEq(idManager.pendingOwner(), address(0));
     }
 
     function testFuzzCannotAcceptOwnershipUnlessPendingOwner(address alice, address newOwner) public {
@@ -128,14 +128,14 @@ contract RegistrationOwnerTest is RegistrationTestSuite {
         vm.assume(newOwner != alice && newOwner != address(0));
 
         vm.prank(owner);
-        registration.transferOwnership(newOwner);
+        idManager.transferOwnership(newOwner);
 
         vm.prank(alice);
         vm.expectRevert("Ownable2Step: caller is not the new owner");
-        registration.acceptOwnership();
+        idManager.acceptOwnership();
 
-        assertEq(registration.owner(), owner);
-        assertEq(registration.pendingOwner(), newOwner);
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.pendingOwner(), newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -143,49 +143,49 @@ contract RegistrationOwnerTest is RegistrationTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testPause() public {
-        assertEq(registration.owner(), owner);
-        assertEq(registration.paused(), false);
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.paused(), false);
 
-        vm.prank(registration.owner());
-        registration.pause();
-        assertEq(registration.paused(), true);
+        vm.prank(idManager.owner());
+        idManager.pause();
+        assertEq(idManager.paused(), true);
     }
 
     function testFuzzCannotPauseUnlessOwner(address alice) public {
         vm.assume(alice != owner && alice != address(0));
-        assertEq(registration.owner(), owner);
-        assertEq(registration.paused(), false);
+        assertEq(idManager.owner(), owner);
+        assertEq(idManager.paused(), false);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        registration.pause();
+        idManager.pause();
 
-        assertEq(registration.paused(), false);
+        assertEq(idManager.paused(), false);
     }
 
     function testUnpause() public {
-        vm.prank(registration.owner());
-        registration.pause();
-        assertEq(registration.paused(), true);
+        vm.prank(idManager.owner());
+        idManager.pause();
+        assertEq(idManager.paused(), true);
 
         vm.prank(owner);
-        registration.unpause();
+        idManager.unpause();
 
-        assertEq(registration.paused(), false);
+        assertEq(idManager.paused(), false);
     }
 
     function testFuzzCannotUnpauseUnlessOwner(address alice) public {
         vm.assume(alice != owner && alice != address(0));
-        assertEq(registration.owner(), owner);
+        assertEq(idManager.owner(), owner);
 
-        vm.prank(registration.owner());
-        registration.pause();
-        assertEq(registration.paused(), true);
+        vm.prank(idManager.owner());
+        idManager.pause();
+        assertEq(idManager.paused(), true);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        registration.unpause();
+        idManager.unpause();
 
-        assertEq(registration.paused(), true);
+        assertEq(idManager.paused(), true);
     }
 }

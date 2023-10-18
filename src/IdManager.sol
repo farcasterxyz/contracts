@@ -5,6 +5,7 @@ import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/Signat
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
+import {IIdManager} from "./interfaces/IIdManager.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
@@ -12,7 +13,14 @@ import {TransferHelper} from "./lib/TransferHelper.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {Signatures} from "./lib/Signatures.sol";
 
-contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
+/**
+ * @title Farcaster IdManager
+ *
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ *
+ * @custom:security-contact security@farcaster.xyz
+ */
+contract IdManager is IIdManager, TrustedCaller, Signatures, Pausable, EIP712, Nonces {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -26,8 +34,14 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IIdManager
+     */
     string public constant VERSION = "2023.10.04";
 
+    /**
+     * @inheritdoc IIdManager
+     */
     bytes32 public constant REGISTER_TYPEHASH =
         keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
 
@@ -35,7 +49,14 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IIdManager
+     */
     IIdRegistry public idRegistry;
+
+    /**
+     * @inheritdoc IIdManager
+     */
     IStorageRegistry public storageRegistry;
 
     /*//////////////////////////////////////////////////////////////
@@ -52,7 +73,7 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         address _initialOwner,
         address _idRegistry,
         address _storageRegistry
-    ) TrustedCaller(_initialOwner) EIP712("Farcaster Registration", "1") {
+    ) TrustedCaller(_initialOwner) EIP712("Farcaster IdManager", "1") {
         idRegistry = IIdRegistry(_idRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
     }
@@ -61,6 +82,9 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IIdManager
+     */
     function register(address recovery)
         external
         payable
@@ -72,6 +96,9 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         overpayment = _rentStorage(fid, msg.value, msg.sender);
     }
 
+    /**
+     * @inheritdoc IIdManager
+     */
     function registerFor(
         address to,
         address recovery,
@@ -84,7 +111,13 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
         overpayment = _rentStorage(fid, msg.value, msg.sender);
     }
 
-    function trustedRegister(address to, address recovery) external onlyTrustedCaller returns (uint256 fid) {
+    /**
+     * @inheritdoc IIdManager
+     */
+    function trustedRegister(
+        address to,
+        address recovery
+    ) external onlyTrustedCaller whenNotPaused returns (uint256 fid) {
         fid = idRegistry.register(to, recovery);
     }
 
@@ -92,10 +125,16 @@ contract Registration is TrustedCaller, Signatures, Pausable, EIP712, Nonces {
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IIdManager
+     */
     function pause() external onlyOwner {
         _pause();
     }
 
+    /**
+     * @inheritdoc IIdManager
+     */
     function unpause() external onlyOwner {
         _unpause();
     }

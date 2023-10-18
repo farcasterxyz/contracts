@@ -59,8 +59,8 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
 
         vm.expectEmit();
         emit Add(userFid, 1, key, key, 1, metadata);
-        vm.prank(to);
-        keyRegistry.add(1, key, 1, metadata);
+        vm.prank(keyRegistry.keyManager());
+        keyRegistry.add(to, 1, key, 1, metadata);
 
         assertAdded(userFid, key, 1);
     }
@@ -94,9 +94,9 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
             })
         );
 
+        vm.prank(keyRegistry.keyManager());
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
-        vm.prank(to);
-        keyRegistry.add(1, key, 1, metadata);
+        keyRegistry.add(to, 1, key, 1, metadata);
     }
 
     function testFuzzAddRevertsLongKey(
@@ -128,9 +128,9 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
             })
         );
 
+        vm.prank(keyRegistry.keyManager());
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
-        vm.prank(to);
-        keyRegistry.add(1, key, 1, metadata);
+        keyRegistry.add(to, 1, key, 1, metadata);
     }
 
     function testFuzzAddRevertsInvalidSig(
@@ -162,9 +162,9 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
             })
         );
 
+        vm.prank(keyRegistry.keyManager());
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
-        vm.prank(to);
-        keyRegistry.add(1, key, 1, metadata);
+        keyRegistry.add(to, 1, key, 1, metadata);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -172,7 +172,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
     //////////////////////////////////////////////////////////////*/
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
-        vm.prank(idRegistry.registration());
+        vm.prank(idRegistry.idManager());
         return idRegistry.register(to, recovery);
     }
 

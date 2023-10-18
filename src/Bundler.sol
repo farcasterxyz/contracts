@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {Registration} from "./Registration.sol";
+import {IdManager} from "./IdManager.sol";
 import {StorageRegistry} from "./StorageRegistry.sol";
 import {KeyRegistry} from "./KeyRegistry.sol";
+import {KeyManager} from "./KeyManager.sol";
 import {IBundler} from "./interfaces/IBundler.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
@@ -32,16 +33,21 @@ contract Bundler is IBundler, TrustedCaller {
     /**
      * @dev Contract version specified using Farcaster protocol version scheme.
      */
-    string public constant VERSION = "2023.08.23";
+    string public constant VERSION = "2023.10.04";
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Address of the Registration contract
+     * @dev Address of the IdManager contract
      */
-    Registration public immutable registration;
+    IdManager public immutable idManager;
+
+    /**
+     * @dev Address of the KeyManager contract
+     */
+    KeyManager public immutable keyManager;
 
     /**
      * @dev Address of the StorageRegistry contract
@@ -58,51 +64,65 @@ contract Bundler is IBundler, TrustedCaller {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Configure the addresses of the Registry contracts and the trusted caller, which is
-     *         allowed to register users during the bootstrap phase.
+     * @notice Configure the addresses of the Manager and Registry contracts
+     *         and the trusted caller, which is allowed to register users
+     *         during the bootstrap phase.
      *
-     * @param _registration    Address of the Registration contract
+     * @param _idManager       Address of the IdManager contract
      * @param _storageRegistry Address of the StorageRegistry contract
-     * @param _keyRegistry     Address of the KeyRegistry contract
+     * @param _keyManager      Address of the KeyRegistry contract
      * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
      * @param _initialOwner    Address that can set the trusted caller
      */
     constructor(
-        address _registration,
+        address _idManager,
+        address _keyManager,
         address _storageRegistry,
         address _keyRegistry,
         address _trustedCaller,
         address _initialOwner
     ) TrustedCaller(_initialOwner) {
-        registration = Registration(payable(_registration));
+        idManager = IdManager(payable(_idManager));
+        keyManager = KeyManager(payable(_keyManager));
         storageRegistry = StorageRegistry(_storageRegistry);
         keyRegistry = KeyRegistry(_keyRegistry);
         _setTrustedCaller(_trustedCaller);
     }
 
     /**
-     * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
+     * @notice Calculate the total price of a registration.
      *
-     * @param registrationParams Struct containing registration parameters: to, recovery, deadline, and signature.
-     * @param signerParams      Array of structs containing signer parameters: keyType, key, metadataType,
-     *                        metadata, deadline, and signature.
-     * @param extraStorage Number of additional storage units to rent
+     * @param signers      Number of signers to add.
+     * @param extraStorage Number of additional storage units to rent.
+     *
+     */
+    function price(uint256 signers, uint256 extraStorage) external view returns (uint256) {
+        return keyManager.fee() * signers + storageRegistry.price(1 + extraStorage);
+    }
+
+    /**
+     * @notice Register an fid, add one or more signers, and rent storage in a single transaction.
+     *
+     * @param registerParams Struct containing register parameters: to, recovery, deadline, and signature.
+     * @param signerParams   Array of structs containing signer parameters: keyType, key, metadataType,
+     *                       metadata, deadline, and signature.
+     * @param extraStorage   Number of additional storage units to rent. (FID registration includes 1 unit).
      *
      */
     function register(
-        RegistrationParams calldata registrationParams,
+        RegistrationParams calldata registerParams,
         SignerParams[] calldata signerParams,
         uint256 extraStorage
     ) external payable {
-        (uint256 fid, uint256 balance) = registration.registerFor{value: msg.value}(
-            registrationParams.to, registrationParams.recovery, registrationParams.deadline, registrationParams.sig
+        (uint256 fid, uint256 balance) = idManager.registerFor{value: msg.value}(
+            registerParams.to, registerParams.recovery, registerParams.deadline, registerParams.sig
         );
 
         uint256 signersLen = signerParams.length;
         for (uint256 i; i < signersLen;) {
             SignerParams calldata signer = signerParams[i];
-            keyRegistry.addFor(
-                registrationParams.to,
+            balance = keyManager.addFor{value: balance}(
+                registerParams.to,
                 signer.keyType,
                 signer.key,
                 signer.metadataType,
@@ -118,10 +138,10 @@ contract Bundler is IBundler, TrustedCaller {
         }
 
         if (extraStorage > 0) {
-            uint256 overpayment = storageRegistry.rent{value: balance}(fid, extraStorage);
-            if (overpayment > 0) {
-                msg.sender.sendNative(overpayment);
-            }
+            balance = storageRegistry.rent{value: balance}(fid, extraStorage);
+        }
+        if (balance > 0) {
+            msg.sender.sendNative(balance);
         }
     }
 
@@ -133,7 +153,7 @@ contract Bundler is IBundler, TrustedCaller {
      */
     function trustedRegister(UserData calldata user) external onlyTrustedCaller {
         // Will revert unless IdRegistry is in the Seedable phase
-        uint256 fid = registration.trustedRegister(user.to, user.recovery);
+        uint256 fid = idManager.trustedRegister(user.to, user.recovery);
         uint256 signersLen = user.signers.length;
         for (uint256 i; i < signersLen;) {
             SignerData calldata signer = user.signers[i];
@@ -157,7 +177,7 @@ contract Bundler is IBundler, TrustedCaller {
         uint256 usersLen = users.length;
         for (uint256 i; i < usersLen;) {
             UserData calldata user = users[i];
-            uint256 fid = registration.trustedRegister(user.to, user.recovery);
+            uint256 fid = idManager.trustedRegister(user.to, user.recovery);
             uint256 signersLen = user.signers.length;
 
             for (uint256 j; j < signersLen;) {
@@ -178,6 +198,9 @@ contract Bundler is IBundler, TrustedCaller {
     }
 
     receive() external payable {
-        if (msg.sender != address(storageRegistry) && msg.sender != address(registration)) revert Unauthorized();
+        if (
+            msg.sender != address(storageRegistry) && msg.sender != address(idManager)
+                && msg.sender != address(keyManager)
+        ) revert Unauthorized();
     }
 }

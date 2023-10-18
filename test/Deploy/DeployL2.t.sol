@@ -8,7 +8,7 @@ import {
     IdRegistry,
     KeyRegistry,
     SignedKeyRequestValidator,
-    Registration,
+    IdManager,
     Bundler,
     RecoveryProxy,
     IBundler,
@@ -23,7 +23,7 @@ contract DeployL2Test is DeployL2, Test {
     IdRegistry internal idRegistry;
     KeyRegistry internal keyRegistry;
     SignedKeyRequestValidator internal validator;
-    Registration internal registration;
+    IdManager internal idManager;
     Bundler internal bundler;
     RecoveryProxy internal recoveryProxy;
 
@@ -150,7 +150,7 @@ contract DeployL2Test is DeployL2, Test {
 
         // Bundler owned by multisig, check deploy parameters
         assertEq(bundler.owner(), alpha);
-        assertEq(address(bundler.registration()), address(registration));
+        assertEq(address(bundler.idManager()), address(idManager));
         assertEq(address(bundler.storageRegistry()), address(storageRegistry));
         assertEq(address(bundler.keyRegistry()), address(keyRegistry));
         assertEq(bundler.trustedCaller(), relayer);
@@ -169,7 +169,7 @@ contract DeployL2Test is DeployL2, Test {
 
         // Bundler trusted registers an app fid
         vm.prank(address(bundler));
-        uint256 requestFid = registration.trustedRegister(app, address(0));
+        uint256 requestFid = idManager.trustedRegister(app, address(0));
         uint256 deadline = block.timestamp + 60;
 
         bytes memory key = bytes.concat("key", bytes29(0));
@@ -195,14 +195,14 @@ contract DeployL2Test is DeployL2, Test {
 
         // Multisig disables trusted mode
         vm.startPrank(alpha);
-        registration.disableTrustedOnly();
+        idManager.disableTrustedOnly();
         keyRegistry.disableTrustedOnly();
         bundler.disableTrustedOnly();
         vm.stopPrank();
 
         // Carol permissionlessly registers an fid with Dave as recovery
         vm.prank(carol);
-        registration.register(dave);
+        idManager.register(dave);
         assertEq(idRegistry.idOf(carol), 3);
 
         // Multisig recovers Alice's FID to bob

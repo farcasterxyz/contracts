@@ -12,11 +12,12 @@ import {StubValidator} from "../Utils.sol";
 
 contract KeyRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
-    address registration;
+    address idRegistration;
     address trustedCaller;
 
     KeyRegistry keyRegistry;
     StubValidator validator;
+    address keyManager;
 
     uint256 x;
     bytes xkey;
@@ -24,20 +25,20 @@ contract KeyRegistrySymTest is SymTest, Test {
     function setUp() public {
         // Setup metadata validator
         validator = new StubValidator();
-        registration = address(0x1000);
+        idRegistration = address(0x1000);
 
         // Setup IdRegistry
         idRegistry = new IdRegistry(address(this));
-        idRegistry.setRegistration(address(registration));
+        idRegistry.setIdManager(address(idRegistration));
 
         trustedCaller = address(0x1001);
 
         // Register fids
-        vm.prank(registration);
+        vm.prank(idRegistration);
         idRegistry.register(address(0x1002), address(0x2001));
-        vm.prank(registration);
+        vm.prank(idRegistration);
         idRegistry.register(address(0x1003), address(0x2002));
-        vm.prank(registration);
+        vm.prank(idRegistration);
         idRegistry.register(address(0x1004), address(0x2003));
 
         assert(idRegistry.idOf(address(0x1002)) == 1);
@@ -48,10 +49,13 @@ contract KeyRegistrySymTest is SymTest, Test {
         assert(idRegistry.recoveryOf(2) == address(0x2002));
         assert(idRegistry.recoveryOf(3) == address(0x2003));
 
+        keyManager = address(0x3000);
+
         // Setup KeyRegistry
         keyRegistry = new KeyRegistry(address(idRegistry), address(this), 1000);
         keyRegistry.setTrustedCaller(trustedCaller);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
+        keyRegistry.setKeyManager(keyManager);
 
         // Set initial states:
         // - fid 1: removed
@@ -59,15 +63,15 @@ contract KeyRegistrySymTest is SymTest, Test {
         // - fid 3: null
 
         bytes memory key1 = svm.createBytes(32, "key1");
-        vm.prank(address(0x1002));
-        keyRegistry.add(1, key1, 1, "");
+        vm.prank(keyManager);
+        keyRegistry.add(address(0x1002), 1, key1, 1, "");
         vm.prank(address(0x1002));
         keyRegistry.remove(key1);
         assert(keyRegistry.keyDataOf(1, key1).state == IKeyRegistry.KeyState.REMOVED);
 
         bytes memory key2 = svm.createBytes(32, "key2");
-        vm.prank(address(0x1003));
-        keyRegistry.add(1, key2, 1, "");
+        vm.prank(keyManager);
+        keyRegistry.add(address(0x1003), 1, key2, 1, "");
         assert(keyRegistry.keyDataOf(2, key2).state == IKeyRegistry.KeyState.ADDED);
 
         // Create symbolic fid and key
@@ -140,11 +144,8 @@ contract KeyRegistrySymTest is SymTest, Test {
                 // - The transition can only be made by add(), addFor(), trustedAdd() or bulkAddKeysForMigration()
                 assert(oldStateX == IKeyRegistry.KeyState.NULL);
                 if (selector == keyRegistry.add.selector) {
-                    //   - add() must be called by the owner of fid x.
-                    assert(oldCallerId == x);
-                } else if (selector == keyRegistry.addFor.selector) {
-                    //   - addFor() makes the transition for the given fidOwner.
-                    assert(oldUserId == x);
+                    //   - add() must be called by the key registration contract.
+                    assert(caller == keyManager);
                 } else if (selector == keyRegistry.trustedAdd.selector) {
                     //   - trustedAdd() must be called by the trustedCaller.
                     assert(caller == trustedCaller);
@@ -229,10 +230,7 @@ contract KeyRegistrySymTest is SymTest, Test {
             // Explicitly branching based on conditions.
             // Note: The negations of conditions are also taken into account.
             split_cases(keyType == uint32(1) && metadataType == uint8(1));
-            args = abi.encode(keyType, key, metadataType, metadata);
-        } else if (selector == keyRegistry.addFor.selector) {
-            split_cases(keyType == uint32(1) && metadataType == uint8(1));
-            args = abi.encode(user, keyType, key, metadataType, metadata, deadline, sig);
+            args = abi.encode(user, keyType, key, metadataType, metadata);
         } else if (selector == keyRegistry.trustedAdd.selector) {
             split_cases(keyType == uint32(1) && metadataType == uint8(1));
             args = abi.encode(user, keyType, key, metadataType, metadata);

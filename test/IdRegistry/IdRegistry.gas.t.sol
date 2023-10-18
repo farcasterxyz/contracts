@@ -14,7 +14,7 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
     function testGasRegister() public {
         for (uint256 i = 1; i < 15; i++) {
             address caller = vm.addr(i);
-            vm.prank(idRegistry.registration());
+            vm.prank(idRegistry.idManager());
             idRegistry.register(caller, RECOVERY);
             assertEq(idRegistry.idOf(caller), i);
         }
@@ -28,7 +28,7 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
             uint256 recoveryRecipientPk = i + 100;
             address recoveryRecipient = vm.addr(recoveryRecipientPk);
 
-            vm.prank(idRegistry.registration());
+            vm.prank(idRegistry.idManager());
             uint256 fid = idRegistry.register(registrationRecipient, RECOVERY);
             assertEq(idRegistry.idOf(registrationRecipient), i);
 
