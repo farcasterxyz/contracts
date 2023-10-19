@@ -17,9 +17,9 @@ abstract contract IdManagerTestSuite is StorageRegistryTestSuite, KeyRegistryTes
         super.setUp();
 
         idManager = new IdManager(
-            owner,
             address(idRegistry),
-            address(storageRegistry)
+            address(storageRegistry),
+            owner
         );
 
         vm.prank(owner);
