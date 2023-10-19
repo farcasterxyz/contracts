@@ -6,9 +6,10 @@ import {
     DeployL2,
     StorageRegistry,
     IdRegistry,
-    KeyRegistry,
-    SignedKeyRequestValidator,
     IdManager,
+    KeyRegistry,
+    KeyManager,
+    SignedKeyRequestValidator,
     Bundler,
     RecoveryProxy,
     IBundler,
@@ -21,9 +22,10 @@ import "forge-std/console.sol";
 contract DeployL2Test is DeployL2, Test {
     StorageRegistry internal storageRegistry;
     IdRegistry internal idRegistry;
-    KeyRegistry internal keyRegistry;
-    SignedKeyRequestValidator internal validator;
     IdManager internal idManager;
+    KeyRegistry internal keyRegistry;
+    KeyManager internal keyManager;
+    SignedKeyRequestValidator internal validator;
     Bundler internal bundler;
     RecoveryProxy internal recoveryProxy;
 
@@ -64,6 +66,11 @@ contract DeployL2Test is DeployL2, Test {
         (dave, davePk) = makeAddrAndKey("dave");
         (app, appPk) = makeAddrAndKey("app");
 
+        vm.deal(alice, 0.5 ether);
+        vm.deal(bob, 0.5 ether);
+        vm.deal(carol, 0.5 ether);
+        vm.deal(dave, 0.5 ether);
+
         DeployL2.DeploymentParams memory params = DeployL2.DeploymentParams({
             initialIdRegistryOwner: alpha,
             initialKeyRegistryOwner: alpha,
@@ -82,7 +89,9 @@ contract DeployL2Test is DeployL2, Test {
             salts: DeployL2.Salts({
                 storageRegistry: 0,
                 idRegistry: 0,
+                idManager: 0,
                 keyRegistry: 0,
+                keyManager: 0,
                 signedKeyRequestValidator: 0,
                 bundler: 0,
                 recoveryProxy: 0
@@ -96,7 +105,9 @@ contract DeployL2Test is DeployL2, Test {
 
         storageRegistry = contracts.storageRegistry;
         idRegistry = contracts.idRegistry;
+        idManager = contracts.idManager;
         keyRegistry = contracts.keyRegistry;
+        keyManager = contracts.keyManager;
         validator = contracts.signedKeyRequestValidator;
         bundler = contracts.bundler;
         recoveryProxy = contracts.recoveryProxy;
@@ -142,7 +153,11 @@ contract DeployL2Test is DeployL2, Test {
 
         // Check key registry parameters
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
+        assertEq(address(keyRegistry.keyManager()), address(keyManager));
         assertEq(keyRegistry.gracePeriod(), KEY_REGISTRY_MIGRATION_GRACE_PERIOD);
+
+        // Check ID registry parameters
+        assertEq(address(idRegistry.idManager()), address(idManager));
 
         // Validator owned by multisig, check deploy parameters
         assertEq(validator.owner(), alpha);
@@ -164,6 +179,7 @@ contract DeployL2Test is DeployL2, Test {
         // Multisig accepts ownership transferred from deployer
         vm.startPrank(alpha);
         idRegistry.acceptOwnership();
+        idManager.acceptOwnership();
         keyRegistry.acceptOwnership();
         vm.stopPrank();
 
@@ -201,15 +217,39 @@ contract DeployL2Test is DeployL2, Test {
         vm.stopPrank();
 
         // Carol permissionlessly registers an fid with Dave as recovery
+        uint256 idFee = storageRegistry.price(1);
         vm.prank(carol);
-        idManager.register(dave);
+        idManager.register{value: idFee}(dave);
         assertEq(idRegistry.idOf(carol), 3);
+
+        // Carol permissionlessly adds a key to her fid
+        bytes memory carolKey = bytes.concat("carolKey", bytes24(0));
+        bytes memory carolSig = _signMetadata(appPk, requestFid, carolKey, deadline);
+        bytes memory carolMetadata = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
+                requestFid: requestFid,
+                requestSigner: app,
+                signature: carolSig,
+                deadline: deadline
+            })
+        );
+
+        uint256 keyFee = keyManager.fee();
+        vm.prank(carol);
+        keyManager.add{value: keyFee}(1, carolKey, 1, carolMetadata);
 
         // Multisig recovers Alice's FID to bob
         uint256 recoverDeadline = block.timestamp + 30;
         bytes memory recoverSig = _signTransfer(bobPk, 2, bob, recoverDeadline);
         vm.prank(alpha);
         recoveryProxy.recover(alice, bob, recoverDeadline, recoverSig);
+
+        // Multisig withdraws keyManager and storageRegistry balances
+        vm.prank(alpha);
+        keyManager.withdraw(address(keyManager).balance);
+
+        vm.prank(relayer);
+        storageRegistry.withdraw(address(storageRegistry).balance);
     }
 
     function _signTransfer(

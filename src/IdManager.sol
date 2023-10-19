@@ -70,9 +70,9 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, Pausable, EIP712, N
      *
      */
     constructor(
-        address _initialOwner,
         address _idRegistry,
-        address _storageRegistry
+        address _storageRegistry,
+        address _initialOwner
     ) TrustedCaller(_initialOwner) EIP712("Farcaster IdManager", "1") {
         idRegistry = IIdRegistry(_idRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
