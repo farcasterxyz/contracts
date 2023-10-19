@@ -139,6 +139,9 @@ jobs:
         run: halmos --error-unknown --test-parallel --solver-parallel --solver-timeout-assertion 0
 
   coverage:
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'ubuntu-latest' || 'buildjet-2vcpu-ubuntu-2204' }}
     steps:
       - uses: actions/checkout@v3
