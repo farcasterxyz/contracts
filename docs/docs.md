@@ -92,7 +92,7 @@ The IdRegistry contract may need to be upgraded in case a bug is discovered or t
 
 The IdManager is responsible for fid registration. While IdRegistry defines the rules of fid ownership, transfers, and
 recovery, the manager is responsible for the the actual registration logic. To prevent spamming fid registrations, the
-IdManager requires callers to rent 1 storage unit at fid registration time.
+IdManager requires callers to rent 1 [storage unit](#13-storage-registry) at fid registration time.
 
 ### Invariants
 

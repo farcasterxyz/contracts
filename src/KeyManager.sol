@@ -9,10 +9,8 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {IKeyManager} from "./interfaces/IKeyManager.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
-import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {Signatures} from "./lib/Signatures.sol";
-import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
 /**

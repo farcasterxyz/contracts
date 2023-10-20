@@ -3,7 +3,6 @@ pragma solidity 0.8.21;
 
 import {IdManager} from "./IdManager.sol";
 import {StorageRegistry} from "./StorageRegistry.sol";
-import {KeyRegistry} from "./KeyRegistry.sol";
 import {KeyManager} from "./KeyManager.sol";
 import {IBundler} from "./interfaces/IBundler.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";

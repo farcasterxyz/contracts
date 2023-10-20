@@ -62,7 +62,8 @@ interface IBundler {
      * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
      *
      * @param registration Struct containing registration parameters: to, recovery, deadline, and signature.
-     * @param signers      Array of structs containing signer parameters: keyType, key, metadataType, metadata, deadline, and signature.
+     * @param signers      Array of structs containing signer parameters: keyType, key, metadataType, metadata,
+     *                     deadline, and signature.
      * @param storageUnits Number of storage units to rent
      *
      */
