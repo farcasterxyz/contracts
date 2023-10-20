@@ -137,7 +137,7 @@ contract KeyRegistrySymTest is SymTest, Test {
                 // - The transition can only be made by add() or bulkAddKeysForMigration()
                 assert(oldStateX == IKeyRegistry.KeyState.NULL);
                 if (selector == keyRegistry.add.selector) {
-                    //   - add() must be called by the key registration contract.
+                    //   - add() must be called by the key manager contract.
                     assert(caller == keyManager);
                 } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
                     //   - bulkAdd() must be called by the owner of KeyRegistry.

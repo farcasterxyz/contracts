@@ -70,7 +70,7 @@ contract Bundler is IBundler, TrustedCaller {
      *
      * @param _idManager       Address of the IdManager contract
      * @param _storageRegistry Address of the StorageRegistry contract
-     * @param _keyManager      Address of the KeyRegistry contract
+     * @param _keyManager      Address of the KeyManager contract
      * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
      * @param _initialOwner    Address that can set the trusted caller
      */
@@ -106,7 +106,7 @@ contract Bundler is IBundler, TrustedCaller {
      * @param registerParams Struct containing register parameters: to, recovery, deadline, and signature.
      * @param signerParams   Array of structs containing signer parameters: keyType, key, metadataType,
      *                       metadata, deadline, and signature.
-     * @param extraStorage   Number of additional storage units to rent. (FID registration includes 1 unit).
+     * @param extraStorage   Number of additional storage units to rent. (fid registration includes 1 unit).
      *
      */
     function register(
