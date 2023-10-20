@@ -460,15 +460,16 @@ contract KeyRegistry is IKeyRegistry, Ownable2Step, Signatures, Pausable, EIP712
         if (validator == IMetadataValidator(address(0))) {
             revert ValidatorNotFound(keyType, metadataType);
         }
-        if (validate) {
-            bool isValid = validator.validate(fid, key, metadata);
-            if (!isValid) revert InvalidMetadata();
-        }
 
         totalKeys[fid]++;
         keyData.state = KeyState.ADDED;
         keyData.keyType = keyType;
         emit Add(fid, keyType, key, key, metadataType, metadata);
+
+        if (validate) {
+            bool isValid = validator.validate(fid, key, metadata);
+            if (!isValid) revert InvalidMetadata();
+        }
     }
 
     function _remove(uint256 fid, bytes calldata key) internal whenNotPaused {
