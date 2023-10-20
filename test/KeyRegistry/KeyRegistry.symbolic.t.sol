@@ -13,7 +13,6 @@ import {StubValidator} from "../Utils.sol";
 contract KeyRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
     address idRegistration;
-    address trustedCaller;
 
     KeyRegistry keyRegistry;
     StubValidator validator;
@@ -31,19 +30,17 @@ contract KeyRegistrySymTest is SymTest, Test {
         idRegistry = new IdRegistry(address(this));
         idRegistry.setIdManager(address(idRegistration));
 
-        trustedCaller = address(0x1001);
-
         // Register fids
         vm.prank(idRegistration);
-        idRegistry.register(address(0x1002), address(0x2001));
+        idRegistry.register(address(0x1001), address(0x2001));
         vm.prank(idRegistration);
-        idRegistry.register(address(0x1003), address(0x2002));
+        idRegistry.register(address(0x1002), address(0x2002));
         vm.prank(idRegistration);
-        idRegistry.register(address(0x1004), address(0x2003));
+        idRegistry.register(address(0x1003), address(0x2003));
 
-        assert(idRegistry.idOf(address(0x1002)) == 1);
-        assert(idRegistry.idOf(address(0x1003)) == 2);
-        assert(idRegistry.idOf(address(0x1004)) == 3);
+        assert(idRegistry.idOf(address(0x1001)) == 1);
+        assert(idRegistry.idOf(address(0x1002)) == 2);
+        assert(idRegistry.idOf(address(0x1003)) == 3);
 
         assert(idRegistry.recoveryOf(1) == address(0x2001));
         assert(idRegistry.recoveryOf(2) == address(0x2002));
@@ -53,7 +50,6 @@ contract KeyRegistrySymTest is SymTest, Test {
 
         // Setup KeyRegistry
         keyRegistry = new KeyRegistry(address(idRegistry), address(this), 1000);
-        keyRegistry.setTrustedCaller(trustedCaller);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
         keyRegistry.setKeyManager(keyManager);
 
@@ -64,14 +60,14 @@ contract KeyRegistrySymTest is SymTest, Test {
 
         bytes memory key1 = svm.createBytes(32, "key1");
         vm.prank(keyManager);
-        keyRegistry.add(address(0x1002), 1, key1, 1, "");
-        vm.prank(address(0x1002));
+        keyRegistry.add(address(0x1001), 1, key1, 1, "");
+        vm.prank(address(0x1001));
         keyRegistry.remove(key1);
         assert(keyRegistry.keyDataOf(1, key1).state == IKeyRegistry.KeyState.REMOVED);
 
         bytes memory key2 = svm.createBytes(32, "key2");
         vm.prank(keyManager);
-        keyRegistry.add(address(0x1003), 1, key2, 1, "");
+        keyRegistry.add(address(0x1002), 1, key2, 1, "");
         assert(keyRegistry.keyDataOf(2, key2).state == IKeyRegistry.KeyState.ADDED);
 
         // Create symbolic fid and key
@@ -86,9 +82,6 @@ contract KeyRegistrySymTest is SymTest, Test {
             keyRegistry.migrateKeys();
         }
         /* NOTE: these configurations don't make any differences for the current KeyRegistry behaviors.
-        if (svm.createBool("disableTrustedOnly?")) {
-            idRegistry.disableTrustedOnly();
-        }
         if (svm.createBool("pause?")) {
             idRegistry.pause();
         }
@@ -141,16 +134,11 @@ contract KeyRegistrySymTest is SymTest, Test {
             } else if (newStateX == IKeyRegistry.KeyState.ADDED) {
                 // For a transition to ADDED, ensure that:
                 // - The previous state must be NULL.
-                // - The transition can only be made by add(), addFor(), trustedAdd() or bulkAddKeysForMigration()
+                // - The transition can only be made by add() or bulkAddKeysForMigration()
                 assert(oldStateX == IKeyRegistry.KeyState.NULL);
                 if (selector == keyRegistry.add.selector) {
                     //   - add() must be called by the key registration contract.
                     assert(caller == keyManager);
-                } else if (selector == keyRegistry.trustedAdd.selector) {
-                    //   - trustedAdd() must be called by the trustedCaller.
-                    assert(caller == trustedCaller);
-                    //   - trustedAdd() makes the transition for the given fidOwner.
-                    assert(oldUserId == x);
                 } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
                     //   - bulkAdd() must be called by the owner of KeyRegistry.
                     //   - bulkAdd() must be called before the key migration or within the grade period following the migration.
@@ -229,9 +217,6 @@ contract KeyRegistrySymTest is SymTest, Test {
         if (selector == keyRegistry.add.selector) {
             // Explicitly branching based on conditions.
             // Note: The negations of conditions are also taken into account.
-            split_cases(keyType == uint32(1) && metadataType == uint8(1));
-            args = abi.encode(user, keyType, key, metadataType, metadata);
-        } else if (selector == keyRegistry.trustedAdd.selector) {
             split_cases(keyType == uint32(1) && metadataType == uint8(1));
             args = abi.encode(user, keyType, key, metadataType, metadata);
         } else if (selector == keyRegistry.remove.selector) {

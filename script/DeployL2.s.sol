@@ -174,7 +174,6 @@ contract DeployL2 is ImmutableCreate2Deployer {
             contracts.idManager.setTrustedCaller(bundler);
             contracts.idManager.transferOwnership(params.initialIdRegistryOwner);
 
-            contracts.keyRegistry.setTrustedCaller(bundler);
             contracts.keyRegistry.setValidator(1, 1, IMetadataValidator(address(contracts.signedKeyRequestValidator)));
             contracts.keyRegistry.setKeyManager(address(contracts.keyManager));
             contracts.keyRegistry.transferOwnership(params.initialKeyRegistryOwner);

@@ -211,7 +211,6 @@ contract UpgradeL2Test is UpgradeL2, Test {
         // Multisig disables trusted mode
         vm.startPrank(alpha);
         idManager.disableTrustedOnly();
-        keyRegistry.disableTrustedOnly();
         bundler.disableTrustedOnly();
         vm.stopPrank();
 

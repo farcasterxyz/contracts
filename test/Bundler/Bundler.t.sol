@@ -224,10 +224,8 @@ contract BundlerTest is BundlerTestSuite {
         registrations = bound(registrations, 1, 100);
 
         // Configure the trusted callers correctly
-        vm.startPrank(owner);
+        vm.prank(owner);
         idManager.setTrustedCaller(address(bundler));
-        keyRegistry.setTrustedCaller(address(bundler));
-        vm.stopPrank();
 
         IBundler.UserData[] memory batchArray = new IBundler.UserData[](
             registrations
@@ -259,10 +257,8 @@ contract BundlerTest is BundlerTestSuite {
         vm.assume(untrustedCaller != address(this));
 
         // Configure the trusted callers correctly
-        vm.startPrank(owner);
+        vm.prank(owner);
         idManager.setTrustedCaller(address(bundler));
-        keyRegistry.setTrustedCaller(address(bundler));
-        vm.stopPrank();
 
         bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);

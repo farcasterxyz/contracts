@@ -88,11 +88,6 @@ interface IKeyRegistry {
     function gracePeriod() external view returns (uint24);
 
     /**
-     * @notice EIP-712 typehash for Add signatures.
-     */
-    function ADD_TYPEHASH() external view returns (bytes32);
-
-    /**
      * @notice EIP-712 typehash for Remove signatures.
      */
     function REMOVE_TYPEHASH() external view returns (bytes32);
@@ -180,24 +175,6 @@ interface IKeyRegistry {
      * @param metadata     Metadata about the key, which is not stored and only emitted in an event.
      */
     function add(
-        address fidOwner,
-        uint32 keyType,
-        bytes calldata key,
-        uint8 metadataType,
-        bytes calldata metadata
-    ) external;
-
-    /**
-     * @notice Add a key on behalf of another fid owner, setting the key state to ADDED.
-     *         Can only be called by the trustedCaller.
-     *
-     * @param fidOwner     The fid owner address.
-     * @param keyType      The key's numeric keyType.
-     * @param key          Bytes of the key to add.
-     * @param metadataType Metadata type ID.
-     * @param metadata     Metadata about the key, which is not stored and only emitted in an event.
-     */
-    function trustedAdd(
         address fidOwner,
         uint32 keyType,
         bytes calldata key,

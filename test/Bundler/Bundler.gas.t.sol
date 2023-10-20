@@ -38,10 +38,8 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
     }
 
     function testGasTrustedBatchRegister() public {
-        vm.startPrank(owner);
+        vm.prank(owner);
         idManager.setTrustedCaller(address(bundler));
-        keyRegistry.setTrustedCaller(address(bundler));
-        vm.stopPrank();
 
         bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);

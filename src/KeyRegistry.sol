@@ -3,13 +3,13 @@ pragma solidity 0.8.21;
 
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
+import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
 import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {Signatures} from "./lib/Signatures.sol";
-import {TrustedCaller} from "./lib/TrustedCaller.sol";
 
 /**
  * @title Farcaster KeyRegistry
@@ -18,7 +18,7 @@ import {TrustedCaller} from "./lib/TrustedCaller.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP712, Nonces {
+contract KeyRegistry is IKeyRegistry, Ownable2Step, Signatures, Pausable, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -197,13 +197,6 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
     /**
      * @inheritdoc IKeyRegistry
      */
-    bytes32 public constant ADD_TYPEHASH = keccak256(
-        "Add(address owner,uint32 keyType,bytes key,uint8 metadataType,bytes metadata,uint256 nonce,uint256 deadline)"
-    );
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
     bytes32 public constant REMOVE_TYPEHASH =
         keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
 
@@ -273,11 +266,12 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         address _idRegistry,
         address _initialOwner,
         uint256 _maxKeysPerFid
-    ) TrustedCaller(_initialOwner) EIP712("Farcaster KeyRegistry", "1") {
+    ) EIP712("Farcaster KeyRegistry", "1") {
         idRegistry = IdRegistryLike(_idRegistry);
         maxKeysPerFid = _maxKeysPerFid;
         emit SetIdRegistry(address(0), _idRegistry);
         emit SetMaxKeysPerFid(0, _maxKeysPerFid);
+        _transferOwnership(_initialOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -313,19 +307,6 @@ contract KeyRegistry is IKeyRegistry, TrustedCaller, Signatures, Pausable, EIP71
         bytes calldata metadata
     ) external {
         if (msg.sender != keyManager) revert Unauthorized();
-        _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
-    }
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
-    function trustedAdd(
-        address fidOwner,
-        uint32 keyType,
-        bytes calldata key,
-        uint8 metadataType,
-        bytes calldata metadata
-    ) external onlyTrustedCaller {
         _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
     }
 
