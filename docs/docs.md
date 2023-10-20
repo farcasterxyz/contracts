@@ -97,6 +97,7 @@ IdManager requires callers to rent 1 [storage unit](#13-storage-registry) at fid
 ### Invariants
 
 1. In untrusted mode, callers must rent 1 storage unit at fid registration time.
+2. The contract can only transition to untrusted mode once, and never back to trusted mode.
 
 ### Assumptions
 

@@ -62,6 +62,31 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
+    function testFuzzRegisterReturnsOverpayment(address caller, address recovery, uint32 overpayment) public {
+        _assumeClean(caller);
+        assertEq(idRegistry.idCounter(), 0);
+
+        vm.prank(owner);
+        idManager.disableTrustedOnly();
+
+        assertEq(idRegistry.idCounter(), 0);
+        assertEq(idRegistry.idOf(caller), 0);
+        assertEq(idRegistry.recoveryOf(1), address(0));
+
+        uint256 price = idManager.price();
+        vm.deal(caller, price + overpayment);
+
+        vm.expectEmit();
+        emit Register(caller, 1, recovery);
+        vm.prank(caller);
+        idManager.register{value: price + overpayment}(recovery);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(caller), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
+        assertEq(address(caller).balance, overpayment);
+    }
+
     function testFuzzCannotRegisterIfSeedable(address caller, address recovery) public {
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idManager.trustedOnly(), 1);

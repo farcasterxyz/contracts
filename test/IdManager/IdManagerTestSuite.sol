@@ -24,6 +24,8 @@ abstract contract IdManagerTestSuite is StorageRegistryTestSuite, KeyRegistryTes
 
         vm.prank(owner);
         idRegistry.setIdManager(address(idManager));
+
+        addKnownContract(address(idManager));
     }
 
     function _registerTo(address caller) internal returns (uint256 fid) {

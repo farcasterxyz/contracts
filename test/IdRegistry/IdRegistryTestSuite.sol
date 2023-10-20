@@ -13,6 +13,8 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         super.setUp();
 
         idRegistry = new IdRegistry(owner);
+
+        addKnownContract(address(idRegistry));
     }
 
     /*//////////////////////////////////////////////////////////////

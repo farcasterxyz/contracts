@@ -19,6 +19,9 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
 
         keyRegistry = new KeyRegistry(address(idRegistry), owner, 10);
         stubValidator = new StubValidator();
+
+        addKnownContract(address(keyRegistry));
+        addKnownContract(address(stubValidator));
     }
 
     function _signRemove(

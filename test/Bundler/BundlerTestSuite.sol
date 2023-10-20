@@ -29,6 +29,9 @@ abstract contract BundlerTestSuite is IdManagerTestSuite {
             address(this),
             owner
         );
+
+        addKnownContract(address(keyManager));
+        addKnownContract(address(bundler));
     }
 
     // Assert that a given fname was correctly registered with id 1 and recovery
