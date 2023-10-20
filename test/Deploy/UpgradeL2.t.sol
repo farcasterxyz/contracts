@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {Test} from "forge-std/Test.sol";
 import {
-    DeployL2,
+    UpgradeL2,
     StorageRegistry,
     IdRegistry,
     IdManager,
@@ -14,12 +14,12 @@ import {
     RecoveryProxy,
     IBundler,
     IMetadataValidator
-} from "../../script/DeployL2.s.sol";
+} from "../../script/UpgradeL2.s.sol";
 import "forge-std/console.sol";
 
 /* solhint-disable state-visibility */
 
-contract DeployL2Test is DeployL2, Test {
+contract UpgradeL2Test is UpgradeL2, Test {
     StorageRegistry internal storageRegistry;
     IdRegistry internal idRegistry;
     IdManager internal idManager;
@@ -44,10 +44,10 @@ contract DeployL2Test is DeployL2, Test {
     address internal app;
     uint256 internal appPk;
 
-    address internal alpha = makeAddr("alpha");
-    address internal beta = makeAddr("beta");
-    address internal vault = makeAddr("vault");
-    address internal relayer = makeAddr("relayer");
+    address internal alpha = address(0x53c6dA835c777AD11159198FBe11f95E5eE6B692);
+    address internal beta = address(0xD84E32224A249A575A09672Da9cb58C381C4837a);
+    address internal vault = address(0x53c6dA835c777AD11159198FBe11f95E5eE6B692);
+    address internal relayer = address(0x2D93c2F74b2C4697f9ea85D0450148AA45D4D5a2);
 
     // @dev OP Mainnet ETH/USD price feed
     address internal priceFeed = address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
@@ -57,8 +57,11 @@ contract DeployL2Test is DeployL2, Test {
 
     address internal deployer = address(0x6D2b70e39C6bc63763098e336323591eb77Cd0C6);
 
+    address internal storageRegistryAddr = address(0x00000000fcCe7f938e7aE6D3c335bD6a1a7c593D);
+    address internal signedKeyRequestValidatorAddr = address(0x00000000FC700472606ED4fA22623Acf62c60553);
+
     function setUp() public {
-        vm.createSelectFork("l2_mainnet", 108869038);
+        vm.createSelectFork("l2_mainnet", 111079475);
 
         (alice, alicePk) = makeAddrAndKey("alice");
         (bob, bobPk) = makeAddrAndKey("bob");
@@ -71,7 +74,7 @@ contract DeployL2Test is DeployL2, Test {
         vm.deal(carol, 0.5 ether);
         vm.deal(dave, 0.5 ether);
 
-        DeployL2.DeploymentParams memory params = DeployL2.DeploymentParams({
+        UpgradeL2.DeploymentParams memory params = UpgradeL2.DeploymentParams({
             initialIdRegistryOwner: alpha,
             initialKeyRegistryOwner: alpha,
             initialBundlerOwner: alpha,
@@ -85,8 +88,10 @@ contract DeployL2Test is DeployL2, Test {
             operator: relayer,
             treasurer: relayer,
             bundlerTrustedCaller: relayer,
+            storageRegistryAddr: storageRegistryAddr,
+            signedKeyRequestValidatorAddr: signedKeyRequestValidatorAddr,
             deployer: deployer,
-            salts: DeployL2.Salts({
+            salts: UpgradeL2.Salts({
                 storageRegistry: 0,
                 idRegistry: 0,
                 idManager: 0,
@@ -99,7 +104,7 @@ contract DeployL2Test is DeployL2, Test {
         });
 
         vm.startPrank(deployer);
-        DeployL2.Contracts memory contracts = runDeploy(params, false);
+        UpgradeL2.Contracts memory contracts = runDeploy(params, false);
         runSetup(contracts, params, false);
         vm.stopPrank();
 
@@ -111,14 +116,21 @@ contract DeployL2Test is DeployL2, Test {
         validator = contracts.signedKeyRequestValidator;
         bundler = contracts.bundler;
         recoveryProxy = contracts.recoveryProxy;
+
+        postDeploySetup();
+    }
+
+    function postDeploySetup() public {
+        vm.prank(alpha);
+        validator.setIdRegistry(address(idRegistry));
     }
 
     function test_deploymentParams() public {
         // Check deployment parameters
         assertEq(address(storageRegistry.priceFeed()), priceFeed);
         assertEq(address(storageRegistry.uptimeFeed()), uptimeFeed);
-        assertEq(storageRegistry.deprecationTimestamp(), block.timestamp + 365 days);
-        assertEq(storageRegistry.usdUnitPrice(), INITIAL_USD_UNIT_PRICE);
+        assertEq(storageRegistry.deprecationTimestamp(), 1724872829);
+        assertEq(storageRegistry.usdUnitPrice(), 7e8);
         assertEq(storageRegistry.maxUnits(), INITIAL_MAX_UNITS);
         assertEq(storageRegistry.priceFeedCacheDuration(), INITIAL_PRICE_FEED_CACHE_DURATION);
         assertEq(storageRegistry.uptimeFeedGracePeriod(), INITIAL_UPTIME_FEED_GRACE_PERIOD);
@@ -129,20 +141,20 @@ contract DeployL2Test is DeployL2, Test {
         assertEq(storageRegistry.hasRole(bytes32(0), alpha), true);
 
         // Owner role revoked from deployer and transferred to beta address
-        assertEq(storageRegistry.getRoleMemberCount(keccak256("OWNER_ROLE")), 1);
+        assertEq(storageRegistry.getRoleMemberCount(keccak256("OWNER_ROLE")), 3);
         assertEq(storageRegistry.hasRole(keccak256("OWNER_ROLE"), deployer), false);
         assertEq(storageRegistry.hasRole(keccak256("OWNER_ROLE"), beta), true);
 
-        // Operator role revoked from deployer, granted to relay and bundler
+        // Operator role revoked from deployer
         assertEq(storageRegistry.getRoleMemberCount(keccak256("OPERATOR_ROLE")), 2);
         assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), deployer), false);
-        assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), address(bundler)), true);
-        assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), relayer), true);
 
-        // Treasurer role revoked from deployer, granted to relay
+        // Operator role is not granted to new bundler, but not needed
+        assertEq(storageRegistry.hasRole(keccak256("OPERATOR_ROLE"), address(bundler)), false);
+
+        // Treasurer role revoked from deployer
         assertEq(storageRegistry.getRoleMemberCount(keccak256("TREASURER_ROLE")), 1);
         assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), deployer), false);
-        assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), relayer), true);
 
         // Ownership transfers initiated from deployer to multisig
         assertEq(idRegistry.owner(), deployer);
@@ -190,6 +202,7 @@ contract DeployL2Test is DeployL2, Test {
 
         IBundler.UserData[] memory batch = new IBundler.UserData[](1);
         batch[0] = IBundler.UserData({to: alice, recovery: address(recoveryProxy)});
+
         // Relayer trusted registers a user fid
         vm.prank(relayer);
         bundler.trustedBatchRegister(batch);
@@ -230,12 +243,9 @@ contract DeployL2Test is DeployL2, Test {
         vm.prank(alpha);
         recoveryProxy.recover(alice, bob, recoverDeadline, recoverSig);
 
-        // Multisig withdraws keyManager and storageRegistry balances
+        // Multisig withdraws keyManager balance
         vm.prank(alpha);
         keyManager.withdraw(address(keyManager).balance);
-
-        vm.prank(relayer);
-        storageRegistry.withdraw(address(storageRegistry).balance);
     }
 
     function _signTransfer(

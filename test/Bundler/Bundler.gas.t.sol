@@ -37,25 +37,6 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
         }
     }
 
-    function testGasTrustedRegister() public {
-        vm.startPrank(owner);
-        idManager.setTrustedCaller(address(bundler));
-        keyRegistry.setTrustedCaller(address(bundler));
-        vm.stopPrank();
-
-        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
-        vm.prank(roleAdmin);
-        storageRegistry.grantRole(operatorRoleId, address(bundler));
-
-        for (uint256 i = 0; i < 10; i++) {
-            address account = address(uint160(i));
-            IBundler.SignerData[] memory signers = new IBundler.SignerData[](1);
-            signers[0] = IBundler.SignerData({keyType: 1, key: "key", metadataType: 1, metadata: "metadata"});
-
-            bundler.trustedRegister(IBundler.UserData({to: account, recovery: address(0), signers: signers, units: 1}));
-        }
-    }
-
     function testGasTrustedBatchRegister() public {
         vm.startPrank(owner);
         idManager.setTrustedCaller(address(bundler));
@@ -71,11 +52,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
             for (uint256 j = 0; j < 10; j++) {
                 address account = address(uint160(((i * 10) + j + 1)));
-                IBundler.SignerData[] memory signers = new IBundler.SignerData[](
-                    1
-                );
-                signers[0] = IBundler.SignerData({keyType: 1, key: "key", metadataType: 1, metadata: "metadata"});
-                batchArray[j] = IBundler.UserData({to: account, recovery: address(0), signers: signers, units: 1});
+                batchArray[j] = IBundler.UserData({to: account, recovery: address(0)});
             }
 
             bundler.trustedBatchRegister(batchArray);

@@ -10,16 +10,6 @@ interface IBundler {
     struct UserData {
         address to;
         address recovery;
-        SignerData[] signers;
-        uint256 units;
-    }
-
-    /// @notice Data needed to trusted register a signer with the key registry
-    struct SignerData {
-        uint32 keyType;
-        bytes key;
-        uint8 metadataType;
-        bytes metadata;
     }
 
     /// @notice Data needed to register an fid with signature.
@@ -72,17 +62,9 @@ interface IBundler {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Register an fid, add a signer, and credit storage to an address in a single transaction. Can only
-     *         be called by the trustedCaller during the Seedable phase.
-     *
-     * @param user UserData struct including to/recovery address, key params, and number of storage units.
-     */
-    function trustedRegister(UserData calldata user) external;
-
-    /**
-     * @notice Register fids, keys, and credit storage for multiple users in a single transaction. Can
-     *         only be called by the trustedCaller during the Seedable phase. Will be used when
-     *         migrating across Ethereum networks to bootstrap a new contract with existing data.
+     * @notice Register fids for multiple users in a single transaction. Can only be called by
+     *         the trustedCaller during the Seedable phase. Will be used when migrating across
+     *         Ethereum networks to bootstrap a new contract with existing data.
      *
      * @param users  Array of UserData structs to register
      */

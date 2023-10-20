@@ -146,29 +146,9 @@ contract Bundler is IBundler, TrustedCaller {
     }
 
     /**
-     * @notice Register an fid, add a signer, and credit storage to an address in a single transaction. Can only
-     *         be called by the trustedCaller during the Seedable phase.
-     *
-     * @param user UserData struct including to/recovery address, key params, and number of storage units.
-     */
-    function trustedRegister(UserData calldata user) external onlyTrustedCaller {
-        // Will revert unless IdRegistry is in the Seedable phase
-        uint256 fid = idManager.trustedRegister(user.to, user.recovery);
-        uint256 signersLen = user.signers.length;
-        for (uint256 i; i < signersLen;) {
-            SignerData calldata signer = user.signers[i];
-            keyRegistry.trustedAdd(user.to, signer.keyType, signer.key, signer.metadataType, signer.metadata);
-            unchecked {
-                ++i;
-            }
-        }
-        storageRegistry.credit(fid, user.units);
-    }
-
-    /**
-     * @notice Register fids, keys, and credit storage for multiple users in a single transaction. Can
-     *         only be called by the trustedCaller during the Seedable phase. Will be used when
-     *         migrating across Ethereum networks to bootstrap a new contract with existing data.
+     * @notice Register fids for multiple users in a single transaction. Can only be called by the trustedCaller
+     *         during the Seedable phase. Will be used when migrating across Ethereum networks to bootstrap a new
+     *         contract with existing data.
      *
      * @param users  Array of UserData structs to register
      */
@@ -177,20 +157,7 @@ contract Bundler is IBundler, TrustedCaller {
         uint256 usersLen = users.length;
         for (uint256 i; i < usersLen;) {
             UserData calldata user = users[i];
-            uint256 fid = idManager.trustedRegister(user.to, user.recovery);
-            uint256 signersLen = user.signers.length;
-
-            for (uint256 j; j < signersLen;) {
-                SignerData calldata signer = user.signers[j];
-                keyRegistry.trustedAdd(user.to, signer.keyType, signer.key, signer.metadataType, signer.metadata);
-                unchecked {
-                    ++j;
-                }
-            }
-
-            storageRegistry.credit(fid, user.units);
-
-            // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
+            idManager.trustedRegister(user.to, user.recovery);
             unchecked {
                 ++i;
             }
