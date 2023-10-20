@@ -136,7 +136,6 @@ contract DeployL2 is ImmutableCreate2Deployer {
                 addrs.idManager,
                 addrs.keyManager,
                 addrs.storageRegistry,
-                addrs.keyRegistry,
                 params.bundlerTrustedCaller,
                 params.initialBundlerOwner
             )

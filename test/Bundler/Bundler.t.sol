@@ -37,10 +37,6 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(bundler.storageRegistry()), address(storageRegistry));
     }
 
-    function testHasKeyRegistry() public {
-        assertEq(address(bundler.keyRegistry()), address(keyRegistry));
-    }
-
     function testDefaultTrustedCaller() public {
         assertEq(address(bundler.trustedCaller()), address(this));
     }
@@ -128,8 +124,8 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageAfter = storageRegistry.rentedUnits();
 
         assertEq(storageAfter - storageBefore, storageUnits + 1);
-        assertEq(address(storageRegistry).balance, price - keyManager.fee() * numSigners);
-        assertEq(address(keyManager).balance, price - storageRegistry.price(storageUnits + 1));
+        assertEq(address(storageRegistry).balance, price - keyManager.price() * numSigners);
+        assertEq(address(keyManager).balance, price - bundler.price(0, storageUnits));
         assertEq(address(bundler).balance, 0 ether);
         assertEq(address(caller).balance, 0 ether);
     }
@@ -153,7 +149,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(owner);
         idManager.disableTrustedOnly();
 
-        uint256 price = storageRegistry.price(storageUnits + 1);
+        uint256 price = bundler.price(0, storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
@@ -190,7 +186,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(owner);
         idManager.disableTrustedOnly();
 
-        uint256 price = storageRegistry.price(storageUnits + 1);
+        uint256 price = bundler.price(0, storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);

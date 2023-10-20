@@ -50,7 +50,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         vm.stopPrank();
         vm.roll(block.number + 1);
 
-        assertEq(keyManager.fee(), uint256(usdFee).divWadUp(uint256(ethUsdPrice)));
+        assertEq(keyManager.price(), uint256(usdFee).divWadUp(uint256(ethUsdPrice)));
     }
 
     function testFuzzFeeFixedEthUsdPrice(uint48 usdFee, uint256 ethUsdPrice) public {
@@ -61,7 +61,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         vm.stopPrank();
         vm.roll(block.number + 1);
 
-        assertEq(keyManager.fee(), uint256(usdFee).divWadUp(uint256(ethUsdPrice)));
+        assertEq(keyManager.price(), uint256(usdFee).divWadUp(uint256(ethUsdPrice)));
     }
 
     function testFuzzAdd(
@@ -78,7 +78,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(to, fee);
 
         assertEq(keyRegistry.totalKeys(fid), 0);
@@ -109,7 +109,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(to, fee + overpayment);
 
         assertEq(keyRegistry.totalKeys(fid), 0);
@@ -140,7 +140,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         uint256 underpayment = bound(fee, 1, fee);
         vm.deal(to, fee - underpayment);
 
@@ -166,7 +166,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
 
         uint256 fid = _registerFid(to, recovery);
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(to, fee);
 
         vm.prank(to);
@@ -192,7 +192,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         stubValidator.setIsValid(false);
 
         uint256 fid = _registerFid(to, recovery);
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(to, fee);
 
         vm.prank(to);
@@ -218,7 +218,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         _registerValidator(keyType, metadataType);
 
         uint256 fid = _registerFid(to, recovery);
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(caller, fee);
 
         vm.prank(caller);
@@ -241,7 +241,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(to, fee * 2);
 
         vm.startPrank(to);
@@ -269,7 +269,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(to, fee * 2);
 
         vm.startPrank(to);
@@ -297,7 +297,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(to, fee);
 
         vm.prank(owner);
@@ -322,7 +322,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(to, fee * 11);
 
         // Create 10 keys
@@ -354,7 +354,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(registrar, fee);
 
         address owner = vm.addr(ownerPk);
@@ -384,7 +384,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(1, 1);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(registrar, fee + overpayment);
 
         address owner = vm.addr(ownerPk);
@@ -413,7 +413,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(1, 1);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         uint256 underpayment = bound(fee, 1, fee);
         vm.deal(registrar, fee - underpayment);
 
@@ -446,7 +446,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(registrar, fee);
 
         address owner = vm.addr(ownerPk);
@@ -474,7 +474,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(registrar, fee);
 
         address owner = vm.addr(ownerPk);
@@ -505,7 +505,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.fee();
+        uint256 fee = keyManager.price();
         vm.deal(registrar, fee);
 
         address owner = vm.addr(ownerPk);
@@ -566,7 +566,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
         fidOwnerPk = _boundPk(fidOwnerPk);
 
-        vm.deal(registrar, keyManager.fee());
+        vm.deal(registrar, keyManager.price());
 
         address fidOwner = vm.addr(fidOwnerPk);
         uint256 fid = _registerFid(fidOwner, recovery);

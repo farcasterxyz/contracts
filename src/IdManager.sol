@@ -79,6 +79,20 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, Pausable, EIP712, N
     }
 
     /*//////////////////////////////////////////////////////////////
+                             PRICE VIEW
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Calculate the total price to register, equal to 1
+     *         storage unit.
+     *
+     * @return Total price in wei.
+     */
+    function price() external view returns (uint256) {
+        return storageRegistry.unitPrice();
+    }
+
+    /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 

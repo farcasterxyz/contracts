@@ -134,7 +134,7 @@ contract KeyManager is IKeyManager, Ownable2Step, Signatures, Pausable, EIP712, 
     /**
      * @inheritdoc IKeyManager
      */
-    function fee() public view returns (uint256) {
+    function price() public view returns (uint256) {
         return usdFee.divWadUp(_ethUsdPrice());
     }
 
@@ -151,12 +151,12 @@ contract KeyManager is IKeyManager, Ownable2Step, Signatures, Pausable, EIP712, 
         uint8 metadataType,
         bytes calldata metadata
     ) external payable whenNotPaused returns (uint256 overpayment) {
-        uint256 _fee = fee();
-        if (msg.value < _fee) revert InvalidPayment();
+        uint256 fee = price();
+        if (msg.value < fee) revert InvalidPayment();
 
         keyRegistry.add(msg.sender, keyType, key, metadataType, metadata);
 
-        overpayment = msg.value - _fee;
+        overpayment = msg.value - fee;
         if (overpayment > 0) {
             msg.sender.sendNative(overpayment);
         }
@@ -174,13 +174,13 @@ contract KeyManager is IKeyManager, Ownable2Step, Signatures, Pausable, EIP712, 
         uint256 deadline,
         bytes calldata sig
     ) external payable whenNotPaused returns (uint256 overpayment) {
-        uint256 _fee = fee();
-        if (msg.value < _fee) revert InvalidPayment();
+        uint256 fee = price();
+        if (msg.value < fee) revert InvalidPayment();
 
         _verifyAddSig(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
         keyRegistry.add(fidOwner, keyType, key, metadataType, metadata);
 
-        overpayment = msg.value - _fee;
+        overpayment = msg.value - fee;
         if (overpayment > 0) {
             msg.sender.sendNative(overpayment);
         }

@@ -48,11 +48,11 @@ interface IKeyManager {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Current fee in wei to add a signer key.
+     * @notice Current price in wei to add a signer key.
      *
-     * @return fee in wei
+     * @return Total price in wei.
      */
-    function fee() external view returns (uint256);
+    function price() external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                               REGISTRATION

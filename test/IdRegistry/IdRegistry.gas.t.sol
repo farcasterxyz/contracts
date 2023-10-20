@@ -37,16 +37,4 @@ contract IdRegistryGasUsageTest is IdRegistryTestSuite {
             idRegistry.recover(registrationRecipient, recoveryRecipient, deadline, transferSig);
         }
     }
-
-    function testGasRegisterFromTrustedCaller() public {
-        /* vm.prank(owner);
-        idRegistry.setTrustedCaller(TRUSTED_SENDER);
-
-        for (uint256 i = 0; i < 25; i++) {
-            address alice = address(uint160(i));
-            vm.prank(TRUSTED_SENDER);
-            idRegistry.trustedRegister(alice, address(0));
-            assertEq(idRegistry.idOf(alice), i + 1);
-        } */
-    }
 }

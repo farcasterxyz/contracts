@@ -23,6 +23,9 @@ contract Bundler is IBundler, TrustedCaller {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Revert if the caller provides the wrong payment amount.
+    error InvalidPayment();
+
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
 
@@ -54,11 +57,6 @@ contract Bundler is IBundler, TrustedCaller {
      */
     StorageRegistry public immutable storageRegistry;
 
-    /**
-     * @dev Address of the KeyRegistry contract
-     */
-    KeyRegistry public immutable keyRegistry;
-
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -69,8 +67,8 @@ contract Bundler is IBundler, TrustedCaller {
      *         during the bootstrap phase.
      *
      * @param _idManager       Address of the IdManager contract
-     * @param _storageRegistry Address of the StorageRegistry contract
      * @param _keyManager      Address of the KeyManager contract
+     * @param _storageRegistry Address of the StorageRegistry contract
      * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
      * @param _initialOwner    Address that can set the trusted caller
      */
@@ -78,14 +76,12 @@ contract Bundler is IBundler, TrustedCaller {
         address _idManager,
         address _keyManager,
         address _storageRegistry,
-        address _keyRegistry,
         address _trustedCaller,
         address _initialOwner
     ) TrustedCaller(_initialOwner) {
         idManager = IdManager(payable(_idManager));
         keyManager = KeyManager(payable(_keyManager));
         storageRegistry = StorageRegistry(_storageRegistry);
-        keyRegistry = KeyRegistry(_keyRegistry);
         _setTrustedCaller(_trustedCaller);
     }
 
@@ -97,7 +93,7 @@ contract Bundler is IBundler, TrustedCaller {
      *
      */
     function price(uint256 signers, uint256 extraStorage) external view returns (uint256) {
-        return keyManager.fee() * signers + storageRegistry.price(1 + extraStorage);
+        return keyManager.price() * signers + idManager.price() + storageRegistry.price(extraStorage);
     }
 
     /**
@@ -114,14 +110,22 @@ contract Bundler is IBundler, TrustedCaller {
         SignerParams[] calldata signerParams,
         uint256 extraStorage
     ) external payable {
-        (uint256 fid, uint256 balance) = idManager.registerFor{value: msg.value}(
+        uint256 registerFee = idManager.price();
+        uint256 signerFee = keyManager.price();
+        uint256 storageFee = storageRegistry.price(extraStorage);
+        uint256 totalFee = registerFee + signerFee * signerParams.length + storageFee;
+
+        if (msg.value < totalFee) revert InvalidPayment();
+        uint256 overpayment = msg.value - totalFee;
+
+        (uint256 fid,) = idManager.registerFor{value: registerFee}(
             registerParams.to, registerParams.recovery, registerParams.deadline, registerParams.sig
         );
 
         uint256 signersLen = signerParams.length;
         for (uint256 i; i < signersLen;) {
             SignerParams calldata signer = signerParams[i];
-            balance = keyManager.addFor{value: balance}(
+            keyManager.addFor{value: signerFee}(
                 registerParams.to,
                 signer.keyType,
                 signer.key,
@@ -138,10 +142,10 @@ contract Bundler is IBundler, TrustedCaller {
         }
 
         if (extraStorage > 0) {
-            balance = storageRegistry.rent{value: balance}(fid, extraStorage);
+            storageRegistry.rent{value: storageFee}(fid, extraStorage);
         }
-        if (balance > 0) {
-            msg.sender.sendNative(balance);
+        if (overpayment > 0) {
+            msg.sender.sendNative(overpayment);
         }
     }
 

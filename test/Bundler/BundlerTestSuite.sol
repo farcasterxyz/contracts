@@ -26,7 +26,6 @@ abstract contract BundlerTestSuite is IdManagerTestSuite {
             address(idManager),
             address(keyManager),
             address(storageRegistry),
-            address(keyRegistry),
             address(this),
             owner
         );

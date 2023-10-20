@@ -49,7 +49,7 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.idOf(caller), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = storageRegistry.price(1);
+        uint256 price = idManager.price();
         vm.deal(caller, price);
 
         vm.expectEmit();
@@ -88,7 +88,7 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.idOf(caller), 1);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = storageRegistry.price(1);
+        uint256 price = idManager.price();
         vm.deal(caller, price);
 
         vm.prank(owner);
@@ -141,7 +141,7 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = storageRegistry.price(1);
+        uint256 price = idManager.price();
         vm.deal(registrar, price);
 
         vm.expectEmit();
@@ -362,7 +362,7 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.idOf(mockWalletAddress), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = storageRegistry.price(1);
+        uint256 price = idManager.price();
         vm.deal(registrar, price);
 
         vm.expectEmit(true, true, true, true);

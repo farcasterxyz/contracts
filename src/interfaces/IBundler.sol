@@ -40,6 +40,21 @@ interface IBundler {
     function VERSION() external view returns (string memory);
 
     /*//////////////////////////////////////////////////////////////
+                                VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Calculate the total price of a registration.
+     *
+     * @param signers      Number of signers to add.
+     * @param extraStorage Number of additional storage units to rent.
+     *
+     * @return Total price in wei.
+     *
+     */
+    function price(uint256 signers, uint256 extraStorage) external view returns (uint256);
+
+    /*//////////////////////////////////////////////////////////////
                           REGISTRATION
     //////////////////////////////////////////////////////////////*/
 

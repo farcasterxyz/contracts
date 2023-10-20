@@ -34,6 +34,17 @@ interface IIdManager {
     function storageRegistry() external view returns (IStorageRegistry);
 
     /*//////////////////////////////////////////////////////////////
+                             PRICE VIEW
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Calculate the total price to register, equal to 1 storage unit.
+     *
+     * @return Total price in wei.
+     */
+    function price() external view returns (uint256);
+
+    /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
 

@@ -179,7 +179,6 @@ contract UpgradeL2Test is UpgradeL2, Test {
         assertEq(bundler.owner(), alpha);
         assertEq(address(bundler.idManager()), address(idManager));
         assertEq(address(bundler.storageRegistry()), address(storageRegistry));
-        assertEq(address(bundler.keyRegistry()), address(keyRegistry));
         assertEq(bundler.trustedCaller(), relayer);
 
         // Recovery proxy owned by multisig, check deploy parameters
@@ -215,7 +214,7 @@ contract UpgradeL2Test is UpgradeL2, Test {
         vm.stopPrank();
 
         // Carol permissionlessly registers an fid with Dave as recovery
-        uint256 idFee = storageRegistry.price(1);
+        uint256 idFee = idManager.price();
         vm.prank(carol);
         idManager.register{value: idFee}(dave);
         assertEq(idRegistry.idOf(carol), 3);
@@ -232,7 +231,7 @@ contract UpgradeL2Test is UpgradeL2, Test {
             })
         );
 
-        uint256 keyFee = keyManager.fee();
+        uint256 keyFee = keyManager.price();
         vm.prank(carol);
         keyManager.add{value: keyFee}(1, carolKey, 1, carolMetadata);
 
