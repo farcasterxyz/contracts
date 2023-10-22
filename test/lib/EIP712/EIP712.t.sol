@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import {EIP712} from "../../src/lib/EIP712.sol";
-import {TestSuiteSetup} from "../TestSuiteSetup.sol";
+import {EIP712} from "../../../src/lib/EIP712.sol";
+import {TestSuiteSetup} from "../../TestSuiteSetup.sol";
 
 /* solhint-disable state-visibility */
 /* solhint-disable no-empty-blocks */
