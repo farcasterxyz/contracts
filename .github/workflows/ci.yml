@@ -119,7 +119,7 @@ jobs:
         run: forge snapshot --check --match-contract Gas
 
   halmos:
-    runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'ubuntu-latest' || 'buildjet-16vcpu-ubuntu-2204' }}
+    runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'macos-latest' || 'buildjet-16vcpu-ubuntu-2204' }}
     steps:
       - uses: actions/checkout@v3
         with:
