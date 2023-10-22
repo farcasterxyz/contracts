@@ -181,16 +181,4 @@ interface IIdRegistry {
      *         Must be called by the owner.
      */
     function setIdManager(address idManager) external;
-
-    /**
-     * @notice Pause registration, transfer, and recovery.
-     *         Must be called by the owner.
-     */
-    function pause() external;
-
-    /**
-     * @notice Unpause registration, transfer, and recovery.
-     *         Must be called by the owner.
-     */
-    function unpause() external;
 }

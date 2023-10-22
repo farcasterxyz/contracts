@@ -8,6 +8,7 @@ import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {TransferHelper} from "../../src/lib/TransferHelper.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
+import {Guardians} from "../../src/lib/Guardians.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
 import {KeyManagerTestSuite} from "./KeyManagerTestSuite.sol";
@@ -613,11 +614,11 @@ contract KeyManagerTest is KeyManagerTestSuite {
                           PAUSE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyOwnerCanPause(address caller) public {
+    function testFuzzOnlyAuthorizedCanPause(address caller) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(Guardians.OnlyGuardian.selector);
         keyManager.pause();
     }
 
@@ -629,8 +630,23 @@ contract KeyManagerTest is KeyManagerTestSuite {
         keyManager.unpause();
     }
 
-    function testFuzzPauseUnpause() public {
+    function testFuzzPauseUnpauseOwner() public {
         vm.prank(owner);
+        keyManager.pause();
+        assertEq(keyManager.paused(), true);
+
+        vm.prank(owner);
+        keyManager.unpause();
+        assertEq(keyManager.paused(), false);
+    }
+
+    function testFuzzPauseUnpauseGuardian(address caller) public {
+        vm.assume(caller != owner);
+
+        vm.prank(owner);
+        keyManager.addGuardian(caller);
+
+        vm.prank(caller);
         keyManager.pause();
         assertEq(keyManager.paused(), true);
 

@@ -10,6 +10,7 @@ import {IKeyManager} from "./interfaces/IKeyManager.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {EIP712} from "./lib/EIP712.sol";
+import {Guardians} from "./lib/Guardians.sol";
 import {Signatures} from "./lib/Signatures.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
@@ -20,7 +21,7 @@ import {TransferHelper} from "./lib/TransferHelper.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract KeyManager is IKeyManager, Ownable2Step, Signatures, Pausable, EIP712, Nonces {
+contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     using FixedPointMathLib for uint256;
     using TransferHelper for address;
 
@@ -112,7 +113,7 @@ contract KeyManager is IKeyManager, Ownable2Step, Signatures, Pausable, EIP712, 
         address _initialOwner,
         address _initialVault,
         uint256 _initialUsdFee
-    ) EIP712("Farcaster KeyManager", "1") {
+    ) Guardians(_initialOwner) EIP712("Farcaster KeyManager", "1") {
         keyRegistry = IKeyRegistry(_keyRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
 
@@ -121,8 +122,6 @@ contract KeyManager is IKeyManager, Ownable2Step, Signatures, Pausable, EIP712, 
 
         vault = _initialVault;
         emit SetVault(address(0), _initialVault);
-
-        _transferOwnership(_initialOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -221,20 +220,6 @@ contract KeyManager is IKeyManager, Ownable2Step, Signatures, Pausable, EIP712, 
     function withdraw(uint256 amount) external onlyOwner {
         emit Withdraw(vault, amount);
         vault.sendNative(amount);
-    }
-
-    /**
-     * @inheritdoc IKeyManager
-     */
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /**
-     * @inheritdoc IKeyManager
-     */
-    function unpause() external onlyOwner {
-        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////

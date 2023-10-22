@@ -92,16 +92,4 @@ interface IIdManager {
      * @return fid registered FID.
      */
     function trustedRegister(address to, address recovery) external returns (uint256 fid);
-
-    /**
-     * @notice Pause registration.
-     *         Must be called by the owner.
-     */
-    function pause() external;
-
-    /**
-     * @notice Unpause registration.
-     *         Must be called by the owner.
-     */
-    function unpause() external;
 }

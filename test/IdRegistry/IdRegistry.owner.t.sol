@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
+import {Guardians} from "../../src/lib/Guardians.sol";
 
 /* solhint-disable state-visibility */
 
@@ -11,6 +12,8 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    event Add(address indexed guardian);
+    event Remove(address indexed guardian);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     /*//////////////////////////////////////////////////////////////
@@ -90,13 +93,33 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         _pause();
     }
 
-    function testFuzzCannotPauseUnlessOwner(address alice) public {
+    function testAddRemoveGuardian(address guardian) public {
+        assertEq(idRegistry.guardians(guardian), false);
+
+        vm.expectEmit();
+        emit Add(guardian);
+
+        vm.prank(owner);
+        idRegistry.addGuardian(guardian);
+
+        assertEq(idRegistry.guardians(guardian), true);
+
+        vm.expectEmit();
+        emit Remove(guardian);
+
+        vm.prank(owner);
+        idRegistry.removeGuardian(guardian);
+
+        assertEq(idRegistry.guardians(guardian), false);
+    }
+
+    function testFuzzCannotPauseUnlessGuardian(address alice) public {
         vm.assume(alice != owner && alice != address(0));
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.paused(), false);
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(Guardians.OnlyGuardian.selector);
         idRegistry.pause();
 
         assertEq(idRegistry.paused(), false);
@@ -121,5 +144,27 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         idRegistry.unpause();
 
         assertEq(idRegistry.paused(), true);
+    }
+
+    function testCannotAddGuardianUnlessOwner(address caller, address guardian) public {
+        vm.assume(caller != owner);
+        assertEq(idRegistry.guardians(guardian), false);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.addGuardian(guardian);
+
+        assertEq(idRegistry.guardians(guardian), false);
+    }
+
+    function testCannotRemoveGuardianUnlessOwner(address caller, address guardian) public {
+        vm.assume(caller != owner);
+        assertEq(idRegistry.guardians(guardian), false);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.addGuardian(guardian);
+
+        assertEq(idRegistry.guardians(guardian), false);
     }
 }

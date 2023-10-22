@@ -19,7 +19,7 @@ import {Signatures} from "./lib/Signatures.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract IdManager is IIdManager, TrustedCaller, Signatures, Pausable, EIP712, Nonces {
+contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -132,24 +132,6 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, Pausable, EIP712, N
         address recovery
     ) external onlyTrustedCaller whenNotPaused returns (uint256 fid) {
         fid = idRegistry.register(to, recovery);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         PERMISSIONED ACTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @inheritdoc IIdManager
-     */
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /**
-     * @inheritdoc IIdManager
-     */
-    function unpause() external onlyOwner {
-        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////

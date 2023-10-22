@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
+import {Guardians} from "../../src/lib/Guardians.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
@@ -900,7 +901,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(Guardians.OnlyGuardian.selector);
         keyRegistry.pause();
     }
 

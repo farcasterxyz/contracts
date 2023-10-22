@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import {IdManager} from "../../src/IdManager.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
+import {Guardians} from "../../src/lib/Guardians.sol";
 import {IdManagerTestSuite} from "./IdManagerTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -151,13 +152,13 @@ contract IdManagerOwnerTest is IdManagerTestSuite {
         assertEq(idManager.paused(), true);
     }
 
-    function testFuzzCannotPauseUnlessOwner(address alice) public {
+    function testFuzzCannotPauseUnlessGuardian(address alice) public {
         vm.assume(alice != owner && alice != address(0));
         assertEq(idManager.owner(), owner);
         assertEq(idManager.paused(), false);
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(Guardians.OnlyGuardian.selector);
         idManager.pause();
 
         assertEq(idManager.paused(), false);

@@ -129,16 +129,4 @@ interface IKeyManager {
      * @param amount The amount of ether to withdraw.
      */
     function withdraw(uint256 amount) external;
-
-    /**
-     * @notice Pause adding keys.
-     *         Must be called by the owner.
-     */
-    function pause() external;
-
-    /**
-     * @notice Unpause adding keys.
-     *         Must be called by the owner.
-     */
-    function unpause() external;
 }

@@ -235,16 +235,4 @@ interface IKeyRegistry {
      * @param _maxKeysPerFid The new max keys per fid.
      */
     function setMaxKeysPerFid(uint256 _maxKeysPerFid) external;
-
-    /**
-     * @notice Pause add, remove, and reset.
-     *         Must be called by the owner.
-     */
-    function pause() external;
-
-    /**
-     * @notice Unpause add, remove, and reset.
-     *         Must be called by the owner.
-     */
-    function unpause() external;
 }

@@ -4,10 +4,10 @@ pragma solidity 0.8.21;
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
 import {EIP712} from "./lib/EIP712.sol";
+import {Guardians} from "./lib/Guardians.sol";
 import {Signatures} from "./lib/Signatures.sol";
 
 /**
@@ -17,7 +17,7 @@ import {Signatures} from "./lib/Signatures.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, Nonces {
+contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -162,9 +162,7 @@ contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, 
      *
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _initialOwner) EIP712("Farcaster IdRegistry", "1") {
-        _transferOwnership(_initialOwner);
-    }
+    constructor(address _initialOwner) Guardians(_initialOwner) EIP712("Farcaster IdRegistry", "1") {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -352,20 +350,6 @@ contract IdRegistry is IIdRegistry, Ownable2Step, Signatures, Pausable, EIP712, 
     function setIdManager(address _idManager) external onlyOwner {
         emit SetIdManager(idManager, _idManager);
         idManager = _idManager;
-    }
-
-    /**
-     * @inheritdoc IIdRegistry
-     */
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /**
-     * @inheritdoc IIdRegistry
-     */
-    function unpause() external onlyOwner {
-        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////

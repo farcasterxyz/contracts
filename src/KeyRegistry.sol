@@ -9,6 +9,7 @@ import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {EIP712} from "./lib/EIP712.sol";
+import {Guardians} from "./lib/Guardians.sol";
 import {Signatures} from "./lib/Signatures.sol";
 
 /**
@@ -18,7 +19,7 @@ import {Signatures} from "./lib/Signatures.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract KeyRegistry is IKeyRegistry, Ownable2Step, Signatures, Pausable, EIP712, Nonces {
+contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -266,12 +267,11 @@ contract KeyRegistry is IKeyRegistry, Ownable2Step, Signatures, Pausable, EIP712
         address _idRegistry,
         address _initialOwner,
         uint256 _maxKeysPerFid
-    ) EIP712("Farcaster KeyRegistry", "1") {
+    ) Guardians(_initialOwner) EIP712("Farcaster KeyRegistry", "1") {
         idRegistry = IdRegistryLike(_idRegistry);
         maxKeysPerFid = _maxKeysPerFid;
         emit SetIdRegistry(address(0), _idRegistry);
         emit SetMaxKeysPerFid(0, _maxKeysPerFid);
-        _transferOwnership(_initialOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -414,20 +414,6 @@ contract KeyRegistry is IKeyRegistry, Ownable2Step, Signatures, Pausable, EIP712
     function setMaxKeysPerFid(uint256 _maxKeysPerFid) external onlyOwner {
         emit SetMaxKeysPerFid(maxKeysPerFid, _maxKeysPerFid);
         maxKeysPerFid = _maxKeysPerFid;
-    }
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
-    function unpause() external onlyOwner {
-        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////

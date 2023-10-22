@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
+import {Guardians} from "./Guardians.sol";
 
-abstract contract TrustedCaller is Ownable2Step {
+abstract contract TrustedCaller is Guardians {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -82,9 +82,7 @@ abstract contract TrustedCaller is Ownable2Step {
     /**
      * @param _initialOwner Initial contract owner address.
      */
-    constructor(address _initialOwner) {
-        _transferOwnership(_initialOwner);
-    }
+    constructor(address _initialOwner) Guardians(_initialOwner) {}
 
     /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
