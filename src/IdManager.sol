@@ -51,12 +51,12 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdManager
      */
-    IIdRegistry public idRegistry;
+    IIdRegistry public immutable idRegistry;
 
     /**
      * @inheritdoc IIdManager
      */
-    IStorageRegistry public storageRegistry;
+    IStorageRegistry public immutable storageRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR

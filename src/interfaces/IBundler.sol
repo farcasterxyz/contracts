@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
+import {IIdManager} from "./IIdManager.sol";
+import {IKeyManager} from "./IKeyManager.sol";
+import {IStorageRegistry} from "./IStorageRegistry.sol";
+
 interface IBundler {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
@@ -39,6 +43,21 @@ interface IBundler {
      */
     function VERSION() external view returns (string memory);
 
+    /**
+     * @dev Address of the IdManager contract
+     */
+    function idManager() external view returns (IIdManager);
+
+    /**
+     * @dev Address of the KeyManager contract
+     */
+    function keyManager() external view returns (IKeyManager);
+
+    /**
+     * @dev Address of the StorageRegistry contract
+     */
+    function storageRegistry() external view returns (IStorageRegistry);
+
     /*//////////////////////////////////////////////////////////////
                                 VIEWS
     //////////////////////////////////////////////////////////////*/
@@ -59,18 +78,18 @@ interface IBundler {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
+     * @notice Register an fid, add one or more signers, and rent storage in a single transaction.
      *
-     * @param registration Struct containing registration parameters: to, recovery, deadline, and signature.
-     * @param signers      Array of structs containing signer parameters: keyType, key, metadataType, metadata,
-     *                     deadline, and signature.
-     * @param storageUnits Number of storage units to rent
+     * @param registerParams Struct containing register parameters: to, recovery, deadline, and signature.
+     * @param signerParams   Array of structs containing signer parameters: keyType, key, metadataType,
+     *                       metadata, deadline, and signature.
+     * @param extraStorage   Number of additional storage units to rent. (fid registration includes 1 unit).
      *
      */
     function register(
-        RegistrationParams calldata registration,
-        SignerParams[] calldata signers,
-        uint256 storageUnits
+        RegistrationParams calldata registerParams,
+        SignerParams[] calldata signerParams,
+        uint256 extraStorage
     ) external payable;
 
     /*//////////////////////////////////////////////////////////////

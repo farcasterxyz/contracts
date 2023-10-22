@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {IdManager} from "./IdManager.sol";
-import {StorageRegistry} from "./StorageRegistry.sol";
-import {KeyManager} from "./KeyManager.sol";
 import {IBundler} from "./interfaces/IBundler.sol";
+import {IIdManager} from "./interfaces/IIdManager.sol";
+import {IKeyManager} from "./interfaces/IKeyManager.sol";
+import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
@@ -33,7 +33,7 @@ contract Bundler is IBundler, TrustedCaller {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Contract version specified using Farcaster protocol version scheme.
+     * @inheritdoc IBundler
      */
     string public constant VERSION = "2023.10.04";
 
@@ -42,19 +42,19 @@ contract Bundler is IBundler, TrustedCaller {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Address of the IdManager contract
+     * @inheritdoc IBundler
      */
-    IdManager public immutable idManager;
+    IIdManager public immutable idManager;
 
     /**
-     * @dev Address of the KeyManager contract
+     * @inheritdoc IBundler
      */
-    KeyManager public immutable keyManager;
+    IKeyManager public immutable keyManager;
 
     /**
-     * @dev Address of the StorageRegistry contract
+     * @inheritdoc IBundler
      */
-    StorageRegistry public immutable storageRegistry;
+    IStorageRegistry public immutable storageRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -78,31 +78,21 @@ contract Bundler is IBundler, TrustedCaller {
         address _trustedCaller,
         address _initialOwner
     ) TrustedCaller(_initialOwner) {
-        idManager = IdManager(payable(_idManager));
-        keyManager = KeyManager(payable(_keyManager));
-        storageRegistry = StorageRegistry(_storageRegistry);
+        idManager = IIdManager(payable(_idManager));
+        keyManager = IKeyManager(payable(_keyManager));
+        storageRegistry = IStorageRegistry(_storageRegistry);
         _setTrustedCaller(_trustedCaller);
     }
 
     /**
-     * @notice Calculate the total price of a registration.
-     *
-     * @param signers      Number of signers to add.
-     * @param extraStorage Number of additional storage units to rent.
-     *
+     * @inheritdoc IBundler
      */
     function price(uint256 signers, uint256 extraStorage) external view returns (uint256) {
         return keyManager.price() * signers + idManager.price() + storageRegistry.price(extraStorage);
     }
 
     /**
-     * @notice Register an fid, add one or more signers, and rent storage in a single transaction.
-     *
-     * @param registerParams Struct containing register parameters: to, recovery, deadline, and signature.
-     * @param signerParams   Array of structs containing signer parameters: keyType, key, metadataType,
-     *                       metadata, deadline, and signature.
-     * @param extraStorage   Number of additional storage units to rent. (fid registration includes 1 unit).
-     *
+     * @inheritdoc IBundler
      */
     function register(
         RegistrationParams calldata registerParams,
@@ -149,11 +139,7 @@ contract Bundler is IBundler, TrustedCaller {
     }
 
     /**
-     * @notice Register fids for multiple users in a single transaction. Can only be called by the trustedCaller
-     *         during the Seedable phase. Will be used when migrating across Ethereum networks to bootstrap a new
-     *         contract with existing data.
-     *
-     * @param users  Array of UserData structs to register
+     * @inheritdoc IBundler
      */
     function trustedBatchRegister(UserData[] calldata users) external onlyTrustedCaller {
         // Safety: calls inside a loop are safe since caller is trusted

@@ -86,12 +86,12 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyManager
      */
-    IKeyRegistry public keyRegistry;
+    IKeyRegistry public immutable keyRegistry;
 
     /**
      * @inheritdoc IKeyManager
      */
-    IStorageRegistry public storageRegistry;
+    IStorageRegistry public immutable storageRegistry;
 
     /**
      * @inheritdoc IKeyManager
