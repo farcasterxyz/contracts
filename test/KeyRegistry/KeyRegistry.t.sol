@@ -1005,6 +1005,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
     function testFuzzSetMaxKeysPerFid(uint256 newMax) public {
         uint256 currentMax = keyRegistry.maxKeysPerFid();
+        newMax = bound(newMax, currentMax + 1, type(uint256).max);
 
         vm.expectEmit(false, false, false, true);
         emit SetMaxKeysPerFid(currentMax, newMax);
@@ -1013,6 +1014,17 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.setMaxKeysPerFid(newMax);
 
         assertEq(keyRegistry.maxKeysPerFid(), newMax);
+    }
+
+    function testFuzzSetMaxKeysPerFidRevertsLessThanOrEqualToCurrentMax(uint256 newMax) public {
+        uint256 currentMax = keyRegistry.maxKeysPerFid();
+        newMax = bound(newMax, 0, currentMax);
+
+        vm.expectRevert(KeyRegistry.InvalidMaxKeys.selector);
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(newMax);
+
+        assertEq(keyRegistry.maxKeysPerFid(), currentMax);
     }
 
     /*//////////////////////////////////////////////////////////////

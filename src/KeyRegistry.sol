@@ -48,6 +48,9 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     /// @dev Revert if the owner calls migrateKeys more than once.
     error AlreadyMigrated();
 
+    /// @dev Revert if the owner sets maxKeysPerFid equal to or below its current value.
+    error InvalidMaxKeys();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -412,6 +415,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
      * @inheritdoc IKeyRegistry
      */
     function setMaxKeysPerFid(uint256 _maxKeysPerFid) external onlyOwner {
+        if (_maxKeysPerFid <= maxKeysPerFid) revert InvalidMaxKeys();
         emit SetMaxKeysPerFid(maxKeysPerFid, _maxKeysPerFid);
         maxKeysPerFid = _maxKeysPerFid;
     }
