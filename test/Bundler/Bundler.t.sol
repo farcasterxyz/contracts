@@ -33,10 +33,6 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(bundler.idGateway()), address(idGateway));
     }
 
-    function testHasStorageRegistry() public {
-        assertEq(address(bundler.storageRegistry()), address(storageRegistry));
-    }
-
     function testDefaultTrustedCaller() public {
         assertEq(address(bundler.trustedCaller()), address(this));
     }
@@ -104,7 +100,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(owner);
         idGateway.disableTrustedOnly();
 
-        uint256 price = bundler.price(numSigners, storageUnits);
+        uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory registerSig = _signRegister(accountPk, account, recovery, deadline);
@@ -148,7 +144,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(owner);
         idGateway.disableTrustedOnly();
 
-        uint256 price = bundler.price(numSigners, 0);
+        uint256 price = bundler.price(0);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory registerSig = _signRegister(accountPk, account, recovery, deadline);
@@ -193,7 +189,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(owner);
         idGateway.disableTrustedOnly();
 
-        uint256 price = bundler.price(0, storageUnits);
+        uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
@@ -230,7 +226,7 @@ contract BundlerTest is BundlerTestSuite {
         vm.prank(owner);
         idGateway.disableTrustedOnly();
 
-        uint256 price = bundler.price(0, storageUnits);
+        uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);

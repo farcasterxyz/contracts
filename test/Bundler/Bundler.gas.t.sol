@@ -21,7 +21,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
         for (uint256 i = 1; i < 10; i++) {
             address account = vm.addr(i);
             bytes memory sig = _signRegister(i, account, address(0), type(uint40).max);
-            uint256 price = bundler.price(0, 1);
+            uint256 price = bundler.price(1);
 
             IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](
                 0

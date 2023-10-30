@@ -62,6 +62,29 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
+    function testFuzzRegisterExtraStorage(address caller, address recovery, uint16 extraStorage) public {
+        assertEq(idRegistry.idCounter(), 0);
+
+        vm.prank(owner);
+        idGateway.disableTrustedOnly();
+
+        assertEq(idRegistry.idCounter(), 0);
+        assertEq(idRegistry.idOf(caller), 0);
+        assertEq(idRegistry.recoveryOf(1), address(0));
+
+        uint256 price = idGateway.price(extraStorage);
+        vm.deal(caller, price);
+
+        vm.expectEmit();
+        emit Register(caller, 1, recovery);
+        vm.prank(caller);
+        idGateway.register{value: price}(recovery, extraStorage);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(caller), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
+    }
+
     function testFuzzRegisterReturnsOverpayment(address caller, address recovery, uint32 overpayment) public {
         _assumeClean(caller);
         assertEq(idRegistry.idCounter(), 0);
@@ -173,6 +196,39 @@ contract IdGatewayTest is IdGatewayTestSuite {
         emit Register(recipient, 1, recovery);
         vm.prank(registrar);
         idGateway.registerFor{value: price}(recipient, recovery, deadline, sig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(recipient), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
+    }
+
+    function testFuzzRegisterForExtraStorage(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline,
+        uint16 extraStorage
+    ) public {
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
+
+        vm.prank(owner);
+        idGateway.disableTrustedOnly();
+
+        assertEq(idRegistry.idCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.recoveryOf(1), address(0));
+
+        uint256 price = idGateway.price(extraStorage);
+        vm.deal(registrar, price);
+
+        vm.expectEmit();
+        emit Register(recipient, 1, recovery);
+        vm.prank(registrar);
+        idGateway.registerFor{value: price}(recipient, recovery, deadline, sig, extraStorage);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(recipient), 1);

@@ -53,11 +53,6 @@ interface IBundler {
      */
     function keyGateway() external view returns (IKeyGateway);
 
-    /**
-     * @dev Address of the StorageRegistry contract
-     */
-    function storageRegistry() external view returns (IStorageRegistry);
-
     /*//////////////////////////////////////////////////////////////
                                 VIEWS
     //////////////////////////////////////////////////////////////*/
@@ -65,13 +60,12 @@ interface IBundler {
     /**
      * @notice Calculate the total price of a registration.
      *
-     * @param signers      Number of signers to add.
      * @param extraStorage Number of additional storage units to rent.
      *
      * @return Total price in wei.
      *
      */
-    function price(uint256 signers, uint256 extraStorage) external view returns (uint256);
+    function price(uint256 extraStorage) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                           REGISTRATION
@@ -90,7 +84,7 @@ interface IBundler {
         RegistrationParams calldata registerParams,
         SignerParams[] calldata signerParams,
         uint256 extraStorage
-    ) external payable;
+    ) external payable returns (uint256 fid);
 
     /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
