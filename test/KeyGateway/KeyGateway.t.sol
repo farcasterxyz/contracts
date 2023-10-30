@@ -5,8 +5,8 @@ import {KeyGateway} from "../../src/KeyGateway.sol";
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {TransferHelper} from "../../src/lib/TransferHelper.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
-import {Signatures} from "../../src/lib/Signatures.sol";
-import {Guardians} from "../../src/lib/Guardians.sol";
+import {ISignatures} from "../../src/lib/Signatures.sol";
+import {IGuardians} from "../../src/lib/Guardians.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
 import {KeyGatewayTestSuite} from "./KeyGatewayTestSuite.sol";
@@ -302,7 +302,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         bytes memory sig = _signAdd(ownerPk, owner, keyType, key, metadataType, metadata, deadline + 1);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyGateway.addFor(owner, keyType, key, metadataType, metadata, deadline, sig);
 
         assertNull(fid, key);
@@ -333,7 +333,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         keyGateway.useNonce();
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyGateway.addFor(owner, keyType, key, metadataType, metadata, deadline, sig);
 
         assertNull(fid, key);
@@ -361,7 +361,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyGateway.addFor(owner, keyType, key, metadataType, metadata, deadline, sig);
 
         assertNull(fid, key);
@@ -389,7 +389,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         vm.warp(deadline + 1);
 
         vm.startPrank(registrar);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         keyGateway.addFor(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
         vm.stopPrank();
 
@@ -433,7 +433,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(Guardians.OnlyGuardian.selector);
+        vm.expectRevert(IGuardians.OnlyGuardian.selector);
         keyGateway.pause();
     }
 

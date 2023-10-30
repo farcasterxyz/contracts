@@ -5,8 +5,8 @@ import "forge-std/Test.sol";
 
 import {IdGateway} from "../../src/IdGateway.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
-import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
-import {Signatures} from "../../src/lib/Signatures.sol";
+import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
+import {ISignatures} from "../../src/lib/Signatures.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
 import {IdGatewayTestSuite} from "./IdGatewayTestSuite.sol";
 
@@ -119,7 +119,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(caller);
-        vm.expectRevert(TrustedCaller.Seedable.selector);
+        vm.expectRevert(ITrustedCaller.Seedable.selector);
         idGateway.register(recovery);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -256,7 +256,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -285,7 +285,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -317,7 +317,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -350,7 +350,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         vm.warp(deadline + 1);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -376,7 +376,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(registrar);
-        vm.expectRevert(TrustedCaller.Seedable.selector);
+        vm.expectRevert(ITrustedCaller.Seedable.selector);
         idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -509,7 +509,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idGateway.registerFor(mockWalletAddress, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -546,7 +546,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         idGateway.disableTrustedOnly();
 
         vm.prank(trustedCaller);
-        vm.expectRevert(TrustedCaller.Registrable.selector);
+        vm.expectRevert(ITrustedCaller.Registrable.selector);
         idGateway.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -566,7 +566,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         idGateway.setTrustedCaller(trustedCaller);
 
         vm.prank(untrustedCaller);
-        vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
+        vm.expectRevert(ITrustedCaller.OnlyTrustedCaller.selector);
         idGateway.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.idCounter(), 0);

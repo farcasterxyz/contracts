@@ -2,18 +2,9 @@
 pragma solidity 0.8.21;
 
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import {ISignatures} from "../interfaces/lib/ISignatures.sol";
 
-abstract contract Signatures {
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @dev Revert when the signature provided is invalid.
-    error InvalidSignature();
-
-    /// @dev Revert when the block.timestamp is ahead of the signature deadline.
-    error SignatureExpired();
-
+abstract contract Signatures is ISignatures {
     /*//////////////////////////////////////////////////////////////
                      SIGNATURE VERIFICATION HELPERS
     //////////////////////////////////////////////////////////////*/

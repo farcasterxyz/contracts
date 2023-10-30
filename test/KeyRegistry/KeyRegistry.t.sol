@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
-import {Guardians} from "../../src/lib/Guardians.sol";
-import {Signatures} from "../../src/lib/Signatures.sol";
-import {Migration} from "../../src/lib/Migration.sol";
+import {IGuardians} from "../../src/lib/Guardians.sol";
+import {ISignatures} from "../../src/lib/Signatures.sol";
+import {IMigration} from "../../src/lib/Migration.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
@@ -466,7 +466,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
@@ -502,7 +502,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
@@ -535,7 +535,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
@@ -570,7 +570,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(deadline + 1);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
@@ -639,7 +639,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(Migration.OnlyMigrator.selector);
+        vm.expectRevert(IMigration.OnlyMigrator.selector);
         keyRegistry.migrate();
 
         assertEq(keyRegistry.isMigrated(), false);
@@ -653,7 +653,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.migrate();
 
         timestamp = uint40(bound(timestamp, timestamp, type(uint40).max));
-        vm.expectRevert(Migration.AlreadyMigrated.selector);
+        vm.expectRevert(IMigration.AlreadyMigrated.selector);
         vm.prank(owner);
         keyRegistry.migrate();
 
@@ -739,7 +739,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.migrate();
         vm.warp(keyRegistry.migratedAt() + keyRegistry.gracePeriod() + warpForward);
 
-        vm.expectRevert(Migration.PermissionRevoked.selector);
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
         keyRegistry.bulkAddKeysForMigration(addItems);
 
         vm.stopPrank();
@@ -912,7 +912,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.migrate();
         vm.warp(keyRegistry.migratedAt() + keyRegistry.gracePeriod() + warpForward);
 
-        vm.expectRevert(Migration.PermissionRevoked.selector);
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
         keyRegistry.bulkResetKeysForMigration(items);
 
         vm.stopPrank();
@@ -938,7 +938,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(Guardians.OnlyGuardian.selector);
+        vm.expectRevert(IGuardians.OnlyGuardian.selector);
         keyRegistry.pause();
     }
 
