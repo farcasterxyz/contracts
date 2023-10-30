@@ -2,11 +2,11 @@
 pragma solidity 0.8.21;
 
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
 import {EIP712} from "./lib/EIP712.sol";
+import {Nonces} from "./lib/Nonces.sol";
 import {Guardians} from "./lib/Guardians.sol";
 import {Signatures} from "./lib/Signatures.sol";
 

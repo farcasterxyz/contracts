@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
-import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
 import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {EIP712} from "./lib/EIP712.sol";
+import {Nonces} from "./lib/Nonces.sol";
 import {Guardians} from "./lib/Guardians.sol";
 import {Signatures} from "./lib/Signatures.sol";
 

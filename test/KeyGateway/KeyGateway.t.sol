@@ -308,6 +308,37 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         assertNull(fid, key);
     }
 
+    function testFuzzAddForRevertsUsedNonce(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes memory metadata,
+        uint40 _deadline
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+        _registerValidator(keyType, metadataType);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = _signAdd(ownerPk, owner, keyType, key, metadataType, metadata, deadline);
+
+        vm.prank(owner);
+        keyGateway.useNonce();
+
+        vm.prank(registrar);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        keyGateway.addFor(owner, keyType, key, metadataType, metadata, deadline, sig);
+
+        assertNull(fid, key);
+    }
+
     function testFuzzAddForRevertsBadSig(
         address registrar,
         uint256 ownerPk,
