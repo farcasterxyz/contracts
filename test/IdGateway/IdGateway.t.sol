@@ -3,8 +3,8 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
-import {IdGateway} from "../../src/IdGateway.sol";
-import {IdRegistry} from "../../src/IdRegistry.sol";
+import {IdGateway, IIdGateway} from "../../src/IdGateway.sol";
+import {IIdRegistry} from "../../src/IdRegistry.sol";
 import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {ISignatures} from "../../src/lib/Signatures.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
@@ -143,7 +143,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         idGateway.disableTrustedOnly();
 
         vm.prank(caller);
-        vm.expectRevert(IdRegistry.HasId.selector);
+        vm.expectRevert(IIdRegistry.HasId.selector);
         idGateway.register{value: price}(recovery);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -405,7 +405,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(registrar);
-        vm.expectRevert(IdRegistry.HasId.selector);
+        vm.expectRevert(IIdRegistry.HasId.selector);
         idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -588,7 +588,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.idCounter(), 1);
 
         vm.prank(trustedCaller);
-        vm.expectRevert(IdRegistry.HasId.selector);
+        vm.expectRevert(IIdRegistry.HasId.selector);
         idGateway.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -622,7 +622,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
 
         deal(sender, amount);
         vm.prank(sender);
-        vm.expectRevert(IdGateway.Unauthorized.selector);
+        vm.expectRevert(IIdGateway.Unauthorized.selector);
         payable(address(idGateway)).transfer(amount);
     }
 

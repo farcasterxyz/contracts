@@ -74,7 +74,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         uint256 fid = _registerFid(to, recovery);
 
         vm.prank(to);
-        vm.expectRevert(abi.encodeWithSelector(KeyRegistry.ValidatorNotFound.selector, keyType, metadataType));
+        vm.expectRevert(abi.encodeWithSelector(IKeyRegistry.ValidatorNotFound.selector, keyType, metadataType));
         keyGateway.add(keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
@@ -98,7 +98,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         uint256 fid = _registerFid(to, recovery);
 
         vm.prank(to);
-        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
+        vm.expectRevert(IKeyRegistry.InvalidMetadata.selector);
         keyGateway.add(keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
@@ -122,7 +122,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         uint256 fid = _registerFid(to, recovery);
 
         vm.prank(caller);
-        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        vm.expectRevert(IKeyRegistry.Unauthorized.selector);
         keyGateway.add(keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
@@ -145,7 +145,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         vm.startPrank(to);
         keyGateway.add(keyType, key, metadataType, metadata);
 
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         keyGateway.add(keyType, key, metadataType, metadata);
         vm.stopPrank();
 
@@ -171,7 +171,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         keyGateway.add(keyType, key, metadataType, metadata);
         keyRegistry.remove(key);
 
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         keyGateway.add(keyType, key, metadataType, metadata);
 
         vm.stopPrank();
@@ -222,7 +222,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
 
         // 11th key reverts
         vm.prank(to);
-        vm.expectRevert(KeyRegistry.ExceedsMaximum.selector);
+        vm.expectRevert(IKeyRegistry.ExceedsMaximum.selector);
         keyGateway.add(keyType, key, metadataType, metadata);
     }
 
@@ -276,7 +276,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         bytes memory sig = _signAdd(ownerPk, owner, keyType, key, metadataType, metadata, deadline);
 
         vm.prank(registrar);
-        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        vm.expectRevert(IKeyRegistry.Unauthorized.selector);
         keyGateway.addFor(owner, keyType, key, metadataType, metadata, deadline, sig);
     }
 

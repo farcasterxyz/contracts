@@ -442,7 +442,7 @@ contract BundlerTest is BundlerTestSuite {
 
         deal(sender, amount);
         vm.prank(sender);
-        vm.expectRevert(Bundler.Unauthorized.selector);
+        vm.expectRevert(IBundler.Unauthorized.selector);
         payable(address(bundler)).transfer(amount);
     }
 }
