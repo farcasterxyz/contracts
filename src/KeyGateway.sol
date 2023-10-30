@@ -1,10 +1,8 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
-import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
@@ -22,47 +20,6 @@ import {TransferHelper} from "./lib/TransferHelper.sol";
  * @custom:security-contact security@farcaster.xyz
  */
 contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
-    using FixedPointMathLib for uint256;
-    using TransferHelper for address;
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @dev Revert if the caller provides the wrong payment amount.
-    error InvalidPayment();
-
-    /// @dev Revert if transferred to the zero address.
-    error InvalidAddress();
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Emit an event when the contract owner sets the usdFee
-     *
-     * @param oldFee The previous fee. Fixed point value with 8 decimals
-     * @param newFee The new fee. Fixed point value with 8 decimals
-     */
-    event SetUsdFee(uint256 oldFee, uint256 newFee);
-
-    /**
-     * @dev Emit an event when an owner changes the vault.
-     *
-     * @param oldVault The previous vault.
-     * @param newVault The new vault.
-     */
-    event SetVault(address oldVault, address newVault);
-
-    /**
-     * @dev Emit an event when the owner withdraws any contract balance to the vault.
-     *
-     * @param to     Address of recipient.
-     * @param amount The amount of ether withdrawn.
-     */
-    event Withdraw(address indexed to, uint256 amount);
-
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -88,51 +45,15 @@ contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
      */
     IKeyRegistry public immutable keyRegistry;
 
-    /**
-     * @inheritdoc IKeyGateway
-     */
-    IStorageRegistry public immutable storageRegistry;
-
-    /**
-     * @inheritdoc IKeyGateway
-     */
-    uint256 public usdFee;
-
-    /**
-     * @inheritdoc IKeyGateway
-     */
-    address public vault;
-
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     constructor(
         address _keyRegistry,
-        address _storageRegistry,
-        address _initialOwner,
-        address _initialVault,
-        uint256 _initialUsdFee
+        address _initialOwner
     ) Guardians(_initialOwner) EIP712("Farcaster KeyGateway", "1") {
         keyRegistry = IKeyRegistry(_keyRegistry);
-        storageRegistry = IStorageRegistry(_storageRegistry);
-
-        usdFee = _initialUsdFee;
-        emit SetUsdFee(0, _initialUsdFee);
-
-        vault = _initialVault;
-        emit SetVault(address(0), _initialVault);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                               VIEWS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @inheritdoc IKeyGateway
-     */
-    function price() public view returns (uint256) {
-        return usdFee.divWadUp(_ethUsdPrice());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,16 +68,8 @@ contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
         bytes calldata key,
         uint8 metadataType,
         bytes calldata metadata
-    ) external payable whenNotPaused returns (uint256 overpayment) {
-        uint256 fee = price();
-        if (msg.value < fee) revert InvalidPayment();
-
+    ) external whenNotPaused returns (uint256 overpayment) {
         keyRegistry.add(msg.sender, keyType, key, metadataType, metadata);
-
-        overpayment = msg.value - fee;
-        if (overpayment > 0) {
-            msg.sender.sendNative(overpayment);
-        }
     }
 
     /**
@@ -170,56 +83,9 @@ contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
         bytes calldata metadata,
         uint256 deadline,
         bytes calldata sig
-    ) external payable whenNotPaused returns (uint256 overpayment) {
-        uint256 fee = price();
-        if (msg.value < fee) revert InvalidPayment();
-
+    ) external whenNotPaused returns (uint256 overpayment) {
         _verifyAddSig(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
         keyRegistry.add(fidOwner, keyType, key, metadataType, metadata);
-
-        overpayment = msg.value - fee;
-        if (overpayment > 0) {
-            msg.sender.sendNative(overpayment);
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            PRICE FEED
-    //////////////////////////////////////////////////////////////*/
-
-    function _ethUsdPrice() internal view returns (uint256) {
-        uint256 fixedEthUsdPrice = storageRegistry.fixedEthUsdPrice();
-        if (fixedEthUsdPrice != 0) return fixedEthUsdPrice;
-        return storageRegistry.ethUsdPrice();
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         PERMISSIONED ACTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @inheritdoc IKeyGateway
-     */
-    function setUsdFee(uint256 _usdFee) external onlyOwner {
-        emit SetUsdFee(usdFee, _usdFee);
-        usdFee = _usdFee;
-    }
-
-    /**
-     * @inheritdoc IKeyGateway
-     */
-    function setVault(address vaultAddr) external onlyOwner {
-        if (vaultAddr == address(0)) revert InvalidAddress();
-        emit SetVault(vault, vaultAddr);
-        vault = vaultAddr;
-    }
-
-    /**
-     * @inheritdoc IKeyGateway
-     */
-    function withdraw(uint256 amount) external onlyOwner {
-        emit Withdraw(vault, amount);
-        vault.sendNative(amount);
     }
 
     /*//////////////////////////////////////////////////////////////

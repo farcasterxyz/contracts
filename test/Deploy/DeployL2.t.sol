@@ -218,9 +218,8 @@ contract DeployL2Test is DeployL2, Test {
             })
         );
 
-        uint256 keyFee = keyGateway.price();
         vm.prank(carol);
-        keyGateway.add{value: keyFee}(1, carolKey, 1, carolMetadata);
+        keyGateway.add(1, carolKey, 1, carolMetadata);
 
         // Multisig recovers Alice's FID to bob
         uint256 recoverDeadline = block.timestamp + 30;
@@ -228,10 +227,7 @@ contract DeployL2Test is DeployL2, Test {
         vm.prank(alpha);
         recoveryProxy.recover(alice, bob, recoverDeadline, recoverSig);
 
-        // Multisig withdraws keyGateway and storageRegistry balances
-        vm.prank(alpha);
-        keyGateway.withdraw(address(keyGateway).balance);
-
+        // Multisig withdraws storageRegistry balance
         vm.prank(relayer);
         storageRegistry.withdraw(address(storageRegistry).balance);
     }

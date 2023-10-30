@@ -16,7 +16,7 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
     function setUp() public virtual override {
         super.setUp();
 
-        keyGateway = new KeyGateway(address(keyRegistry), address(storageRegistry), owner, vault, 10e6);
+        keyGateway = new KeyGateway(address(keyRegistry), owner);
 
         vm.prank(owner);
         keyRegistry.setKeyGateway(address(keyGateway));

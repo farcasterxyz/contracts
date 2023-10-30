@@ -15,7 +15,7 @@ abstract contract KeyGatewayTestSuite is KeyRegistryTestSuite, StorageRegistryTe
     function setUp() public virtual override(KeyRegistryTestSuite, StorageRegistryTestSuite) {
         super.setUp();
 
-        keyGateway = new KeyGateway(address(keyRegistry), address(storageRegistry), owner, vault, 10e6);
+        keyGateway = new KeyGateway(address(keyRegistry), owner);
 
         vm.prank(owner);
         keyRegistry.setKeyGateway(address(keyGateway));
