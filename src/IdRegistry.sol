@@ -120,7 +120,7 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
      * @inheritdoc IIdRegistry
      */
     bytes32 public constant CHANGE_RECOVERY_ADDRESS_TYPEHASH =
-        keccak256("ChangeRecoveryAddress(uint256 fid,address recovery,uint256 nonce,uint256 deadline)");
+        keccak256("ChangeRecoveryAddress(uint256 fid,address from,address to,uint256 nonce,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -278,7 +278,14 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
         uint256 ownerId = idOf[owner];
         if (ownerId == 0) revert HasNoId();
 
-        _verifyChangeRecoveryAddressSig({fid: ownerId, recovery: recovery, deadline: deadline, signer: owner, sig: sig});
+        _verifyChangeRecoveryAddressSig({
+            fid: ownerId,
+            from: recoveryOf[ownerId],
+            to: recovery,
+            deadline: deadline,
+            signer: owner,
+            sig: sig
+        });
 
         /* Change the recovery address */
         recoveryOf[ownerId] = recovery;
@@ -383,14 +390,15 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
 
     function _verifyChangeRecoveryAddressSig(
         uint256 fid,
-        address recovery,
+        address from,
+        address to,
         uint256 deadline,
         address signer,
         bytes memory sig
     ) internal {
         _verifySig(
             _hashTypedDataV4(
-                keccak256(abi.encode(CHANGE_RECOVERY_ADDRESS_TYPEHASH, fid, recovery, _useNonce(signer), deadline))
+                keccak256(abi.encode(CHANGE_RECOVERY_ADDRESS_TYPEHASH, fid, from, to, _useNonce(signer), deadline))
             ),
             signer,
             deadline,

@@ -871,7 +871,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address alice = vm.addr(alicePk);
         _registerWithRecovery(alice, oldRecovery);
 
-        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, oldRecovery, newRecovery, deadline);
 
         vm.prank(caller);
         vm.expectEmit();
@@ -893,7 +893,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address alice = vm.addr(alicePk);
         _registerWithRecovery(alice, oldRecovery);
 
-        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline + 1);
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, oldRecovery, newRecovery, deadline + 1);
 
         vm.prank(caller);
         vm.expectRevert(Signatures.InvalidSignature.selector);
@@ -914,7 +914,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address alice = vm.addr(alicePk);
         _registerWithRecovery(alice, oldRecovery);
 
-        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, oldRecovery, newRecovery, deadline);
 
         vm.prank(alice);
         idRegistry.useNonce();
@@ -960,7 +960,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address alice = vm.addr(alicePk);
         _registerWithRecovery(alice, oldRecovery);
 
-        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, oldRecovery, newRecovery, deadline);
 
         vm.warp(deadline + 1);
 
@@ -974,6 +974,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzCannotChangeRecoveryAddressForWithoutId(
         address caller,
         uint256 alicePk,
+        address oldRecovery,
         address newRecovery,
         uint40 _deadline
     ) public {
@@ -981,7 +982,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
         address alice = vm.addr(alicePk);
 
-        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, oldRecovery, newRecovery, deadline);
 
         vm.prank(caller);
         vm.expectRevert(IdRegistry.HasNoId.selector);
@@ -1000,7 +1001,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         address alice = vm.addr(alicePk);
         _registerWithRecovery(alice, oldRecovery);
 
-        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, newRecovery, deadline);
+        bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, oldRecovery, newRecovery, deadline);
 
         vm.prank(owner);
         idRegistry.pause();
