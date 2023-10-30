@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
-import {IIdManager} from "./interfaces/IIdManager.sol";
+import {IIdGateway} from "./interfaces/IIdGateway.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
@@ -13,13 +13,13 @@ import {EIP712} from "./lib/EIP712.sol";
 import {Signatures} from "./lib/Signatures.sol";
 
 /**
- * @title Farcaster IdManager
+ * @title Farcaster IdGateway
  *
  * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
+contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -34,12 +34,12 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IIdManager
+     * @inheritdoc IIdGateway
      */
     string public constant VERSION = "2023.10.04";
 
     /**
-     * @inheritdoc IIdManager
+     * @inheritdoc IIdGateway
      */
     bytes32 public constant REGISTER_TYPEHASH =
         keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
@@ -49,12 +49,12 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IIdManager
+     * @inheritdoc IIdGateway
      */
     IIdRegistry public immutable idRegistry;
 
     /**
-     * @inheritdoc IIdManager
+     * @inheritdoc IIdGateway
      */
     IStorageRegistry public immutable storageRegistry;
 
@@ -72,7 +72,7 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
         address _idRegistry,
         address _storageRegistry,
         address _initialOwner
-    ) TrustedCaller(_initialOwner) EIP712("Farcaster IdManager", "1") {
+    ) TrustedCaller(_initialOwner) EIP712("Farcaster IdGateway", "1") {
         idRegistry = IIdRegistry(_idRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
     }
@@ -96,7 +96,7 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IIdManager
+     * @inheritdoc IIdGateway
      */
     function register(address recovery)
         external
@@ -110,7 +110,7 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
     }
 
     /**
-     * @inheritdoc IIdManager
+     * @inheritdoc IIdGateway
      */
     function registerFor(
         address to,
@@ -125,7 +125,7 @@ contract IdManager is IIdManager, TrustedCaller, Signatures, EIP712, Nonces {
     }
 
     /**
-     * @inheritdoc IIdManager
+     * @inheritdoc IIdGateway
      */
     function trustedRegister(
         address to,

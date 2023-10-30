@@ -16,7 +16,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
     function testGasRegisterWithSig() public {
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         for (uint256 i = 1; i < 10; i++) {
             address account = vm.addr(i);
@@ -39,7 +39,7 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
 
     function testGasTrustedBatchRegister() public {
         vm.prank(owner);
-        idManager.setTrustedCaller(address(bundler));
+        idGateway.setTrustedCaller(address(bundler));
 
         bytes32 operatorRoleId = storageRegistry.operatorRoleId();
         vm.prank(roleAdmin);

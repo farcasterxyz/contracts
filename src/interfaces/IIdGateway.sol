@@ -4,7 +4,7 @@ pragma solidity ^0.8.21;
 import {IStorageRegistry} from "./IStorageRegistry.sol";
 import {IIdRegistry} from "./IIdRegistry.sol";
 
-interface IIdManager {
+interface IIdGateway {
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/

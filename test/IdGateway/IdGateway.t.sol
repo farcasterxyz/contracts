@@ -3,16 +3,16 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
-import {IdManager} from "../../src/IdManager.sol";
+import {IdGateway} from "../../src/IdGateway.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Signatures} from "../../src/lib/Signatures.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
-import {IdManagerTestSuite} from "./IdManagerTestSuite.sol";
+import {IdGatewayTestSuite} from "./IdGatewayTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract IdManagerTest is IdManagerTestSuite {
+contract IdGatewayTest is IdGatewayTestSuite {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -24,15 +24,15 @@ contract IdManagerTest is IdManagerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testVersion() public {
-        assertEq(idManager.VERSION(), "2023.10.04");
+        assertEq(idGateway.VERSION(), "2023.10.04");
     }
 
     function testIdRegistry() public {
-        assertEq(address(idManager.idRegistry()), address(idRegistry));
+        assertEq(address(idGateway.idRegistry()), address(idRegistry));
     }
 
     function testStorageRegistry() public {
-        assertEq(address(idManager.storageRegistry()), address(storageRegistry));
+        assertEq(address(idGateway.storageRegistry()), address(storageRegistry));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -43,19 +43,19 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.idCounter(), 0);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = idManager.price();
+        uint256 price = idGateway.price();
         vm.deal(caller, price);
 
         vm.expectEmit();
         emit Register(caller, 1, recovery);
         vm.prank(caller);
-        idManager.register{value: price}(recovery);
+        idGateway.register{value: price}(recovery);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(caller), 1);
@@ -67,19 +67,19 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.idCounter(), 0);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = idManager.price();
+        uint256 price = idGateway.price();
         vm.deal(caller, price + overpayment);
 
         vm.expectEmit();
         emit Register(caller, 1, recovery);
         vm.prank(caller);
-        idManager.register{value: price + overpayment}(recovery);
+        idGateway.register{value: price + overpayment}(recovery);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(caller), 1);
@@ -89,7 +89,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
     function testFuzzCannotRegisterIfSeedable(address caller, address recovery) public {
         assertEq(idRegistry.idCounter(), 0);
-        assertEq(idManager.trustedOnly(), 1);
+        assertEq(idGateway.trustedOnly(), 1);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
@@ -97,7 +97,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
         vm.prank(caller);
         vm.expectRevert(TrustedCaller.Seedable.selector);
-        idManager.register(recovery);
+        idGateway.register(recovery);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
@@ -113,15 +113,15 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.idOf(caller), 1);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = idManager.price();
+        uint256 price = idGateway.price();
         vm.deal(caller, price);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         vm.prank(caller);
         vm.expectRevert(IdRegistry.HasId.selector);
-        idManager.register{value: price}(recovery);
+        idGateway.register{value: price}(recovery);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(caller), 1);
@@ -132,7 +132,7 @@ contract IdManagerTest is IdManagerTestSuite {
         assertEq(idRegistry.idCounter(), 0);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
         _pauseManager();
 
         assertEq(idRegistry.idCounter(), 0);
@@ -141,7 +141,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
         vm.prank(caller);
         vm.expectRevert("Pausable: paused");
-        idManager.register(recovery);
+        idGateway.register(recovery);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
@@ -160,19 +160,19 @@ contract IdManagerTest is IdManagerTestSuite {
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = idManager.price();
+        uint256 price = idGateway.price();
         vm.deal(registrar, price);
 
         vm.expectEmit();
         emit Register(recipient, 1, recovery);
         vm.prank(registrar);
-        idManager.registerFor{value: price}(recipient, recovery, deadline, sig);
+        idGateway.registerFor{value: price}(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(recipient), 1);
@@ -193,7 +193,7 @@ contract IdManagerTest is IdManagerTestSuite {
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline + 1);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -201,7 +201,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(Signatures.InvalidSignature.selector);
-        idManager.registerFor(recipient, recovery, deadline, sig);
+        idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -222,7 +222,7 @@ contract IdManagerTest is IdManagerTestSuite {
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -230,7 +230,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(Signatures.InvalidSignature.selector);
-        idManager.registerFor(recipient, recovery, deadline, sig);
+        idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -250,20 +250,20 @@ contract IdManagerTest is IdManagerTestSuite {
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         vm.warp(deadline + 1);
 
         vm.prank(registrar);
         vm.expectRevert(Signatures.SignatureExpired.selector);
-        idManager.registerFor(recipient, recovery, deadline, sig);
+        idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -282,14 +282,14 @@ contract IdManagerTest is IdManagerTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
-        assertEq(idManager.trustedOnly(), 1);
+        assertEq(idGateway.trustedOnly(), 1);
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(registrar);
         vm.expectRevert(TrustedCaller.Seedable.selector);
-        idManager.registerFor(recipient, recovery, deadline, sig);
+        idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -309,7 +309,7 @@ contract IdManagerTest is IdManagerTestSuite {
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
         _register(recipient);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -318,7 +318,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(IdRegistry.HasId.selector);
-        idManager.registerFor(recipient, recovery, deadline, sig);
+        idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(recipient), 1);
@@ -338,7 +338,7 @@ contract IdManagerTest is IdManagerTestSuite {
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         _pauseManager();
 
@@ -348,7 +348,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert("Pausable: paused");
-        idManager.registerFor(recipient, recovery, deadline, sig);
+        idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -357,7 +357,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
     function testRegisterTypehash() public {
         assertEq(
-            idManager.REGISTER_TYPEHASH(),
+            idGateway.REGISTER_TYPEHASH(),
             keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)")
         );
     }
@@ -381,19 +381,19 @@ contract IdManagerTest is IdManagerTestSuite {
         bytes memory sig = _signRegister(recipientPk, mockWalletAddress, recovery, deadline);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(mockWalletAddress), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
 
-        uint256 price = idManager.price();
+        uint256 price = idGateway.price();
         vm.deal(registrar, price);
 
         vm.expectEmit(true, true, true, true);
         emit Register(mockWalletAddress, 1, recovery);
         vm.prank(registrar);
-        idManager.registerFor{value: price}(mockWalletAddress, recovery, deadline, sig);
+        idGateway.registerFor{value: price}(mockWalletAddress, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(mockWalletAddress), 1);
@@ -414,7 +414,7 @@ contract IdManagerTest is IdManagerTestSuite {
         bytes memory sig = _signRegister(recipientPk, mockWalletAddress, recovery, deadline);
 
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(mockWalletAddress), 0);
@@ -422,7 +422,7 @@ contract IdManagerTest is IdManagerTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(Signatures.InvalidSignature.selector);
-        idManager.registerFor(mockWalletAddress, recovery, deadline, sig);
+        idGateway.registerFor(mockWalletAddress, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(mockWalletAddress), 0);
@@ -436,13 +436,13 @@ contract IdManagerTest is IdManagerTestSuite {
     function testFuzzTrustedRegister(address recipient, address trustedCaller, address recovery) public {
         vm.assume(trustedCaller != address(0));
         vm.prank(owner);
-        idManager.setTrustedCaller(trustedCaller);
+        idGateway.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.idCounter(), 0);
 
         vm.prank(trustedCaller);
         vm.expectEmit();
         emit Register(recipient, 1, recovery);
-        idManager.trustedRegister(recipient, recovery);
+        idGateway.trustedRegister(recipient, recovery);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(recipient), 1);
@@ -455,11 +455,11 @@ contract IdManagerTest is IdManagerTestSuite {
         address recovery
     ) public {
         vm.prank(owner);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
 
         vm.prank(trustedCaller);
         vm.expectRevert(TrustedCaller.Registrable.selector);
-        idManager.trustedRegister(alice, recovery);
+        idGateway.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(alice), 0);
@@ -475,11 +475,11 @@ contract IdManagerTest is IdManagerTestSuite {
         vm.assume(untrustedCaller != trustedCaller);
         vm.assume(trustedCaller != address(0));
         vm.prank(owner);
-        idManager.setTrustedCaller(trustedCaller);
+        idGateway.setTrustedCaller(trustedCaller);
 
         vm.prank(untrustedCaller);
         vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
-        idManager.trustedRegister(alice, recovery);
+        idGateway.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(alice), 0);
@@ -493,15 +493,15 @@ contract IdManagerTest is IdManagerTestSuite {
     ) public {
         vm.assume(trustedCaller != address(0));
         vm.prank(owner);
-        idManager.setTrustedCaller(trustedCaller);
+        idGateway.setTrustedCaller(trustedCaller);
 
         vm.prank(trustedCaller);
-        idManager.trustedRegister(alice, address(0));
+        idGateway.trustedRegister(alice, address(0));
         assertEq(idRegistry.idCounter(), 1);
 
         vm.prank(trustedCaller);
         vm.expectRevert(IdRegistry.HasId.selector);
-        idManager.trustedRegister(alice, recovery);
+        idGateway.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.idCounter(), 1);
         assertEq(idRegistry.idOf(alice), 1);
@@ -511,14 +511,14 @@ contract IdManagerTest is IdManagerTestSuite {
     function testFuzzCannotTrustedRegisterWhenPaused(address alice, address trustedCaller, address recovery) public {
         vm.assume(trustedCaller != address(0));
         vm.prank(owner);
-        idManager.setTrustedCaller(trustedCaller);
+        idGateway.setTrustedCaller(trustedCaller);
         assertEq(idRegistry.idCounter(), 0);
 
         _pauseManager();
 
         vm.prank(trustedCaller);
         vm.expectRevert("Pausable: paused");
-        idManager.trustedRegister(alice, recovery);
+        idGateway.trustedRegister(alice, recovery);
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(alice), 0);
@@ -534,12 +534,12 @@ contract IdManagerTest is IdManagerTestSuite {
 
         deal(sender, amount);
         vm.prank(sender);
-        vm.expectRevert(IdManager.Unauthorized.selector);
-        payable(address(idManager)).transfer(amount);
+        vm.expectRevert(IdGateway.Unauthorized.selector);
+        payable(address(idGateway)).transfer(amount);
     }
 
     function _pauseManager() internal {
         vm.prank(owner);
-        idManager.pause();
+        idGateway.pause();
     }
 }

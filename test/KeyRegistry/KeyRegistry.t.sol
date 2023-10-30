@@ -33,7 +33,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event Migrated(uint256 indexed keysMigratedAt);
     event SetValidator(uint32 keyType, uint8 metadataType, address oldValidator, address newValidator);
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
-    event SetKeyManager(address oldKeyManager, address newKeyManager);
+    event SetKeyGateway(address oldKeyGateway, address newKeyGateway);
     event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
 
     function testInitialIdRegistry() public {
@@ -82,7 +82,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.expectEmit();
         emit Add(fid, keyType, key, key, metadataType, metadata);
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         assertEq(keyRegistry.totalKeys(fid), 1);
@@ -102,7 +102,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         uint256 fid = _registerFid(to, recovery);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         vm.expectRevert(abi.encodeWithSelector(KeyRegistry.ValidatorNotFound.selector, keyType, metadataType));
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
@@ -126,7 +126,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         uint256 fid = _registerFid(to, recovery);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
@@ -145,7 +145,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyType = uint32(bound(keyType, 1, type(uint32).max));
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
 
-        vm.assume(keyRegistry.keyManager() != caller);
+        vm.assume(keyRegistry.keyGateway() != caller);
         _registerValidator(keyType, metadataType);
 
         uint256 fid = _registerFid(to, recovery);
@@ -171,7 +171,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        vm.startPrank(keyRegistry.keyManager());
+        vm.startPrank(keyRegistry.keyGateway());
 
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
@@ -196,13 +196,13 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         vm.prank(to);
         keyRegistry.remove(key);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         vm.expectRevert(KeyRegistry.InvalidState.selector);
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
@@ -226,7 +226,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.prank(owner);
         keyRegistry.pause();
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         vm.expectRevert("Pausable: paused");
         keyRegistry.add(to, keyType, key, metadataType, metadata);
     }
@@ -247,12 +247,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         // Create 10 keys
         for (uint256 i; i < 10; i++) {
-            vm.prank(keyRegistry.keyManager());
+            vm.prank(keyRegistry.keyGateway());
             keyRegistry.add(to, keyType, bytes.concat(key, bytes32(i)), metadataType, metadata);
         }
 
         // 11th key reverts
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         vm.expectRevert(KeyRegistry.ExceedsMaximum.selector);
         keyRegistry.add(to, keyType, key, metadataType, metadata);
     }
@@ -275,7 +275,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(to, keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
@@ -308,7 +308,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         _registerValidator(keyType, metadataType);
 
         uint256 fid = _registerFid(to, recovery);
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
@@ -342,7 +342,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         vm.startPrank(to);
@@ -369,7 +369,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         vm.prank(to);
@@ -406,7 +406,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(owner, recovery);
         bytes memory sig = _signRemove(ownerPk, owner, key, deadline);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(owner, keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
@@ -459,7 +459,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(owner, recovery);
         bytes memory sig = _signRemove(ownerPk, owner, key, deadline + 1);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(owner, keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
@@ -492,7 +492,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(owner, recovery);
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(owner, keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
@@ -525,7 +525,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(owner, recovery);
         bytes memory sig = _signRemove(ownerPk, owner, key, deadline);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(owner, keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
@@ -560,7 +560,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(fidOwner, recovery);
         bytes memory sig = _signRemove(fidOwnerPk, fidOwner, key, deadline);
 
-        vm.prank(keyRegistry.keyManager());
+        vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(fidOwner, keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
@@ -1031,24 +1031,24 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                            SET KEY MANAGER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAdminCanSetKeyManager(address caller, address keyManager) public {
+    function testFuzzOnlyAdminCanSetKeyGateway(address caller, address keyGateway) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
-        keyRegistry.setKeyManager(keyManager);
+        keyRegistry.setKeyGateway(keyGateway);
     }
 
-    function testFuzzSetKeyManager(address keyManager) public {
-        address currentKeyManager = address(keyRegistry.keyManager());
+    function testFuzzSetKeyGateway(address keyGateway) public {
+        address currentKeyGateway = address(keyRegistry.keyGateway());
 
         vm.expectEmit(false, false, false, true);
-        emit SetKeyManager(currentKeyManager, keyManager);
+        emit SetKeyGateway(currentKeyGateway, keyGateway);
 
         vm.prank(owner);
-        keyRegistry.setKeyManager(keyManager);
+        keyRegistry.setKeyGateway(keyGateway);
 
-        assertEq(address(keyRegistry.keyManager()), keyManager);
+        assertEq(address(keyRegistry.keyGateway()), keyGateway);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1056,7 +1056,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
-        vm.prank(idRegistry.idManager());
+        vm.prank(idRegistry.idGateway());
         return idRegistry.register(to, recovery);
     }
 

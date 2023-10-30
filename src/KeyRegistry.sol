@@ -169,12 +169,12 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
     /**
-     * @dev Emit an event when the admin sets a new KeyManager address.
+     * @dev Emit an event when the admin sets a new KeyGateway address.
      *
-     * @param oldKeyManager The previous KeyManager address.
-     * @param newKeyManager The new KeyManager address.
+     * @param oldKeyGateway The previous KeyGateway address.
+     * @param newKeyGateway The new KeyGateway address.
      */
-    event SetKeyManager(address oldKeyManager, address newKeyManager);
+    event SetKeyGateway(address oldKeyGateway, address newKeyGateway);
 
     /**
      * @dev Emit an event when the admin sets a new maximum keys per fid.
@@ -216,7 +216,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    address public keyManager;
+    address public keyGateway;
 
     /**
      * @inheritdoc IKeyRegistry
@@ -309,7 +309,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
         uint8 metadataType,
         bytes calldata metadata
     ) external {
-        if (msg.sender != keyManager) revert Unauthorized();
+        if (msg.sender != keyGateway) revert Unauthorized();
         _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
     }
 
@@ -406,9 +406,9 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function setKeyManager(address _keyManager) external onlyOwner {
-        emit SetKeyManager(keyManager, _keyManager);
-        keyManager = _keyManager;
+    function setKeyGateway(address _keyGateway) external onlyOwner {
+        emit SetKeyGateway(keyGateway, _keyGateway);
+        keyGateway = _keyGateway;
     }
 
     /**

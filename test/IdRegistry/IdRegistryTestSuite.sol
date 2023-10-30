@@ -26,7 +26,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     }
 
     function _registerWithRecovery(address caller, address recovery) internal returns (uint256 fid) {
-        vm.prank(idRegistry.idManager());
+        vm.prank(idRegistry.idGateway());
         fid = idRegistry.register(caller, recovery);
     }
 

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
-import {IdManager} from "../../src/IdManager.sol";
+import {IdGateway} from "../../src/IdGateway.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {Guardians} from "../../src/lib/Guardians.sol";
-import {IdManagerTestSuite} from "./IdManagerTestSuite.sol";
+import {IdGatewayTestSuite} from "./IdGatewayTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract IdManagerOwnerTest is IdManagerTestSuite {
+contract IdGatewayOwnerTest is IdGatewayTestSuite {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -23,54 +23,54 @@ contract IdManagerOwnerTest is IdManagerTestSuite {
 
     function testFuzzSetTrustedCaller(address alice) public {
         vm.assume(alice != address(0));
-        assertEq(idManager.owner(), owner);
+        assertEq(idGateway.owner(), owner);
 
         vm.prank(owner);
         vm.expectEmit();
         emit SetTrustedCaller(address(0), alice, owner);
-        idManager.setTrustedCaller(alice);
-        assertEq(idManager.trustedCaller(), alice);
+        idGateway.setTrustedCaller(alice);
+        assertEq(idGateway.trustedCaller(), alice);
     }
 
     function testFuzzCannotSetTrustedCallerToZeroAddr() public {
-        assertEq(idManager.owner(), owner);
+        assertEq(idGateway.owner(), owner);
 
         vm.prank(owner);
         vm.expectRevert(TrustedCaller.InvalidAddress.selector);
-        idManager.setTrustedCaller(address(0));
+        idGateway.setTrustedCaller(address(0));
 
-        assertEq(idManager.trustedCaller(), address(0));
+        assertEq(idGateway.trustedCaller(), address(0));
     }
 
     function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
         vm.assume(bob != address(0));
-        vm.assume(idManager.owner() != alice);
+        vm.assume(idGateway.owner() != alice);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idManager.setTrustedCaller(bob);
-        assertEq(idManager.trustedCaller(), address(0));
+        idGateway.setTrustedCaller(bob);
+        assertEq(idGateway.trustedCaller(), address(0));
     }
 
     function testDisableTrustedCaller() public {
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.trustedOnly(), 1);
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.trustedOnly(), 1);
 
         vm.prank(owner);
         vm.expectEmit();
         emit DisableTrustedOnly();
-        idManager.disableTrustedOnly();
-        assertEq(idManager.trustedOnly(), 0);
+        idGateway.disableTrustedOnly();
+        assertEq(idGateway.trustedOnly(), 0);
     }
 
     function testFuzzCannotDisableTrustedCallerUnlessOwner(address alice) public {
         vm.assume(alice != address(0));
-        vm.assume(idManager.owner() != alice);
+        vm.assume(idGateway.owner() != alice);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idManager.disableTrustedOnly();
-        assertEq(idManager.trustedOnly(), 1);
+        idGateway.disableTrustedOnly();
+        assertEq(idGateway.trustedOnly(), 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -79,31 +79,31 @@ contract IdManagerOwnerTest is IdManagerTestSuite {
 
     function testFuzzTransferOwnership(address newOwner, address newOwner2) public {
         vm.assume(newOwner != address(0) && newOwner2 != address(0));
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.pendingOwner(), address(0));
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.pendingOwner(), address(0));
 
         vm.prank(owner);
-        idManager.transferOwnership(newOwner);
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.pendingOwner(), newOwner);
+        idGateway.transferOwnership(newOwner);
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.pendingOwner(), newOwner);
 
         vm.prank(owner);
-        idManager.transferOwnership(newOwner2);
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.pendingOwner(), newOwner2);
+        idGateway.transferOwnership(newOwner2);
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.pendingOwner(), newOwner2);
     }
 
     function testFuzzCannotTransferOwnershipUnlessOwner(address alice, address newOwner) public {
         vm.assume(alice != owner && newOwner != address(0));
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.pendingOwner(), address(0));
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.pendingOwner(), address(0));
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idManager.transferOwnership(newOwner);
+        idGateway.transferOwnership(newOwner);
 
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.pendingOwner(), address(0));
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.pendingOwner(), address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -113,15 +113,15 @@ contract IdManagerOwnerTest is IdManagerTestSuite {
     function testFuzzAcceptOwnership(address newOwner) public {
         vm.assume(newOwner != owner && newOwner != address(0));
         vm.prank(owner);
-        idManager.transferOwnership(newOwner);
+        idGateway.transferOwnership(newOwner);
 
         vm.expectEmit();
         emit OwnershipTransferred(owner, newOwner);
         vm.prank(newOwner);
-        idManager.acceptOwnership();
+        idGateway.acceptOwnership();
 
-        assertEq(idManager.owner(), newOwner);
-        assertEq(idManager.pendingOwner(), address(0));
+        assertEq(idGateway.owner(), newOwner);
+        assertEq(idGateway.pendingOwner(), address(0));
     }
 
     function testFuzzCannotAcceptOwnershipUnlessPendingOwner(address alice, address newOwner) public {
@@ -129,14 +129,14 @@ contract IdManagerOwnerTest is IdManagerTestSuite {
         vm.assume(newOwner != alice && newOwner != address(0));
 
         vm.prank(owner);
-        idManager.transferOwnership(newOwner);
+        idGateway.transferOwnership(newOwner);
 
         vm.prank(alice);
         vm.expectRevert("Ownable2Step: caller is not the new owner");
-        idManager.acceptOwnership();
+        idGateway.acceptOwnership();
 
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.pendingOwner(), newOwner);
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.pendingOwner(), newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -144,49 +144,49 @@ contract IdManagerOwnerTest is IdManagerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testPause() public {
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.paused(), false);
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.paused(), false);
 
-        vm.prank(idManager.owner());
-        idManager.pause();
-        assertEq(idManager.paused(), true);
+        vm.prank(idGateway.owner());
+        idGateway.pause();
+        assertEq(idGateway.paused(), true);
     }
 
     function testFuzzCannotPauseUnlessGuardian(address alice) public {
         vm.assume(alice != owner && alice != address(0));
-        assertEq(idManager.owner(), owner);
-        assertEq(idManager.paused(), false);
+        assertEq(idGateway.owner(), owner);
+        assertEq(idGateway.paused(), false);
 
         vm.prank(alice);
         vm.expectRevert(Guardians.OnlyGuardian.selector);
-        idManager.pause();
+        idGateway.pause();
 
-        assertEq(idManager.paused(), false);
+        assertEq(idGateway.paused(), false);
     }
 
     function testUnpause() public {
-        vm.prank(idManager.owner());
-        idManager.pause();
-        assertEq(idManager.paused(), true);
+        vm.prank(idGateway.owner());
+        idGateway.pause();
+        assertEq(idGateway.paused(), true);
 
         vm.prank(owner);
-        idManager.unpause();
+        idGateway.unpause();
 
-        assertEq(idManager.paused(), false);
+        assertEq(idGateway.paused(), false);
     }
 
     function testFuzzCannotUnpauseUnlessOwner(address alice) public {
         vm.assume(alice != owner && alice != address(0));
-        assertEq(idManager.owner(), owner);
+        assertEq(idGateway.owner(), owner);
 
-        vm.prank(idManager.owner());
-        idManager.pause();
-        assertEq(idManager.paused(), true);
+        vm.prank(idGateway.owner());
+        idGateway.pause();
+        assertEq(idGateway.paused(), true);
 
         vm.prank(alice);
         vm.expectRevert("Ownable: caller is not the owner");
-        idManager.unpause();
+        idGateway.unpause();
 
-        assertEq(idManager.paused(), true);
+        assertEq(idGateway.paused(), true);
     }
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
-import {KeyManager} from "../../src/KeyManager.sol";
+import {KeyGateway} from "../../src/KeyGateway.sol";
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {TransferHelper} from "../../src/lib/TransferHelper.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
@@ -11,11 +11,11 @@ import {Signatures} from "../../src/lib/Signatures.sol";
 import {Guardians} from "../../src/lib/Guardians.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
-import {KeyManagerTestSuite} from "./KeyManagerTestSuite.sol";
+import {KeyGatewayTestSuite} from "./KeyGatewayTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract KeyManagerTest is KeyManagerTestSuite {
+contract KeyGatewayTest is KeyGatewayTestSuite {
     using FixedPointMathLib for uint256;
 
     event Add(
@@ -31,7 +31,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
     event Withdraw(address indexed to, uint256 amount);
 
     function testVersion() public {
-        assertEq(keyManager.VERSION(), "2023.10.04");
+        assertEq(keyGateway.VERSION(), "2023.10.04");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -47,22 +47,22 @@ contract KeyManagerTest is KeyManagerTestSuite {
         priceFeed.setPrice(ethUsdPrice);
         vm.startPrank(owner);
         storageRegistry.refreshPrice();
-        keyManager.setUsdFee(usdFee);
+        keyGateway.setUsdFee(usdFee);
         vm.stopPrank();
         vm.roll(block.number + 1);
 
-        assertEq(keyManager.price(), uint256(usdFee).divWadUp(uint256(ethUsdPrice)));
+        assertEq(keyGateway.price(), uint256(usdFee).divWadUp(uint256(ethUsdPrice)));
     }
 
     function testFuzzFeeFixedEthUsdPrice(uint48 usdFee, uint256 ethUsdPrice) public {
         ethUsdPrice = bound(ethUsdPrice, storageRegistry.priceFeedMinAnswer(), storageRegistry.priceFeedMaxAnswer());
         vm.startPrank(owner);
         storageRegistry.setFixedEthUsdPrice(ethUsdPrice);
-        keyManager.setUsdFee(usdFee);
+        keyGateway.setUsdFee(usdFee);
         vm.stopPrank();
         vm.roll(block.number + 1);
 
-        assertEq(keyManager.price(), uint256(usdFee).divWadUp(uint256(ethUsdPrice)));
+        assertEq(keyGateway.price(), uint256(usdFee).divWadUp(uint256(ethUsdPrice)));
     }
 
     function testFuzzAdd(
@@ -79,7 +79,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(to, fee);
 
         assertEq(keyRegistry.totalKeys(fid), 0);
@@ -87,9 +87,9 @@ contract KeyManagerTest is KeyManagerTestSuite {
         vm.expectEmit();
         emit Add(fid, keyType, key, key, metadataType, metadata);
         vm.prank(to);
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
 
-        assertEq(address(keyManager).balance, fee);
+        assertEq(address(keyGateway).balance, fee);
         assertEq(keyRegistry.totalKeys(fid), 1);
         assertAdded(fid, key, keyType);
     }
@@ -110,7 +110,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(to, fee + overpayment);
 
         assertEq(keyRegistry.totalKeys(fid), 0);
@@ -118,10 +118,10 @@ contract KeyManagerTest is KeyManagerTestSuite {
         vm.expectEmit();
         emit Add(fid, keyType, key, key, metadataType, metadata);
         vm.prank(to);
-        keyManager.add{value: fee + overpayment}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee + overpayment}(keyType, key, metadataType, metadata);
 
         assertEq(address(to).balance, overpayment);
-        assertEq(address(keyManager).balance, fee);
+        assertEq(address(keyGateway).balance, fee);
         assertEq(keyRegistry.totalKeys(fid), 1);
         assertAdded(fid, key, keyType);
     }
@@ -141,17 +141,17 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         uint256 underpayment = bound(fee, 1, fee);
         vm.deal(to, fee - underpayment);
 
         assertEq(keyRegistry.totalKeys(fid), 0);
-        vm.expectRevert(KeyManager.InvalidPayment.selector);
+        vm.expectRevert(KeyGateway.InvalidPayment.selector);
         vm.prank(to);
-        keyManager.add{value: fee - underpayment}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee - underpayment}(keyType, key, metadataType, metadata);
 
         assertEq(address(to).balance, fee - underpayment);
-        assertEq(address(keyManager).balance, 0);
+        assertEq(address(keyGateway).balance, 0);
         assertNull(fid, key);
     }
 
@@ -167,12 +167,12 @@ contract KeyManagerTest is KeyManagerTestSuite {
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
 
         uint256 fid = _registerFid(to, recovery);
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(to, fee);
 
         vm.prank(to);
         vm.expectRevert(abi.encodeWithSelector(KeyRegistry.ValidatorNotFound.selector, keyType, metadataType));
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
     }
@@ -193,12 +193,12 @@ contract KeyManagerTest is KeyManagerTestSuite {
         stubValidator.setIsValid(false);
 
         uint256 fid = _registerFid(to, recovery);
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(to, fee);
 
         vm.prank(to);
         vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
     }
@@ -219,12 +219,12 @@ contract KeyManagerTest is KeyManagerTestSuite {
         _registerValidator(keyType, metadataType);
 
         uint256 fid = _registerFid(to, recovery);
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(caller, fee);
 
         vm.prank(caller);
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
     }
@@ -242,15 +242,15 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(to, fee * 2);
 
         vm.startPrank(to);
 
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
 
         vm.stopPrank();
         assertAdded(fid, key, keyType);
@@ -270,16 +270,16 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(to, fee * 2);
 
         vm.startPrank(to);
 
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
         keyRegistry.remove(key);
 
         vm.expectRevert(KeyRegistry.InvalidState.selector);
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
 
         vm.stopPrank();
         assertRemoved(fid, key, keyType);
@@ -298,15 +298,15 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(to, fee);
 
         vm.prank(owner);
-        keyManager.pause();
+        keyGateway.pause();
 
         vm.prank(to);
         vm.expectRevert("Pausable: paused");
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
     }
 
     function testFuzzAddRevertsMaxKeys(
@@ -323,19 +323,19 @@ contract KeyManagerTest is KeyManagerTestSuite {
         _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(to, fee * 11);
 
         // Create 10 keys
         for (uint256 i; i < 10; i++) {
             vm.prank(to);
-            keyManager.add{value: fee}(keyType, bytes.concat(key, bytes32(i)), metadataType, metadata);
+            keyGateway.add{value: fee}(keyType, bytes.concat(key, bytes32(i)), metadataType, metadata);
         }
 
         // 11th key reverts
         vm.prank(to);
         vm.expectRevert(KeyRegistry.ExceedsMaximum.selector);
-        keyManager.add{value: fee}(keyType, key, metadataType, metadata);
+        keyGateway.add{value: fee}(keyType, key, metadataType, metadata);
     }
 
     function testFuzzAddFor(
@@ -355,7 +355,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(registrar, fee);
 
         address owner = vm.addr(ownerPk);
@@ -365,10 +365,10 @@ contract KeyManagerTest is KeyManagerTestSuite {
         vm.expectEmit();
         emit Add(fid, keyType, key, key, metadataType, metadata);
         vm.prank(registrar);
-        keyManager.addFor{value: fee}(owner, keyType, key, metadataType, metadata, deadline, sig);
+        keyGateway.addFor{value: fee}(owner, keyType, key, metadataType, metadata, deadline, sig);
 
         assertAdded(fid, key, keyType);
-        assertEq(address(keyManager).balance, fee);
+        assertEq(address(keyGateway).balance, fee);
     }
 
     function testFuzzAddForReturnsOverpayment(
@@ -385,7 +385,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(1, 1);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(registrar, fee + overpayment);
 
         address owner = vm.addr(ownerPk);
@@ -395,10 +395,10 @@ contract KeyManagerTest is KeyManagerTestSuite {
         vm.expectEmit();
         emit Add(fid, 1, key, key, 1, metadata);
         vm.prank(registrar);
-        keyManager.addFor{value: fee + overpayment}(owner, 1, key, 1, metadata, deadline, sig);
+        keyGateway.addFor{value: fee + overpayment}(owner, 1, key, 1, metadata, deadline, sig);
 
         assertAdded(fid, key, 1);
-        assertEq(address(keyManager).balance, fee);
+        assertEq(address(keyGateway).balance, fee);
         assertEq(address(registrar).balance, overpayment);
     }
 
@@ -414,7 +414,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(1, 1);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         uint256 underpayment = bound(fee, 1, fee);
         vm.deal(registrar, fee - underpayment);
 
@@ -422,12 +422,12 @@ contract KeyManagerTest is KeyManagerTestSuite {
         _registerFid(owner, address(0));
         bytes memory sig = _signAdd(ownerPk, owner, 1, key, 1, metadata, deadline);
 
-        vm.expectRevert(KeyManager.InvalidPayment.selector);
+        vm.expectRevert(KeyGateway.InvalidPayment.selector);
         vm.prank(registrar);
-        keyManager.addFor{value: fee - underpayment}(owner, 1, key, 1, metadata, deadline, sig);
+        keyGateway.addFor{value: fee - underpayment}(owner, 1, key, 1, metadata, deadline, sig);
 
         assertEq(address(registrar).balance, fee - underpayment);
-        assertEq(address(keyManager).balance, 0);
+        assertEq(address(keyGateway).balance, 0);
         assertNull(1, key);
     }
 
@@ -447,7 +447,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(registrar, fee);
 
         address owner = vm.addr(ownerPk);
@@ -455,7 +455,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(KeyRegistry.Unauthorized.selector);
-        keyManager.addFor{value: fee}(owner, keyType, key, metadataType, metadata, deadline, sig);
+        keyGateway.addFor{value: fee}(owner, keyType, key, metadataType, metadata, deadline, sig);
     }
 
     function testFuzzAddForRevertsInvalidSig(
@@ -475,7 +475,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(registrar, fee);
 
         address owner = vm.addr(ownerPk);
@@ -484,7 +484,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(Signatures.InvalidSignature.selector);
-        keyManager.addFor{value: fee}(owner, keyType, key, metadataType, metadata, deadline, sig);
+        keyGateway.addFor{value: fee}(owner, keyType, key, metadataType, metadata, deadline, sig);
 
         assertNull(fid, key);
     }
@@ -506,7 +506,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         ownerPk = _boundPk(ownerPk);
         _registerValidator(keyType, metadataType);
 
-        uint256 fee = keyManager.price();
+        uint256 fee = keyGateway.price();
         vm.deal(registrar, fee);
 
         address owner = vm.addr(ownerPk);
@@ -515,7 +515,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         vm.prank(registrar);
         vm.expectRevert(Signatures.InvalidSignature.selector);
-        keyManager.addFor{value: fee}(owner, keyType, key, metadataType, metadata, deadline, sig);
+        keyGateway.addFor{value: fee}(owner, keyType, key, metadataType, metadata, deadline, sig);
 
         assertNull(fid, key);
     }
@@ -540,13 +540,13 @@ contract KeyManagerTest is KeyManagerTestSuite {
         bytes memory sig = _signAdd(fidOwnerPk, fidOwner, keyType, key, metadataType, metadata, deadline);
 
         vm.prank(owner);
-        keyManager.setUsdFee(0);
+        keyGateway.setUsdFee(0);
 
         vm.warp(deadline + 1);
 
         vm.startPrank(registrar);
         vm.expectRevert(Signatures.SignatureExpired.selector);
-        keyManager.addFor(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
+        keyGateway.addFor(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
         vm.stopPrank();
 
         assertNull(fid, key);
@@ -567,21 +567,21 @@ contract KeyManagerTest is KeyManagerTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
         fidOwnerPk = _boundPk(fidOwnerPk);
 
-        vm.deal(registrar, keyManager.price());
+        vm.deal(registrar, keyGateway.price());
 
         address fidOwner = vm.addr(fidOwnerPk);
         uint256 fid = _registerFid(fidOwner, recovery);
         bytes memory sig = _signAdd(fidOwnerPk, fidOwner, keyType, key, metadataType, metadata, deadline);
 
         vm.prank(owner);
-        keyManager.setUsdFee(0);
+        keyGateway.setUsdFee(0);
 
         vm.prank(owner);
-        keyManager.pause();
+        keyGateway.pause();
 
         vm.prank(registrar);
         vm.expectRevert("Pausable: paused");
-        keyManager.addFor(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
+        keyGateway.addFor(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
 
         assertNull(fid, key);
     }
@@ -595,19 +595,19 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
-        keyManager.setUsdFee(newFee);
+        keyGateway.setUsdFee(newFee);
     }
 
     function testFuzzSetFee(uint256 newFee) public {
-        uint256 currentFee = keyManager.usdFee();
+        uint256 currentFee = keyGateway.usdFee();
 
         vm.expectEmit(false, false, false, true);
         emit SetUsdFee(currentFee, newFee);
 
         vm.prank(owner);
-        keyManager.setUsdFee(newFee);
+        keyGateway.setUsdFee(newFee);
 
-        assertEq(keyManager.usdFee(), newFee);
+        assertEq(keyGateway.usdFee(), newFee);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -619,7 +619,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         vm.prank(caller);
         vm.expectRevert(Guardians.OnlyGuardian.selector);
-        keyManager.pause();
+        keyGateway.pause();
     }
 
     function testFuzzOnlyOwnerCanUnpause(address caller) public {
@@ -627,32 +627,32 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
-        keyManager.unpause();
+        keyGateway.unpause();
     }
 
     function testFuzzPauseUnpauseOwner() public {
         vm.prank(owner);
-        keyManager.pause();
-        assertEq(keyManager.paused(), true);
+        keyGateway.pause();
+        assertEq(keyGateway.paused(), true);
 
         vm.prank(owner);
-        keyManager.unpause();
-        assertEq(keyManager.paused(), false);
+        keyGateway.unpause();
+        assertEq(keyGateway.paused(), false);
     }
 
     function testFuzzPauseUnpauseGuardian(address caller) public {
         vm.assume(caller != owner);
 
         vm.prank(owner);
-        keyManager.addGuardian(caller);
+        keyGateway.addGuardian(caller);
 
         vm.prank(caller);
-        keyManager.pause();
-        assertEq(keyManager.paused(), true);
+        keyGateway.pause();
+        assertEq(keyGateway.paused(), true);
 
         vm.prank(owner);
-        keyManager.unpause();
-        assertEq(keyManager.paused(), false);
+        keyGateway.unpause();
+        assertEq(keyGateway.paused(), false);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -665,9 +665,9 @@ contract KeyManagerTest is KeyManagerTestSuite {
         emit SetVault(vault, newVault);
 
         vm.prank(owner);
-        keyManager.setVault(newVault);
+        keyGateway.setVault(newVault);
 
-        assertEq(keyManager.vault(), newVault);
+        assertEq(keyGateway.vault(), newVault);
     }
 
     function testFuzzOnlyOwnerCanSetVault(address caller, address vault) public {
@@ -675,13 +675,13 @@ contract KeyManagerTest is KeyManagerTestSuite {
 
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
-        keyManager.setVault(vault);
+        keyGateway.setVault(vault);
     }
 
     function testSetVaultCannotBeZeroAddress() public {
         vm.prank(owner);
-        vm.expectRevert(KeyManager.InvalidAddress.selector);
-        keyManager.setVault(address(0));
+        vm.expectRevert(KeyGateway.InvalidAddress.selector);
+        keyGateway.setVault(address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -691,37 +691,37 @@ contract KeyManagerTest is KeyManagerTestSuite {
     function testFuzzWithdrawalRevertsInsufficientFunds(uint256 amount) public {
         // Ensure amount is >=0 and deal a smaller amount to the contract
         amount = bound(amount, 1, type(uint256).max);
-        vm.deal(address(keyManager), amount - 1);
+        vm.deal(address(keyGateway), amount - 1);
 
         vm.prank(owner);
         vm.expectRevert(TransferHelper.CallFailed.selector);
-        keyManager.withdraw(amount);
+        keyGateway.withdraw(amount);
     }
 
     function testFuzzWithdrawalRevertsCallFailed(uint256 amount) public {
-        vm.deal(address(keyManager), amount);
+        vm.deal(address(keyGateway), amount);
 
         vm.prank(owner);
-        keyManager.setVault(address(revertOnReceive));
+        keyGateway.setVault(address(revertOnReceive));
 
         vm.prank(owner);
         vm.expectRevert(TransferHelper.CallFailed.selector);
-        keyManager.withdraw(amount);
+        keyGateway.withdraw(amount);
     }
 
     function testFuzzOnlyOwnerCanWithdraw(address caller, uint256 amount) public {
         vm.assume(caller != owner);
-        vm.deal(address(keyManager), amount);
+        vm.deal(address(keyGateway), amount);
 
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
-        keyManager.withdraw(amount);
+        keyGateway.withdraw(amount);
     }
 
     function testFuzzWithdraw(uint256 amount) public {
         // Deal an amount > 1 wei so we can withraw at least 1
         amount = bound(amount, 2, type(uint256).max);
-        vm.deal(address(keyManager), amount);
+        vm.deal(address(keyGateway), amount);
         uint256 balanceBefore = address(vault).balance;
 
         // Withdraw at last 1 wei
@@ -731,7 +731,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
         emit Withdraw(vault, withdrawalAmount);
 
         vm.prank(owner);
-        keyManager.withdraw(withdrawalAmount);
+        keyGateway.withdraw(withdrawalAmount);
 
         uint256 balanceChange = address(vault).balance - balanceBefore;
         assertEq(balanceChange, withdrawalAmount);
@@ -742,7 +742,7 @@ contract KeyManagerTest is KeyManagerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
-        vm.prank(idRegistry.idManager());
+        vm.prank(idRegistry.idGateway());
         return idRegistry.register(to, recovery);
     }
 

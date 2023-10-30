@@ -6,7 +6,7 @@ import {Nonces} from "openzeppelin-latest/contracts/utils/Nonces.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
-import {IKeyManager} from "./interfaces/IKeyManager.sol";
+import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {EIP712} from "./lib/EIP712.sol";
@@ -15,13 +15,13 @@ import {Signatures} from "./lib/Signatures.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
 /**
- * @title Farcaster KeyManager
+ * @title Farcaster KeyGateway
  *
  * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
+contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
     using FixedPointMathLib for uint256;
     using TransferHelper for address;
 
@@ -68,12 +68,12 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     string public constant VERSION = "2023.10.04";
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     bytes32 public constant ADD_TYPEHASH = keccak256(
         "Add(address owner,uint32 keyType,bytes key,uint8 metadataType,bytes metadata,uint256 nonce,uint256 deadline)"
@@ -84,22 +84,22 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     IKeyRegistry public immutable keyRegistry;
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     IStorageRegistry public immutable storageRegistry;
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     uint256 public usdFee;
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     address public vault;
 
@@ -113,7 +113,7 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
         address _initialOwner,
         address _initialVault,
         uint256 _initialUsdFee
-    ) Guardians(_initialOwner) EIP712("Farcaster KeyManager", "1") {
+    ) Guardians(_initialOwner) EIP712("Farcaster KeyGateway", "1") {
         keyRegistry = IKeyRegistry(_keyRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
 
@@ -129,7 +129,7 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     function price() public view returns (uint256) {
         return usdFee.divWadUp(_ethUsdPrice());
@@ -140,7 +140,7 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     function add(
         uint32 keyType,
@@ -160,7 +160,7 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     }
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     function addFor(
         address fidOwner,
@@ -198,7 +198,7 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     function setUsdFee(uint256 _usdFee) external onlyOwner {
         emit SetUsdFee(usdFee, _usdFee);
@@ -206,7 +206,7 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     }
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     function setVault(address vaultAddr) external onlyOwner {
         if (vaultAddr == address(0)) revert InvalidAddress();
@@ -215,7 +215,7 @@ contract KeyManager is IKeyManager, Guardians, Signatures, EIP712, Nonces {
     }
 
     /**
-     * @inheritdoc IKeyManager
+     * @inheritdoc IKeyGateway
      */
     function withdraw(uint256 amount) external onlyOwner {
         emit Withdraw(vault, amount);

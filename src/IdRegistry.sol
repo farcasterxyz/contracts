@@ -89,12 +89,12 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
 
     /**
-     * @dev Emit an event when the contract owner sets a new IdManager address.
+     * @dev Emit an event when the contract owner sets a new IdGateway address.
      *
-     * @param oldIdManager The old IdManager address.
-     * @param newIdManager The new IdManager address.
+     * @param oldIdGateway The old IdGateway address.
+     * @param newIdGateway The new IdGateway address.
      */
-    event SetIdManager(address oldIdManager, address newIdManager);
+    event SetIdGateway(address oldIdGateway, address newIdGateway);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
@@ -129,7 +129,7 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdRegistry
      */
-    address public idManager;
+    address public idGateway;
 
     /**
      * @inheritdoc IIdRegistry
@@ -172,7 +172,7 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
      * @inheritdoc IIdRegistry
      */
     function register(address to, address recovery) external whenNotPaused returns (uint256 fid) {
-        if (msg.sender != idManager) revert Unauthorized();
+        if (msg.sender != idGateway) revert Unauthorized();
 
         /* Revert if the target(to) has an fid */
         if (idOf[to] != 0) revert HasId();
@@ -347,9 +347,9 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdRegistry
      */
-    function setIdManager(address _idManager) external onlyOwner {
-        emit SetIdManager(idManager, _idManager);
-        idManager = _idManager;
+    function setIdGateway(address _idGateway) external onlyOwner {
+        emit SetIdGateway(idGateway, _idGateway);
+        idGateway = _idGateway;
     }
 
     /*//////////////////////////////////////////////////////////////

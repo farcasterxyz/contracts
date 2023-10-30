@@ -16,7 +16,7 @@ contract KeyRegistrySymTest is SymTest, Test {
 
     KeyRegistry keyRegistry;
     StubValidator validator;
-    address keyManager;
+    address keyGateway;
 
     uint256 x;
     bytes xkey;
@@ -28,7 +28,7 @@ contract KeyRegistrySymTest is SymTest, Test {
 
         // Setup IdRegistry
         idRegistry = new IdRegistry(address(this));
-        idRegistry.setIdManager(address(idRegistration));
+        idRegistry.setIdGateway(address(idRegistration));
 
         // Register fids
         vm.prank(idRegistration);
@@ -46,12 +46,12 @@ contract KeyRegistrySymTest is SymTest, Test {
         assert(idRegistry.recoveryOf(2) == address(0x2002));
         assert(idRegistry.recoveryOf(3) == address(0x2003));
 
-        keyManager = address(0x3000);
+        keyGateway = address(0x3000);
 
         // Setup KeyRegistry
         keyRegistry = new KeyRegistry(address(idRegistry), address(this), 1000);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
-        keyRegistry.setKeyManager(keyManager);
+        keyRegistry.setKeyGateway(keyGateway);
 
         // Set initial states:
         // - fid 1: removed
@@ -59,14 +59,14 @@ contract KeyRegistrySymTest is SymTest, Test {
         // - fid 3: null
 
         bytes memory key1 = svm.createBytes(32, "key1");
-        vm.prank(keyManager);
+        vm.prank(keyGateway);
         keyRegistry.add(address(0x1001), 1, key1, 1, "");
         vm.prank(address(0x1001));
         keyRegistry.remove(key1);
         assert(keyRegistry.keyDataOf(1, key1).state == IKeyRegistry.KeyState.REMOVED);
 
         bytes memory key2 = svm.createBytes(32, "key2");
-        vm.prank(keyManager);
+        vm.prank(keyGateway);
         keyRegistry.add(address(0x1002), 1, key2, 1, "");
         assert(keyRegistry.keyDataOf(2, key2).state == IKeyRegistry.KeyState.ADDED);
 
@@ -138,7 +138,7 @@ contract KeyRegistrySymTest is SymTest, Test {
                 assert(oldStateX == IKeyRegistry.KeyState.NULL);
                 if (selector == keyRegistry.add.selector) {
                     //   - add() must be called by the key manager contract.
-                    assert(caller == keyManager);
+                    assert(caller == keyGateway);
                 } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
                     //   - bulkAdd() must be called by the owner of KeyRegistry.
                     //   - bulkAdd() must be called before the key migration or within the grade period following the migration.
