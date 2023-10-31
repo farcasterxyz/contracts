@@ -33,6 +33,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
     event Migrated(uint256 indexed migratedAt);
+    event SetMigrator(address oldMigrator, address newMigrator);
 
     function testInitialGracePeriod() public {
         assertEq(keyRegistry.gracePeriod(), 1 days);
@@ -48,6 +49,46 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
     function testInitialStateIsNotMigrated() public {
         assertEq(keyRegistry.isMigrated(), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             SET MIGRATOR
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOwnerCanSetMigrator(address migrator) public {
+        address oldMigrator = keyRegistry.migrator();
+
+        vm.expectEmit();
+        emit SetMigrator(oldMigrator, migrator);
+        vm.prank(owner);
+        keyRegistry.setMigrator(migrator);
+
+        assertEq(keyRegistry.migrator(), migrator);
+    }
+
+    function testFuzzSetMigratorRevertsWhenMigrated(address migrator) public {
+        address oldMigrator = keyRegistry.migrator();
+
+        vm.prank(oldMigrator);
+        keyRegistry.migrate();
+
+        vm.prank(owner);
+        vm.expectRevert(IMigration.AlreadyMigrated.selector);
+        keyRegistry.setMigrator(migrator);
+
+        assertEq(keyRegistry.migrator(), oldMigrator);
+    }
+
+    function testFuzzSetMigratorRevertsWhenUnpaused(address migrator) public {
+        address oldMigrator = keyRegistry.migrator();
+
+        vm.startPrank(owner);
+        keyRegistry.unpause();
+        vm.expectRevert("Pausable: not paused");
+        keyRegistry.setMigrator(migrator);
+        vm.stopPrank();
+
+        assertEq(keyRegistry.migrator(), oldMigrator);
     }
 
     /*//////////////////////////////////////////////////////////////

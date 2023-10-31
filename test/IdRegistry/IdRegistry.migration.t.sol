@@ -32,6 +32,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     event AdminReset(uint256 indexed fid);
     event SetIdCounter(uint256 oldCounter, uint256 newCounter);
     event FreezeIdGateway(address idGateway);
+    event SetMigrator(address oldMigrator, address newMigrator);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -51,6 +52,46 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
     function testInitialStateIsNotMigrated() public {
         assertEq(idRegistry.isMigrated(), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             SET MIGRATOR
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOwnerCanSetMigrator(address migrator) public {
+        address oldMigrator = idRegistry.migrator();
+
+        vm.expectEmit();
+        emit SetMigrator(oldMigrator, migrator);
+        vm.prank(owner);
+        idRegistry.setMigrator(migrator);
+
+        assertEq(idRegistry.migrator(), migrator);
+    }
+
+    function testFuzzSetMigratorRevertsWhenMigrated(address migrator) public {
+        address oldMigrator = idRegistry.migrator();
+
+        vm.prank(oldMigrator);
+        idRegistry.migrate();
+
+        vm.prank(owner);
+        vm.expectRevert(IMigration.AlreadyMigrated.selector);
+        idRegistry.setMigrator(migrator);
+
+        assertEq(idRegistry.migrator(), oldMigrator);
+    }
+
+    function testFuzzSetMigratorRevertsWhenUnpaused(address migrator) public {
+        address oldMigrator = idRegistry.migrator();
+
+        vm.startPrank(owner);
+        idRegistry.unpause();
+        vm.expectRevert("Pausable: not paused");
+        idRegistry.setMigrator(migrator);
+        vm.stopPrank();
+
+        assertEq(idRegistry.migrator(), oldMigrator);
     }
 
     /*//////////////////////////////////////////////////////////////
