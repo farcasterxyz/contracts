@@ -107,21 +107,6 @@ contract Bundler is IBundler, TrustedCaller {
         return fid;
     }
 
-    /**
-     * @inheritdoc IBundler
-     */
-    function trustedBatchRegister(UserData[] calldata users) external onlyTrustedCaller {
-        // Safety: calls inside a loop are safe since caller is trusted
-        uint256 usersLen = users.length;
-        for (uint256 i; i < usersLen;) {
-            UserData calldata user = users[i];
-            idGateway.trustedRegister(user.to, user.recovery);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
     receive() external payable {
         if (msg.sender != address(idGateway)) revert Unauthorized();
     }

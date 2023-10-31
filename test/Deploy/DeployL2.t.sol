@@ -70,6 +70,7 @@ contract DeployL2Test is DeployL2, Test {
         vm.deal(bob, 0.5 ether);
         vm.deal(carol, 0.5 ether);
         vm.deal(dave, 0.5 ether);
+        vm.deal(app, 0.5 ether);
 
         DeployL2.DeploymentParams memory params = DeployL2.DeploymentParams({
             initialIdRegistryOwner: alpha,
@@ -181,31 +182,19 @@ contract DeployL2Test is DeployL2, Test {
         keyRegistry.acceptOwnership();
         vm.stopPrank();
 
-        // Bundler trusted registers an app fid
-        vm.prank(address(bundler));
-        uint256 requestFid = idGateway.trustedRegister(app, address(0));
+        // Register an app fid
+        uint256 idFee = idGateway.price();
+        vm.prank(app);
+        (uint256 requestFid,) = idGateway.register{value: idFee}(address(0));
         uint256 deadline = block.timestamp + 60;
 
-        IBundler.UserData[] memory batch = new IBundler.UserData[](1);
-        batch[0] = IBundler.UserData({to: alice, recovery: address(recoveryProxy)});
-        // Relayer trusted registers a user fid
-        vm.prank(relayer);
-        bundler.trustedBatchRegister(batch);
-        assertEq(idRegistry.idOf(alice), 2);
-
-        // Multisig disables trusted mode
-        vm.startPrank(alpha);
-        idGateway.disableTrustedOnly();
-        bundler.disableTrustedOnly();
-        vm.stopPrank();
-
-        // Carol permissionlessly registers an fid with Dave as recovery
-        uint256 idFee = idGateway.price();
+        // Carol registers an fid with Dave as recovery
+        idFee = idGateway.price();
         vm.prank(carol);
         idGateway.register{value: idFee}(dave);
-        assertEq(idRegistry.idOf(carol), 3);
+        assertEq(idRegistry.idOf(carol), 2);
 
-        // Carol permissionlessly adds a key to her fid
+        // Carol adds a key to her fid
         bytes memory carolKey = bytes.concat("carolKey", bytes24(0));
         bytes memory carolSig = _signMetadata(appPk, requestFid, carolKey, deadline);
         bytes memory carolMetadata = abi.encode(

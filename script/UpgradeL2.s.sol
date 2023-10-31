@@ -146,7 +146,6 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             contracts.idRegistry.setIdGateway(address(contracts.idGateway));
             contracts.idRegistry.transferOwnership(params.initialIdRegistryOwner);
 
-            contracts.idGateway.setTrustedCaller(bundler);
             contracts.idGateway.transferOwnership(params.initialIdRegistryOwner);
 
             contracts.keyRegistry.setValidator(1, 1, IMetadataValidator(address(contracts.signedKeyRequestValidator)));

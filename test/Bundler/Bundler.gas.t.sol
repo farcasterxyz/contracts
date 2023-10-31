@@ -15,9 +15,6 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
     }
 
     function testGasRegisterWithSig() public {
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         for (uint256 i = 1; i < 10; i++) {
             address account = vm.addr(i);
             bytes memory sig = _signRegister(i, account, address(0), type(uint40).max);
@@ -34,26 +31,6 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
                 signers,
                 1
             );
-        }
-    }
-
-    function testGasTrustedBatchRegister() public {
-        vm.prank(owner);
-        idGateway.setTrustedCaller(address(bundler));
-
-        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
-        vm.prank(roleAdmin);
-        storageRegistry.grantRole(operatorRoleId, address(bundler));
-
-        for (uint256 i = 0; i < 10; i++) {
-            IBundler.UserData[] memory batchArray = new IBundler.UserData[](10);
-
-            for (uint256 j = 0; j < 10; j++) {
-                address account = address(uint160(((i * 10) + j + 1)));
-                batchArray[j] = IBundler.UserData({to: account, recovery: address(0)});
-            }
-
-            bundler.trustedBatchRegister(batchArray);
         }
     }
 }

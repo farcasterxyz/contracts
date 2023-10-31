@@ -18,11 +18,8 @@ contract BundlerTest is BundlerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     event SetTrustedCaller(address indexed oldCaller, address indexed newCaller, address owner);
-
     event Register(address indexed to, uint256 indexed id, address recovery);
-
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
     event Rent(address indexed buyer, uint256 indexed id, uint256 units);
 
     /*//////////////////////////////////////////////////////////////
@@ -96,10 +93,6 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageBefore = storageRegistry.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore - 1);
 
-        // State: Trusted Registration is disabled in ID registry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
@@ -139,10 +132,6 @@ contract BundlerTest is BundlerTestSuite {
         assumePayable(caller); // caller must be able to receive funds
 
         uint256 storageBefore = storageRegistry.rentedUnits();
-
-        // State: Trusted Registration is disabled in ID registry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
 
         uint256 price = bundler.price(0);
         address account = vm.addr(accountPk);
@@ -185,10 +174,6 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageBefore = storageRegistry.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore - 1);
 
-        // State: Trusted Registration is disabled in ID registry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
@@ -222,10 +207,6 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageBefore = storageRegistry.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore - 1);
 
-        // State: Trusted Registration is disabled in ID registry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
@@ -250,82 +231,6 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(storageRegistry).balance, price);
         assertEq(address(bundler).balance, 0 ether);
         assertEq(address(caller).balance, delta);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         TRUSTED BATCH REGISTER
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzTrustedBatchRegister(uint256 registrations) public {
-        registrations = bound(registrations, 1, 100);
-
-        // Configure the trusted callers correctly
-        vm.prank(owner);
-        idGateway.setTrustedCaller(address(bundler));
-
-        IBundler.UserData[] memory batchArray = new IBundler.UserData[](
-            registrations
-        );
-
-        for (uint256 i; i < registrations; i++) {
-            uint160 fid = uint160(i + 1);
-            address account = address(fid);
-            address recovery = address(uint160(i + 1000));
-            batchArray[i] = IBundler.UserData({to: account, recovery: recovery});
-
-            vm.expectEmit(true, true, true, true);
-            emit Register(account, fid, recovery);
-        }
-
-        bundler.trustedBatchRegister(batchArray);
-
-        for (uint256 i = 0; i < registrations; i++) {
-            uint160 fid = uint160(i + 1);
-            address recovery = address(uint160(i + 1000));
-            assertEq(idRegistry.idOf(address(fid)), fid);
-            assertEq(idRegistry.recoveryOf(fid), recovery);
-        }
-    }
-
-    function testFuzzCannotTrustedBatchRegisterFromUntrustedCaller(address alice, address untrustedCaller) public {
-        // Call is made from an address that is not address(this), since address(this) is the deployer
-        // and therefore the trusted caller for Bundler
-        vm.assume(untrustedCaller != address(this));
-
-        // Configure the trusted callers correctly
-        vm.prank(owner);
-        idGateway.setTrustedCaller(address(bundler));
-
-        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
-        vm.prank(roleAdmin);
-        storageRegistry.grantRole(operatorRoleId, address(bundler));
-
-        IBundler.UserData[] memory batchArray = new IBundler.UserData[](1);
-        batchArray[0] = IBundler.UserData({to: alice, recovery: address(0)});
-
-        vm.prank(untrustedCaller);
-        vm.expectRevert(ITrustedCaller.OnlyTrustedCaller.selector);
-        bundler.trustedBatchRegister(batchArray);
-
-        _assertUnsuccessfulRegistration(alice);
-    }
-
-    function testFuzzTrustedBatchRegisterIfIdRegistryDisabled(address alice) public {
-        // State: Trusted registration is disabled in IdRegistry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
-        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
-        vm.prank(roleAdmin);
-        storageRegistry.grantRole(operatorRoleId, address(bundler));
-
-        IBundler.UserData[] memory batchArray = new IBundler.UserData[](1);
-        batchArray[0] = IBundler.UserData({to: alice, recovery: address(0)});
-
-        vm.expectRevert(ITrustedCaller.Registrable.selector);
-        bundler.trustedBatchRegister(batchArray);
-
-        _assertUnsuccessfulRegistration(alice);
     }
 
     /*//////////////////////////////////////////////////////////////

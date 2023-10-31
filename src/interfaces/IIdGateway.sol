@@ -98,20 +98,4 @@ interface IIdGateway {
         bytes calldata sig,
         uint256 extraStorage
     ) external payable returns (uint256 fid, uint256 overpayment);
-
-    /*//////////////////////////////////////////////////////////////
-                         PERMISSIONED ACTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Register a new Farcaster ID (fid) to any address. The address must not have an fid.
-     *         The contract must be in the Seedable (trustedOnly = 1) state.
-     *         Can only be called by the trustedCaller.
-     *
-     * @param to       The address which will own the fid.
-     * @param recovery The address which can recover the fid.
-     *
-     * @return fid registered FID.
-     */
-    function trustedRegister(address to, address recovery) external returns (uint256 fid);
 }

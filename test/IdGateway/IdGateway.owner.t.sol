@@ -13,65 +13,7 @@ contract IdGatewayOwnerTest is IdGatewayTestSuite {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event SetTrustedCaller(address indexed oldTrustedCaller, address indexed newTrustedCaller, address owner);
-    event DisableTrustedOnly();
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /*//////////////////////////////////////////////////////////////
-                             TRUSTED CALLER
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzSetTrustedCaller(address alice) public {
-        vm.assume(alice != address(0));
-        assertEq(idGateway.owner(), owner);
-
-        vm.prank(owner);
-        vm.expectEmit();
-        emit SetTrustedCaller(address(0), alice, owner);
-        idGateway.setTrustedCaller(alice);
-        assertEq(idGateway.trustedCaller(), alice);
-    }
-
-    function testFuzzCannotSetTrustedCallerToZeroAddr() public {
-        assertEq(idGateway.owner(), owner);
-
-        vm.prank(owner);
-        vm.expectRevert(ITrustedCaller.InvalidAddress.selector);
-        idGateway.setTrustedCaller(address(0));
-
-        assertEq(idGateway.trustedCaller(), address(0));
-    }
-
-    function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
-        vm.assume(bob != address(0));
-        vm.assume(idGateway.owner() != alice);
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        idGateway.setTrustedCaller(bob);
-        assertEq(idGateway.trustedCaller(), address(0));
-    }
-
-    function testDisableTrustedCaller() public {
-        assertEq(idGateway.owner(), owner);
-        assertEq(idGateway.trustedOnly(), 1);
-
-        vm.prank(owner);
-        vm.expectEmit();
-        emit DisableTrustedOnly();
-        idGateway.disableTrustedOnly();
-        assertEq(idGateway.trustedOnly(), 0);
-    }
-
-    function testFuzzCannotDisableTrustedCallerUnlessOwner(address alice) public {
-        vm.assume(alice != address(0));
-        vm.assume(idGateway.owner() != alice);
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        idGateway.disableTrustedOnly();
-        assertEq(idGateway.trustedOnly(), 1);
-    }
 
     /*//////////////////////////////////////////////////////////////
                            TRANSFER OWNERSHIP
