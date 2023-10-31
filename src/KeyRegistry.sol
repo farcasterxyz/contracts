@@ -3,12 +3,13 @@ pragma solidity 0.8.21;
 
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
-import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
+import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {EIP712} from "./lib/EIP712.sol";
-import {Nonces} from "./lib/Nonces.sol";
 import {Guardians} from "./lib/Guardians.sol";
+import {Migration} from "./lib/Migration.sol";
+import {Nonces} from "./lib/Nonces.sol";
 import {Signatures} from "./lib/Signatures.sol";
 
 /**
@@ -18,7 +19,7 @@ import {Signatures} from "./lib/Signatures.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
+contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Migration {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -43,9 +44,6 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
 
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
-
-    /// @dev Revert if the owner calls migrateKeys more than once.
-    error AlreadyMigrated();
 
     /// @dev Revert if the owner sets maxKeysPerFid equal to or below its current value.
     error InvalidMaxKeys();
@@ -127,28 +125,6 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
 
     /**
-     * @dev Emit an event when the admin calls migrateKeys. Used to migrate Hubs from using
-     *      offchain signers to onchain signers.
-     *
-     *      Hubs listen for this and:
-     *      1. Stop accepting Farcaster Signer messages with a timestamp >= keysMigratedAt.
-     *      2. After the grace period (24 hours), stop accepting all Farcaster Signer messages.
-     *      3. Drop any messages created by off-chain Farcaster Signers whose pub key was
-     *         not emitted as an Add event.
-     *
-     *      If SignerMessages are not correctly migrated by an admin during the migration,
-     *      there is a chance that there is some data loss, which is considered an acceptable
-     *      risk for this migration.
-     *
-     *      If this event is emitted incorrectly ahead of schedule, new users cannot not post
-     *      and existing users cannot add new apps. A protocol upgrade will be necessary
-     *      which could take up to 6 weeks to roll out correctly.
-     *
-     * @param keysMigratedAt  The timestamp at which the migration occurred.
-     */
-    event Migrated(uint256 indexed keysMigratedAt);
-
-    /**
      * @dev Emit an event when the admin sets a metadata validator contract for a given
      *      keyType and metadataType.
      *
@@ -195,11 +171,6 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    uint24 public constant gracePeriod = uint24(24 hours);
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
     bytes32 public constant REMOVE_TYPEHASH =
         keccak256("Remove(address owner,bytes key,uint256 nonce,uint256 deadline)");
 
@@ -216,11 +187,6 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
      * @inheritdoc IKeyRegistry
      */
     address public keyGateway;
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
-    uint40 public keysMigratedAt;
 
     /**
      * @inheritdoc IKeyRegistry
@@ -269,7 +235,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
         address _idRegistry,
         address _initialOwner,
         uint256 _maxKeysPerFid
-    ) Guardians(_initialOwner) EIP712("Farcaster KeyRegistry", "1") {
+    ) Guardians(_initialOwner) EIP712("Farcaster KeyRegistry", "1") Migration(24 hours, _initialOwner) {
         idRegistry = IdRegistryLike(_idRegistry);
         maxKeysPerFid = _maxKeysPerFid;
         emit SetIdRegistry(address(0), _idRegistry);
@@ -285,13 +251,6 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
      */
     function keyDataOf(uint256 fid, bytes calldata key) external view returns (KeyData memory) {
         return keys[fid][key];
-    }
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
-    function isMigrated() public view returns (bool) {
-        return keysMigratedAt != 0;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -334,20 +293,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function migrateKeys() external onlyOwner {
-        if (isMigrated()) revert AlreadyMigrated();
-        keysMigratedAt = uint40(block.timestamp);
-        emit Migrated(keysMigratedAt);
-    }
-
-    /**
-     * @inheritdoc IKeyRegistry
-     */
-    function bulkAddKeysForMigration(BulkAddData[] calldata items) external onlyOwner {
-        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) {
-            revert Unauthorized();
-        }
-
+    function bulkAddKeysForMigration(BulkAddData[] calldata items) external migration {
         // Safety: i and j can be incremented unchecked since they are bound by items.length and
         // items[i].keys.length respectively.
         unchecked {
@@ -363,11 +309,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function bulkResetKeysForMigration(BulkResetData[] calldata items) external onlyOwner {
-        if (isMigrated() && block.timestamp > keysMigratedAt + gracePeriod) {
-            revert Unauthorized();
-        }
-
+    function bulkResetKeysForMigration(BulkResetData[] calldata items) external migration {
         // Safety: i and j can be incremented unchecked since they are bound by items.length and
         // items[i].keys.length respectively.
         unchecked {

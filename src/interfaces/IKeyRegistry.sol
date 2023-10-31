@@ -3,8 +3,9 @@ pragma solidity ^0.8.21;
 
 import {IMetadataValidator} from "./IMetadataValidator.sol";
 import {IdRegistryLike} from "./IdRegistryLike.sol";
+import {IMigration} from "./lib/IMigration.sol";
 
-interface IKeyRegistry {
+interface IKeyRegistry is IMigration {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -81,13 +82,6 @@ interface IKeyRegistry {
     function VERSION() external view returns (string memory);
 
     /**
-     * @notice Period in seconds after migration during which admin can bulk add/reset keys.
-     *         Admins can make corrections to the migrated data during the grace period if necessary,
-     *         but cannot make changes after it expires.
-     */
-    function gracePeriod() external view returns (uint24);
-
-    /**
      * @notice EIP-712 typehash for Remove signatures.
      */
     function REMOVE_TYPEHASH() external view returns (bytes32);
@@ -107,12 +101,6 @@ interface IKeyRegistry {
     function keyGateway() external view returns (address);
 
     /**
-     * @notice Timestamp at which keys migrated. Hubs will cut over to use this KeyRegistry as their
-     *         source of truth after this timestamp.
-     */
-    function keysMigratedAt() external view returns (uint40);
-
-    /**
      * @notice Maximum number of keys per fid.
      */
     function maxKeysPerFid() external view returns (uint256);
@@ -130,13 +118,6 @@ interface IKeyRegistry {
      * @return KeyData struct that contains the state and keyType.
      */
     function keyDataOf(uint256 fid, bytes calldata key) external view returns (KeyData memory);
-
-    /**
-     * @notice Check if the contract has been migrated.
-     *
-     * @return true if the contract has been migrated, false otherwise.
-     */
-    function isMigrated() external view returns (bool);
 
     /*//////////////////////////////////////////////////////////////
                               REMOVE KEYS
@@ -181,13 +162,6 @@ interface IKeyRegistry {
         uint8 metadataType,
         bytes calldata metadata
     ) external;
-
-    /**
-     * @notice Set the time of the key migration and emit an event. Hubs will watch this event and
-     *         cut over to use the onchain registry as their source of truth after this timestamp.
-     *         Only callable by the contract owner.
-     */
-    function migrateKeys() external;
 
     /**
      * @notice Add multiple keys as part of the initial migration. Only callable by the contract owner.

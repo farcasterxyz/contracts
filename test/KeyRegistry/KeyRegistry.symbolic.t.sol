@@ -78,8 +78,8 @@ contract KeyRegistrySymTest is SymTest, Test {
     // Verify the KeyRegistry invariants
     function check_Invariants(bytes4 selector, address caller) public {
         // Additional setup to cover various input states
-        if (svm.createBool("migrateKeys?")) {
-            keyRegistry.migrateKeys();
+        if (svm.createBool("migrate?")) {
+            keyRegistry.migrate();
         }
         /* NOTE: these configurations don't make any differences for the current KeyRegistry behaviors.
         if (svm.createBool("pause?")) {
@@ -98,7 +98,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         uint256 oldUserId = idRegistry.idOf(user);
 
         bool isNotMigratedOrGracePeriod =
-            !keyRegistry.isMigrated() || block.timestamp <= keyRegistry.keysMigratedAt() + keyRegistry.gracePeriod();
+            !keyRegistry.isMigrated() || block.timestamp <= keyRegistry.migratedAt() + keyRegistry.gracePeriod();
 
         // Execute an arbitrary tx to KeyRegistry
         vm.prank(caller);

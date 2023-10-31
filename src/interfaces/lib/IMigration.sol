@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+interface IMigration {
+    /*//////////////////////////////////////////////////////////////
+                              IMMUTABLES
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Migration admin address.
+     */
+    function migrator() external view returns (address);
+
+    /**
+     * @notice Period in seconds after migration during which admin can continue to call protected
+     *         migration functions. Admins can make corrections to the migrated data during the
+     *         grace period if necessary, but cannot make changes after it expires.
+     */
+    function gracePeriod() external view returns (uint24);
+
+    /*//////////////////////////////////////////////////////////////
+                               STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Timestamp at which data is migrated. Hubs will cut over to use this contract as their
+     *         source of truth after this timestamp.
+     */
+    function migratedAt() external view returns (uint40);
+
+    /*//////////////////////////////////////////////////////////////
+                                  VIEWS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Check if the contract has been migrated.
+     *
+     * @return true if the contract has been migrated, false otherwise.
+     */
+    function isMigrated() external view returns (bool);
+
+    /*//////////////////////////////////////////////////////////////
+                         PERMISSIONED ACTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Set the time of the migration and emit an event. Hubs will watch this event and
+     *         cut over to use this contract as their source of truth after this timestamp.
+     *         Only callable by the migrator.
+     */
+    function migrate() external;
+}
