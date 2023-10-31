@@ -129,10 +129,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             abi.encode(addrs.idRegistry, params.initialValidatorOwner)
         );
         addrs.bundler = register(
-            "Bundler",
-            params.salts.bundler,
-            type(Bundler).creationCode,
-            abi.encode(addrs.idGateway, addrs.keyGateway, params.bundlerTrustedCaller, params.initialBundlerOwner)
+            "Bundler", params.salts.bundler, type(Bundler).creationCode, abi.encode(addrs.idGateway, addrs.keyGateway)
         );
         addrs.recoveryProxy = register(
             "RecoveryProxy",

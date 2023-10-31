@@ -111,10 +111,7 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             )
         );
         addrs.bundler = register(
-            "Bundler",
-            params.salts.bundler,
-            type(Bundler).creationCode,
-            abi.encode(addrs.idGateway, addrs.keyGateway, params.bundlerTrustedCaller, params.initialBundlerOwner)
+            "Bundler", params.salts.bundler, type(Bundler).creationCode, abi.encode(addrs.idGateway, addrs.keyGateway)
         );
         addrs.recoveryProxy = register(
             "RecoveryProxy",
@@ -140,7 +137,6 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
     function runSetup(Contracts memory contracts, DeploymentParams memory params, bool broadcast) public {
         if (deploymentChanged()) {
             console.log("Running setup");
-            address bundler = address(contracts.bundler);
 
             if (broadcast) vm.startBroadcast();
             contracts.idRegistry.setIdGateway(address(contracts.idGateway));

@@ -176,10 +176,9 @@ contract UpgradeL2Test is UpgradeL2, Test {
         assertEq(validator.owner(), alpha);
         assertEq(address(validator.idRegistry()), address(idRegistry));
 
-        // Bundler owned by multisig, check deploy parameters
-        assertEq(bundler.owner(), alpha);
+        // Check bundler deploy parameters
         assertEq(address(bundler.idGateway()), address(idGateway));
-        assertEq(bundler.trustedCaller(), relayer);
+        assertEq(address(bundler.keyGateway()), address(keyGateway));
 
         // Recovery proxy owned by multisig, check deploy parameters
         assertEq(recoveryProxy.owner(), alpha);

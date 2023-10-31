@@ -24,9 +24,7 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
         // Set up the BundleRegistry
         bundler = new Bundler(
             address(idGateway),
-            address(keyGateway),
-            address(this),
-            owner
+            address(keyGateway)
         );
 
         addKnownContract(address(keyGateway));
