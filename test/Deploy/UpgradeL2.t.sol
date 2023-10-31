@@ -6,9 +6,9 @@ import {
     UpgradeL2,
     StorageRegistry,
     IdRegistry,
-    IdManager,
+    IdGateway,
     KeyRegistry,
-    KeyManager,
+    KeyGateway,
     SignedKeyRequestValidator,
     Bundler,
     RecoveryProxy,
@@ -22,9 +22,9 @@ import "forge-std/console.sol";
 contract UpgradeL2Test is UpgradeL2, Test {
     StorageRegistry internal storageRegistry;
     IdRegistry internal idRegistry;
-    IdManager internal idManager;
+    IdGateway internal idGateway;
     KeyRegistry internal keyRegistry;
-    KeyManager internal keyManager;
+    KeyGateway internal keyGateway;
     SignedKeyRequestValidator internal validator;
     Bundler internal bundler;
     RecoveryProxy internal recoveryProxy;
@@ -94,9 +94,9 @@ contract UpgradeL2Test is UpgradeL2, Test {
             salts: UpgradeL2.Salts({
                 storageRegistry: 0,
                 idRegistry: 0,
-                idManager: 0,
+                idGateway: 0,
                 keyRegistry: 0,
-                keyManager: 0,
+                keyGateway: 0,
                 signedKeyRequestValidator: 0,
                 bundler: 0,
                 recoveryProxy: 0
@@ -110,9 +110,9 @@ contract UpgradeL2Test is UpgradeL2, Test {
 
         storageRegistry = contracts.storageRegistry;
         idRegistry = contracts.idRegistry;
-        idManager = contracts.idManager;
+        idGateway = contracts.idGateway;
         keyRegistry = contracts.keyRegistry;
-        keyManager = contracts.keyManager;
+        keyGateway = contracts.keyGateway;
         validator = contracts.signedKeyRequestValidator;
         bundler = contracts.bundler;
         recoveryProxy = contracts.recoveryProxy;
@@ -165,11 +165,11 @@ contract UpgradeL2Test is UpgradeL2, Test {
 
         // Check key registry parameters
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
-        assertEq(address(keyRegistry.keyManager()), address(keyManager));
+        assertEq(address(keyRegistry.keyGateway()), address(keyGateway));
         assertEq(keyRegistry.gracePeriod(), KEY_REGISTRY_MIGRATION_GRACE_PERIOD);
 
         // Check ID registry parameters
-        assertEq(address(idRegistry.idManager()), address(idManager));
+        assertEq(address(idRegistry.idGateway()), address(idGateway));
 
         // Validator owned by multisig, check deploy parameters
         assertEq(validator.owner(), alpha);
@@ -177,7 +177,7 @@ contract UpgradeL2Test is UpgradeL2, Test {
 
         // Bundler owned by multisig, check deploy parameters
         assertEq(bundler.owner(), alpha);
-        assertEq(address(bundler.idManager()), address(idManager));
+        assertEq(address(bundler.idGateway()), address(idGateway));
         assertEq(address(bundler.storageRegistry()), address(storageRegistry));
         assertEq(bundler.trustedCaller(), relayer);
 
@@ -190,13 +190,13 @@ contract UpgradeL2Test is UpgradeL2, Test {
         // Multisig accepts ownership transferred from deployer
         vm.startPrank(alpha);
         idRegistry.acceptOwnership();
-        idManager.acceptOwnership();
+        idGateway.acceptOwnership();
         keyRegistry.acceptOwnership();
         vm.stopPrank();
 
         // Bundler trusted registers an app fid
         vm.prank(address(bundler));
-        uint256 requestFid = idManager.trustedRegister(app, address(0));
+        uint256 requestFid = idGateway.trustedRegister(app, address(0));
         uint256 deadline = block.timestamp + 60;
 
         IBundler.UserData[] memory batch = new IBundler.UserData[](1);
@@ -209,14 +209,14 @@ contract UpgradeL2Test is UpgradeL2, Test {
 
         // Multisig disables trusted mode
         vm.startPrank(alpha);
-        idManager.disableTrustedOnly();
+        idGateway.disableTrustedOnly();
         bundler.disableTrustedOnly();
         vm.stopPrank();
 
         // Carol permissionlessly registers an fid with Dave as recovery
-        uint256 idFee = idManager.price();
+        uint256 idFee = idGateway.price();
         vm.prank(carol);
-        idManager.register{value: idFee}(dave);
+        idGateway.register{value: idFee}(dave);
         assertEq(idRegistry.idOf(carol), 3);
 
         // Carol permissionlessly adds a key to her fid
@@ -231,9 +231,9 @@ contract UpgradeL2Test is UpgradeL2, Test {
             })
         );
 
-        uint256 keyFee = keyManager.price();
+        uint256 keyFee = keyGateway.price();
         vm.prank(carol);
-        keyManager.add{value: keyFee}(1, carolKey, 1, carolMetadata);
+        keyGateway.add{value: keyFee}(1, carolKey, 1, carolMetadata);
 
         // Multisig recovers Alice's FID to bob
         uint256 recoverDeadline = block.timestamp + 30;
@@ -241,9 +241,9 @@ contract UpgradeL2Test is UpgradeL2, Test {
         vm.prank(alpha);
         recoveryProxy.recover(alice, bob, recoverDeadline, recoverSig);
 
-        // Multisig withdraws keyManager balance
+        // Multisig withdraws keyGateway balance
         vm.prank(alpha);
-        keyManager.withdraw(address(keyManager).balance);
+        keyGateway.withdraw(address(keyGateway).balance);
     }
 
     function _signTransfer(

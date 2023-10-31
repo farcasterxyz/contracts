@@ -2,8 +2,8 @@
 pragma solidity 0.8.21;
 
 import {IBundler} from "./interfaces/IBundler.sol";
-import {IIdManager} from "./interfaces/IIdManager.sol";
-import {IKeyManager} from "./interfaces/IKeyManager.sol";
+import {IIdGateway} from "./interfaces/IIdGateway.sol";
+import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
@@ -44,12 +44,12 @@ contract Bundler is IBundler, TrustedCaller {
     /**
      * @inheritdoc IBundler
      */
-    IIdManager public immutable idManager;
+    IIdGateway public immutable idGateway;
 
     /**
      * @inheritdoc IBundler
      */
-    IKeyManager public immutable keyManager;
+    IKeyGateway public immutable keyGateway;
 
     /**
      * @inheritdoc IBundler
@@ -65,21 +65,21 @@ contract Bundler is IBundler, TrustedCaller {
      *         and the trusted caller, which is allowed to register users
      *         during the bootstrap phase.
      *
-     * @param _idManager       Address of the IdManager contract
-     * @param _keyManager      Address of the KeyManager contract
+     * @param _idGateway       Address of the IdGateway contract
+     * @param _keyGateway      Address of the KeyGateway contract
      * @param _storageRegistry Address of the StorageRegistry contract
      * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
      * @param _initialOwner    Address that can set the trusted caller
      */
     constructor(
-        address _idManager,
-        address _keyManager,
+        address _idGateway,
+        address _keyGateway,
         address _storageRegistry,
         address _trustedCaller,
         address _initialOwner
     ) TrustedCaller(_initialOwner) {
-        idManager = IIdManager(payable(_idManager));
-        keyManager = IKeyManager(payable(_keyManager));
+        idGateway = IIdGateway(payable(_idGateway));
+        keyGateway = IKeyGateway(payable(_keyGateway));
         storageRegistry = IStorageRegistry(_storageRegistry);
         _setTrustedCaller(_trustedCaller);
     }
@@ -88,7 +88,7 @@ contract Bundler is IBundler, TrustedCaller {
      * @inheritdoc IBundler
      */
     function price(uint256 signers, uint256 extraStorage) external view returns (uint256) {
-        return keyManager.price() * signers + idManager.price() + storageRegistry.price(extraStorage);
+        return keyGateway.price() * signers + idGateway.price() + storageRegistry.price(extraStorage);
     }
 
     /**
@@ -99,22 +99,22 @@ contract Bundler is IBundler, TrustedCaller {
         SignerParams[] calldata signerParams,
         uint256 extraStorage
     ) external payable {
-        uint256 registerFee = idManager.price();
-        uint256 signerFee = keyManager.price();
+        uint256 registerFee = idGateway.price();
+        uint256 signerFee = keyGateway.price();
         uint256 storageFee = storageRegistry.price(extraStorage);
         uint256 totalFee = registerFee + signerFee * signerParams.length + storageFee;
 
         if (msg.value < totalFee) revert InvalidPayment();
         uint256 overpayment = msg.value - totalFee;
 
-        (uint256 fid,) = idManager.registerFor{value: registerFee}(
+        (uint256 fid,) = idGateway.registerFor{value: registerFee}(
             registerParams.to, registerParams.recovery, registerParams.deadline, registerParams.sig
         );
 
         uint256 signersLen = signerParams.length;
         for (uint256 i; i < signersLen;) {
             SignerParams calldata signer = signerParams[i];
-            keyManager.addFor{value: signerFee}(
+            keyGateway.addFor{value: signerFee}(
                 registerParams.to,
                 signer.keyType,
                 signer.key,
@@ -146,7 +146,7 @@ contract Bundler is IBundler, TrustedCaller {
         uint256 usersLen = users.length;
         for (uint256 i; i < usersLen;) {
             UserData calldata user = users[i];
-            idManager.trustedRegister(user.to, user.recovery);
+            idGateway.trustedRegister(user.to, user.recovery);
             unchecked {
                 ++i;
             }
@@ -155,8 +155,8 @@ contract Bundler is IBundler, TrustedCaller {
 
     receive() external payable {
         if (
-            msg.sender != address(storageRegistry) && msg.sender != address(idManager)
-                && msg.sender != address(keyManager)
+            msg.sender != address(storageRegistry) && msg.sender != address(idGateway)
+                && msg.sender != address(keyGateway)
         ) revert Unauthorized();
     }
 }

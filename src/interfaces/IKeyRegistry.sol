@@ -102,9 +102,9 @@ interface IKeyRegistry {
     function idRegistry() external view returns (IdRegistryLike);
 
     /**
-     * @notice The KeyManager address.
+     * @notice The KeyGateway address.
      */
-    function keyManager() external view returns (address);
+    function keyGateway() external view returns (address);
 
     /**
      * @notice Timestamp at which keys migrated. Hubs will cut over to use this KeyRegistry as their
@@ -167,7 +167,7 @@ interface IKeyRegistry {
 
     /**
      * @notice Add a key associated with fidOwner's fid, setting the key state to ADDED.
-     *         Can only be called by the keyManager address.
+     *         Can only be called by the keyGateway address.
      *
      * @param keyType      The key's numeric keyType.
      * @param key          Bytes of the key to add.
@@ -223,11 +223,11 @@ interface IKeyRegistry {
     function setIdRegistry(address _idRegistry) external;
 
     /**
-     * @notice Set the KeyManager address allowed to add keys. Only callable by owner.
+     * @notice Set the KeyGateway address allowed to add keys. Only callable by owner.
      *
-     * @param _keyManager The new KeyManager address.
+     * @param _keyGateway The new KeyGateway address.
      */
-    function setKeyManager(address _keyManager) external;
+    function setKeyGateway(address _keyGateway) external;
 
     /**
      * @notice Set the maximum number of keys allowed per fid. Only callable by owner.

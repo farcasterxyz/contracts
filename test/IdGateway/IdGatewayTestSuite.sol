@@ -6,26 +6,26 @@ import {StorageRegistryTestSuite} from "../StorageRegistry/StorageRegistryTestSu
 import {IdRegistryTestSuite} from "../IdRegistry/IdRegistryTestSuite.sol";
 import {KeyRegistryTestSuite} from "../KeyRegistry/KeyRegistryTestSuite.sol";
 
-import {IdManager} from "../../src/IdManager.sol";
+import {IdGateway} from "../../src/IdGateway.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract IdManagerTestSuite is StorageRegistryTestSuite, KeyRegistryTestSuite {
-    IdManager idManager;
+abstract contract IdGatewayTestSuite is StorageRegistryTestSuite, KeyRegistryTestSuite {
+    IdGateway idGateway;
 
     function setUp() public virtual override(StorageRegistryTestSuite, KeyRegistryTestSuite) {
         super.setUp();
 
-        idManager = new IdManager(
+        idGateway = new IdGateway(
             address(idRegistry),
             address(storageRegistry),
             owner
         );
 
         vm.prank(owner);
-        idRegistry.setIdManager(address(idManager));
+        idRegistry.setIdGateway(address(idGateway));
 
-        addKnownContract(address(idManager));
+        addKnownContract(address(idGateway));
     }
 
     function _registerTo(address caller) internal returns (uint256 fid) {
@@ -34,7 +34,7 @@ abstract contract IdManagerTestSuite is StorageRegistryTestSuite, KeyRegistryTes
 
     function _registerToWithRecovery(address caller, address recovery) internal returns (uint256 fid) {
         vm.prank(caller);
-        (fid,) = idManager.register(recovery);
+        (fid,) = idGateway.register(recovery);
     }
 
     function _registerFor(uint256 callerPk, uint40 _deadline) internal {
@@ -49,7 +49,7 @@ abstract contract IdManagerTestSuite is StorageRegistryTestSuite, KeyRegistryTes
         bytes memory sig = _signRegister(callerPk, caller, recovery, deadline);
 
         vm.prank(caller);
-        idManager.registerFor(caller, recovery, deadline, sig);
+        idGateway.registerFor(caller, recovery, deadline, sig);
     }
 
     function _signRegister(
@@ -59,8 +59,8 @@ abstract contract IdManagerTestSuite is StorageRegistryTestSuite, KeyRegistryTes
         uint256 deadline
     ) internal returns (bytes memory signature) {
         address signer = vm.addr(pk);
-        bytes32 digest = idManager.hashTypedDataV4(
-            keccak256(abi.encode(idManager.REGISTER_TYPEHASH(), to, recovery, idManager.nonces(signer), deadline))
+        bytes32 digest = idGateway.hashTypedDataV4(
+            keccak256(abi.encode(idGateway.REGISTER_TYPEHASH(), to, recovery, idGateway.nonces(signer), deadline))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);

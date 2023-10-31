@@ -5,22 +5,22 @@ import "forge-std/Test.sol";
 
 import {KeyRegistryTestSuite} from "../KeyRegistry/KeyRegistryTestSuite.sol";
 import {StorageRegistryTestSuite} from "../StorageRegistry/StorageRegistryTestSuite.sol";
-import {KeyManager} from "../../src/KeyManager.sol";
+import {KeyGateway} from "../../src/KeyGateway.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract KeyManagerTestSuite is KeyRegistryTestSuite, StorageRegistryTestSuite {
-    KeyManager internal keyManager;
+abstract contract KeyGatewayTestSuite is KeyRegistryTestSuite, StorageRegistryTestSuite {
+    KeyGateway internal keyGateway;
 
     function setUp() public virtual override(KeyRegistryTestSuite, StorageRegistryTestSuite) {
         super.setUp();
 
-        keyManager = new KeyManager(address(keyRegistry), address(storageRegistry), owner, vault, 10e6);
+        keyGateway = new KeyGateway(address(keyRegistry), address(storageRegistry), owner, vault, 10e6);
 
         vm.prank(owner);
-        keyRegistry.setKeyManager(address(keyManager));
+        keyRegistry.setKeyGateway(address(keyGateway));
 
-        addKnownContract(address(keyManager));
+        addKnownContract(address(keyGateway));
     }
 
     function _signAdd(
@@ -32,7 +32,7 @@ abstract contract KeyManagerTestSuite is KeyRegistryTestSuite, StorageRegistryTe
         bytes memory metadata,
         uint256 deadline
     ) internal returns (bytes memory signature) {
-        return _signAdd(pk, owner, keyType, key, metadataType, metadata, keyManager.nonces(owner), deadline);
+        return _signAdd(pk, owner, keyType, key, metadataType, metadata, keyGateway.nonces(owner), deadline);
     }
 
     function _signAdd(
@@ -45,10 +45,10 @@ abstract contract KeyManagerTestSuite is KeyRegistryTestSuite, StorageRegistryTe
         uint256 nonce,
         uint256 deadline
     ) internal returns (bytes memory signature) {
-        bytes32 digest = keyManager.hashTypedDataV4(
+        bytes32 digest = keyGateway.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keyManager.ADD_TYPEHASH(),
+                    keyGateway.ADD_TYPEHASH(),
                     owner,
                     keyType,
                     keccak256(key),

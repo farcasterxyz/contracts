@@ -3,9 +3,9 @@ pragma solidity 0.8.21;
 
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
-import {IdManager} from "../src/IdManager.sol";
+import {IdGateway} from "../src/IdGateway.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
-import {KeyManager} from "../src/KeyManager.sol";
+import {KeyGateway} from "../src/KeyGateway.sol";
 import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
 import {Bundler, IBundler} from "../src/Bundler.sol";
 import {RecoveryProxy} from "../src/RecoveryProxy.sol";
@@ -26,9 +26,9 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
     struct Salts {
         bytes32 storageRegistry;
         bytes32 idRegistry;
-        bytes32 idManager;
+        bytes32 idGateway;
         bytes32 keyRegistry;
-        bytes32 keyManager;
+        bytes32 keyGateway;
         bytes32 signedKeyRequestValidator;
         bytes32 bundler;
         bytes32 recoveryProxy;
@@ -57,9 +57,9 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
     struct Addresses {
         address storageRegistry;
         address idRegistry;
-        address idManager;
+        address idGateway;
         address keyRegistry;
-        address keyManager;
+        address keyGateway;
         address signedKeyRequestValidator;
         address bundler;
         address recoveryProxy;
@@ -68,9 +68,9 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
     struct Contracts {
         StorageRegistry storageRegistry;
         IdRegistry idRegistry;
-        IdManager idManager;
+        IdGateway idGateway;
         KeyRegistry keyRegistry;
-        KeyManager keyManager;
+        KeyGateway keyGateway;
         SignedKeyRequestValidator signedKeyRequestValidator;
         Bundler bundler;
         RecoveryProxy recoveryProxy;
@@ -90,10 +90,10 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
         addrs.signedKeyRequestValidator = params.signedKeyRequestValidatorAddr;
         addrs.idRegistry =
             register("IdRegistry", params.salts.idRegistry, type(IdRegistry).creationCode, abi.encode(params.deployer));
-        addrs.idManager = register(
-            "IdManager",
-            params.salts.idManager,
-            type(IdManager).creationCode,
+        addrs.idGateway = register(
+            "IdGateway",
+            params.salts.idGateway,
+            type(IdGateway).creationCode,
             abi.encode(addrs.idRegistry, addrs.storageRegistry, params.deployer)
         );
         addrs.keyRegistry = register(
@@ -102,10 +102,10 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             type(KeyRegistry).creationCode,
             abi.encode(addrs.idRegistry, params.deployer, KEY_REGISTRY_MAX_KEYS_PER_FID)
         );
-        addrs.keyManager = register(
-            "KeyManager",
-            params.salts.keyManager,
-            type(KeyManager).creationCode,
+        addrs.keyGateway = register(
+            "KeyGateway",
+            params.salts.keyGateway,
+            type(KeyGateway).creationCode,
             abi.encode(
                 addrs.keyRegistry, addrs.storageRegistry, params.initialKeyRegistryOwner, params.vault, KEY_MANAGER_FEE
             )
@@ -115,8 +115,8 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             params.salts.bundler,
             type(Bundler).creationCode,
             abi.encode(
-                addrs.idManager,
-                addrs.keyManager,
+                addrs.idGateway,
+                addrs.keyGateway,
                 addrs.storageRegistry,
                 params.bundlerTrustedCaller,
                 params.initialBundlerOwner
@@ -134,9 +134,9 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
         return Contracts({
             storageRegistry: StorageRegistry(addrs.storageRegistry),
             idRegistry: IdRegistry(addrs.idRegistry),
-            idManager: IdManager(payable(addrs.idManager)),
+            idGateway: IdGateway(payable(addrs.idGateway)),
             keyRegistry: KeyRegistry(addrs.keyRegistry),
-            keyManager: KeyManager(payable(addrs.keyManager)),
+            keyGateway: KeyGateway(payable(addrs.keyGateway)),
             signedKeyRequestValidator: SignedKeyRequestValidator(addrs.signedKeyRequestValidator),
             bundler: Bundler(payable(addrs.bundler)),
             recoveryProxy: RecoveryProxy(addrs.recoveryProxy)
@@ -149,14 +149,14 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             address bundler = address(contracts.bundler);
 
             if (broadcast) vm.startBroadcast();
-            contracts.idRegistry.setIdManager(address(contracts.idManager));
+            contracts.idRegistry.setIdGateway(address(contracts.idGateway));
             contracts.idRegistry.transferOwnership(params.initialIdRegistryOwner);
 
-            contracts.idManager.setTrustedCaller(bundler);
-            contracts.idManager.transferOwnership(params.initialIdRegistryOwner);
+            contracts.idGateway.setTrustedCaller(bundler);
+            contracts.idGateway.transferOwnership(params.initialIdRegistryOwner);
 
             contracts.keyRegistry.setValidator(1, 1, IMetadataValidator(address(contracts.signedKeyRequestValidator)));
-            contracts.keyRegistry.setKeyManager(address(contracts.keyManager));
+            contracts.keyRegistry.setKeyGateway(address(contracts.keyGateway));
             contracts.keyRegistry.transferOwnership(params.initialKeyRegistryOwner);
 
             if (broadcast) vm.stopBroadcast();
@@ -191,9 +191,9 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             salts: Salts({
                 storageRegistry: vm.envOr("STORAGE_RENT_CREATE2_SALT", bytes32(0)),
                 idRegistry: vm.envOr("ID_REGISTRY_CREATE2_SALT", bytes32(0)),
-                idManager: vm.envOr("ID_MANAGER_CREATE2_SALT", bytes32(0)),
+                idGateway: vm.envOr("ID_MANAGER_CREATE2_SALT", bytes32(0)),
                 keyRegistry: vm.envOr("KEY_REGISTRY_CREATE2_SALT", bytes32(0)),
-                keyManager: vm.envOr("KEY_MANAGER_CREATE2_SALT", bytes32(0)),
+                keyGateway: vm.envOr("KEY_MANAGER_CREATE2_SALT", bytes32(0)),
                 signedKeyRequestValidator: vm.envOr("SIGNED_KEY_REQUEST_VALIDATOR_CREATE2_SALT", bytes32(0)),
                 bundler: vm.envOr("BUNDLER_CREATE2_SALT", bytes32(0)),
                 recoveryProxy: vm.envOr("RECOVERY_PROXY_CREATE2_SALT", bytes32(0))

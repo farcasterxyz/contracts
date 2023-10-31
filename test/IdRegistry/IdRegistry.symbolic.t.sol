@@ -8,21 +8,21 @@ import {IdRegistry} from "../../src/IdRegistry.sol";
 
 contract IdRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
-    address idManager;
+    address idGateway;
     address x;
     address y;
 
     function setUp() public {
-        idManager = address(0x1000);
+        idGateway = address(0x1000);
 
         // Setup IdRegistry
         idRegistry = new IdRegistry(address(this));
-        idRegistry.setIdManager(address(idManager));
+        idRegistry.setIdGateway(address(idGateway));
 
         // Register fids
-        vm.prank(idManager);
+        vm.prank(idGateway);
         idRegistry.register(address(0x1001), address(0x2001));
-        vm.prank(idManager);
+        vm.prank(idGateway);
         idRegistry.register(address(0x1002), address(0x2002));
 
         assert(idRegistry.idOf(address(0x1001)) == 1);

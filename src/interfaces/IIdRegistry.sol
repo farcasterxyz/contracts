@@ -32,9 +32,9 @@ interface IIdRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Address of the IdManager, an address allowed to register fids.
+     * @notice Address of the IdGateway, an address allowed to register fids.
      */
-    function idManager() external view returns (address);
+    function idGateway() external view returns (address);
 
     /**
      * @notice The last Farcaster id that was issued.
@@ -172,13 +172,13 @@ interface IIdRegistry {
 
     /**
      * @notice Registers an fid to the given address and sets up recovery.
-     *         May only be called by the configured IdManager address.
+     *         May only be called by the configured IdGateway address.
      */
     function register(address to, address recovery) external returns (uint256 fid);
 
     /**
-     * @notice Set the IdManager address, allowed to add fids.
+     * @notice Set the IdGateway address, allowed to add fids.
      *         Must be called by the owner.
      */
-    function setIdManager(address idManager) external;
+    function setIdGateway(address idGateway) external;
 }

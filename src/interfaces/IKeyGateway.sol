@@ -4,7 +4,7 @@ pragma solidity ^0.8.21;
 import {IKeyRegistry} from "./IKeyRegistry.sol";
 import {IStorageRegistry} from "./IStorageRegistry.sol";
 
-interface IKeyManager {
+interface IKeyGateway {
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/

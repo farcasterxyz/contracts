@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import {IIdManager} from "./IIdManager.sol";
-import {IKeyManager} from "./IKeyManager.sol";
+import {IIdGateway} from "./IIdGateway.sol";
+import {IKeyGateway} from "./IKeyGateway.sol";
 import {IStorageRegistry} from "./IStorageRegistry.sol";
 
 interface IBundler {
@@ -44,14 +44,14 @@ interface IBundler {
     function VERSION() external view returns (string memory);
 
     /**
-     * @dev Address of the IdManager contract
+     * @dev Address of the IdGateway contract
      */
-    function idManager() external view returns (IIdManager);
+    function idGateway() external view returns (IIdGateway);
 
     /**
-     * @dev Address of the KeyManager contract
+     * @dev Address of the KeyGateway contract
      */
-    function keyManager() external view returns (IKeyManager);
+    function keyGateway() external view returns (IKeyGateway);
 
     /**
      * @dev Address of the StorageRegistry contract
