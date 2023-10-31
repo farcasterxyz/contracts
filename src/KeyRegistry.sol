@@ -52,6 +52,11 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Mig
     /**
      * @inheritdoc IKeyRegistry
      */
+    bool public gatewayFrozen;
+
+    /**
+     * @inheritdoc IKeyRegistry
+     */
     uint256 public maxKeysPerFid;
 
     /**
@@ -209,8 +214,18 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Mig
      * @inheritdoc IKeyRegistry
      */
     function setKeyGateway(address _keyGateway) external onlyOwner {
+        if (gatewayFrozen) revert GatewayFrozen();
         emit SetKeyGateway(keyGateway, _keyGateway);
         keyGateway = _keyGateway;
+    }
+
+    /**
+     * @inheritdoc IKeyRegistry
+     */
+    function freezeKeyGateway() external onlyOwner {
+        if (gatewayFrozen) revert GatewayFrozen();
+        emit FreezeKeyGateway(keyGateway);
+        gatewayFrozen = true;
     }
 
     /**

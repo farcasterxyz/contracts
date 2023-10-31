@@ -35,6 +35,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
     event SetKeyGateway(address oldKeyGateway, address newKeyGateway);
     event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
+    event FreezeKeyGateway(address keyGateway);
 
     function testInitialIdRegistry() public {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
@@ -1068,7 +1069,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           SET KEY MANAGER
+                           SET KEY GATEWAY
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzOnlyAdminCanSetKeyGateway(address caller, address keyGateway) public {
@@ -1089,6 +1090,36 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.setKeyGateway(keyGateway);
 
         assertEq(address(keyRegistry.keyGateway()), keyGateway);
+    }
+
+    function testFuzzSetKeyGatewayRevertsWhenFrozen(address keyGateway) public {
+        address currentKeyGateway = address(keyRegistry.keyGateway());
+
+        vm.prank(owner);
+        keyRegistry.freezeKeyGateway();
+
+        vm.prank(owner);
+        vm.expectRevert(IKeyRegistry.GatewayFrozen.selector);
+        keyRegistry.setKeyGateway(keyGateway);
+
+        assertEq(address(keyRegistry.keyGateway()), currentKeyGateway);
+    }
+
+    function testFreezeKeyGatewayRevertsWhenFrozen() public {
+        vm.prank(owner);
+        keyRegistry.freezeKeyGateway();
+
+        vm.prank(owner);
+        vm.expectRevert(IKeyRegistry.GatewayFrozen.selector);
+        keyRegistry.freezeKeyGateway();
+    }
+
+    function testOnlyOwnerCanFreezeKeyGateway(address caller) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        keyRegistry.freezeKeyGateway();
     }
 
     /*//////////////////////////////////////////////////////////////

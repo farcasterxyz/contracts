@@ -56,6 +56,11 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces, Migra
     /**
      * @inheritdoc IIdRegistry
      */
+    bool public gatewayFrozen;
+
+    /**
+     * @inheritdoc IIdRegistry
+     */
     uint256 public idCounter;
 
     /**
@@ -289,8 +294,18 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces, Migra
      * @inheritdoc IIdRegistry
      */
     function setIdGateway(address _idGateway) external onlyOwner {
+        if (gatewayFrozen) revert GatewayFrozen();
         emit SetIdGateway(idGateway, _idGateway);
         idGateway = _idGateway;
+    }
+
+    /**
+     * @inheritdoc IIdRegistry
+     */
+    function freezeIdGateway() external onlyOwner {
+        if (gatewayFrozen) revert GatewayFrozen();
+        emit FreezeIdGateway(idGateway);
+        gatewayFrozen = true;
     }
 
     /*//////////////////////////////////////////////////////////////
