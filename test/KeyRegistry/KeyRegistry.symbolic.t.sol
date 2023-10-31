@@ -17,6 +17,7 @@ contract KeyRegistrySymTest is SymTest, Test {
     KeyRegistry keyRegistry;
     StubValidator validator;
     address keyGateway;
+    address migrator;
 
     uint256 x;
     bytes xkey;
@@ -26,8 +27,10 @@ contract KeyRegistrySymTest is SymTest, Test {
         validator = new StubValidator();
         idRegistration = address(0x1000);
 
+        migrator = address(0x2000);
+
         // Setup IdRegistry
-        idRegistry = new IdRegistry(address(this));
+        idRegistry = new IdRegistry(migrator, address(this));
         idRegistry.setIdGateway(address(idRegistration));
 
         // Register fids
@@ -49,7 +52,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         keyGateway = address(0x3000);
 
         // Setup KeyRegistry
-        keyRegistry = new KeyRegistry(address(idRegistry), address(this), 1000);
+        keyRegistry = new KeyRegistry(address(idRegistry), migrator, address(this), 1000);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
         keyRegistry.setKeyGateway(keyGateway);
 

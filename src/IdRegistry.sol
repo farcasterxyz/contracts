@@ -84,11 +84,15 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @notice Set the owner of the contract to the provided _owner.
      *
+     * @param _migrator     Migrator address.
      * @param _initialOwner Initial owner address.
      *
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _initialOwner) Migration(24 hours, _initialOwner) EIP712("Farcaster IdRegistry", "1") {}
+    constructor(
+        address _migrator,
+        address _initialOwner
+    ) Migration(24 hours, _migrator, _initialOwner) EIP712("Farcaster IdRegistry", "1") {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC

@@ -48,6 +48,7 @@ contract DeployL2Test is DeployL2, Test {
     address internal beta = makeAddr("beta");
     address internal vault = makeAddr("vault");
     address internal relayer = makeAddr("relayer");
+    address internal migrator = makeAddr("migrator");
 
     // @dev OP Mainnet ETH/USD price feed
     address internal priceFeed = address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
@@ -85,6 +86,7 @@ contract DeployL2Test is DeployL2, Test {
             operator: relayer,
             treasurer: relayer,
             deployer: deployer,
+            migrator: migrator,
             salts: DeployL2.Salts({
                 storageRegistry: 0,
                 idRegistry: 0,

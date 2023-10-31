@@ -43,7 +43,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testInitialMigrator() public {
-        assertEq(keyRegistry.migrator(), owner);
+        assertEq(keyRegistry.migrator(), migrator);
     }
 
     function testInitialStateIsNotMigrated() public {
@@ -60,15 +60,15 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(timestamp);
         vm.expectEmit();
         emit Migrated(timestamp);
-        vm.prank(owner);
+        vm.prank(migrator);
         keyRegistry.migrate();
 
         assertEq(keyRegistry.isMigrated(), true);
         assertEq(keyRegistry.migratedAt(), timestamp);
     }
 
-    function testFuzzOnlyOwnerCanMigrate(address caller) public {
-        vm.assume(caller != owner);
+    function testFuzzOnlyMigratorCanMigrate(address caller) public {
+        vm.assume(caller != migrator);
 
         vm.prank(caller);
         vm.expectRevert(IMigration.OnlyMigrator.selector);
@@ -81,12 +81,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzCannotMigrateTwice(uint40 timestamp) public {
         timestamp = uint40(bound(timestamp, 1, type(uint40).max));
         vm.warp(timestamp);
-        vm.prank(owner);
+        vm.prank(migrator);
         keyRegistry.migrate();
 
         timestamp = uint40(bound(timestamp, timestamp, type(uint40).max));
         vm.expectRevert(IMigration.AlreadyMigrated.selector);
-        vm.prank(owner);
+        vm.prank(migrator);
         keyRegistry.migrate();
 
         assertEq(keyRegistry.isMigrated(), true);
@@ -109,7 +109,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes[][] memory keys = _constructKeys(idsLength, numKeys);
         KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFidsWithKeys(ids, keys);
 
-        vm.prank(owner);
+        vm.prank(migrator);
         keyRegistry.bulkAddKeysForMigration(addItems);
 
         for (uint256 i; i < idsLength; ++i) {
@@ -139,7 +139,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.expectEmit();
         emit Add(3, 1, "key4", "key4", 1, "metadata4");
 
-        vm.prank(owner);
+        vm.prank(migrator);
         keyRegistry.bulkAddKeysForMigration(addItems);
     }
 
@@ -150,7 +150,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         uint256 warpForward = bound(_warpForward, 1, keyRegistry.gracePeriod() - 1);
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         keyRegistry.migrate();
         vm.warp(keyRegistry.migratedAt() + warpForward);
@@ -166,7 +166,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - keyRegistry.gracePeriod() - keyRegistry.migratedAt());
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         keyRegistry.migrate();
         vm.warp(keyRegistry.migratedAt() + keyRegistry.gracePeriod() + warpForward);
@@ -183,7 +183,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         KeyRegistry.BulkAddData[] memory addItems =
             BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1").addFid(2).addKey(1, "key2", "metadata2");
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         keyRegistry.bulkAddKeysForMigration(addItems);
 
@@ -199,12 +199,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         KeyRegistry.BulkAddData[] memory addItems =
             BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1").addFid(2).addKey(1, "key2", "metadata2");
 
-        vm.startPrank(owner);
+        vm.prank(owner);
         keyRegistry.unpause();
 
+        vm.prank(migrator);
         vm.expectRevert("Pausable: not paused");
         keyRegistry.bulkAddKeysForMigration(addItems);
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -236,7 +236,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             }
         }
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         keyRegistry.bulkAddKeysForMigration(addItems);
         keyRegistry.bulkResetKeysForMigration(resetItems);
@@ -261,7 +261,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             2
         ).addKey(1, "key2").addFid(3).addKey(2, "key3").addKey(2, "key4");
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         keyRegistry.bulkAddKeysForMigration(addItems);
 
@@ -289,7 +289,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             BulkResetDataBuilder.empty().addFid(1).addKey(0, "key1").addFid(2).addKey(1, "key2");
 
         vm.expectRevert(IKeyRegistry.InvalidState.selector);
-        vm.prank(owner);
+        vm.prank(migrator);
         keyRegistry.bulkResetKeysForMigration(resetItems);
     }
 
@@ -302,7 +302,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         KeyRegistry.BulkResetData[] memory resetItems =
             BulkResetDataBuilder.empty().addFid(1).addKey(0, "key1").addFid(2).addKey(1, "key2");
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         keyRegistry.bulkAddKeysForMigration(addItems);
         keyRegistry.bulkResetKeysForMigration(resetItems);
@@ -322,7 +322,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         uint256 warpForward = bound(_warpForward, 1, keyRegistry.gracePeriod() - 1);
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         keyRegistry.bulkAddKeysForMigration(addItems);
         keyRegistry.migrate();
@@ -339,7 +339,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - keyRegistry.gracePeriod() - keyRegistry.migratedAt());
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         keyRegistry.migrate();
         vm.warp(keyRegistry.migratedAt() + keyRegistry.gracePeriod() + warpForward);
@@ -353,13 +353,12 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzBulkRemoveSignerForMigrationRevertsWhenUnpaused() public {
         KeyRegistry.BulkResetData[] memory items = BulkResetDataBuilder.empty().addFid(1).addKey(0, "key");
 
-        vm.startPrank(owner);
+        vm.prank(owner);
         keyRegistry.unpause();
 
+        vm.prank(migrator);
         vm.expectRevert("Pausable: not paused");
         keyRegistry.bulkResetKeysForMigration(items);
-
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
