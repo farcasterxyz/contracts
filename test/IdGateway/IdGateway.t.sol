@@ -237,6 +237,38 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
+    function testFuzzRegisterForRevertsUsedNonce(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        recipientPk = _boundPk(recipientPk);
+        uint256 deadline = _boundDeadline(_deadline);
+
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
+
+        // User bumps their nonce, invalidating the signature
+        vm.prank(recipient);
+        idGateway.useNonce();
+
+        vm.prank(owner);
+        idGateway.disableTrustedOnly();
+
+        assertEq(idRegistry.idCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.recoveryOf(1), address(0));
+
+        vm.prank(registrar);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        idGateway.registerFor(recipient, recovery, deadline, sig);
+
+        assertEq(idRegistry.idCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.recoveryOf(1), address(0));
+    }
+
     function testFuzzRegisterForRevertsExpiredSig(
         address registrar,
         uint256 recipientPk,

@@ -471,6 +471,42 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertAdded(fid, key, keyType);
     }
 
+    function testFuzzRemoveForRevertsUsedNonce(
+        address registrar,
+        uint256 ownerPk,
+        address recovery,
+        uint32 keyType,
+        bytes calldata key,
+        uint8 metadataType,
+        bytes memory metadata,
+        uint40 _deadline
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 deadline = _boundDeadline(_deadline);
+        ownerPk = _boundPk(ownerPk);
+        _registerValidator(keyType, metadataType);
+
+        address owner = vm.addr(ownerPk);
+        uint256 fid = _registerFid(owner, recovery);
+        bytes memory sig = _signRemove(ownerPk, owner, key, deadline);
+
+        vm.prank(owner);
+        keyRegistry.useNonce();
+
+        vm.prank(keyRegistry.keyGateway());
+        keyRegistry.add(owner, keyType, key, metadataType, metadata);
+        assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
+        assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
+
+        vm.prank(registrar);
+        vm.expectRevert(Signatures.InvalidSignature.selector);
+        keyRegistry.removeFor(owner, key, deadline, sig);
+
+        assertAdded(fid, key, keyType);
+    }
+
     function testFuzzRemoveForRevertsBadSig(
         address registrar,
         uint256 ownerPk,
