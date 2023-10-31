@@ -3,9 +3,147 @@ pragma solidity ^0.8.21;
 
 import {IMetadataValidator} from "./IMetadataValidator.sol";
 import {IdRegistryLike} from "./IdRegistryLike.sol";
-import {IMigration} from "./lib/IMigration.sol";
 
-interface IKeyRegistry is IMigration {
+interface IKeyRegistry {
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Revert if a key violates KeyState transition rules.
+    error InvalidState();
+
+    /// @dev Revert if adding a key exceeds the maximum number of allowed keys per fid.
+    error ExceedsMaximum();
+
+    /// @dev Revert if a validator has not been registered for this keyType and metadataType.
+    error ValidatorNotFound(uint32 keyType, uint8 metadataType);
+
+    /// @dev Revert if metadata validation failed.
+    error InvalidMetadata();
+
+    /// @dev Revert if the admin sets a validator for keyType 0.
+    error InvalidKeyType();
+
+    /// @dev Revert if the admin sets a validator for metadataType 0.
+    error InvalidMetadataType();
+
+    /// @dev Revert if the caller does not have the authority to perform the action.
+    error Unauthorized();
+
+    /// @dev Revert if the owner sets maxKeysPerFid equal to or below its current value.
+    error InvalidMaxKeys();
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Emit an event when an admin or fid adds a new key.
+     *
+     *      Hubs listen for this, validate that keyBytes is an EdDSA pub key and keyType == 1 and
+     *      add keyBytes to its SignerStore. Messages signed by keyBytes with `fid` are now valid
+     *      and accepted over gossip, sync and client apis. Hubs assume the invariants:
+     *
+     *      1. Add(fid, ..., key, keyBytes, ...) cannot emit if there is an earlier emit with
+     *         Add(fid, ..., key, keyBytes, ...) and no AdminReset(fid, key, keyBytes) inbetween.
+     *
+     *      2. Add(fid, ..., key, keyBytes, ...) cannot emit if there is an earlier emit with
+     *         Remove(fid, key, keyBytes).
+     *
+     *      3. For all Add(..., ..., key, keyBytes, ...), key = keccak(keyBytes)
+     *
+     * @param fid          The fid associated with the key.
+     * @param keyType      The type of the key.
+     * @param key          The key being registered. (indexed as hash)
+     * @param keyBytes     The bytes of the key being registered.
+     * @param metadataType The type of the metadata.
+     * @param metadata     Metadata about the key.
+     */
+    event Add(
+        uint256 indexed fid,
+        uint32 indexed keyType,
+        bytes indexed key,
+        bytes keyBytes,
+        uint8 metadataType,
+        bytes metadata
+    );
+
+    /**
+     * @dev Emit an event when an fid removes an added key.
+     *
+     *      Hubs listen for this, validate that keyType == 1 and keyBytes exists in its SignerStore.
+     *      keyBytes is marked as removed, messages signed by keyBytes with `fid` are invalid,
+     *      dropped immediately and no longer accepted. Hubs assume the invariants:
+     *
+     *      1. Remove(fid, key, keyBytes) cannot emit if there is no earlier emit with
+     *         Add(fid, ..., key, keyBytes, ...)
+     *
+     *      2. Remove(fid, key, keyBytes) cannot emit if there is an earlier emit with
+     *         Remove(fid, key, keyBytes)
+     *
+     *      3. For all Remove(..., key, keyBytes), key = keccak(keyBytes)
+     *
+     * @param fid       The fid associated with the key.
+     * @param key       The key being registered. (indexed as hash)
+     * @param keyBytes  The bytes of the key being registered.
+     */
+    event Remove(uint256 indexed fid, bytes indexed key, bytes keyBytes);
+
+    /**
+     * @dev Emit an event when an admin resets an added key.
+     *
+     *      Hubs listen for this, validate that keyType == 1 and that keyBytes exists in its SignerStore.
+     *      keyBytes is no longer tracked, messages signed by keyBytes with `fid` are invalid, dropped
+     *      immediately and not accepted. Hubs assume the following invariants:
+     *
+     *      1. AdminReset(fid, key, keyBytes) cannot emit unless the most recent event for the fid
+     *         was Add(fid, ..., key, keyBytes, ...).
+     *
+     *      2. For all AdminReset(..., key, keyBytes), key = keccak(keyBytes).
+     *
+     *      3. AdminReset() cannot emit after Migrated().
+     *
+     * @param fid       The fid associated with the key.
+     * @param key       The key being reset. (indexed as hash)
+     * @param keyBytes  The bytes of the key being registered.
+     */
+    event AdminReset(uint256 indexed fid, bytes indexed key, bytes keyBytes);
+
+    /**
+     * @dev Emit an event when the admin sets a metadata validator contract for a given
+     *      keyType and metadataType.
+     *
+     * @param keyType      The numeric keyType associated with this validator.
+     * @param metadataType The metadataType associated with this validator.
+     * @param oldValidator The previous validator contract address.
+     * @param newValidator The new validator contract address.
+     */
+    event SetValidator(uint32 keyType, uint8 metadataType, address oldValidator, address newValidator);
+
+    /**
+     * @dev Emit an event when the admin sets a new IdRegistry contract address.
+     *
+     * @param oldIdRegistry The previous IdRegistry address.
+     * @param newIdRegistry The new IdRegistry address.
+     */
+    event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
+
+    /**
+     * @dev Emit an event when the admin sets a new KeyGateway address.
+     *
+     * @param oldKeyGateway The previous KeyGateway address.
+     * @param newKeyGateway The new KeyGateway address.
+     */
+    event SetKeyGateway(address oldKeyGateway, address newKeyGateway);
+
+    /**
+     * @dev Emit an event when the admin sets a new maximum keys per fid.
+     *
+     * @param oldMax The previous maximum.
+     * @param newMax The new maximum.
+     */
+    event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
+
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/

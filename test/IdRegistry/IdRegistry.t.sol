@@ -3,9 +3,8 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
-import {IdRegistry} from "../../src/IdRegistry.sol";
-import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
-import {Signatures} from "../../src/lib/Signatures.sol";
+import {IdRegistry, IIdRegistry} from "../../src/IdRegistry.sol";
+import {ISignatures} from "../../src/lib/Signatures.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
 
@@ -68,7 +67,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(idRegistry.idGateway());
-        vm.expectRevert(IdRegistry.HasId.selector);
+        vm.expectRevert(IIdRegistry.HasId.selector);
         idRegistry.register(to, recovery);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -107,7 +106,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(caller);
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
+        vm.expectRevert(IIdRegistry.Unauthorized.selector);
         idRegistry.register(to, recovery);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -161,7 +160,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(from);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.transfer(to, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -185,7 +184,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         vm.prank(from);
         idRegistry.transfer(to, deadline, sig);
 
@@ -211,7 +210,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.warp(deadline + 1);
 
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         vm.prank(from);
         idRegistry.transfer(to, deadline, sig);
 
@@ -299,7 +298,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 2);
 
-        vm.expectRevert(IdRegistry.HasId.selector);
+        vm.expectRevert(IIdRegistry.HasId.selector);
         vm.prank(from);
         idRegistry.transfer(to, deadline, sig);
 
@@ -322,7 +321,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.custodyOf(0), address(0));
         assertEq(idRegistry.idOf(to), 0);
 
-        vm.expectRevert(IdRegistry.HasNoId.selector);
+        vm.expectRevert(IIdRegistry.HasNoId.selector);
         vm.prank(from);
         idRegistry.transfer(to, deadline, sig);
 
@@ -437,7 +436,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -473,7 +472,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -511,7 +510,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -549,7 +548,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -585,7 +584,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -621,7 +620,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -658,7 +657,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(fromDeadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -695,7 +694,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(toDeadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -733,7 +732,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(toDeadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(IdRegistry.HasId.selector);
+        vm.expectRevert(IIdRegistry.HasId.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 2);
@@ -769,7 +768,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(toDeadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(IdRegistry.HasNoId.selector);
+        vm.expectRevert(IIdRegistry.HasNoId.selector);
         idRegistry.transferFor(from, to, fromDeadline, fromSig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -851,7 +850,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.assume(alice != bob);
 
         vm.prank(alice);
-        vm.expectRevert(IdRegistry.HasNoId.selector);
+        vm.expectRevert(IIdRegistry.HasNoId.selector);
         idRegistry.changeRecoveryAddress(bob);
     }
 
@@ -896,7 +895,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, oldRecovery, newRecovery, deadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
 
         assertEq(idRegistry.recoveryOf(1), oldRecovery);
@@ -920,7 +919,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.useNonce();
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
 
         assertEq(idRegistry.recoveryOf(1), oldRecovery);
@@ -942,7 +941,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
 
         assertEq(idRegistry.recoveryOf(1), oldRecovery);
@@ -965,7 +964,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(deadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
 
         assertEq(idRegistry.recoveryOf(1), oldRecovery);
@@ -985,7 +984,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         bytes memory sig = _signChangeRecoveryAddress(alicePk, 1, oldRecovery, newRecovery, deadline);
 
         vm.prank(caller);
-        vm.expectRevert(IdRegistry.HasNoId.selector);
+        vm.expectRevert(IIdRegistry.HasNoId.selector);
         idRegistry.changeRecoveryAddressFor(alice, newRecovery, deadline, sig);
     }
 
@@ -1058,7 +1057,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         vm.prank(recovery);
         idRegistry.recover(from, to, deadline, sig);
 
@@ -1082,7 +1081,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.custodyOf(1), from);
         assertEq(idRegistry.idOf(to), 0);
 
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         vm.prank(recovery);
         idRegistry.recover(from, to, deadline, sig);
 
@@ -1108,7 +1107,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.warp(deadline + 1);
 
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         vm.prank(recovery);
         idRegistry.recover(from, to, deadline, sig);
 
@@ -1158,7 +1157,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
 
         vm.prank(recovery);
-        vm.expectRevert(IdRegistry.HasNoId.selector);
+        vm.expectRevert(IIdRegistry.HasNoId.selector);
         idRegistry.recover(from, to, deadline, sig);
 
         assertEq(idRegistry.idOf(from), 0);
@@ -1188,7 +1187,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.recoveryOf(1), recovery);
 
         vm.prank(notRecovery);
-        vm.expectRevert(IdRegistry.Unauthorized.selector);
+        vm.expectRevert(IIdRegistry.Unauthorized.selector);
         idRegistry.recover(from, to, deadline, sig);
 
         assertEq(idRegistry.idOf(from), 1);
@@ -1220,7 +1219,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.recoveryOf(2), address(0));
 
         vm.prank(recovery);
-        vm.expectRevert(IdRegistry.HasId.selector);
+        vm.expectRevert(IIdRegistry.HasId.selector);
         idRegistry.recover(from, to, deadline, sig);
 
         assertEq(idRegistry.idOf(from), 1);
@@ -1306,7 +1305,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -1343,7 +1342,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -1383,7 +1382,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -1423,7 +1422,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -1460,7 +1459,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -1497,7 +1496,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -1536,7 +1535,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(recoveryDeadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -1575,7 +1574,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(toDeadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -1616,7 +1615,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(toDeadline + 1);
 
         vm.prank(caller);
-        vm.expectRevert(IdRegistry.HasId.selector);
+        vm.expectRevert(IIdRegistry.HasId.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 2);
@@ -1652,7 +1651,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 0);
 
         vm.prank(caller);
-        vm.expectRevert(IdRegistry.HasNoId.selector);
+        vm.expectRevert(IIdRegistry.HasNoId.selector);
         idRegistry.recoverFor(from, to, recoveryDeadline, recoverySig, toDeadline, toSig);
 
         assertEq(idRegistry.idCounter(), 0);

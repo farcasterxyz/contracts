@@ -2,8 +2,8 @@
 pragma solidity ^0.8.19;
 
 import {IdGateway} from "../../src/IdGateway.sol";
-import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
-import {Guardians} from "../../src/lib/Guardians.sol";
+import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
+import {IGuardians} from "../../src/lib/Guardians.sol";
 import {IdGatewayTestSuite} from "./IdGatewayTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -36,7 +36,7 @@ contract IdGatewayOwnerTest is IdGatewayTestSuite {
         assertEq(idGateway.owner(), owner);
 
         vm.prank(owner);
-        vm.expectRevert(TrustedCaller.InvalidAddress.selector);
+        vm.expectRevert(ITrustedCaller.InvalidAddress.selector);
         idGateway.setTrustedCaller(address(0));
 
         assertEq(idGateway.trustedCaller(), address(0));
@@ -158,7 +158,7 @@ contract IdGatewayOwnerTest is IdGatewayTestSuite {
         assertEq(idGateway.paused(), false);
 
         vm.prank(alice);
-        vm.expectRevert(Guardians.OnlyGuardian.selector);
+        vm.expectRevert(IGuardians.OnlyGuardian.selector);
         idGateway.pause();
 
         assertEq(idGateway.paused(), false);

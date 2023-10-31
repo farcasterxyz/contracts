@@ -3,9 +3,9 @@ pragma solidity ^0.8.19;
 
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
-import {Guardians} from "../../src/lib/Guardians.sol";
-import {Signatures} from "../../src/lib/Signatures.sol";
-import {Migration} from "../../src/lib/Migration.sol";
+import {IGuardians} from "../../src/lib/Guardians.sol";
+import {ISignatures} from "../../src/lib/Signatures.sol";
+import {IMigration} from "../../src/lib/Migration.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
@@ -104,7 +104,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
 
         vm.prank(keyRegistry.keyGateway());
-        vm.expectRevert(abi.encodeWithSelector(KeyRegistry.ValidatorNotFound.selector, keyType, metadataType));
+        vm.expectRevert(abi.encodeWithSelector(IKeyRegistry.ValidatorNotFound.selector, keyType, metadataType));
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
@@ -128,7 +128,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
 
         vm.prank(keyRegistry.keyGateway());
-        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
+        vm.expectRevert(IKeyRegistry.InvalidMetadata.selector);
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
@@ -152,7 +152,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
 
         vm.prank(caller);
-        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        vm.expectRevert(IKeyRegistry.Unauthorized.selector);
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         assertNull(fid, key);
@@ -176,7 +176,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         vm.stopPrank();
@@ -204,7 +204,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.remove(key);
 
         vm.prank(keyRegistry.keyGateway());
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
         assertRemoved(fid, key, keyType);
@@ -254,7 +254,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         // 11th key reverts
         vm.prank(keyRegistry.keyGateway());
-        vm.expectRevert(KeyRegistry.ExceedsMaximum.selector);
+        vm.expectRevert(IKeyRegistry.ExceedsMaximum.selector);
         keyRegistry.add(to, keyType, key, metadataType, metadata);
     }
 
@@ -312,7 +312,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
-        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        vm.expectRevert(IKeyRegistry.Unauthorized.selector);
         vm.prank(caller);
         keyRegistry.remove(key);
 
@@ -322,7 +322,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzRemoveRevertsIfNull(address to, address recovery, bytes calldata key) public {
         uint256 fid = _registerFid(to, recovery);
 
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         vm.prank(to);
         keyRegistry.remove(key);
 
@@ -349,7 +349,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.startPrank(to);
         keyRegistry.remove(key);
 
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         keyRegistry.remove(key);
 
         vm.stopPrank();
@@ -435,7 +435,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         bytes memory sig = _signRemove(ownerPk, owner, key, deadline);
 
         vm.prank(registrar);
-        vm.expectRevert(KeyRegistry.Unauthorized.selector);
+        vm.expectRevert(IKeyRegistry.Unauthorized.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
     }
 
@@ -466,7 +466,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
@@ -502,7 +502,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
@@ -535,7 +535,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.InvalidSignature.selector);
+        vm.expectRevert(ISignatures.InvalidSignature.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
@@ -570,7 +570,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.warp(deadline + 1);
 
         vm.prank(registrar);
-        vm.expectRevert(Signatures.SignatureExpired.selector);
+        vm.expectRevert(ISignatures.SignatureExpired.selector);
         keyRegistry.removeFor(owner, key, deadline, sig);
 
         assertAdded(fid, key, keyType);
@@ -639,7 +639,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(Migration.OnlyMigrator.selector);
+        vm.expectRevert(IMigration.OnlyMigrator.selector);
         keyRegistry.migrate();
 
         assertEq(keyRegistry.isMigrated(), false);
@@ -653,7 +653,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.migrate();
 
         timestamp = uint40(bound(timestamp, timestamp, type(uint40).max));
-        vm.expectRevert(Migration.AlreadyMigrated.selector);
+        vm.expectRevert(IMigration.AlreadyMigrated.selector);
         vm.prank(owner);
         keyRegistry.migrate();
 
@@ -739,7 +739,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.migrate();
         vm.warp(keyRegistry.migratedAt() + keyRegistry.gracePeriod() + warpForward);
 
-        vm.expectRevert(Migration.PermissionRevoked.selector);
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
         keyRegistry.bulkAddKeysForMigration(addItems);
 
         vm.stopPrank();
@@ -755,7 +755,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         keyRegistry.bulkAddKeysForMigration(addItems);
 
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         keyRegistry.bulkAddKeysForMigration(addItems);
 
         vm.stopPrank();
@@ -856,7 +856,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         KeyRegistry.BulkResetData[] memory resetItems =
             BulkResetDataBuilder.empty().addFid(1).addKey(0, "key1").addFid(2).addKey(1, "key2");
 
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         vm.prank(owner);
         keyRegistry.bulkResetKeysForMigration(resetItems);
     }
@@ -875,7 +875,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.bulkAddKeysForMigration(addItems);
         keyRegistry.bulkResetKeysForMigration(resetItems);
 
-        vm.expectRevert(KeyRegistry.InvalidState.selector);
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
         keyRegistry.bulkResetKeysForMigration(resetItems);
 
         vm.stopPrank();
@@ -912,7 +912,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.migrate();
         vm.warp(keyRegistry.migratedAt() + keyRegistry.gracePeriod() + warpForward);
 
-        vm.expectRevert(Migration.PermissionRevoked.selector);
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
         keyRegistry.bulkResetKeysForMigration(items);
 
         vm.stopPrank();
@@ -938,7 +938,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(Guardians.OnlyGuardian.selector);
+        vm.expectRevert(IGuardians.OnlyGuardian.selector);
         keyRegistry.pause();
     }
 
@@ -1002,14 +1002,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function testFuzzSetValidatorRevertsZeroKeyType(uint8 metadataType, IMetadataValidator validator) public {
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
         vm.prank(owner);
-        vm.expectRevert(KeyRegistry.InvalidKeyType.selector);
+        vm.expectRevert(IKeyRegistry.InvalidKeyType.selector);
         keyRegistry.setValidator(0, metadataType, validator);
     }
 
     function testFuzzSetValidatorRevertsZeroMetadataType(uint32 keyType, IMetadataValidator validator) public {
         keyType = uint32(bound(keyType, 1, type(uint32).max));
         vm.prank(owner);
-        vm.expectRevert(KeyRegistry.InvalidMetadataType.selector);
+        vm.expectRevert(IKeyRegistry.InvalidMetadataType.selector);
         keyRegistry.setValidator(keyType, 0, validator);
     }
 
@@ -1057,7 +1057,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 currentMax = keyRegistry.maxKeysPerFid();
         newMax = bound(newMax, 0, currentMax);
 
-        vm.expectRevert(KeyRegistry.InvalidMaxKeys.selector);
+        vm.expectRevert(IKeyRegistry.InvalidMaxKeys.selector);
         vm.prank(owner);
         keyRegistry.setMaxKeysPerFid(newMax);
 

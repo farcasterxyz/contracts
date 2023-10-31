@@ -5,31 +5,6 @@ import {IMigration} from "../interfaces/lib/IMigration.sol";
 
 abstract contract Migration is IMigration {
     /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @dev Revert if the caller is not the migrator.
-    error OnlyMigrator();
-
-    /// @dev Revert if the migrator calls a migration function after the grace period.
-    error PermissionRevoked();
-
-    /// @dev Revert if the migrator calls migrate more than once.
-    error AlreadyMigrated();
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Emit an event when the admin calls migrate(). Used to migrate
-     *      Hubs from reading events from one contract to another.
-     *
-     * @param migratedAt  The timestamp at which the migration occurred.
-     */
-    event Migrated(uint256 indexed migratedAt);
-
-    /*//////////////////////////////////////////////////////////////
                               IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 

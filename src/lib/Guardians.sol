@@ -4,21 +4,14 @@ pragma solidity 0.8.21;
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 
-abstract contract Guardians is Ownable2Step, Pausable {
+import {IGuardians} from "../interfaces/lib/IGuardians.sol";
+
+abstract contract Guardians is IGuardians, Ownable2Step, Pausable {
     mapping(address => bool) public guardians;
 
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
+                                 MODIFIERS
     //////////////////////////////////////////////////////////////*/
-
-    event Add(address indexed guardian);
-    event Remove(address indexed guardian);
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    error OnlyGuardian();
 
     modifier onlyGuardian() {
         if (msg.sender != owner() && !guardians[msg.sender]) {
@@ -28,12 +21,16 @@ abstract contract Guardians is Ownable2Step, Pausable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               CONSTRUCTOR
+                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     constructor(address _initialOwner) {
         _transferOwnership(_initialOwner);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                         PERMISSIONED FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     function addGuardian(address guardian) external onlyOwner {
         guardians[guardian] = true;

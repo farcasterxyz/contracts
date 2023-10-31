@@ -95,7 +95,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         );
 
         vm.prank(keyRegistry.keyGateway());
-        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
+        vm.expectRevert(IKeyRegistry.InvalidMetadata.selector);
         keyRegistry.add(to, 1, key, 1, metadata);
     }
 
@@ -129,7 +129,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         );
 
         vm.prank(keyRegistry.keyGateway());
-        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
+        vm.expectRevert(IKeyRegistry.InvalidMetadata.selector);
         keyRegistry.add(to, 1, key, 1, metadata);
     }
 
@@ -163,7 +163,7 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         );
 
         vm.prank(keyRegistry.keyGateway());
-        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
+        vm.expectRevert(IKeyRegistry.InvalidMetadata.selector);
         keyRegistry.add(to, 1, key, 1, metadata);
     }
 

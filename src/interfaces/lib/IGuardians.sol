@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+interface IGuardians {
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    event Add(address indexed guardian);
+    event Remove(address indexed guardian);
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    error OnlyGuardian();
+
+    /*//////////////////////////////////////////////////////////////
+                         PERMISSIONED FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function addGuardian(address guardian) external;
+
+    function removeGuardian(address guardian) external;
+
+    function pause() external;
+
+    function unpause() external;
+}

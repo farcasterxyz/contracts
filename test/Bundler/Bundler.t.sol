@@ -7,7 +7,7 @@ import {Bundler, IBundler} from "../../src/Bundler.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {StorageRegistry} from "../../src/StorageRegistry.sol";
-import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
+import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -304,7 +304,7 @@ contract BundlerTest is BundlerTestSuite {
         batchArray[0] = IBundler.UserData({to: alice, recovery: address(0)});
 
         vm.prank(untrustedCaller);
-        vm.expectRevert(TrustedCaller.OnlyTrustedCaller.selector);
+        vm.expectRevert(ITrustedCaller.OnlyTrustedCaller.selector);
         bundler.trustedBatchRegister(batchArray);
 
         _assertUnsuccessfulRegistration(alice);
@@ -322,7 +322,7 @@ contract BundlerTest is BundlerTestSuite {
         IBundler.UserData[] memory batchArray = new IBundler.UserData[](1);
         batchArray[0] = IBundler.UserData({to: alice, recovery: address(0)});
 
-        vm.expectRevert(TrustedCaller.Registrable.selector);
+        vm.expectRevert(ITrustedCaller.Registrable.selector);
         bundler.trustedBatchRegister(batchArray);
 
         _assertUnsuccessfulRegistration(alice);
@@ -349,7 +349,7 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(bundler.owner(), owner);
 
         vm.prank(owner);
-        vm.expectRevert(TrustedCaller.InvalidAddress.selector);
+        vm.expectRevert(ITrustedCaller.InvalidAddress.selector);
         bundler.setTrustedCaller(address(0));
 
         assertEq(bundler.trustedCaller(), address(this));
@@ -442,7 +442,7 @@ contract BundlerTest is BundlerTestSuite {
 
         deal(sender, amount);
         vm.prank(sender);
-        vm.expectRevert(Bundler.Unauthorized.selector);
+        vm.expectRevert(IBundler.Unauthorized.selector);
         payable(address(bundler)).transfer(amount);
     }
 }
