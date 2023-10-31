@@ -124,8 +124,8 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageAfter = storageRegistry.rentedUnits();
 
         assertEq(storageAfter - storageBefore, storageUnits + 1);
-        assertEq(address(storageRegistry).balance, price - keyGateway.price() * numSigners);
-        assertEq(address(keyGateway).balance, price - bundler.price(0, storageUnits));
+        assertEq(address(storageRegistry).balance, price);
+        assertEq(address(keyGateway).balance, 0);
         assertEq(address(bundler).balance, 0 ether);
         assertEq(address(caller).balance, 0 ether);
     }
@@ -168,8 +168,8 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageAfter = storageRegistry.rentedUnits();
 
         assertEq(storageAfter - storageBefore, 1);
-        assertEq(address(storageRegistry).balance, price - keyGateway.price() * numSigners);
-        assertEq(address(keyGateway).balance, price - bundler.price(0, 0));
+        assertEq(address(storageRegistry).balance, price);
+        assertEq(address(keyGateway).balance, 0);
         assertEq(address(bundler).balance, 0 ether);
         assertEq(address(caller).balance, 0 ether);
     }

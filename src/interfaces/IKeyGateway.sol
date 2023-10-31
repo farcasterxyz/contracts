@@ -2,7 +2,6 @@
 pragma solidity ^0.8.21;
 
 import {IKeyRegistry} from "./IKeyRegistry.sol";
-import {IStorageRegistry} from "./IStorageRegistry.sol";
 
 interface IKeyGateway {
     /*//////////////////////////////////////////////////////////////
@@ -28,32 +27,6 @@ interface IKeyGateway {
      */
     function keyRegistry() external view returns (IKeyRegistry);
 
-    /**
-     * @notice The StorageRegistry contract.
-     */
-    function storageRegistry() external view returns (IStorageRegistry);
-
-    /**
-     * @notice Add key fee in USD. Fixed point with 8 decimals.
-     */
-    function usdFee() external view returns (uint256);
-
-    /**
-     * @notice Address to which the owner can withdraw funds. Changeable by owner.
-     */
-    function vault() external view returns (address);
-
-    /*//////////////////////////////////////////////////////////////
-                                  VIEWS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Current price in wei to add a signer key.
-     *
-     * @return Total price in wei.
-     */
-    function price() external view returns (uint256);
-
     /*//////////////////////////////////////////////////////////////
                               REGISTRATION
     //////////////////////////////////////////////////////////////*/
@@ -75,7 +48,7 @@ interface IKeyGateway {
         bytes calldata key,
         uint8 metadataType,
         bytes calldata metadata
-    ) external payable returns (uint256 overpayment);
+    ) external returns (uint256 overpayment);
 
     /**
      * @notice Add a key on behalf of another fid owner, setting the key state to ADDED.
@@ -101,32 +74,5 @@ interface IKeyGateway {
         bytes calldata metadata,
         uint256 deadline,
         bytes calldata sig
-    ) external payable returns (uint256 overpayment);
-
-    /*//////////////////////////////////////////////////////////////
-                         PERMISSIONED ACTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Set the fee per key add in USD. Only callable by owner.
-     *
-     * @param _usdFee The new fee in USD. Fixed point value with 8 decimals.
-     */
-    function setUsdFee(uint256 _usdFee) external;
-
-    /**
-     * @notice Change the vault address that can receive funds from this contract.
-     *         Only callable by owner.
-     *
-     * @param vaultAddr The new vault address.
-     */
-    function setVault(address vaultAddr) external;
-
-    /**
-     * @notice Withdraw a specified amount of ether from the contract balance to the vault.
-     *         Only callable by owner.
-     *
-     * @param amount The amount of ether to withdraw.
-     */
-    function withdraw(uint256 amount) external;
+    ) external returns (uint256 overpayment);
 }

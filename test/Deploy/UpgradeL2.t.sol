@@ -231,19 +231,14 @@ contract UpgradeL2Test is UpgradeL2, Test {
             })
         );
 
-        uint256 keyFee = keyGateway.price();
         vm.prank(carol);
-        keyGateway.add{value: keyFee}(1, carolKey, 1, carolMetadata);
+        keyGateway.add(1, carolKey, 1, carolMetadata);
 
         // Multisig recovers Alice's FID to bob
         uint256 recoverDeadline = block.timestamp + 30;
         bytes memory recoverSig = _signTransfer(bobPk, 2, bob, recoverDeadline);
         vm.prank(alpha);
         recoveryProxy.recover(alice, bob, recoverDeadline, recoverSig);
-
-        // Multisig withdraws keyGateway balance
-        vm.prank(alpha);
-        keyGateway.withdraw(address(keyGateway).balance);
     }
 
     function _signTransfer(

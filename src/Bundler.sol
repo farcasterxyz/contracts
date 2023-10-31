@@ -88,7 +88,7 @@ contract Bundler is IBundler, TrustedCaller {
      * @inheritdoc IBundler
      */
     function price(uint256 signers, uint256 extraStorage) external view returns (uint256) {
-        return keyGateway.price() * signers + idGateway.price() + storageRegistry.price(extraStorage);
+        return idGateway.price() + storageRegistry.price(extraStorage);
     }
 
     /**
@@ -100,9 +100,8 @@ contract Bundler is IBundler, TrustedCaller {
         uint256 extraStorage
     ) external payable {
         uint256 registerFee = idGateway.price();
-        uint256 signerFee = keyGateway.price();
         uint256 storageFee = storageRegistry.price(extraStorage);
-        uint256 totalFee = registerFee + signerFee * signerParams.length + storageFee;
+        uint256 totalFee = registerFee + storageFee;
 
         if (msg.value < totalFee) revert InvalidPayment();
         uint256 overpayment = msg.value - totalFee;
@@ -114,7 +113,7 @@ contract Bundler is IBundler, TrustedCaller {
         uint256 signersLen = signerParams.length;
         for (uint256 i; i < signersLen;) {
             SignerParams calldata signer = signerParams[i];
-            keyGateway.addFor{value: signerFee}(
+            keyGateway.addFor(
                 registerParams.to,
                 signer.keyType,
                 signer.key,
