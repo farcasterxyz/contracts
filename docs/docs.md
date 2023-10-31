@@ -23,12 +23,15 @@ graph TD
     end
 
     subgraph ETHL2["Ethereum L2: OP Mainnet"]
-    RP(Recovery Proxy) --> IR(Id Registry)
-    BN(Bundler) --> IG(Id Gateway) & KG(Key Gateway)
+    BN(Bundler) --> IG(Id Gateway)
+    BN --> KG(Key gateway)
+    IG --> SR(Storage Registry)
+    IG --> IR(Id Registry)
     KG --> KR(Key Registry)
-    IG --> IR & SR(Storage Registry)
-    KR --> IR
     KR --> SKRV(Signed Key Request Validator)
+    KR --> IR
+    RP(RecoveryProxy) --> IG
+
     end
 
 
