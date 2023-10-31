@@ -89,6 +89,10 @@ contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
         return storageRegistry.unitPrice();
     }
 
+    function price(uint256 extraStorage) external view returns (uint256) {
+        return storageRegistry.price(1 + extraStorage);
+    }
+
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
@@ -96,15 +100,16 @@ contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdGateway
      */
-    function register(address recovery)
-        external
-        payable
-        whenNotPaused
-        whenNotTrusted
-        returns (uint256 fid, uint256 overpayment)
-    {
+    function register(address recovery) external payable returns (uint256, uint256) {
+        return register(recovery, 0);
+    }
+
+    function register(
+        address recovery,
+        uint256 extraStorage
+    ) public payable whenNotPaused whenNotTrusted returns (uint256 fid, uint256 overpayment) {
         fid = idRegistry.register(msg.sender, recovery);
-        overpayment = _rentStorage(fid, msg.value, msg.sender);
+        overpayment = _rentStorage(fid, extraStorage, msg.value, msg.sender);
     }
 
     /**
@@ -115,11 +120,21 @@ contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
         address recovery,
         uint256 deadline,
         bytes calldata sig
-    ) external payable whenNotPaused whenNotTrusted returns (uint256 fid, uint256 overpayment) {
+    ) external payable returns (uint256, uint256) {
+        return registerFor(to, recovery, deadline, sig, 0);
+    }
+
+    function registerFor(
+        address to,
+        address recovery,
+        uint256 deadline,
+        bytes calldata sig,
+        uint256 extraStorage
+    ) public payable whenNotPaused whenNotTrusted returns (uint256 fid, uint256 overpayment) {
         /* Revert if signature is invalid */
         _verifyRegisterSig({to: to, recovery: recovery, deadline: deadline, sig: sig});
         fid = idRegistry.register(to, recovery);
-        overpayment = _rentStorage(fid, msg.value, msg.sender);
+        overpayment = _rentStorage(fid, extraStorage, msg.value, msg.sender);
     }
 
     /**
@@ -149,8 +164,13 @@ contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
                      STORAGE RENTAL HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _rentStorage(uint256 fid, uint256 payment, address payer) internal returns (uint256 overpayment) {
-        overpayment = storageRegistry.rent{value: payment}(fid, 1);
+    function _rentStorage(
+        uint256 fid,
+        uint256 extraUnits,
+        uint256 payment,
+        address payer
+    ) internal returns (uint256 overpayment) {
+        overpayment = storageRegistry.rent{value: payment}(fid, 1 + extraUnits);
 
         if (overpayment > 0) {
             payer.sendNative(overpayment);

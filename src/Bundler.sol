@@ -4,7 +4,6 @@ pragma solidity 0.8.21;
 import {IBundler} from "./interfaces/IBundler.sol";
 import {IIdGateway} from "./interfaces/IIdGateway.sol";
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
-import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
@@ -21,9 +20,6 @@ contract Bundler is IBundler, TrustedCaller {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-
-    /// @dev Revert if the caller provides the wrong payment amount.
-    error InvalidPayment();
 
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
@@ -51,11 +47,6 @@ contract Bundler is IBundler, TrustedCaller {
      */
     IKeyGateway public immutable keyGateway;
 
-    /**
-     * @inheritdoc IBundler
-     */
-    IStorageRegistry public immutable storageRegistry;
-
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -67,28 +58,25 @@ contract Bundler is IBundler, TrustedCaller {
      *
      * @param _idGateway       Address of the IdGateway contract
      * @param _keyGateway      Address of the KeyGateway contract
-     * @param _storageRegistry Address of the StorageRegistry contract
      * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
      * @param _initialOwner    Address that can set the trusted caller
      */
     constructor(
         address _idGateway,
         address _keyGateway,
-        address _storageRegistry,
         address _trustedCaller,
         address _initialOwner
     ) TrustedCaller(_initialOwner) {
         idGateway = IIdGateway(payable(_idGateway));
         keyGateway = IKeyGateway(payable(_keyGateway));
-        storageRegistry = IStorageRegistry(_storageRegistry);
         _setTrustedCaller(_trustedCaller);
     }
 
     /**
      * @inheritdoc IBundler
      */
-    function price(uint256 signers, uint256 extraStorage) external view returns (uint256) {
-        return idGateway.price() + storageRegistry.price(extraStorage);
+    function price(uint256 extraStorage) external view returns (uint256) {
+        return idGateway.price(extraStorage);
     }
 
     /**
@@ -98,16 +86,9 @@ contract Bundler is IBundler, TrustedCaller {
         RegistrationParams calldata registerParams,
         SignerParams[] calldata signerParams,
         uint256 extraStorage
-    ) external payable {
-        uint256 registerFee = idGateway.price();
-        uint256 storageFee = storageRegistry.price(extraStorage);
-        uint256 totalFee = registerFee + storageFee;
-
-        if (msg.value < totalFee) revert InvalidPayment();
-        uint256 overpayment = msg.value - totalFee;
-
-        (uint256 fid,) = idGateway.registerFor{value: registerFee}(
-            registerParams.to, registerParams.recovery, registerParams.deadline, registerParams.sig
+    ) external payable returns (uint256) {
+        (uint256 fid, uint256 overpayment) = idGateway.registerFor{value: msg.value}(
+            registerParams.to, registerParams.recovery, registerParams.deadline, registerParams.sig, extraStorage
         );
 
         uint256 signersLen = signerParams.length;
@@ -123,18 +104,14 @@ contract Bundler is IBundler, TrustedCaller {
                 signer.sig
             );
 
-            // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
+            // Safety: won't overflow because it's less than the length of the array, which is a `uint256`.
             unchecked {
                 ++i;
             }
         }
 
-        if (extraStorage > 0) {
-            storageRegistry.rent{value: storageFee}(fid, extraStorage);
-        }
-        if (overpayment > 0) {
-            msg.sender.sendNative(overpayment);
-        }
+        if (overpayment > 0) msg.sender.sendNative(overpayment);
+        return fid;
     }
 
     /**
@@ -153,9 +130,6 @@ contract Bundler is IBundler, TrustedCaller {
     }
 
     receive() external payable {
-        if (
-            msg.sender != address(storageRegistry) && msg.sender != address(idGateway)
-                && msg.sender != address(keyGateway)
-        ) revert Unauthorized();
+        if (msg.sender != address(idGateway)) revert Unauthorized();
     }
 }

@@ -25,7 +25,6 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
         bundler = new Bundler(
             address(idGateway),
             address(keyGateway),
-            address(storageRegistry),
             address(this),
             owner
         );

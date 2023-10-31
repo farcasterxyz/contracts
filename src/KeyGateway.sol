@@ -66,7 +66,7 @@ contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
         bytes calldata key,
         uint8 metadataType,
         bytes calldata metadata
-    ) external whenNotPaused returns (uint256 overpayment) {
+    ) external whenNotPaused {
         keyRegistry.add(msg.sender, keyType, key, metadataType, metadata);
     }
 
@@ -81,7 +81,7 @@ contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
         bytes calldata metadata,
         uint256 deadline,
         bytes calldata sig
-    ) external whenNotPaused returns (uint256 overpayment) {
+    ) external whenNotPaused {
         _verifyAddSig(fidOwner, keyType, key, metadataType, metadata, deadline, sig);
         keyRegistry.add(fidOwner, keyType, key, metadataType, metadata);
     }

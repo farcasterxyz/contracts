@@ -44,6 +44,8 @@ interface IIdGateway {
      */
     function price() external view returns (uint256);
 
+    function price(uint256 extraStorage) external view returns (uint256);
+
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
     //////////////////////////////////////////////////////////////*/
@@ -57,6 +59,11 @@ interface IIdGateway {
      * @return fid registered FID.
      */
     function register(address recovery) external payable returns (uint256 fid, uint256 overpayment);
+
+    function register(
+        address recovery,
+        uint256 extraStorage
+    ) external payable returns (uint256 fid, uint256 overpayment);
 
     /**
      * @notice Register a new Farcaster ID (fid) to any address. A signed message from the address
@@ -75,6 +82,14 @@ interface IIdGateway {
         address recovery,
         uint256 deadline,
         bytes calldata sig
+    ) external payable returns (uint256 fid, uint256 overpayment);
+
+    function registerFor(
+        address to,
+        address recovery,
+        uint256 deadline,
+        bytes calldata sig,
+        uint256 extraStorage
     ) external payable returns (uint256 fid, uint256 overpayment);
 
     /*//////////////////////////////////////////////////////////////
