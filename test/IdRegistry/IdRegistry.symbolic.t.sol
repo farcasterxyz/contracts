@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import {SymTest} from "halmos-cheatcodes/SymTest.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {IdRegistry} from "../../src/IdRegistry.sol";
+import {IdRegistry, IIdRegistry} from "../../src/IdRegistry.sol";
 
 contract IdRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
@@ -20,6 +20,7 @@ contract IdRegistrySymTest is SymTest, Test {
         // Setup IdRegistry
         idRegistry = new IdRegistry(migrator, address(this));
         idRegistry.setIdGateway(address(idGateway));
+        idRegistry.unpause();
 
         // Register fids
         vm.prank(idGateway);
@@ -38,7 +39,8 @@ contract IdRegistrySymTest is SymTest, Test {
         y = svm.createAddress("y");
     }
 
-    function check_Invariants(bytes4 selector, address caller) public {
+    function check_Invariants_PostMigration(bytes4 selector, address caller) public {
+        _assumeMigrated();
         _initState();
         vm.assume(x != y);
 
@@ -153,6 +155,29 @@ contract IdRegistrySymTest is SymTest, Test {
     }
 
     /**
+     * @dev Set IdRegistry to post-migration state.
+     */
+    function _assumeMigrated() public {
+        // Pause the IdRegistry, since migrations take place in paused state.
+        idRegistry.pause();
+
+        // Complete the migration.
+        vm.prank(migrator);
+        idRegistry.migrate();
+
+        // Unpause the IdRegistry.
+        idRegistry.unpause();
+
+        // Warp to a symbolic timestamp
+        vm.warp(svm.createUint(64, "timestamp2"));
+
+        // Assume migration is completed.
+        bool migrationCompleted =
+            idRegistry.isMigrated() && block.timestamp > idRegistry.migratedAt() + idRegistry.gracePeriod();
+        vm.assume(migrationCompleted);
+    }
+
+    /**
      * @dev Generates valid calldata for a given function selector.
      */
     function _calldataFor(bytes4 selector) internal returns (bytes memory) {
@@ -198,6 +223,16 @@ contract IdRegistrySymTest is SymTest, Test {
                 svm.createBytes32("digest"),
                 svm.createBytes(65, "sig")
             );
+        } else if (selector == idRegistry.bulkRegisterIds.selector) {
+            IIdRegistry.BulkRegisterData[] memory ids = new IIdRegistry.BulkRegisterData[](0);
+            args = abi.encode(ids);
+        } else if (selector == idRegistry.bulkRegisterIdsWithDefaultRecovery.selector) {
+            IIdRegistry.BulkRegisterDefaultRecoveryData[] memory ids =
+                new IIdRegistry.BulkRegisterDefaultRecoveryData[](0);
+            args = abi.encode(ids, address(0));
+        } else if (selector == idRegistry.bulkResetIds.selector) {
+            uint24[] memory ids = new uint24[](0);
+            args = abi.encode(ids);
         } else {
             args = svm.createBytes(1024, "data");
         }
