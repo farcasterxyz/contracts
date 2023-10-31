@@ -19,7 +19,7 @@ abstract contract Signatures {
     //////////////////////////////////////////////////////////////*/
 
     function _verifySig(bytes32 digest, address signer, uint256 deadline, bytes memory sig) internal view {
-        if (block.timestamp >= deadline) revert SignatureExpired();
+        if (block.timestamp > deadline) revert SignatureExpired();
         if (!SignatureChecker.isValidSignatureNow(signer, digest, sig)) {
             revert InvalidSignature();
         }

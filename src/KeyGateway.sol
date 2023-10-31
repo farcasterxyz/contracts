@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
-
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";

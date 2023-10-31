@@ -65,7 +65,7 @@ abstract contract TestSuiteSetup is Test {
     }
 
     function _boundDeadline(uint40 deadline) internal view returns (uint256) {
-        return block.timestamp + uint256(bound(deadline, 1, type(uint40).max));
+        return block.timestamp + uint256(bound(deadline, 0, type(uint40).max));
     }
 
     function _createMockERC1271(address ownerAddress)
