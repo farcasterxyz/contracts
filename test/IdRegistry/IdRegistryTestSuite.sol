@@ -54,14 +54,15 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     function _signChangeRecoveryAddress(
         uint256 pk,
         uint256 fid,
-        address recovery,
+        address from,
+        address to,
         uint256 deadline
     ) internal returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    idRegistry.CHANGE_RECOVERY_ADDRESS_TYPEHASH(), fid, recovery, idRegistry.nonces(signer), deadline
+                    idRegistry.CHANGE_RECOVERY_ADDRESS_TYPEHASH(), fid, from, to, idRegistry.nonces(signer), deadline
                 )
             )
         );
