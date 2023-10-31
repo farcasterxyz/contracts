@@ -6,7 +6,6 @@ import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/Signat
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {Nonces} from "./lib/Nonces.sol";
-import {Guardians} from "./lib/Guardians.sol";
 import {Signatures} from "./lib/Signatures.sol";
 import {Migration} from "./lib/Migration.sol";
 
@@ -17,7 +16,7 @@ import {Migration} from "./lib/Migration.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces, Migration {
+contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -89,11 +88,7 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces, Migra
      *
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _initialOwner)
-        Guardians(_initialOwner)
-        EIP712("Farcaster IdRegistry", "1")
-        Migration(24 hours, _initialOwner)
-    {}
+    constructor(address _initialOwner) Migration(24 hours, _initialOwner) EIP712("Farcaster IdRegistry", "1") {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC

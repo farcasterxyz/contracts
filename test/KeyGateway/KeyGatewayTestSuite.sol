@@ -17,8 +17,9 @@ abstract contract KeyGatewayTestSuite is KeyRegistryTestSuite, StorageRegistryTe
 
         keyGateway = new KeyGateway(address(keyRegistry), owner);
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         keyRegistry.setKeyGateway(address(keyGateway));
+        vm.stopPrank();
 
         addKnownContract(address(keyGateway));
     }

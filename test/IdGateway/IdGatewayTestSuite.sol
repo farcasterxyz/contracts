@@ -22,8 +22,9 @@ abstract contract IdGatewayTestSuite is StorageRegistryTestSuite, KeyRegistryTes
             owner
         );
 
-        vm.prank(owner);
+        vm.startPrank(owner);
         idRegistry.setIdGateway(address(idGateway));
+        vm.stopPrank();
 
         addKnownContract(address(idGateway));
     }

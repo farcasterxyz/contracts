@@ -14,6 +14,9 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
 
         idRegistry = new IdRegistry(owner);
 
+        vm.prank(owner);
+        idRegistry.unpause();
+
         addKnownContract(address(idRegistry));
     }
 

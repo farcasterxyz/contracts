@@ -27,14 +27,17 @@ interface IMigration {
      */
     event Migrated(uint256 indexed migratedAt);
 
+    /**
+     * @notice Emit an event when the owner changes the migrator address.
+     *
+     * @param oldMigrator The address of the previous migrator.
+     * @param newMigrator The address of the new migrator.
+     */
+    event SetMigrator(address oldMigrator, address newMigrator);
+
     /*//////////////////////////////////////////////////////////////
                               IMMUTABLES
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Migration admin address.
-     */
-    function migrator() external view returns (address);
 
     /**
      * @notice Period in seconds after migration during which admin can continue to call protected
@@ -46,6 +49,11 @@ interface IMigration {
     /*//////////////////////////////////////////////////////////////
                                STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Migration admin address.
+     */
+    function migrator() external view returns (address);
 
     /**
      * @notice Timestamp at which data is migrated. Hubs will cut over to use this contract as their
@@ -74,4 +82,11 @@ interface IMigration {
      *         Only callable by the migrator.
      */
     function migrate() external;
+
+    /**
+     * @notice Set the migrator address. Only callable by owner.
+     *
+     * @param _migrator Migrator address.
+     */
+    function setMigrator(address _migrator) external;
 }
