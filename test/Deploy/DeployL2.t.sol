@@ -185,10 +185,10 @@ contract DeployL2Test is DeployL2, Test {
         (uint256 requestFid,) = idGateway.register{value: idFee}(address(0));
         uint256 deadline = block.timestamp + 60;
 
-        // Carol registers an fid with Dave as recovery
+        // Carol registers an fid with recoveryProxy as recovery
         idFee = idGateway.price();
         vm.prank(carol);
-        idGateway.register{value: idFee}(dave);
+        idGateway.register{value: idFee}(address(recoveryProxy));
         assertEq(idRegistry.idOf(carol), 2);
 
         // Carol adds a key to her fid
@@ -206,11 +206,11 @@ contract DeployL2Test is DeployL2, Test {
         vm.prank(carol);
         keyGateway.add(1, carolKey, 1, carolMetadata);
 
-        // Multisig recovers Alice's FID to bob
+        // Multisig recovers Carol's FID to Bob
         uint256 recoverDeadline = block.timestamp + 30;
         bytes memory recoverSig = _signTransfer(bobPk, 2, bob, recoverDeadline);
         vm.prank(alpha);
-        recoveryProxy.recover(alice, bob, recoverDeadline, recoverSig);
+        recoveryProxy.recover(carol, bob, recoverDeadline, recoverSig);
 
         // Multisig withdraws storageRegistry balance
         vm.prank(relayer);
