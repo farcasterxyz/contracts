@@ -21,8 +21,6 @@ contract DeployL2 is ImmutableCreate2Deployer {
     uint24 public constant KEY_REGISTRY_MIGRATION_GRACE_PERIOD = 1 days;
     uint256 public constant KEY_REGISTRY_MAX_KEYS_PER_FID = 1000;
 
-    uint256 public constant KEY_MANAGER_FEE = 10e6; // $0.10 USD
-
     struct Salts {
         bytes32 storageRegistry;
         bytes32 idRegistry;
@@ -116,9 +114,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             "KeyGateway",
             params.salts.keyGateway,
             type(KeyGateway).creationCode,
-            abi.encode(
-                addrs.keyRegistry, addrs.storageRegistry, params.initialKeyRegistryOwner, params.vault, KEY_MANAGER_FEE
-            )
+            abi.encode(addrs.keyRegistry, addrs.storageRegistry, params.initialKeyRegistryOwner)
         );
         addrs.signedKeyRequestValidator = register(
             "SignedKeyRequestValidator",

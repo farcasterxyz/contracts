@@ -61,7 +61,8 @@ interface IBundler {
     /**
      * @notice Calculate the total price of a registration.
      *
-     * @param extraStorage Number of additional storage units to rent.
+     * @param extraStorage Number of additional storage units to rent. All registrations include 1
+     *                     storage unit, but additional storage can be rented at registration time.
      *
      * @return Total price in wei.
      *

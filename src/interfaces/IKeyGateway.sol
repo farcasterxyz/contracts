@@ -33,8 +33,6 @@ interface IKeyGateway {
 
     /**
      * @notice Add a key associated with the caller's fid, setting the key state to ADDED.
-     *         The caller must provide at least fee() wei of payment. Any excess payment
-     *         will be refunded to the caller.
      *
      * @param keyType      The key's numeric keyType.
      * @param key          Bytes of the key to add.
@@ -46,8 +44,6 @@ interface IKeyGateway {
     /**
      * @notice Add a key on behalf of another fid owner, setting the key state to ADDED.
      *         caller must supply a valid EIP-712 Add signature from the fid owner.
-     *         Caller must provide at least fee() wei of payment. Any excess payment
-     *         will be refunded to the caller.
      *
      * @param fidOwner     The fid owner address.
      * @param keyType      The key's numeric keyType.

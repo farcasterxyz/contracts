@@ -24,9 +24,9 @@ graph TD
 
     subgraph ETHL2["Ethereum L2: OP Mainnet"]
     RP(Recovery Proxy) --> IR(Id Registry)
-    BN(Bundler) --> IM(Id Manager) & SR(Storage Registry) & KM(Key Manager)
-    KM --> KR(Key Registry)
-    IM --> IR
+    BN(Bundler) --> IG(Id Gateway) & KG(Key Gateway)
+    KG --> KR(Key Registry)
+    IG --> IR & SR(Storage Registry)
     KR --> IR
     KR --> SKRV(Signed Key Request Validator)
     end
@@ -42,10 +42,10 @@ graph TD
 
 1. [L2 Contracts](#1-l2-contracts)
    1. [Id Registry](#11-id-registry)
-   2. [Id Manager](#12-id-manager)
+   2. [Id Gateway](#12-id-manager)
    3. [Storage Registry](#13-storage-registry)
    4. [Key Registry](#14-key-registry)
-   5. [Key Manager](#15-key-manager)
+   5. [Key Gateway](#15-key-manager)
    6. [Validators](#16-validators)
    7. [Bundler](#17-bundler)
    8. [Recovery Proxy](#18-recovery-proxy)
@@ -76,7 +76,11 @@ IdRegistry lets any Ethereum address claim a unique Farcaster ID or `fid`. Fids 
 
 ### Administration
 
-The owner can pause and unpause the contract, which pauses registration, transfer, and recovery.
+The owner can pause and unpause the contract, which pauses registration, transfer, and recovery. The owner has one time use permissions to migrate data during the migration phase.
+
+### Migration
+
+The IdRegistry is deployed in a trusted state where keys may not be registered by anyone except the owner. The owner will populate the KeyRegistry with existing state by using bulk operations. Once complete, the owner will call `migrate()` to set a migration timestamp and emit an event. Hubs watch for the `Migrated` event and 24 hours after it is emitted, they cut over to this contract as the source of truth.
 
 ### Upgradeability
 
@@ -88,7 +92,7 @@ The IdRegistry contract may need to be upgraded in case a bug is discovered or t
 4. The KeyRegistry is updated to point to the new IdRegistry.
 5. A new Bundler contract is deployed, pointing to the correct contracts.
 
-## 1.2. Id Manager
+## 1.2. Id Gateway
 
 The IdManager is responsible for fid registration. While IdRegistry defines the rules of fid ownership, transfers, and
 recovery, the manager is responsible for the the actual registration logic. To prevent spamming fid registrations, the
@@ -103,27 +107,20 @@ IdManager requires callers to rent 1 [storage unit](#13-storage-registry) at fid
 
 1. owner is not malicious.
 
-### Migration
-
-When deployed, the IdManager starts in the Seedable state, where only the trusted caller can register fids. Identities from previous versions of the contracts can be registered to their addresses by the owner. Once complete, the owner can move it to the Registrable state, where anyone can register fids, but must rent 1 storage unit at registration time. This state change cannot be reversed.
-
 ### Administration
 
 The owner can pause and unpause the contract, which pauses registration, transfer, and recovery.
 
 ### State Machine
 
-An fid can exist in three states:
+An fid can exist in two states:
 
-- `seedable` - the fid has never been issued and can be registered by the trusted caller
 - `registrable` - the fid has never been issued and can be registered by anyone
 - `registered` - the fid has been issued to an address
 
 ```mermaid
     stateDiagram-v2
         direction LR
-        seedable --> registrable: disable trusted only
-        seedable --> registered: trusted register
         registrable --> registered: register
         registered --> registered: transfer, recover
 ```
@@ -131,8 +128,6 @@ An fid can exist in three states:
 The fid state transitions when users take specific actions:
 
 - `register` - register a new fid from any address
-- `trusted register` - register a new fid from the trusted caller
-- `disable trusted only` - allow registration from any sender
 - `transfer` - move an fid to a new custody address
 - `recover` - recover (move) an fid to a new custody address
 
@@ -267,9 +262,9 @@ The KeyRegistry contract may need to be upgraded in case a bug is discovered or 
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The contract is set to untrusted state where anyone can register keys.
 
-## 1.4. Key Manager
+## 1.4. Key Gateway
 
-The Key Manager is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Manager is responsible for the the actual addition logic. To prevent event spam, adding a key requires a small fee.
+The Key Gateway is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Gateway is responsible for the the actual addition logic.
 
 ### Invariants
 
@@ -283,7 +278,7 @@ The Key Manager is the user-facing contract responsible for adding new keys to t
 
 ### Administration
 
-The Key Manager `owner` can set the USD fee per key, set the vault address, and withdraw accrued fees to the vault address. The owner may also pause and unpause the contract, disabling/enabling adding keys to the Key Registry.
+The Key Gateway owner may can pause and unpause the contract, disabling/enabling adding keys to the Key Registry.
 
 ### Upgradeability
 
