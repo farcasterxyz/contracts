@@ -9,6 +9,7 @@ import {EIP712} from "./lib/EIP712.sol";
 import {Nonces} from "./lib/Nonces.sol";
 import {Guardians} from "./lib/Guardians.sol";
 import {Signatures} from "./lib/Signatures.sol";
+import {Migration} from "./lib/Migration.sol";
 
 /**
  * @title Farcaster IdRegistry
@@ -17,7 +18,7 @@ import {Signatures} from "./lib/Signatures.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
+contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces, Migration {
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -84,7 +85,11 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
      *
      */
     // solhint-disable-next-line no-empty-blocks
-    constructor(address _initialOwner) Guardians(_initialOwner) EIP712("Farcaster IdRegistry", "1") {}
+    constructor(address _initialOwner)
+        Guardians(_initialOwner)
+        EIP712("Farcaster IdRegistry", "1")
+        Migration(24 hours, _initialOwner)
+    {}
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -105,10 +110,7 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
             fid = ++idCounter;
         }
 
-        idOf[to] = fid;
-        custodyOf[fid] = to;
-        recoveryOf[fid] = recovery;
-        emit Register(to, idCounter, recovery);
+        _unsafeRegister(fid, to, recovery);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -156,6 +158,17 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
         _verifyTransferSig({fid: fromId, to: to, deadline: toDeadline, signer: to, sig: toSig});
 
         _unsafeTransfer(fromId, from, to);
+    }
+
+    /**
+     * @dev Register the fid without checking invariants.
+     */
+    function _unsafeRegister(uint256 id, address to, address recovery) internal {
+        idOf[to] = id;
+        custodyOf[id] = to;
+        recoveryOf[id] = recovery;
+
+        emit Register(to, id, recovery);
     }
 
     /**
@@ -279,6 +292,37 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces {
     function setIdGateway(address _idGateway) external onlyOwner {
         emit SetIdGateway(idGateway, _idGateway);
         idGateway = _idGateway;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                MIGRATION
+    //////////////////////////////////////////////////////////////*/
+
+    function bulkRegisterIdsForMigration(BulkRegisterData[] calldata ids) external migration {
+        // Safety: i can be incremented unchecked since it is bound by ids.length.
+        unchecked {
+            for (uint256 i = 0; i < ids.length; i++) {
+                BulkRegisterData calldata id = ids[i];
+                if (idOf[id.custody] != 0) revert HasId();
+                _unsafeRegister(id.fid, id.custody, id.recovery);
+            }
+        }
+    }
+
+    function bulkResetIdsForMigration(uint24[] calldata ids) external migration {
+        // Safety: i can be incremented unchecked since it is bound by ids.length.
+        unchecked {
+            for (uint256 i = 0; i < ids.length; i++) {
+                uint256 id = ids[i];
+                address custody = custodyOf[id];
+
+                idOf[custody] = 0;
+                custodyOf[id] = address(0);
+                recoveryOf[id] = address(0);
+
+                emit AdminReset(id);
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

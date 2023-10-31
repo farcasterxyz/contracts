@@ -49,12 +49,16 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.migratedAt(), 0);
     }
 
-    function testInitialOwner() public {
-        assertEq(keyRegistry.owner(), owner);
+    function testInitialMigrator() public {
+        assertEq(keyRegistry.migrator(), owner);
     }
 
     function testInitialStateIsNotMigrated() public {
         assertEq(keyRegistry.isMigrated(), false);
+    }
+
+    function testInitialOwner() public {
+        assertEq(keyRegistry.owner(), owner);
     }
 
     function testVersion() public {

@@ -5,12 +5,17 @@ import "forge-std/Test.sol";
 
 import {IdRegistry, IIdRegistry} from "../../src/IdRegistry.sol";
 import {ISignatures} from "../../src/lib/Signatures.sol";
-import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
+import {IMigration} from "../../src/interfaces/lib/IMigration.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
+
+import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
+import {BulkRegisterDataBuilder} from "./IdRegistryTestHelpers.sol";
 
 /* solhint-disable state-visibility */
 
 contract IdRegistryTest is IdRegistryTestSuite {
+    using BulkRegisterDataBuilder for IIdRegistry.BulkRegisterData[];
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -20,6 +25,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
     event Recover(address indexed from, address indexed to, uint256 indexed id);
     event ChangeRecoveryAddress(uint256 indexed id, address indexed recovery);
     event SetIdGateway(address oldIdGateway, address newIdGateway);
+    event Migrated(uint256 indexed migratedAt);
+    event AdminReset(uint256 indexed fid);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -31,6 +38,22 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
     function testName() public {
         assertEq(idRegistry.name(), "Farcaster FID");
+    }
+
+    function testInitialGracePeriod() public {
+        assertEq(idRegistry.gracePeriod(), 1 days);
+    }
+
+    function testInitialMigrationTimestamp() public {
+        assertEq(idRegistry.migratedAt(), 0);
+    }
+
+    function testInitialMigrator() public {
+        assertEq(idRegistry.migrator(), owner);
+    }
+
+    function testInitialStateIsNotMigrated() public {
+        assertEq(idRegistry.isMigrated(), false);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1839,5 +1862,260 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(caller);
         idRegistry.setIdGateway(idGateway);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                MIGRATION
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzMigration(uint40 timestamp) public {
+        vm.assume(timestamp != 0);
+
+        vm.warp(timestamp);
+        vm.expectEmit();
+        emit Migrated(timestamp);
+        vm.prank(owner);
+        idRegistry.migrate();
+
+        assertEq(idRegistry.isMigrated(), true);
+        assertEq(idRegistry.migratedAt(), timestamp);
+    }
+
+    function testFuzzOnlyOwnerCanMigrate(address caller) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert(IMigration.OnlyMigrator.selector);
+        idRegistry.migrate();
+
+        assertEq(idRegistry.isMigrated(), false);
+        assertEq(idRegistry.migratedAt(), 0);
+    }
+
+    function testFuzzCannotMigrateTwice(uint40 timestamp) public {
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max));
+        vm.warp(timestamp);
+        vm.prank(owner);
+        idRegistry.migrate();
+
+        timestamp = uint40(bound(timestamp, timestamp, type(uint40).max));
+        vm.expectRevert(IMigration.AlreadyMigrated.selector);
+        vm.prank(owner);
+        idRegistry.migrate();
+
+        assertEq(idRegistry.isMigrated(), true);
+        assertEq(idRegistry.migratedAt(), timestamp);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            BULK REGISTER
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzBulkRegisterIdsForMigration(uint24[] memory _ids, uint128 toSeed, uint128 recoverySeed) public {
+        vm.assume(_ids.length > 0);
+        uint256 len = bound(_ids.length, 1, 100);
+
+        uint24[] memory ids = _dedupeFuzzedIds(_ids, len);
+        uint256 idsLength = ids.length;
+        IIdRegistry.BulkRegisterData[] memory registerItems = _buildRegisterData(ids, toSeed, recoverySeed);
+
+        vm.prank(owner);
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+
+        for (uint256 i; i < idsLength; ++i) {
+            IIdRegistry.BulkRegisterData memory item = registerItems[i];
+            assertEq(idRegistry.idCounter(), 0);
+            assertEq(idRegistry.idOf(item.custody), item.fid);
+            assertEq(idRegistry.custodyOf(item.fid), item.custody);
+            assertEq(idRegistry.recoveryOf(item.fid), item.recovery);
+        }
+    }
+
+    function testBulkRegisterEmitsEvent() public {
+        IIdRegistry.BulkRegisterData[] memory registerItems =
+            BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
+
+        for (uint256 i; i < 3; i++) {
+            IIdRegistry.BulkRegisterData memory item = registerItems[i];
+            vm.expectEmit();
+            emit Register(item.custody, item.fid, item.recovery);
+        }
+
+        vm.prank(owner);
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+    }
+
+    function testFuzzBulkRegisterDuringGracePeriod(uint40 _warpForward) public {
+        IdRegistry.BulkRegisterData[] memory registerItems = BulkRegisterDataBuilder.empty().addFid(1);
+
+        uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
+
+        vm.startPrank(owner);
+        idRegistry.migrate();
+
+        vm.warp(idRegistry.migratedAt() + warpForward);
+
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        vm.stopPrank();
+    }
+
+    function testFuzzBulkRegisterAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
+        IdRegistry.BulkRegisterData[] memory registerItems = BulkRegisterDataBuilder.empty().addFid(1);
+
+        uint256 warpForward =
+            bound(_warpForward, 1, type(uint40).max - idRegistry.gracePeriod() - idRegistry.migratedAt());
+
+        vm.startPrank(owner);
+        idRegistry.migrate();
+
+        vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
+
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        vm.stopPrank();
+    }
+
+    function testBulkRegisterCannotReRegister() public {
+        IdRegistry.BulkRegisterData[] memory registerItems =
+            BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
+
+        vm.startPrank(owner);
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        vm.expectRevert(IIdRegistry.HasId.selector);
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            BULK RESET
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzBulkResetIdsForMigration(uint24[] memory _ids) public {
+        vm.assume(_ids.length > 0);
+        uint256 len = bound(_ids.length, 1, 100);
+        console.log("huh");
+
+        uint24[] memory ids = _dedupeFuzzedIds(_ids, len);
+        uint256 idsLength = ids.length;
+        console.log("wut");
+
+        IIdRegistry.BulkRegisterData[] memory registerItems = BulkRegisterDataBuilder.empty();
+        uint24[] memory resetItems = new uint24[](idsLength);
+
+        console.log("lol");
+        for (uint256 i; i < idsLength; ++i) {
+            registerItems = registerItems.addFid(ids[i]);
+            resetItems[i] = ids[i];
+        }
+        vm.startPrank(owner);
+
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkResetIdsForMigration(resetItems);
+
+        for (uint256 i; i < idsLength; ++i) {
+            IIdRegistry.BulkRegisterData memory item = registerItems[i];
+            assertEq(idRegistry.idCounter(), 0);
+            assertEq(idRegistry.idOf(item.custody), 0);
+            assertEq(idRegistry.custodyOf(item.fid), address(0));
+            assertEq(idRegistry.recoveryOf(item.fid), address(0));
+        }
+
+        vm.stopPrank();
+    }
+
+    function testBulkResetEmitsEvent() public {
+        IdRegistry.BulkRegisterData[] memory registerItems =
+            BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
+        uint24[] memory resetItems = new uint24[](3);
+
+        vm.prank(owner);
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+
+        for (uint256 i; i < 3; i++) {
+            IdRegistry.BulkRegisterData memory item = registerItems[i];
+            resetItems[i] = item.fid;
+            vm.expectEmit();
+            emit AdminReset(item.fid);
+        }
+
+        vm.prank(owner);
+        idRegistry.bulkResetIdsForMigration(resetItems);
+    }
+
+    function testFuzzBulkResetDuringGracePeriod(uint40 _warpForward) public {
+        IdRegistry.BulkRegisterData[] memory registerItems =
+            BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
+        uint24[] memory resetItems = new uint24[](3);
+
+        for (uint256 i; i < registerItems.length; i++) {
+            IdRegistry.BulkRegisterData memory item = registerItems[i];
+            resetItems[i] = item.fid;
+        }
+
+        uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
+
+        vm.startPrank(owner);
+        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.migrate();
+
+        vm.warp(idRegistry.migratedAt() + warpForward);
+
+        idRegistry.bulkResetIdsForMigration(resetItems);
+        vm.stopPrank();
+    }
+
+    function testFuzzBulkResetAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
+        uint24[] memory resetItems = new uint24[](3);
+
+        uint256 warpForward =
+            bound(_warpForward, 1, type(uint40).max - idRegistry.gracePeriod() - idRegistry.migratedAt());
+
+        vm.startPrank(owner);
+        idRegistry.migrate();
+
+        vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
+
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
+        idRegistry.bulkResetIdsForMigration(resetItems);
+
+        vm.stopPrank();
+    }
+
+    function _dedupeFuzzedIds(uint24[] memory _ids, uint256 len) internal pure returns (uint24[] memory ids) {
+        ids = new uint24[](len);
+        uint256 idsLength;
+
+        for (uint256 i; i < len; ++i) {
+            bool found;
+            for (uint256 j; j < idsLength; ++j) {
+                if (ids[j] == _ids[i]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                ids[idsLength++] = _ids[i];
+            }
+        }
+
+        assembly {
+            mstore(ids, idsLength)
+        }
+    }
+
+    function _buildRegisterData(
+        uint24[] memory fids,
+        uint128 toSeed,
+        uint128 recoverySeed
+    ) internal pure returns (IIdRegistry.BulkRegisterData[] memory) {
+        IIdRegistry.BulkRegisterData[] memory registerItems = new IIdRegistry.BulkRegisterData[](fids.length);
+        for (uint256 i; i < fids.length; ++i) {
+            registerItems[i] = IIdRegistry.BulkRegisterData({
+                fid: fids[i],
+                custody: vm.addr(uint256(keccak256(abi.encodePacked(toSeed + i)))),
+                recovery: vm.addr(uint256(keccak256(abi.encodePacked(recoverySeed + i))))
+            });
+        }
+        return registerItems;
     }
 }
