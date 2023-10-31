@@ -32,6 +32,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         // Setup IdRegistry
         idRegistry = new IdRegistry(migrator, address(this));
         idRegistry.setIdGateway(address(idRegistration));
+        idRegistry.unpause();
 
         // Register fids
         vm.prank(idRegistration);
@@ -55,6 +56,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         keyRegistry = new KeyRegistry(address(idRegistry), migrator, address(this), 1000);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
         keyRegistry.setKeyGateway(keyGateway);
+        keyRegistry.unpause();
 
         // Set initial states:
         // - fid 1: removed
