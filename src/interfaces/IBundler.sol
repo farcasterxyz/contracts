@@ -17,12 +17,6 @@ interface IBundler {
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Data needed to trusted register a user with the fid and storage contracts.
-    struct UserData {
-        address to;
-        address recovery;
-    }
-
     /// @notice Data needed to register an fid with signature.
     struct RegistrationParams {
         address to;
@@ -92,17 +86,4 @@ interface IBundler {
         SignerParams[] calldata signerParams,
         uint256 extraStorage
     ) external payable returns (uint256 fid);
-
-    /*//////////////////////////////////////////////////////////////
-                         PERMISSIONED ACTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Register fids for multiple users in a single transaction. Can only be called by
-     *         the trustedCaller during the Seedable phase. Will be used when migrating across
-     *         Ethereum networks to bootstrap a new contract with existing data.
-     *
-     * @param users  Array of UserData structs to register
-     */
-    function trustedBatchRegister(UserData[] calldata users) external;
 }

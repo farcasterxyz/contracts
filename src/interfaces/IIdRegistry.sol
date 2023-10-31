@@ -3,6 +3,36 @@ pragma solidity ^0.8.21;
 
 interface IIdRegistry {
     /*//////////////////////////////////////////////////////////////
+                                 STRUCTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Struct argument for bulk register function, representing an FID
+     *      and its associated custody address and recovery address.
+     *
+     * @param fid      Fid to add.
+     * @param custody  Custody address.
+     * @param recovery Recovery address.
+     */
+    struct BulkRegisterData {
+        uint24 fid;
+        address custody;
+        address recovery;
+    }
+
+    /**
+     * @dev Struct argument for bulk register function, representing an FID
+     *      and its associated custody address.
+     *
+     * @param fid      Fid associated with provided keys to add.
+     * @param custody  Custody address.
+     */
+    struct BulkRegisterDefaultRecoveryData {
+        uint24 fid;
+        address custody;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
@@ -79,6 +109,10 @@ interface IIdRegistry {
      * @param newIdGateway The new IdGateway address.
      */
     event SetIdGateway(address oldIdGateway, address newIdGateway);
+
+    event SetIdCounter(uint256 oldCounter, uint256 newCounter);
+
+    event AdminReset(uint256 indexed fid);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS

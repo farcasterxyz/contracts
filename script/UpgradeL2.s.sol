@@ -37,7 +37,6 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
     struct DeploymentParams {
         address initialIdRegistryOwner;
         address initialKeyRegistryOwner;
-        address initialBundlerOwner;
         address initialValidatorOwner;
         address initialRecoveryProxyOwner;
         address priceFeed;
@@ -47,7 +46,6 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
         address admin;
         address operator;
         address treasurer;
-        address bundlerTrustedCaller;
         address storageRegistryAddr;
         address signedKeyRequestValidatorAddr;
         address deployer;
@@ -111,10 +109,7 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             )
         );
         addrs.bundler = register(
-            "Bundler",
-            params.salts.bundler,
-            type(Bundler).creationCode,
-            abi.encode(addrs.idGateway, addrs.keyGateway, params.bundlerTrustedCaller, params.initialBundlerOwner)
+            "Bundler", params.salts.bundler, type(Bundler).creationCode, abi.encode(addrs.idGateway, addrs.keyGateway)
         );
         addrs.recoveryProxy = register(
             "RecoveryProxy",
@@ -140,13 +135,11 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
     function runSetup(Contracts memory contracts, DeploymentParams memory params, bool broadcast) public {
         if (deploymentChanged()) {
             console.log("Running setup");
-            address bundler = address(contracts.bundler);
 
             if (broadcast) vm.startBroadcast();
             contracts.idRegistry.setIdGateway(address(contracts.idGateway));
             contracts.idRegistry.transferOwnership(params.initialIdRegistryOwner);
 
-            contracts.idGateway.setTrustedCaller(bundler);
             contracts.idGateway.transferOwnership(params.initialIdRegistryOwner);
 
             contracts.keyRegistry.setValidator(1, 1, IMetadataValidator(address(contracts.signedKeyRequestValidator)));
@@ -168,7 +161,6 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
         return DeploymentParams({
             initialIdRegistryOwner: vm.envAddress("ID_REGISTRY_OWNER_ADDRESS"),
             initialKeyRegistryOwner: vm.envAddress("KEY_REGISTRY_OWNER_ADDRESS"),
-            initialBundlerOwner: vm.envAddress("BUNDLER_OWNER_ADDRESS"),
             initialValidatorOwner: vm.envAddress("METADATA_VALIDATOR_OWNER_ADDRESS"),
             initialRecoveryProxyOwner: vm.envAddress("RECOVERY_PROXY_OWNER_ADDRESS"),
             priceFeed: vm.envAddress("STORAGE_RENT_PRICE_FEED_ADDRESS"),
@@ -178,7 +170,6 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             admin: vm.envAddress("STORAGE_RENT_ADMIN_ADDRESS"),
             operator: vm.envAddress("STORAGE_RENT_OPERATOR_ADDRESS"),
             treasurer: vm.envAddress("STORAGE_RENT_TREASURER_ADDRESS"),
-            bundlerTrustedCaller: vm.envAddress("BUNDLER_TRUSTED_CALLER_ADDRESS"),
             storageRegistryAddr: vm.envAddress("STORAGE_RENT_ADDRESS"),
             signedKeyRequestValidatorAddr: vm.envAddress("SIGNED_KEY_REQUEST_VALIDATOR_ADDRESS"),
             deployer: vm.envAddress("DEPLOYER"),

@@ -7,7 +7,6 @@ import {Bundler, IBundler} from "../../src/Bundler.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {StorageRegistry} from "../../src/StorageRegistry.sol";
-import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -17,12 +16,7 @@ contract BundlerTest is BundlerTestSuite {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event SetTrustedCaller(address indexed oldCaller, address indexed newCaller, address owner);
-
     event Register(address indexed to, uint256 indexed id, address recovery);
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
     event Rent(address indexed buyer, uint256 indexed id, uint256 units);
 
     /*//////////////////////////////////////////////////////////////
@@ -31,10 +25,6 @@ contract BundlerTest is BundlerTestSuite {
 
     function testHasIDRegistry() public {
         assertEq(address(bundler.idGateway()), address(idGateway));
-    }
-
-    function testDefaultTrustedCaller() public {
-        assertEq(address(bundler.trustedCaller()), address(this));
     }
 
     function testVersion() public {
@@ -96,10 +86,6 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageBefore = storageRegistry.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore - 1);
 
-        // State: Trusted Registration is disabled in ID registry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
@@ -139,10 +125,6 @@ contract BundlerTest is BundlerTestSuite {
         assumePayable(caller); // caller must be able to receive funds
 
         uint256 storageBefore = storageRegistry.rentedUnits();
-
-        // State: Trusted Registration is disabled in ID registry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
 
         uint256 price = bundler.price(0);
         address account = vm.addr(accountPk);
@@ -185,10 +167,6 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageBefore = storageRegistry.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore - 1);
 
-        // State: Trusted Registration is disabled in ID registry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
@@ -222,10 +200,6 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageBefore = storageRegistry.rentedUnits();
         storageUnits = bound(storageUnits, 1, storageRegistry.maxUnits() - storageBefore - 1);
 
-        // State: Trusted Registration is disabled in ID registry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         uint256 price = bundler.price(storageUnits);
         address account = vm.addr(accountPk);
         uint256 deadline = _boundDeadline(_deadline);
@@ -250,185 +224,6 @@ contract BundlerTest is BundlerTestSuite {
         assertEq(address(storageRegistry).balance, price);
         assertEq(address(bundler).balance, 0 ether);
         assertEq(address(caller).balance, delta);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         TRUSTED BATCH REGISTER
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzTrustedBatchRegister(uint256 registrations) public {
-        registrations = bound(registrations, 1, 100);
-
-        // Configure the trusted callers correctly
-        vm.prank(owner);
-        idGateway.setTrustedCaller(address(bundler));
-
-        IBundler.UserData[] memory batchArray = new IBundler.UserData[](
-            registrations
-        );
-
-        for (uint256 i; i < registrations; i++) {
-            uint160 fid = uint160(i + 1);
-            address account = address(fid);
-            address recovery = address(uint160(i + 1000));
-            batchArray[i] = IBundler.UserData({to: account, recovery: recovery});
-
-            vm.expectEmit(true, true, true, true);
-            emit Register(account, fid, recovery);
-        }
-
-        bundler.trustedBatchRegister(batchArray);
-
-        for (uint256 i = 0; i < registrations; i++) {
-            uint160 fid = uint160(i + 1);
-            address recovery = address(uint160(i + 1000));
-            assertEq(idRegistry.idOf(address(fid)), fid);
-            assertEq(idRegistry.recoveryOf(fid), recovery);
-        }
-    }
-
-    function testFuzzCannotTrustedBatchRegisterFromUntrustedCaller(address alice, address untrustedCaller) public {
-        // Call is made from an address that is not address(this), since address(this) is the deployer
-        // and therefore the trusted caller for Bundler
-        vm.assume(untrustedCaller != address(this));
-
-        // Configure the trusted callers correctly
-        vm.prank(owner);
-        idGateway.setTrustedCaller(address(bundler));
-
-        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
-        vm.prank(roleAdmin);
-        storageRegistry.grantRole(operatorRoleId, address(bundler));
-
-        IBundler.UserData[] memory batchArray = new IBundler.UserData[](1);
-        batchArray[0] = IBundler.UserData({to: alice, recovery: address(0)});
-
-        vm.prank(untrustedCaller);
-        vm.expectRevert(ITrustedCaller.OnlyTrustedCaller.selector);
-        bundler.trustedBatchRegister(batchArray);
-
-        _assertUnsuccessfulRegistration(alice);
-    }
-
-    function testFuzzTrustedBatchRegisterIfIdRegistryDisabled(address alice) public {
-        // State: Trusted registration is disabled in IdRegistry
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
-        bytes32 operatorRoleId = storageRegistry.operatorRoleId();
-        vm.prank(roleAdmin);
-        storageRegistry.grantRole(operatorRoleId, address(bundler));
-
-        IBundler.UserData[] memory batchArray = new IBundler.UserData[](1);
-        batchArray[0] = IBundler.UserData({to: alice, recovery: address(0)});
-
-        vm.expectRevert(ITrustedCaller.Registrable.selector);
-        bundler.trustedBatchRegister(batchArray);
-
-        _assertUnsuccessfulRegistration(alice);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                  OWNER
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzSetTrustedCaller(address alice) public {
-        vm.assume(alice != address(0));
-        assertEq(bundler.owner(), owner);
-
-        vm.startPrank(owner);
-        vm.expectEmit(true, true, true, true);
-        emit SetTrustedCaller(bundler.trustedCaller(), alice, owner);
-        bundler.setTrustedCaller(alice);
-        vm.stopPrank();
-
-        assertEq(bundler.trustedCaller(), alice);
-    }
-
-    function testFuzzCannotSetTrustedCallerToZeroAddress() public {
-        assertEq(bundler.owner(), owner);
-
-        vm.prank(owner);
-        vm.expectRevert(ITrustedCaller.InvalidAddress.selector);
-        bundler.setTrustedCaller(address(0));
-
-        assertEq(bundler.trustedCaller(), address(this));
-    }
-
-    function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
-        vm.assume(alice != address(0));
-        vm.assume(bundler.owner() != alice);
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        bundler.setTrustedCaller(bob);
-        assertEq(bundler.trustedCaller(), address(this));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                           TRANSFER OWNERSHIP
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzTransferOwnership(address newOwner, address newOwner2) public {
-        vm.assume(newOwner != address(0) && newOwner2 != address(0));
-        assertEq(bundler.owner(), owner);
-        assertEq(bundler.pendingOwner(), address(0));
-
-        vm.prank(owner);
-        bundler.transferOwnership(newOwner);
-        assertEq(bundler.owner(), owner);
-        assertEq(bundler.pendingOwner(), newOwner);
-
-        vm.prank(owner);
-        bundler.transferOwnership(newOwner2);
-        assertEq(bundler.owner(), owner);
-        assertEq(bundler.pendingOwner(), newOwner2);
-    }
-
-    function testFuzzCannotTransferOwnershipUnlessOwner(address alice, address newOwner) public {
-        vm.assume(alice != owner && newOwner != address(0));
-        assertEq(bundler.owner(), owner);
-        assertEq(bundler.pendingOwner(), address(0));
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        bundler.transferOwnership(newOwner);
-
-        assertEq(bundler.owner(), owner);
-        assertEq(bundler.pendingOwner(), address(0));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            ACCEPT OWNERSHIP
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzAcceptOwnership(address newOwner) public {
-        vm.assume(newOwner != owner && newOwner != address(0));
-        vm.prank(owner);
-        bundler.transferOwnership(newOwner);
-
-        vm.expectEmit(true, true, true, true);
-        emit OwnershipTransferred(owner, newOwner);
-        vm.prank(newOwner);
-        bundler.acceptOwnership();
-
-        assertEq(bundler.owner(), newOwner);
-        assertEq(bundler.pendingOwner(), address(0));
-    }
-
-    function testFuzzCannotAcceptOwnershipUnlessPendingOwner(address alice, address newOwner) public {
-        vm.assume(alice != owner && alice != address(0));
-        vm.assume(newOwner != alice && newOwner != address(0));
-
-        vm.prank(owner);
-        bundler.transferOwnership(newOwner);
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable2Step: caller is not the new owner");
-        bundler.acceptOwnership();
-
-        assertEq(bundler.owner(), owner);
-        assertEq(bundler.pendingOwner(), newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////

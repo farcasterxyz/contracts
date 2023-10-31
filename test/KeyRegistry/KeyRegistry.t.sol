@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
-import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {IGuardians} from "../../src/lib/Guardians.sol";
 import {ISignatures} from "../../src/lib/Signatures.sol";
 import {IMigration} from "../../src/lib/Migration.sol";
@@ -49,12 +48,16 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.migratedAt(), 0);
     }
 
-    function testInitialOwner() public {
-        assertEq(keyRegistry.owner(), owner);
+    function testInitialMigrator() public {
+        assertEq(keyRegistry.migrator(), owner);
     }
 
     function testInitialStateIsNotMigrated() public {
         assertEq(keyRegistry.isMigrated(), false);
+    }
+
+    function testInitialOwner() public {
+        assertEq(keyRegistry.owner(), owner);
     }
 
     function testVersion() public {

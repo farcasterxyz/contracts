@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 
 import {IdGateway, IIdGateway} from "../../src/IdGateway.sol";
 import {IIdRegistry} from "../../src/IdRegistry.sol";
-import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {ISignatures} from "../../src/lib/Signatures.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
 import {IdGatewayTestSuite} from "./IdGatewayTestSuite.sol";
@@ -42,9 +41,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
     function testFuzzRegister(address caller, address recovery) public {
         assertEq(idRegistry.idCounter(), 0);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
@@ -64,9 +60,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
 
     function testFuzzRegisterExtraStorage(address caller, address recovery, uint16 extraStorage) public {
         assertEq(idRegistry.idCounter(), 0);
-
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
@@ -89,9 +82,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
         _assumeClean(caller);
         assertEq(idRegistry.idCounter(), 0);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(caller), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
@@ -110,23 +100,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(address(caller).balance, overpayment);
     }
 
-    function testFuzzCannotRegisterIfSeedable(address caller, address recovery) public {
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idGateway.trustedOnly(), 1);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(caller), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(caller);
-        vm.expectRevert(ITrustedCaller.Seedable.selector);
-        idGateway.register(recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(caller), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
     function testFuzzCannotRegisterToAnAddressThatOwnsAnId(address caller, address recovery) public {
         _register(caller);
 
@@ -138,9 +111,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
 
         uint256 price = idGateway.price();
         vm.deal(caller, price);
-
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
 
         vm.prank(caller);
         vm.expectRevert(IIdRegistry.HasId.selector);
@@ -154,8 +124,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
     function testFuzzCannotRegisterIfPaused(address caller, address recovery) public {
         assertEq(idRegistry.idCounter(), 0);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
         _pauseManager();
 
         assertEq(idRegistry.idCounter(), 0);
@@ -181,9 +149,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
 
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
-
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -215,9 +180,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
@@ -248,9 +210,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
         /* generate a signature with an invalid parameter (wrong deadline) */
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline + 1);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
@@ -276,9 +235,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
         address recipient = vm.addr(recipientPk);
         /* generate an invalid signature */
         bytes memory sig = abi.encodePacked(bytes32("bad sig"), bytes32(0), bytes1(0));
-
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
@@ -309,9 +265,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
         vm.prank(recipient);
         idGateway.useNonce();
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
@@ -337,46 +290,14 @@ contract IdGatewayTest is IdGatewayTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(recipient), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
 
         vm.warp(deadline + 1);
 
         vm.prank(registrar);
         vm.expectRevert(ISignatures.SignatureExpired.selector);
-        idGateway.registerFor(recipient, recovery, deadline, sig);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotRegisterForIfSeedable(
-        address registrar,
-        uint256 recipientPk,
-        address recovery,
-        uint40 _deadline
-    ) public {
-        recipientPk = _boundPk(recipientPk);
-        uint256 deadline = _boundDeadline(_deadline);
-
-        address recipient = vm.addr(recipientPk);
-        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
-
-        assertEq(idGateway.trustedOnly(), 1);
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(recipient), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-
-        vm.prank(registrar);
-        vm.expectRevert(ITrustedCaller.Seedable.selector);
         idGateway.registerFor(recipient, recovery, deadline, sig);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -396,8 +317,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
         _register(recipient);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -424,9 +343,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
 
         address recipient = vm.addr(recipientPk);
         bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
-
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
 
         _pauseManager();
 
@@ -468,9 +384,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
 
         bytes memory sig = _signRegister(recipientPk, mockWalletAddress, recovery, deadline);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(mockWalletAddress), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
@@ -501,9 +414,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
         (, address mockWalletAddress) = _createMaliciousMockERC1271(recipient);
         bytes memory sig = _signRegister(recipientPk, mockWalletAddress, recovery, deadline);
 
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(mockWalletAddress), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
@@ -514,102 +424,6 @@ contract IdGatewayTest is IdGatewayTestSuite {
 
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(mockWalletAddress), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         TRUSTED REGISTER TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzTrustedRegister(address recipient, address trustedCaller, address recovery) public {
-        vm.assume(trustedCaller != address(0));
-        vm.prank(owner);
-        idGateway.setTrustedCaller(trustedCaller);
-        assertEq(idRegistry.idCounter(), 0);
-
-        vm.prank(trustedCaller);
-        vm.expectEmit();
-        emit Register(recipient, 1, recovery);
-        idGateway.trustedRegister(recipient, recovery);
-
-        assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(recipient), 1);
-        assertEq(idRegistry.recoveryOf(1), recovery);
-    }
-
-    function testFuzzCannotTrustedRegisterUnlessTrustedOnly(
-        address alice,
-        address trustedCaller,
-        address recovery
-    ) public {
-        vm.prank(owner);
-        idGateway.disableTrustedOnly();
-
-        vm.prank(trustedCaller);
-        vm.expectRevert(ITrustedCaller.Registrable.selector);
-        idGateway.trustedRegister(alice, recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(alice), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotTrustedRegisterFromUntrustedCaller(
-        address alice,
-        address trustedCaller,
-        address untrustedCaller,
-        address recovery
-    ) public {
-        vm.assume(untrustedCaller != trustedCaller);
-        vm.assume(trustedCaller != address(0));
-        vm.prank(owner);
-        idGateway.setTrustedCaller(trustedCaller);
-
-        vm.prank(untrustedCaller);
-        vm.expectRevert(ITrustedCaller.OnlyTrustedCaller.selector);
-        idGateway.trustedRegister(alice, recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(alice), 0);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotTrustedRegisterToAnAddressThatOwnsAnID(
-        address alice,
-        address trustedCaller,
-        address recovery
-    ) public {
-        vm.assume(trustedCaller != address(0));
-        vm.prank(owner);
-        idGateway.setTrustedCaller(trustedCaller);
-
-        vm.prank(trustedCaller);
-        idGateway.trustedRegister(alice, address(0));
-        assertEq(idRegistry.idCounter(), 1);
-
-        vm.prank(trustedCaller);
-        vm.expectRevert(IIdRegistry.HasId.selector);
-        idGateway.trustedRegister(alice, recovery);
-
-        assertEq(idRegistry.idCounter(), 1);
-        assertEq(idRegistry.idOf(alice), 1);
-        assertEq(idRegistry.recoveryOf(1), address(0));
-    }
-
-    function testFuzzCannotTrustedRegisterWhenPaused(address alice, address trustedCaller, address recovery) public {
-        vm.assume(trustedCaller != address(0));
-        vm.prank(owner);
-        idGateway.setTrustedCaller(trustedCaller);
-        assertEq(idRegistry.idCounter(), 0);
-
-        _pauseManager();
-
-        vm.prank(trustedCaller);
-        vm.expectRevert("Pausable: paused");
-        idGateway.trustedRegister(alice, recovery);
-
-        assertEq(idRegistry.idCounter(), 0);
-        assertEq(idRegistry.idOf(alice), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
     }
 

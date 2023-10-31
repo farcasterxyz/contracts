@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 import {KeyGateway} from "../../src/KeyGateway.sol";
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
 import {TransferHelper} from "../../src/lib/TransferHelper.sol";
-import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {ISignatures} from "../../src/lib/Signatures.sol";
 import {IGuardians} from "../../src/lib/Guardians.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";

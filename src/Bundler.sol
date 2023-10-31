@@ -4,7 +4,6 @@ pragma solidity 0.8.21;
 import {IBundler} from "./interfaces/IBundler.sol";
 import {IIdGateway} from "./interfaces/IIdGateway.sol";
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
-import {TrustedCaller} from "./lib/TrustedCaller.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 
 /**
@@ -14,7 +13,7 @@ import {TransferHelper} from "./lib/TransferHelper.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract Bundler is IBundler, TrustedCaller {
+contract Bundler is IBundler {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -45,24 +44,14 @@ contract Bundler is IBundler, TrustedCaller {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Configure the addresses of the Manager and Registry contracts
-     *         and the trusted caller, which is allowed to register users
-     *         during the bootstrap phase.
+     * @notice Configure the addresses of the IdGateway and KeyGateway contracts.
      *
      * @param _idGateway       Address of the IdGateway contract
      * @param _keyGateway      Address of the KeyGateway contract
-     * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
-     * @param _initialOwner    Address that can set the trusted caller
      */
-    constructor(
-        address _idGateway,
-        address _keyGateway,
-        address _trustedCaller,
-        address _initialOwner
-    ) TrustedCaller(_initialOwner) {
+    constructor(address _idGateway, address _keyGateway) {
         idGateway = IIdGateway(payable(_idGateway));
         keyGateway = IKeyGateway(payable(_keyGateway));
-        _setTrustedCaller(_trustedCaller);
     }
 
     /**
@@ -97,7 +86,7 @@ contract Bundler is IBundler, TrustedCaller {
                 signer.sig
             );
 
-            // Safety: won't overflow because it's less than the length of the array, which is a `uint256`.
+            // Safety: i can be incremented unchecked since it is bound by signerParams.length.
             unchecked {
                 ++i;
             }
@@ -105,21 +94,6 @@ contract Bundler is IBundler, TrustedCaller {
 
         if (overpayment > 0) msg.sender.sendNative(overpayment);
         return fid;
-    }
-
-    /**
-     * @inheritdoc IBundler
-     */
-    function trustedBatchRegister(UserData[] calldata users) external onlyTrustedCaller {
-        // Safety: calls inside a loop are safe since caller is trusted
-        uint256 usersLen = users.length;
-        for (uint256 i; i < usersLen;) {
-            UserData calldata user = users[i];
-            idGateway.trustedRegister(user.to, user.recovery);
-            unchecked {
-                ++i;
-            }
-        }
     }
 
     receive() external payable {

@@ -73,11 +73,11 @@ contract UpgradeL2Test is UpgradeL2, Test {
         vm.deal(bob, 0.5 ether);
         vm.deal(carol, 0.5 ether);
         vm.deal(dave, 0.5 ether);
+        vm.deal(app, 0.5 ether);
 
         UpgradeL2.DeploymentParams memory params = UpgradeL2.DeploymentParams({
             initialIdRegistryOwner: alpha,
             initialKeyRegistryOwner: alpha,
-            initialBundlerOwner: alpha,
             initialValidatorOwner: alpha,
             initialRecoveryProxyOwner: alpha,
             priceFeed: priceFeed,
@@ -87,7 +87,6 @@ contract UpgradeL2Test is UpgradeL2, Test {
             admin: beta,
             operator: relayer,
             treasurer: relayer,
-            bundlerTrustedCaller: relayer,
             storageRegistryAddr: storageRegistryAddr,
             signedKeyRequestValidatorAddr: signedKeyRequestValidatorAddr,
             deployer: deployer,
@@ -175,10 +174,9 @@ contract UpgradeL2Test is UpgradeL2, Test {
         assertEq(validator.owner(), alpha);
         assertEq(address(validator.idRegistry()), address(idRegistry));
 
-        // Bundler owned by multisig, check deploy parameters
-        assertEq(bundler.owner(), alpha);
+        // Check bundler deploy parameters
         assertEq(address(bundler.idGateway()), address(idGateway));
-        assertEq(bundler.trustedCaller(), relayer);
+        assertEq(address(bundler.keyGateway()), address(keyGateway));
 
         // Recovery proxy owned by multisig, check deploy parameters
         assertEq(recoveryProxy.owner(), alpha);
@@ -193,30 +191,17 @@ contract UpgradeL2Test is UpgradeL2, Test {
         keyRegistry.acceptOwnership();
         vm.stopPrank();
 
-        // Bundler trusted registers an app fid
-        vm.prank(address(bundler));
-        uint256 requestFid = idGateway.trustedRegister(app, address(0));
+        // Register an app fid
+        uint256 idFee = idGateway.price();
+        vm.prank(app);
+        (uint256 requestFid,) = idGateway.register{value: idFee}(address(0));
         uint256 deadline = block.timestamp + 60;
 
-        IBundler.UserData[] memory batch = new IBundler.UserData[](1);
-        batch[0] = IBundler.UserData({to: alice, recovery: address(recoveryProxy)});
-
-        // Relayer trusted registers a user fid
-        vm.prank(relayer);
-        bundler.trustedBatchRegister(batch);
-        assertEq(idRegistry.idOf(alice), 2);
-
-        // Multisig disables trusted mode
-        vm.startPrank(alpha);
-        idGateway.disableTrustedOnly();
-        bundler.disableTrustedOnly();
-        vm.stopPrank();
-
         // Carol permissionlessly registers an fid with Dave as recovery
-        uint256 idFee = idGateway.price();
+        idFee = idGateway.price();
         vm.prank(carol);
         idGateway.register{value: idFee}(dave);
-        assertEq(idRegistry.idOf(carol), 3);
+        assertEq(idRegistry.idOf(carol), 2);
 
         // Carol permissionlessly adds a key to her fid
         bytes memory carolKey = bytes.concat("carolKey", bytes24(0));

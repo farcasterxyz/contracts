@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import {IIdGateway} from "./interfaces/IIdGateway.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
-import {TrustedCaller} from "./lib/TrustedCaller.sol";
+import {Guardians} from "./lib/Guardians.sol";
 import {TransferHelper} from "./lib/TransferHelper.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {Nonces} from "./lib/Nonces.sol";
@@ -17,7 +17,7 @@ import {Signatures} from "./lib/Signatures.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
+contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -63,7 +63,7 @@ contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
         address _idRegistry,
         address _storageRegistry,
         address _initialOwner
-    ) TrustedCaller(_initialOwner) EIP712("Farcaster IdGateway", "1") {
+    ) Guardians(_initialOwner) EIP712("Farcaster IdGateway", "1") {
         idRegistry = IIdRegistry(_idRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
     }
@@ -100,7 +100,7 @@ contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
     function register(
         address recovery,
         uint256 extraStorage
-    ) public payable whenNotPaused whenNotTrusted returns (uint256 fid, uint256 overpayment) {
+    ) public payable whenNotPaused returns (uint256 fid, uint256 overpayment) {
         fid = idRegistry.register(msg.sender, recovery);
         overpayment = _rentStorage(fid, extraStorage, msg.value, msg.sender);
     }
@@ -123,21 +123,11 @@ contract IdGateway is IIdGateway, TrustedCaller, Signatures, EIP712, Nonces {
         uint256 deadline,
         bytes calldata sig,
         uint256 extraStorage
-    ) public payable whenNotPaused whenNotTrusted returns (uint256 fid, uint256 overpayment) {
+    ) public payable whenNotPaused returns (uint256 fid, uint256 overpayment) {
         /* Revert if signature is invalid */
         _verifyRegisterSig({to: to, recovery: recovery, deadline: deadline, sig: sig});
         fid = idRegistry.register(to, recovery);
         overpayment = _rentStorage(fid, extraStorage, msg.value, msg.sender);
-    }
-
-    /**
-     * @inheritdoc IIdGateway
-     */
-    function trustedRegister(
-        address to,
-        address recovery
-    ) external onlyTrustedCaller whenNotPaused returns (uint256 fid) {
-        fid = idRegistry.register(to, recovery);
     }
 
     /*//////////////////////////////////////////////////////////////

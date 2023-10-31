@@ -50,7 +50,7 @@ contract RecoveryProxy is Ownable2Step {
      *         set the initial owner.
      *
      * @param _idRegistry      Address of the IdRegistry contract
-     * @param _initialOwner    Address that can set the trusted caller
+     * @param _initialOwner    Initial owner address
      */
     constructor(address _idRegistry, address _initialOwner) {
         idRegistry = IIdRegistry(_idRegistry);
