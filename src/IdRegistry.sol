@@ -298,7 +298,7 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces, Migra
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
 
-    function bulkRegisterIdsForMigration(BulkRegisterData[] calldata ids) external migration {
+    function bulkRegisterIds(BulkRegisterData[] calldata ids) external migration {
         // Safety: i can be incremented unchecked since it is bound by ids.length.
         unchecked {
             for (uint256 i = 0; i < ids.length; i++) {
@@ -309,7 +309,21 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces, Migra
         }
     }
 
-    function bulkResetIdsForMigration(uint24[] calldata ids) external migration {
+    function bulkRegisterIdsWithDefaultRecovery(
+        BulkRegisterDefaultRecoveryData[] calldata ids,
+        address recovery
+    ) external migration {
+        // Safety: i can be incremented unchecked since it is bound by ids.length.
+        unchecked {
+            for (uint256 i = 0; i < ids.length; i++) {
+                BulkRegisterDefaultRecoveryData calldata id = ids[i];
+                if (idOf[id.custody] != 0) revert HasId();
+                _unsafeRegister(id.fid, id.custody, recovery);
+            }
+        }
+    }
+
+    function bulkResetIds(uint24[] calldata ids) external migration {
         // Safety: i can be incremented unchecked since it is bound by ids.length.
         unchecked {
             for (uint256 i = 0; i < ids.length; i++) {

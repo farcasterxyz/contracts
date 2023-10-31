@@ -10,13 +10,26 @@ interface IIdRegistry {
      * @dev Struct argument for bulk register function, representing an FID
      *      and its associated custody address and recovery address.
      *
-     * @param fid  Fid associated with provided keys to add.
-     * @param keys Array of BulkAddKey structs, including key and metadata.
+     * @param fid      Fid to add.
+     * @param custody  Custody address.
+     * @param recovery Recovery address.
      */
     struct BulkRegisterData {
         uint24 fid;
         address custody;
         address recovery;
+    }
+
+    /**
+     * @dev Struct argument for bulk register function, representing an FID
+     *      and its associated custody address.
+     *
+     * @param fid      Fid associated with provided keys to add.
+     * @param custody  Custody address.
+     */
+    struct BulkRegisterDefaultRecoveryData {
+        uint24 fid;
+        address custody;
     }
 
     /*//////////////////////////////////////////////////////////////

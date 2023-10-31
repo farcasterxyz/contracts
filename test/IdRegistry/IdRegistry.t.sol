@@ -9,12 +9,13 @@ import {IMigration} from "../../src/interfaces/lib/IMigration.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
 
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
-import {BulkRegisterDataBuilder} from "./IdRegistryTestHelpers.sol";
+import {BulkRegisterDataBuilder, BulkRegisterDefaultRecoveryDataBuilder} from "./IdRegistryTestHelpers.sol";
 
 /* solhint-disable state-visibility */
 
 contract IdRegistryTest is IdRegistryTestSuite {
     using BulkRegisterDataBuilder for IIdRegistry.BulkRegisterData[];
+    using BulkRegisterDefaultRecoveryDataBuilder for IIdRegistry.BulkRegisterDefaultRecoveryData[];
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -1963,7 +1964,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
                             BULK REGISTER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkRegisterIdsForMigration(uint24[] memory _ids, uint128 toSeed, uint128 recoverySeed) public {
+    function testFuzzBulkRegisterIds(uint24[] memory _ids, uint128 toSeed, uint128 recoverySeed) public {
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
 
@@ -1972,7 +1973,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         IIdRegistry.BulkRegisterData[] memory registerItems = _buildRegisterData(ids, toSeed, recoverySeed);
 
         vm.prank(owner);
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkRegisterIds(registerItems);
 
         for (uint256 i; i < idsLength; ++i) {
             IIdRegistry.BulkRegisterData memory item = registerItems[i];
@@ -1994,7 +1995,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         }
 
         vm.prank(owner);
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkRegisterIds(registerItems);
     }
 
     function testFuzzBulkRegisterDuringGracePeriod(uint40 _warpForward) public {
@@ -2007,7 +2008,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         vm.warp(idRegistry.migratedAt() + warpForward);
 
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkRegisterIds(registerItems);
         vm.stopPrank();
     }
 
@@ -2023,7 +2024,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
 
         vm.expectRevert(IMigration.PermissionRevoked.selector);
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkRegisterIds(registerItems);
         vm.stopPrank();
     }
 
@@ -2032,9 +2033,91 @@ contract IdRegistryTest is IdRegistryTestSuite {
             BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
 
         vm.startPrank(owner);
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkRegisterIds(registerItems);
         vm.expectRevert(IIdRegistry.HasId.selector);
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkRegisterIds(registerItems);
+        vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                BULK REGISTER WITH DEFAULT RECOVERY
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzBulkRegisterIdsWithRecovery(uint24[] memory _ids, uint128 toSeed, address recovery) public {
+        vm.assume(_ids.length > 0);
+        uint256 len = bound(_ids.length, 1, 100);
+
+        uint24[] memory ids = _dedupeFuzzedIds(_ids, len);
+        uint256 idsLength = ids.length;
+        IIdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
+            _buildRegisterWithDefaultRecoveryData(ids, toSeed);
+
+        vm.prank(owner);
+        idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
+
+        for (uint256 i; i < idsLength; ++i) {
+            IIdRegistry.BulkRegisterDefaultRecoveryData memory item = registerItems[i];
+            assertEq(idRegistry.idCounter(), 0);
+            assertEq(idRegistry.idOf(item.custody), item.fid);
+            assertEq(idRegistry.custodyOf(item.fid), item.custody);
+            assertEq(idRegistry.recoveryOf(item.fid), recovery);
+        }
+    }
+
+    function testBulkRegisterEmitsEvent(address recovery) public {
+        IIdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
+            BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1).addFid(2).addFid(3);
+
+        for (uint256 i; i < 3; i++) {
+            IIdRegistry.BulkRegisterDefaultRecoveryData memory item = registerItems[i];
+            vm.expectEmit();
+            emit Register(item.custody, item.fid, recovery);
+        }
+
+        vm.prank(owner);
+        idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
+    }
+
+    function testFuzzBulkRegisterDuringGracePeriod(uint40 _warpForward, address recovery) public {
+        IdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
+            BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1);
+
+        uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
+
+        vm.startPrank(owner);
+        idRegistry.migrate();
+
+        vm.warp(idRegistry.migratedAt() + warpForward);
+
+        idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
+        vm.stopPrank();
+    }
+
+    function testFuzzBulkRegisterAfterGracePeriodRevertsUnauthorized(uint40 _warpForward, address recovery) public {
+        IdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
+            BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1);
+
+        uint256 warpForward =
+            bound(_warpForward, 1, type(uint40).max - idRegistry.gracePeriod() - idRegistry.migratedAt());
+
+        vm.startPrank(owner);
+        idRegistry.migrate();
+
+        vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
+
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
+        idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
+        vm.stopPrank();
+    }
+
+    function testBulkRegisterCannotReRegister(address recovery) public {
+        IdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
+            BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1).addFid(2).addFid(3);
+
+        vm.startPrank(owner);
+        idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
+        vm.expectRevert(IIdRegistry.HasId.selector);
+        idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
         vm.stopPrank();
     }
 
@@ -2042,7 +2125,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
                             BULK RESET
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkResetIdsForMigration(uint24[] memory _ids) public {
+    function testFuzzBulkResetIds(uint24[] memory _ids) public {
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
         console.log("huh");
@@ -2061,8 +2144,8 @@ contract IdRegistryTest is IdRegistryTestSuite {
         }
         vm.startPrank(owner);
 
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
-        idRegistry.bulkResetIdsForMigration(resetItems);
+        idRegistry.bulkRegisterIds(registerItems);
+        idRegistry.bulkResetIds(resetItems);
 
         for (uint256 i; i < idsLength; ++i) {
             IIdRegistry.BulkRegisterData memory item = registerItems[i];
@@ -2081,7 +2164,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint24[] memory resetItems = new uint24[](3);
 
         vm.prank(owner);
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkRegisterIds(registerItems);
 
         for (uint256 i; i < 3; i++) {
             IdRegistry.BulkRegisterData memory item = registerItems[i];
@@ -2091,7 +2174,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         }
 
         vm.prank(owner);
-        idRegistry.bulkResetIdsForMigration(resetItems);
+        idRegistry.bulkResetIds(resetItems);
     }
 
     function testFuzzBulkResetDuringGracePeriod(uint40 _warpForward) public {
@@ -2107,12 +2190,12 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
 
         vm.startPrank(owner);
-        idRegistry.bulkRegisterIdsForMigration(registerItems);
+        idRegistry.bulkRegisterIds(registerItems);
         idRegistry.migrate();
 
         vm.warp(idRegistry.migratedAt() + warpForward);
 
-        idRegistry.bulkResetIdsForMigration(resetItems);
+        idRegistry.bulkResetIds(resetItems);
         vm.stopPrank();
     }
 
@@ -2128,7 +2211,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
 
         vm.expectRevert(IMigration.PermissionRevoked.selector);
-        idRegistry.bulkResetIdsForMigration(resetItems);
+        idRegistry.bulkResetIds(resetItems);
 
         vm.stopPrank();
     }
@@ -2166,6 +2249,21 @@ contract IdRegistryTest is IdRegistryTestSuite {
                 fid: fids[i],
                 custody: vm.addr(uint256(keccak256(abi.encodePacked(toSeed + i)))),
                 recovery: vm.addr(uint256(keccak256(abi.encodePacked(recoverySeed + i))))
+            });
+        }
+        return registerItems;
+    }
+
+    function _buildRegisterWithDefaultRecoveryData(
+        uint24[] memory fids,
+        uint128 toSeed
+    ) internal pure returns (IIdRegistry.BulkRegisterDefaultRecoveryData[] memory) {
+        IIdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
+            new IIdRegistry.BulkRegisterDefaultRecoveryData[](fids.length);
+        for (uint256 i; i < fids.length; ++i) {
+            registerItems[i] = IIdRegistry.BulkRegisterDefaultRecoveryData({
+                fid: fids[i],
+                custody: vm.addr(uint256(keccak256(abi.encodePacked(toSeed + i))))
             });
         }
         return registerItems;
