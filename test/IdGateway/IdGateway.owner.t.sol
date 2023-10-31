@@ -2,7 +2,6 @@
 pragma solidity ^0.8.19;
 
 import {IdGateway} from "../../src/IdGateway.sol";
-import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {IGuardians} from "../../src/lib/Guardians.sol";
 import {IdGatewayTestSuite} from "./IdGatewayTestSuite.sol";
 

@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 
 import {IdGateway, IIdGateway} from "../../src/IdGateway.sol";
 import {IIdRegistry} from "../../src/IdRegistry.sol";
-import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {ISignatures} from "../../src/lib/Signatures.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
 import {IdGatewayTestSuite} from "./IdGatewayTestSuite.sol";

@@ -75,7 +75,6 @@ contract DeployL2Test is DeployL2, Test {
         DeployL2.DeploymentParams memory params = DeployL2.DeploymentParams({
             initialIdRegistryOwner: alpha,
             initialKeyRegistryOwner: alpha,
-            initialBundlerOwner: alpha,
             initialValidatorOwner: alpha,
             initialRecoveryProxyOwner: alpha,
             priceFeed: priceFeed,
@@ -85,7 +84,6 @@ contract DeployL2Test is DeployL2, Test {
             admin: beta,
             operator: relayer,
             treasurer: relayer,
-            bundlerTrustedCaller: relayer,
             deployer: deployer,
             salts: DeployL2.Salts({
                 storageRegistry: 0,

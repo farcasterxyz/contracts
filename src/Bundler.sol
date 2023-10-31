@@ -44,9 +44,7 @@ contract Bundler is IBundler {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Configure the addresses of the Manager and Registry contracts
-     *         and the trusted caller, which is allowed to register users
-     *         during the bootstrap phase.
+     * @notice Configure the addresses of the IdGateway and KeyGateway contracts.
      *
      * @param _idGateway       Address of the IdGateway contract
      * @param _keyGateway      Address of the KeyGateway contract

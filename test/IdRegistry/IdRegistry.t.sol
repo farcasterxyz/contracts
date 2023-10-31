@@ -27,6 +27,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     event SetIdGateway(address oldIdGateway, address newIdGateway);
     event Migrated(uint256 indexed migratedAt);
     event AdminReset(uint256 indexed fid);
+    event SetIdCounter(uint256 oldCounter, uint256 newCounter);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -1905,6 +1906,57 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         assertEq(idRegistry.isMigrated(), true);
         assertEq(idRegistry.migratedAt(), timestamp);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          SET COUNTER
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzSetIdCounter(uint256 idCounter) public {
+        uint256 prevIdCounter = idRegistry.idCounter();
+
+        vm.expectEmit();
+        emit SetIdCounter(prevIdCounter, idCounter);
+
+        vm.prank(owner);
+        idRegistry.setIdCounter(idCounter);
+
+        assertEq(idRegistry.idCounter(), idCounter);
+    }
+
+    function testFuzzSetIdCounterDuringGracePeriod(uint256 idCounter, uint40 _warpForward) public {
+        uint256 prevIdCounter = idRegistry.idCounter();
+        uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
+
+        vm.prank(owner);
+        idRegistry.migrate();
+
+        vm.warp(idRegistry.migratedAt() + warpForward);
+
+        vm.expectEmit();
+        emit SetIdCounter(prevIdCounter, idCounter);
+
+        vm.prank(owner);
+        idRegistry.setIdCounter(idCounter);
+
+        assertEq(idRegistry.idCounter(), idCounter);
+    }
+
+    function testFuzzSetIdCounterAfterGracePeriodReverts(uint256 idCounter, uint40 _warpForward) public {
+        uint256 prevIdCounter = idRegistry.idCounter();
+        uint256 warpForward =
+            bound(_warpForward, 1, type(uint40).max - idRegistry.gracePeriod() - idRegistry.migratedAt());
+
+        vm.prank(owner);
+        idRegistry.migrate();
+
+        vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
+
+        vm.prank(owner);
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
+        idRegistry.setIdCounter(idCounter);
+
+        assertEq(idRegistry.idCounter(), prevIdCounter);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -78,7 +78,6 @@ contract UpgradeL2Test is UpgradeL2, Test {
         UpgradeL2.DeploymentParams memory params = UpgradeL2.DeploymentParams({
             initialIdRegistryOwner: alpha,
             initialKeyRegistryOwner: alpha,
-            initialBundlerOwner: alpha,
             initialValidatorOwner: alpha,
             initialRecoveryProxyOwner: alpha,
             priceFeed: priceFeed,
@@ -88,7 +87,6 @@ contract UpgradeL2Test is UpgradeL2, Test {
             admin: beta,
             operator: relayer,
             treasurer: relayer,
-            bundlerTrustedCaller: relayer,
             storageRegistryAddr: storageRegistryAddr,
             signedKeyRequestValidatorAddr: signedKeyRequestValidatorAddr,
             deployer: deployer,

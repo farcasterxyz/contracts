@@ -97,6 +97,8 @@ interface IIdRegistry {
      */
     event SetIdGateway(address oldIdGateway, address newIdGateway);
 
+    event SetIdCounter(uint256 oldCounter, uint256 newCounter);
+
     event AdminReset(uint256 indexed fid);
 
     /*//////////////////////////////////////////////////////////////

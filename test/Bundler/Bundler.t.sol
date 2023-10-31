@@ -7,7 +7,6 @@ import {Bundler, IBundler} from "../../src/Bundler.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {StorageRegistry} from "../../src/StorageRegistry.sol";
-import {ITrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {BundlerTestSuite} from "./BundlerTestSuite.sol";
 
 /* solhint-disable state-visibility */

@@ -325,6 +325,11 @@ contract IdRegistry is IIdRegistry, Guardians, Signatures, EIP712, Nonces, Migra
         }
     }
 
+    function setIdCounter(uint256 _counter) external migration {
+        emit SetIdCounter(idCounter, _counter);
+        idCounter = _counter;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                   VIEWS
     //////////////////////////////////////////////////////////////*/
