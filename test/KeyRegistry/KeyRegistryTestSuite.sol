@@ -17,7 +17,7 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
     function setUp() public virtual override {
         super.setUp();
 
-        keyRegistry = new KeyRegistry(address(idRegistry), owner, 10);
+        keyRegistry = new KeyRegistry(address(idRegistry), migrator, owner, 10);
         stubValidator = new StubValidator();
 
         vm.prank(owner);

@@ -8,15 +8,17 @@ import {IdRegistry} from "../../src/IdRegistry.sol";
 
 contract IdRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
+    address migrator;
     address idGateway;
     address x;
     address y;
 
     function setUp() public {
         idGateway = address(0x1000);
+        migrator = address(0x2000);
 
         // Setup IdRegistry
-        idRegistry = new IdRegistry(address(this));
+        idRegistry = new IdRegistry(migrator, address(this));
         idRegistry.setIdGateway(address(idGateway));
 
         // Register fids

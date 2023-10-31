@@ -46,7 +46,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     function testInitialMigrator() public {
-        assertEq(idRegistry.migrator(), owner);
+        assertEq(idRegistry.migrator(), migrator);
     }
 
     function testInitialStateIsNotMigrated() public {
@@ -63,15 +63,15 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.warp(timestamp);
         vm.expectEmit();
         emit Migrated(timestamp);
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.migrate();
 
         assertEq(idRegistry.isMigrated(), true);
         assertEq(idRegistry.migratedAt(), timestamp);
     }
 
-    function testFuzzOnlyOwnerCanMigrate(address caller) public {
-        vm.assume(caller != owner);
+    function testFuzzOnlyMigratorCanMigrate(address caller) public {
+        vm.assume(caller != migrator);
 
         vm.prank(caller);
         vm.expectRevert(IMigration.OnlyMigrator.selector);
@@ -84,12 +84,12 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzCannotMigrateTwice(uint40 timestamp) public {
         timestamp = uint40(bound(timestamp, 1, type(uint40).max));
         vm.warp(timestamp);
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.migrate();
 
         timestamp = uint40(bound(timestamp, timestamp, type(uint40).max));
         vm.expectRevert(IMigration.AlreadyMigrated.selector);
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.migrate();
 
         assertEq(idRegistry.isMigrated(), true);
@@ -106,7 +106,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.expectEmit();
         emit SetIdCounter(prevIdCounter, idCounter);
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.setIdCounter(idCounter);
 
         assertEq(idRegistry.idCounter(), idCounter);
@@ -116,7 +116,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 prevIdCounter = idRegistry.idCounter();
         uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.migrate();
 
         vm.warp(idRegistry.migratedAt() + warpForward);
@@ -124,7 +124,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.expectEmit();
         emit SetIdCounter(prevIdCounter, idCounter);
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.setIdCounter(idCounter);
 
         assertEq(idRegistry.idCounter(), idCounter);
@@ -135,12 +135,12 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - idRegistry.gracePeriod() - idRegistry.migratedAt());
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.migrate();
 
         vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
 
-        vm.prank(owner);
+        vm.prank(migrator);
         vm.expectRevert(IMigration.PermissionRevoked.selector);
         idRegistry.setIdCounter(idCounter);
 
@@ -153,7 +153,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.prank(owner);
         idRegistry.unpause();
 
-        vm.prank(owner);
+        vm.prank(migrator);
         vm.expectRevert("Pausable: not paused");
         idRegistry.setIdCounter(idCounter);
 
@@ -172,7 +172,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 idsLength = ids.length;
         IIdRegistry.BulkRegisterData[] memory registerItems = _buildRegisterData(ids, toSeed, recoverySeed);
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.bulkRegisterIds(registerItems);
 
         for (uint256 i; i < idsLength; ++i) {
@@ -194,7 +194,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
             emit Register(item.custody, item.fid, item.recovery);
         }
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.bulkRegisterIds(registerItems);
     }
 
@@ -203,7 +203,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
         idRegistry.migrate();
 
         vm.warp(idRegistry.migratedAt() + warpForward);
@@ -218,7 +218,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - idRegistry.gracePeriod() - idRegistry.migratedAt());
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
         idRegistry.migrate();
 
         vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
@@ -232,7 +232,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         IdRegistry.BulkRegisterData[] memory registerItems =
             BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
         idRegistry.bulkRegisterIds(registerItems);
         vm.expectRevert(IIdRegistry.HasId.selector);
         idRegistry.bulkRegisterIds(registerItems);
@@ -243,11 +243,12 @@ contract IdRegistryTest is IdRegistryTestSuite {
         IdRegistry.BulkRegisterData[] memory registerItems =
             BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
 
-        vm.startPrank(owner);
+        vm.prank(owner);
         idRegistry.unpause();
+
+        vm.prank(migrator);
         vm.expectRevert("Pausable: not paused");
         idRegistry.bulkRegisterIds(registerItems);
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -263,7 +264,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         IIdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
             _buildRegisterWithDefaultRecoveryData(ids, toSeed);
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
 
         for (uint256 i; i < idsLength; ++i) {
@@ -285,7 +286,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
             emit Register(item.custody, item.fid, recovery);
         }
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
     }
 
@@ -295,7 +296,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
         idRegistry.migrate();
 
         vm.warp(idRegistry.migratedAt() + warpForward);
@@ -314,7 +315,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - idRegistry.gracePeriod() - idRegistry.migratedAt());
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
         idRegistry.migrate();
 
         vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
@@ -328,7 +329,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         IdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
             BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1).addFid(2).addFid(3);
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
         idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
         vm.expectRevert(IIdRegistry.HasId.selector);
         idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
@@ -339,11 +340,12 @@ contract IdRegistryTest is IdRegistryTestSuite {
         IdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
             BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1).addFid(2).addFid(3);
 
-        vm.startPrank(owner);
+        vm.prank(owner);
         idRegistry.unpause();
+
+        vm.prank(migrator);
         vm.expectRevert("Pausable: not paused");
         idRegistry.bulkRegisterIdsWithDefaultRecovery(registerItems, recovery);
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -364,7 +366,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
             registerItems = registerItems.addFid(ids[i]);
             resetItems[i] = ids[i];
         }
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
 
         idRegistry.bulkRegisterIds(registerItems);
         idRegistry.bulkResetIds(resetItems);
@@ -385,7 +387,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
             BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
         uint24[] memory resetItems = new uint24[](3);
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.bulkRegisterIds(registerItems);
 
         for (uint256 i; i < 3; i++) {
@@ -395,7 +397,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
             emit AdminReset(item.fid);
         }
 
-        vm.prank(owner);
+        vm.prank(migrator);
         idRegistry.bulkResetIds(resetItems);
     }
 
@@ -411,7 +413,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
 
         uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
         idRegistry.bulkRegisterIds(registerItems);
         idRegistry.migrate();
 
@@ -427,7 +429,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         uint256 warpForward =
             bound(_warpForward, 1, type(uint40).max - idRegistry.gracePeriod() - idRegistry.migratedAt());
 
-        vm.startPrank(owner);
+        vm.startPrank(migrator);
         idRegistry.migrate();
 
         vm.warp(idRegistry.migratedAt() + idRegistry.gracePeriod() + warpForward);
@@ -441,13 +443,12 @@ contract IdRegistryTest is IdRegistryTestSuite {
     function testFuzzBulkResetUnpausedReverts() public {
         uint24[] memory resetItems = new uint24[](3);
 
-        vm.startPrank(owner);
+        vm.prank(owner);
         idRegistry.unpause();
 
+        vm.prank(migrator);
         vm.expectRevert("Pausable: not paused");
         idRegistry.bulkResetIds(resetItems);
-
-        vm.stopPrank();
     }
 
     function _dedupeFuzzedIds(uint24[] memory _ids, uint256 len) internal pure returns (uint24[] memory ids) {

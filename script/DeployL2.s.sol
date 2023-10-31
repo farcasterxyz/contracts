@@ -45,6 +45,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
         address operator;
         address treasurer;
         address deployer;
+        address migrator;
         Salts salts;
     }
 
@@ -96,8 +97,12 @@ contract DeployL2 is ImmutableCreate2Deployer {
                 params.treasurer
             )
         );
-        addrs.idRegistry =
-            register("IdRegistry", params.salts.idRegistry, type(IdRegistry).creationCode, abi.encode(params.deployer));
+        addrs.idRegistry = register(
+            "IdRegistry",
+            params.salts.idRegistry,
+            type(IdRegistry).creationCode,
+            abi.encode(params.migrator, params.deployer)
+        );
         addrs.idGateway = register(
             "IdGateway",
             params.salts.idGateway,
@@ -108,7 +113,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             "KeyRegistry",
             params.salts.keyRegistry,
             type(KeyRegistry).creationCode,
-            abi.encode(addrs.idRegistry, params.deployer, KEY_REGISTRY_MAX_KEYS_PER_FID)
+            abi.encode(addrs.idRegistry, params.migrator, params.deployer, KEY_REGISTRY_MAX_KEYS_PER_FID)
         );
         addrs.keyGateway = register(
             "KeyGateway",
@@ -189,6 +194,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             operator: vm.envAddress("STORAGE_RENT_OPERATOR_ADDRESS"),
             treasurer: vm.envAddress("STORAGE_RENT_TREASURER_ADDRESS"),
             deployer: vm.envAddress("DEPLOYER"),
+            migrator: vm.envAddress("MIGRATOR_ADDRESS"),
             salts: Salts({
                 storageRegistry: vm.envOr("STORAGE_RENT_CREATE2_SALT", bytes32(0)),
                 idRegistry: vm.envOr("ID_REGISTRY_CREATE2_SALT", bytes32(0)),

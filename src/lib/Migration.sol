@@ -56,9 +56,10 @@ abstract contract Migration is IMigration, Guardians {
      * @param _gracePeriod  Migration grace period in seconds.
      * @param _initialOwner Initial owner address. Set as migrator.
      */
-    constructor(uint24 _gracePeriod, address _initialOwner) Guardians(_initialOwner) {
+    constructor(uint24 _gracePeriod, address _migrator, address _initialOwner) Guardians(_initialOwner) {
         gracePeriod = _gracePeriod;
-        migrator = _initialOwner;
+        migrator = _migrator;
+        emit SetMigrator(address(0), _migrator);
         _pause();
     }
 
@@ -98,6 +99,8 @@ abstract contract Migration is IMigration, Guardians {
      * @param _migrator The address of the new migrator
      */
     function setMigrator(address _migrator) public onlyOwner {
+        if (isMigrated()) revert AlreadyMigrated();
+        _requirePaused();
         emit SetMigrator(migrator, _migrator);
         migrator = _migrator;
     }

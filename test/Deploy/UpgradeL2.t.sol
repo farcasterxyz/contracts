@@ -48,6 +48,7 @@ contract UpgradeL2Test is UpgradeL2, Test {
     address internal beta = address(0xD84E32224A249A575A09672Da9cb58C381C4837a);
     address internal vault = address(0x53c6dA835c777AD11159198FBe11f95E5eE6B692);
     address internal relayer = address(0x2D93c2F74b2C4697f9ea85D0450148AA45D4D5a2);
+    address internal migrator = makeAddr("migrator");
 
     // @dev OP Mainnet ETH/USD price feed
     address internal priceFeed = address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
@@ -90,6 +91,7 @@ contract UpgradeL2Test is UpgradeL2, Test {
             storageRegistryAddr: storageRegistryAddr,
             signedKeyRequestValidatorAddr: signedKeyRequestValidatorAddr,
             deployer: deployer,
+            migrator: migrator,
             salts: UpgradeL2.Salts({
                 storageRegistry: 0,
                 idRegistry: 0,

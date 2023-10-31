@@ -93,14 +93,16 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
      * @notice Set the IdRegistry and owner.
      *
      * @param _idRegistry    IdRegistry contract address.
+     * @param _migrator      Migrator address.
      * @param _initialOwner  Initial contract owner address.
      * @param _maxKeysPerFid Maximum number of keys per fid.
      */
     constructor(
         address _idRegistry,
+        address _migrator,
         address _initialOwner,
         uint256 _maxKeysPerFid
-    ) Migration(24 hours, _initialOwner) EIP712("Farcaster KeyRegistry", "1") {
+    ) Migration(24 hours, _migrator, _initialOwner) EIP712("Farcaster KeyRegistry", "1") {
         idRegistry = IdRegistryLike(_idRegistry);
         maxKeysPerFid = _maxKeysPerFid;
         emit SetIdRegistry(address(0), _idRegistry);
