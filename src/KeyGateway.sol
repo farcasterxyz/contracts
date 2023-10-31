@@ -2,13 +2,11 @@
 pragma solidity 0.8.21;
 
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
-import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {Nonces} from "./lib/Nonces.sol";
 import {Guardians} from "./lib/Guardians.sol";
 import {Signatures} from "./lib/Signatures.sol";
-import {TransferHelper} from "./lib/TransferHelper.sol";
 
 /**
  * @title Farcaster KeyGateway
@@ -47,6 +45,13 @@ contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Configure the address of the KeyRegistry contract.
+     *         Set the initial owner address.
+     *
+     * @param _keyRegistry  Address of the KeyRegistry contract.
+     * @param _initialOwner Address of the inital owner.
+     */
     constructor(
         address _keyRegistry,
         address _initialOwner

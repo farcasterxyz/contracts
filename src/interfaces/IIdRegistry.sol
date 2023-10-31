@@ -113,10 +113,26 @@ interface IIdRegistry {
      */
     event SetIdGateway(address oldIdGateway, address newIdGateway);
 
+    /**
+     * @dev Emit an event when the contract owner permanently freezes the IdGateway address.
+     *
+     * @param idGateway The permanent IdGateway address.
+     */
     event FreezeIdGateway(address idGateway);
 
+    /**
+     * @dev Emit an event when the migration admin sets the idCounter.
+     *
+     * @param oldCounter The previous idCounter value.
+     * @param newCounter The new idCounter value.
+     */
     event SetIdCounter(uint256 oldCounter, uint256 newCounter);
 
+    /**
+     * @dev Emit an event when the migration admin resets an fid.
+     *
+     * @param fid The reset fid.
+     */
     event AdminReset(uint256 indexed fid);
 
     /*//////////////////////////////////////////////////////////////

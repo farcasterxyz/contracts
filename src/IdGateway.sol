@@ -54,9 +54,12 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the owner of the contract to the provided _owner.
+     * @notice Configure IdRegistry and StorageRegistry addresses.
+     *         Set the owner of the contract to the provided _owner.
      *
-     * @param _initialOwner Initial owner address.
+     * @param _idRegistry      IdRegistry address.
+     * @param _storageRegistry StorageRegistery address.
+     * @param _initialOwner    Initial owner address.
      *
      */
     constructor(
@@ -73,15 +76,15 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Calculate the total price to register, equal to 1
-     *         storage unit.
-     *
-     * @return Total price in wei.
+     * @inheritdoc IIdGateway
      */
     function price() external view returns (uint256) {
         return storageRegistry.unitPrice();
     }
 
+    /**
+     * @inheritdoc IIdGateway
+     */
     function price(uint256 extraStorage) external view returns (uint256) {
         return storageRegistry.price(1 + extraStorage);
     }

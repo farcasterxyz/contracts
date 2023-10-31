@@ -91,7 +91,6 @@ contract Bundler is IBundler {
                 ++i;
             }
         }
-
         if (overpayment > 0) msg.sender.sendNative(overpayment);
         return fid;
     }

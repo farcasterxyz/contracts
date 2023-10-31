@@ -8,20 +8,33 @@ abstract contract Migration is IMigration {
                               IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IMigration
+     */
     address public immutable migrator;
 
+    /**
+     * @inheritdoc IMigration
+     */
     uint24 public immutable gracePeriod;
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IMigration
+     */
     uint40 public migratedAt;
 
     /*//////////////////////////////////////////////////////////////
                                  MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Allow only the migrator to call the protected function.
+     *         Revoke permissions after the migration period.
+     */
     modifier migration() {
         if (msg.sender != migrator) revert OnlyMigrator();
         if (isMigrated() && block.timestamp > migratedAt + gracePeriod) {
@@ -35,7 +48,7 @@ abstract contract Migration is IMigration {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Set the grace period.
+     * @notice Set the grace period and migrator address.
      *
      * @param _gracePeriod Migration grace period in seconds.
      * @param _migrator    Migration admin address.
@@ -49,6 +62,9 @@ abstract contract Migration is IMigration {
                                   VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IMigration
+     */
     function isMigrated() public view returns (bool) {
         return migratedAt != 0;
     }
@@ -57,6 +73,9 @@ abstract contract Migration is IMigration {
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IMigration
+     */
     function migrate() external {
         if (msg.sender != migrator) revert OnlyMigrator();
         if (isMigrated()) revert AlreadyMigrated();
