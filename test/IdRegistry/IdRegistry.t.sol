@@ -29,6 +29,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     event Migrated(uint256 indexed migratedAt);
     event AdminReset(uint256 indexed fid);
     event SetIdCounter(uint256 oldCounter, uint256 newCounter);
+    event FreezeIdGateway(address idGateway);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -1843,7 +1844,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          SET ID MANAGER
+                          SET ID GATEWAY
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzSetIdGateway(address idGateway) public {
@@ -1864,6 +1865,53 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(caller);
         idRegistry.setIdGateway(idGateway);
+    }
+
+    function testFuzzFreezeIdGateway(address idGateway) public {
+        assertEq(idRegistry.gatewayFrozen(), false);
+
+        vm.prank(owner);
+        idRegistry.setIdGateway(idGateway);
+
+        vm.expectEmit();
+        emit FreezeIdGateway(idGateway);
+
+        vm.prank(owner);
+        idRegistry.freezeIdGateway();
+
+        assertEq(idRegistry.gatewayFrozen(), true);
+    }
+
+    function testFuzzOnlyOwnerCanFreezeIdGateway(address caller) public {
+        vm.assume(caller != owner);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        idRegistry.freezeIdGateway();
+    }
+
+    function testFuzzSetIdGatewayRevertsWhenFrozen(address idGateway) public {
+        assertEq(idRegistry.gatewayFrozen(), false);
+
+        vm.prank(owner);
+        idRegistry.freezeIdGateway();
+
+        assertEq(idRegistry.gatewayFrozen(), true);
+
+        vm.prank(owner);
+        vm.expectRevert(IIdRegistry.GatewayFrozen.selector);
+        idRegistry.setIdGateway(idGateway);
+    }
+
+    function testFreezeIdGatewayRevertsWhenFrozen() public {
+        vm.prank(owner);
+        idRegistry.freezeIdGateway();
+
+        assertEq(idRegistry.gatewayFrozen(), true);
+
+        vm.prank(owner);
+        vm.expectRevert(IIdRegistry.GatewayFrozen.selector);
+        idRegistry.freezeIdGateway();
     }
 
     /*//////////////////////////////////////////////////////////////

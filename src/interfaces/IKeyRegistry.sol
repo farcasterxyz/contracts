@@ -33,6 +33,9 @@ interface IKeyRegistry {
     /// @dev Revert if the owner sets maxKeysPerFid equal to or below its current value.
     error InvalidMaxKeys();
 
+    /// @dev Revert when the gateway dependency is permanently frozen.
+    error GatewayFrozen();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -144,6 +147,8 @@ interface IKeyRegistry {
      */
     event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
 
+    event FreezeKeyGateway(address keyGateway);
+
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -237,6 +242,11 @@ interface IKeyRegistry {
      * @notice The KeyGateway address.
      */
     function keyGateway() external view returns (address);
+
+    /**
+     * @notice Whether the KeyGateway address is permanently frozen.
+     */
+    function gatewayFrozen() external view returns (bool);
 
     /**
      * @notice Maximum number of keys per fid.
@@ -340,6 +350,11 @@ interface IKeyRegistry {
      * @param _keyGateway The new KeyGateway address.
      */
     function setKeyGateway(address _keyGateway) external;
+
+    /**
+     * @notice Permanently freeze the KeyGateway address. Only callable by owner.
+     */
+    function freezeKeyGateway() external;
 
     /**
      * @notice Set the maximum number of keys allowed per fid. Only callable by owner.

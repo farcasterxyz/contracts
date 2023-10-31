@@ -45,6 +45,9 @@ interface IIdRegistry {
     /// @dev Revert when the destination must be empty but has an fid.
     error HasId();
 
+    /// @dev Revert when the gateway dependency is permanently frozen.
+    error GatewayFrozen();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -110,6 +113,8 @@ interface IIdRegistry {
      */
     event SetIdGateway(address oldIdGateway, address newIdGateway);
 
+    event FreezeIdGateway(address idGateway);
+
     event SetIdCounter(uint256 oldCounter, uint256 newCounter);
 
     event AdminReset(uint256 indexed fid);
@@ -147,6 +152,11 @@ interface IIdRegistry {
      * @notice Address of the IdGateway, an address allowed to register fids.
      */
     function idGateway() external view returns (address);
+
+    /**
+     * @notice Whether the IdGateway address is permanently frozen.
+     */
+    function gatewayFrozen() external view returns (bool);
 
     /**
      * @notice The last Farcaster id that was issued.
@@ -289,8 +299,14 @@ interface IIdRegistry {
     function register(address to, address recovery) external returns (uint256 fid);
 
     /**
-     * @notice Set the IdGateway address, allowed to add fids.
-     *         Must be called by the owner.
+     * @notice Set the IdGateway address allowed to register fids. Only callable by owner.
+     *
+     * @param _idGateway The new IdGateway address.
      */
-    function setIdGateway(address idGateway) external;
+    function setIdGateway(address _idGateway) external;
+
+    /**
+     * @notice Permanently freeze the IdGateway address. Only callable by owner.
+     */
+    function freezeIdGateway() external;
 }
