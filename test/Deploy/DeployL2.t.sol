@@ -143,10 +143,9 @@ contract DeployL2Test is DeployL2, Test {
         assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), deployer), false);
         assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), relayer), true);
 
-        // Ownership transfers initiated from deployer to multisig
+        // Ownership transfer initiated from deployer to multisig
         assertEq(idRegistry.owner(), deployer);
         assertEq(idRegistry.pendingOwner(), alpha);
-
         assertEq(keyRegistry.owner(), deployer);
         assertEq(keyRegistry.pendingOwner(), alpha);
 
@@ -175,8 +174,12 @@ contract DeployL2Test is DeployL2, Test {
         // Multisig accepts ownership transferred from deployer
         vm.startPrank(alpha);
         idRegistry.acceptOwnership();
-        idGateway.acceptOwnership();
+        idRegistry.unpause();
+
         keyRegistry.acceptOwnership();
+        keyRegistry.unpause();
+
+        idGateway.acceptOwnership();
         vm.stopPrank();
 
         // Register an app fid

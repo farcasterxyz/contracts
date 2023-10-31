@@ -20,6 +20,9 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
         keyRegistry = new KeyRegistry(address(idRegistry), owner, 10);
         stubValidator = new StubValidator();
 
+        vm.prank(owner);
+        keyRegistry.unpause();
+
         addKnownContract(address(keyRegistry));
         addKnownContract(address(stubValidator));
     }

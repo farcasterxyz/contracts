@@ -155,10 +155,9 @@ contract UpgradeL2Test is UpgradeL2, Test {
         assertEq(storageRegistry.getRoleMemberCount(keccak256("TREASURER_ROLE")), 1);
         assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), deployer), false);
 
-        // Ownership transfers initiated from deployer to multisig
+        // Ownership transfer initiated from deployer to multisig
         assertEq(idRegistry.owner(), deployer);
         assertEq(idRegistry.pendingOwner(), alpha);
-
         assertEq(keyRegistry.owner(), deployer);
         assertEq(keyRegistry.pendingOwner(), alpha);
 
@@ -186,9 +185,14 @@ contract UpgradeL2Test is UpgradeL2, Test {
     function test_e2e() public {
         // Multisig accepts ownership transferred from deployer
         vm.startPrank(alpha);
+
         idRegistry.acceptOwnership();
-        idGateway.acceptOwnership();
+        idRegistry.unpause();
+
         keyRegistry.acceptOwnership();
+        keyRegistry.unpause();
+
+        idGateway.acceptOwnership();
         vm.stopPrank();
 
         // Register an app fid

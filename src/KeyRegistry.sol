@@ -7,7 +7,6 @@ import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
 import {EIP712} from "./lib/EIP712.sol";
-import {Guardians} from "./lib/Guardians.sol";
 import {Migration} from "./lib/Migration.sol";
 import {Nonces} from "./lib/Nonces.sol";
 import {Signatures} from "./lib/Signatures.sol";
@@ -19,7 +18,7 @@ import {Signatures} from "./lib/Signatures.sol";
  *
  * @custom:security-contact security@farcaster.xyz
  */
-contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Migration {
+contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -101,7 +100,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Mig
         address _idRegistry,
         address _initialOwner,
         uint256 _maxKeysPerFid
-    ) Guardians(_initialOwner) EIP712("Farcaster KeyRegistry", "1") Migration(24 hours, _initialOwner) {
+    ) Migration(24 hours, _initialOwner) EIP712("Farcaster KeyRegistry", "1") {
         idRegistry = IdRegistryLike(_idRegistry);
         maxKeysPerFid = _maxKeysPerFid;
         emit SetIdRegistry(address(0), _idRegistry);
@@ -132,7 +131,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Mig
         bytes calldata key,
         uint8 metadataType,
         bytes calldata metadata
-    ) external {
+    ) external whenNotPaused {
         if (msg.sender != keyGateway) revert Unauthorized();
         _add(_fidOf(fidOwner), keyType, key, metadataType, metadata);
     }
@@ -140,14 +139,19 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Mig
     /**
      * @inheritdoc IKeyRegistry
      */
-    function remove(bytes calldata key) external {
+    function remove(bytes calldata key) external whenNotPaused {
         _remove(_fidOf(msg.sender), key);
     }
 
     /**
      * @inheritdoc IKeyRegistry
      */
-    function removeFor(address fidOwner, bytes calldata key, uint256 deadline, bytes calldata sig) external {
+    function removeFor(
+        address fidOwner,
+        bytes calldata key,
+        uint256 deadline,
+        bytes calldata sig
+    ) external whenNotPaused {
         _verifyRemoveSig(fidOwner, key, deadline, sig);
         _remove(_fidOf(fidOwner), key);
     }
@@ -258,7 +262,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Mig
         uint8 metadataType,
         bytes calldata metadata,
         bool validate
-    ) internal whenNotPaused {
+    ) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
         if (totalKeys[fid] >= maxKeysPerFid) revert ExceedsMaximum();
@@ -279,7 +283,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Mig
         }
     }
 
-    function _remove(uint256 fid, bytes calldata key) internal whenNotPaused {
+    function _remove(uint256 fid, bytes calldata key) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
@@ -288,7 +292,7 @@ contract KeyRegistry is IKeyRegistry, Guardians, Signatures, EIP712, Nonces, Mig
         emit Remove(fid, key, key);
     }
 
-    function _reset(uint256 fid, bytes calldata key) internal whenNotPaused {
+    function _reset(uint256 fid, bytes calldata key) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
