@@ -23,7 +23,7 @@ contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyGateway
      */
-    string public constant VERSION = "2023.10.04";
+    string public constant VERSION = "2023.11.15";
 
     /**
      * @inheritdoc IKeyGateway

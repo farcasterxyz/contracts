@@ -29,7 +29,7 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    string public constant VERSION = "2023.10.04";
+    string public constant VERSION = "2023.11.15";
 
     /**
      * @inheritdoc IKeyRegistry
@@ -134,6 +134,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
         return _keysByFid[fid].values();
     }
 
+    /**
+     * @inheritdoc IKeyRegistry
+     */
     function keysOf(
         uint256 fid,
         uint256 startIdx,

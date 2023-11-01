@@ -44,7 +44,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     function testVersion() public {
-        assertEq(keyRegistry.VERSION(), "2023.10.04");
+        assertEq(keyRegistry.VERSION(), "2023.11.15");
     }
 
     /*//////////////////////////////////////////////////////////////

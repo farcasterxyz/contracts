@@ -33,7 +33,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testVersion() public {
-        assertEq(idRegistry.VERSION(), "2023.10.04");
+        assertEq(idRegistry.VERSION(), "2023.11.15");
     }
 
     function testName() public {

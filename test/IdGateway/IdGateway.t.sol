@@ -23,7 +23,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testVersion() public {
-        assertEq(idGateway.VERSION(), "2023.10.04");
+        assertEq(idGateway.VERSION(), "2023.11.15");
     }
 
     function testIdRegistry() public {
