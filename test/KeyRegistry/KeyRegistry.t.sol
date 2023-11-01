@@ -954,10 +954,6 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(page.length, 23);
         assertEq(nextIdx, 0);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, 100, 100);
-        assertEq(page.length, 0);
-        assertEq(nextIdx, 0);
-
         (page, nextIdx) = keyRegistry.keysOf(fid, 0, 3);
         assertEq(page.length, 3);
         assertEq(nextIdx, 3);
@@ -977,6 +973,84 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 4);
         assertEq(page.length, 2);
         assertEq(nextIdx, 0);
+    }
+
+    function testFuzzKeysOfPagedIndexEqualToLength(
+        address to,
+        address recovery,
+        uint32 keyType,
+        uint8 metadataType
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(23);
+
+        for (uint256 i; i < 23; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, 23, 10);
+        assertEq(page.length, 0);
+        assertEq(nextIdx, 0);
+    }
+
+    function testFuzzKeysOfPagedIndexGreaterThanLength(
+        address to,
+        address recovery,
+        uint32 keyType,
+        uint8 metadataType
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(23);
+
+        for (uint256 i; i < 23; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, 100, 100);
+        assertEq(page.length, 0);
+        assertEq(nextIdx, 0);
+    }
+
+    function testFuzzKeysOfPagedNeverReverts(
+        address to,
+        address recovery,
+        uint32 keyType,
+        uint8 metadataType,
+        uint256 idx,
+        uint256 size
+    ) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(23);
+
+        for (uint256 i; i < 23; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, idx, size);
     }
 
     /*//////////////////////////////////////////////////////////////
