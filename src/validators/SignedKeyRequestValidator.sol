@@ -3,7 +3,7 @@ pragma solidity 0.8.21;
 
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 
-import {EIP712} from "../lib/EIP712.sol";
+import {EIP712} from "../abstract/EIP712.sol";
 import {IMetadataValidator} from "../interfaces/IMetadataValidator.sol";
 import {IdRegistryLike} from "../interfaces/IdRegistryLike.sol";
 

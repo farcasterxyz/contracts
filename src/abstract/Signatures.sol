@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import {ISignatures} from "../interfaces/lib/ISignatures.sol";
+import {ISignatures} from "../interfaces/abstract/ISignatures.sol";
 
 abstract contract Signatures is ISignatures {
     /*//////////////////////////////////////////////////////////////

@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import {SymTest} from "halmos-cheatcodes/SymTest.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {Guardians} from "../../../src/lib/Guardians.sol";
+import {Guardians} from "../../../src/abstract/Guardians.sol";
 
 contract GuardiansExample is Guardians {
     constructor(address owner) Guardians(owner) {}

@@ -3,10 +3,10 @@ pragma solidity 0.8.21;
 
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
-import {EIP712} from "./lib/EIP712.sol";
-import {Nonces} from "./lib/Nonces.sol";
-import {Guardians} from "./lib/Guardians.sol";
-import {Signatures} from "./lib/Signatures.sol";
+import {EIP712} from "./abstract/EIP712.sol";
+import {Nonces} from "./abstract/Nonces.sol";
+import {Guardians} from "./abstract/Guardians.sol";
+import {Signatures} from "./abstract/Signatures.sol";
 
 /**
  * @title Farcaster KeyGateway

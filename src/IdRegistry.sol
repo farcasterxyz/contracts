@@ -4,10 +4,10 @@ pragma solidity 0.8.21;
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
-import {EIP712} from "./lib/EIP712.sol";
-import {Nonces} from "./lib/Nonces.sol";
-import {Signatures} from "./lib/Signatures.sol";
-import {Migration} from "./lib/Migration.sol";
+import {EIP712} from "./abstract/EIP712.sol";
+import {Nonces} from "./abstract/Nonces.sol";
+import {Signatures} from "./abstract/Signatures.sol";
+import {Migration} from "./abstract/Migration.sol";
 
 /**
  * @title Farcaster IdRegistry

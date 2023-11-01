@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import {IdGateway} from "../../src/IdGateway.sol";
-import {IGuardians} from "../../src/lib/Guardians.sol";
+import {IGuardians} from "../../src/abstract/Guardians.sol";
 import {IdGatewayTestSuite} from "./IdGatewayTestSuite.sol";
 
 /* solhint-disable state-visibility */

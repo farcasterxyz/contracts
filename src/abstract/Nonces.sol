@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {Nonces as NoncesBase} from "openzeppelin-latest/contracts/utils/Nonces.sol";
-import {INonces} from "../interfaces/lib/INonces.sol";
+import {INonces} from "../interfaces/abstract/INonces.sol";
 
 abstract contract Nonces is INonces, NoncesBase {
     /*//////////////////////////////////////////////////////////////

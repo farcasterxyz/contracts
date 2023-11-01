@@ -2,9 +2,9 @@
 pragma solidity ^0.8.19;
 
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
-import {IGuardians} from "../../src/lib/Guardians.sol";
-import {ISignatures} from "../../src/lib/Signatures.sol";
-import {IMigration} from "../../src/lib/Migration.sol";
+import {IGuardians} from "../../src/abstract/Guardians.sol";
+import {ISignatures} from "../../src/abstract/Signatures.sol";
+import {IMigration} from "../../src/abstract/Migration.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
@@ -850,6 +850,44 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             (bytes memory expectedKey,) = _makeKey(i);
             assertEq(keyRegistry.keyAt(fid, i), expectedKey);
         }
+    }
+
+    function testFuzzKeyCounts(
+        address to,
+        address recovery,
+        uint32 keyType,
+        uint8 metadataType,
+        uint16 numKeys,
+        uint16 numRemove
+    ) public {
+        numKeys = uint16(bound(numKeys, 1, 1000));
+        numRemove = uint16(bound(numRemove, 1, numKeys));
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(1000);
+
+        assertEq(keyRegistry.totalKeys(fid), 0);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        assertEq(keyRegistry.totalKeys(fid), numKeys);
+
+        for (uint256 i; i < numRemove; i++) {
+            (bytes memory key,) = _makeKey(i);
+            vm.prank(to);
+            keyRegistry.remove(key);
+        }
+
+        assertEq(keyRegistry.totalKeys(fid), numKeys - numRemove);
     }
 
     /*//////////////////////////////////////////////////////////////

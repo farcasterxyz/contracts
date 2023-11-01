@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {StorageRegistry} from "../src/StorageRegistry.sol";
-import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
+import {ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";
 
 contract StorageRegistryScript is ImmutableCreate2Deployer {
     uint256 internal constant INITIAL_RENTAL_PERIOD = 365 days;

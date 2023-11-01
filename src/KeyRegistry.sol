@@ -6,11 +6,11 @@ import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {IKeyRegistry} from "./interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "./interfaces/IMetadataValidator.sol";
 import {IdRegistryLike} from "./interfaces/IdRegistryLike.sol";
-import {EIP712} from "./lib/EIP712.sol";
-import {Migration} from "./lib/Migration.sol";
-import {Nonces} from "./lib/Nonces.sol";
-import {Signatures} from "./lib/Signatures.sol";
-import {EnumerableKeySet, KeySet} from "./lib/EnumerableKeySet.sol";
+import {EIP712} from "./abstract/EIP712.sol";
+import {Migration} from "./abstract/Migration.sol";
+import {Nonces} from "./abstract/Nonces.sol";
+import {Signatures} from "./abstract/Signatures.sol";
+import {EnumerableKeySet, KeySet} from "./libraries/EnumerableKeySet.sol";
 
 /**
  * @title Farcaster KeyRegistry

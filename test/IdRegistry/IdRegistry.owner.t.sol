@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
-import {IGuardians} from "../../src/lib/Guardians.sol";
+import {IGuardians} from "../../src/abstract/Guardians.sol";
 
 /* solhint-disable state-visibility */
 

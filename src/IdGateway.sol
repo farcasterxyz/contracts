@@ -4,11 +4,11 @@ pragma solidity 0.8.21;
 import {IIdGateway} from "./interfaces/IIdGateway.sol";
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
 import {IIdRegistry} from "./interfaces/IIdRegistry.sol";
-import {Guardians} from "./lib/Guardians.sol";
-import {TransferHelper} from "./lib/TransferHelper.sol";
-import {EIP712} from "./lib/EIP712.sol";
-import {Nonces} from "./lib/Nonces.sol";
-import {Signatures} from "./lib/Signatures.sol";
+import {Guardians} from "./abstract/Guardians.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
+import {EIP712} from "./abstract/EIP712.sol";
+import {Nonces} from "./abstract/Nonces.sol";
+import {Signatures} from "./abstract/Signatures.sol";
 
 /**
  * @title Farcaster IdGateway

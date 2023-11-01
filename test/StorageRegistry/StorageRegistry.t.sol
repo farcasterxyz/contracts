@@ -6,7 +6,7 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import {StorageRegistry} from "../../src/StorageRegistry.sol";
-import {TransferHelper} from "../../src/lib/TransferHelper.sol";
+import {TransferHelper} from "../../src/libraries/TransferHelper.sol";
 import {StorageRegistryTestSuite, StorageRegistryHarness} from "./StorageRegistryTestSuite.sol";
 import {MockChainlinkFeed} from "../Utils.sol";
 
@@ -1862,7 +1862,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                             PAUSABILITY 
+                             PAUSABILITY
     //////////////////////////////////////////////////////////////*/
 
     function testPauseUnpause() public {

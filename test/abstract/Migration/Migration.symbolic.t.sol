@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import {SymTest} from "halmos-cheatcodes/SymTest.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {Migration} from "../../../src/lib/Migration.sol";
+import {Migration} from "../../../src/abstract/Migration.sol";
 
 contract MigrationExample is Migration {
     constructor(uint256 gracePeriod, address migrator, address owner) Migration(uint24(gracePeriod), migrator, owner) {}
