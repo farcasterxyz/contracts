@@ -79,7 +79,7 @@ library EnumerableKeySet {
     }
 
     /**
-     * @dev Returns the number of values on the set. O(1).
+     * @dev Returns the number of values in the set. O(1).
      */
     function length(KeySet storage set) internal view returns (uint256) {
         return set._values.length;
