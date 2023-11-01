@@ -793,8 +793,73 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
+                            ENUMERATION
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzKeysOf(address to, address recovery, uint32 keyType, uint8 metadataType, uint16 numKeys) public {
+        numKeys = uint16(bound(numKeys, 1, 1000));
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(1000);
+
+        assertEq(keyRegistry.totalKeys(fid), 0);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        bytes[] memory keys = keyRegistry.keysOf(1);
+
+        assertEq(keys.length, numKeys);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory expectedKey,) = _makeKey(i);
+            assertEq(keys[i], expectedKey);
+        }
+    }
+
+    function testFuzzKeyAt(address to, address recovery, uint32 keyType, uint8 metadataType, uint16 numKeys) public {
+        numKeys = uint16(bound(numKeys, 1, 1000));
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(1000);
+
+        assertEq(keyRegistry.totalKeys(fid), 0);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        assertEq(keyRegistry.totalKeys(fid), numKeys);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory expectedKey,) = _makeKey(i);
+            assertEq(keyRegistry.keyAt(fid, i), expectedKey);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
+
+    function _makeKey(uint256 i) internal pure returns (bytes memory key, bytes memory metadata) {
+        key = abi.encodePacked(keccak256(abi.encodePacked("key", i)));
+        metadata = abi.encodePacked(keccak256(abi.encodePacked("metadata", i)));
+    }
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
         vm.prank(idRegistry.idGateway());

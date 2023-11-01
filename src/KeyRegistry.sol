@@ -10,6 +10,7 @@ import {EIP712} from "./lib/EIP712.sol";
 import {Migration} from "./lib/Migration.sol";
 import {Nonces} from "./lib/Nonces.sol";
 import {Signatures} from "./lib/Signatures.sol";
+import {EnumerableKeySet, KeySet} from "./lib/EnumerableKeySet.sol";
 
 /**
  * @title Farcaster KeyRegistry
@@ -19,6 +20,8 @@ import {Signatures} from "./lib/Signatures.sol";
  * @custom:security-contact security@farcaster.xyz
  */
 contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
+    using EnumerableKeySet for KeySet;
+
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -59,12 +62,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     uint256 public maxKeysPerFid;
 
     /**
-     * @dev Mapping of fid to number of registered keys.
-     *
-     * @custom:param fid       The fid associated with the keys.
-     * @custom:param count     Number of registered keys
+     * @dev Internal enumerable set tracking active keys by fid.
      */
-    mapping(uint256 fid => uint256 count) public totalKeys;
+    mapping(uint256 fid => KeySet keys) internal _keysByFid;
 
     /**
      * @dev Mapping of fid to a key to the key's data.
@@ -112,6 +112,18 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                                   VIEWS
     //////////////////////////////////////////////////////////////*/
+
+    function totalKeys(uint256 fid) external view returns (uint256) {
+        return _keysByFid[fid].length();
+    }
+
+    function keyAt(uint256 fid, uint256 index) external view returns (bytes memory) {
+        return _keysByFid[fid].at(index);
+    }
+
+    function keysOf(uint256 fid) external view returns (bytes[] memory) {
+        return _keysByFid[fid].values();
+    }
 
     /**
      * @inheritdoc IKeyRegistry
@@ -267,14 +279,14 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     ) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
-        if (totalKeys[fid] >= maxKeysPerFid) revert ExceedsMaximum();
+        if (_keysByFid[fid].length() >= maxKeysPerFid) revert ExceedsMaximum();
 
         IMetadataValidator validator = validators[keyType][metadataType];
         if (validator == IMetadataValidator(address(0))) {
             revert ValidatorNotFound(keyType, metadataType);
         }
 
-        totalKeys[fid]++;
+        _keysByFid[fid].add(key);
         keyData.state = KeyState.ADDED;
         keyData.keyType = keyType;
         emit Add(fid, keyType, key, key, metadataType, metadata);
@@ -289,7 +301,8 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
-        totalKeys[fid]--;
+        _keysByFid[fid].remove(key);
+        keyData.state = KeyState.ADDED;
         keyData.state = KeyState.REMOVED;
         emit Remove(fid, key, key);
     }
@@ -298,7 +311,7 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
-        totalKeys[fid]--;
+        _keysByFid[fid].remove(key);
         keyData.state = KeyState.NULL;
         delete keyData.keyType;
         emit AdminReset(fid, key, key);
