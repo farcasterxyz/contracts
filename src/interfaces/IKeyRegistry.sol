@@ -293,6 +293,23 @@ interface IKeyRegistry {
     function keysOf(uint256 fid) external view returns (bytes[] memory);
 
     /**
+     * @notice Return an array of all active keys for a given fid,
+     *         paged by index and batch size.
+     *
+     * @param fid       The fid associated with the keys.
+     * @param startIdx  Start index of lookup.
+     * @param batchSize Number of items to return.
+     *
+     * @return bytes[] page    Array of keys.
+     * @return bytes[] nextIdx Next index in the set of all keys.
+     */
+    function keysOf(
+        uint256 fid,
+        uint256 startIdx,
+        uint256 batchSize
+    ) external view returns (bytes[] memory page, uint256 nextIdx);
+
+    /**
      * @notice Retrieve state and type data for a given key.
      *
      * @param fid   The fid associated with the key.

@@ -113,16 +113,47 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
                                   VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc IKeyRegistry
+     */
     function totalKeys(uint256 fid) external view returns (uint256) {
         return _keysByFid[fid].length();
     }
 
+    /**
+     * @inheritdoc IKeyRegistry
+     */
     function keyAt(uint256 fid, uint256 index) external view returns (bytes memory) {
         return _keysByFid[fid].at(index);
     }
 
+    /**
+     * @inheritdoc IKeyRegistry
+     */
     function keysOf(uint256 fid) external view returns (bytes[] memory) {
         return _keysByFid[fid].values();
+    }
+
+    function keysOf(
+        uint256 fid,
+        uint256 startIdx,
+        uint256 batchSize
+    ) external view returns (bytes[] memory page, uint256 nextIdx) {
+        uint256 len = _keysByFid[fid].length();
+        if (startIdx >= len) return (new bytes[](0), 0);
+
+        uint256 remaining = len - startIdx;
+        uint256 adjustedBatchSize = remaining < batchSize ? remaining : batchSize;
+
+        page = new bytes[](adjustedBatchSize);
+        for (uint256 i = 0; i < adjustedBatchSize; i++) {
+            page[i] = _keysByFid[fid].at(startIdx + i);
+        }
+
+        nextIdx = startIdx + adjustedBatchSize;
+        if (nextIdx >= len) nextIdx = 0;
+
+        return (page, nextIdx);
     }
 
     /**

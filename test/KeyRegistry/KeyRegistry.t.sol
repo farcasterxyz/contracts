@@ -890,6 +890,95 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.totalKeys(fid), numKeys - numRemove);
     }
 
+    function testFuzzKeysOfPaged(address to, address recovery, uint32 keyType, uint8 metadataType) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(23);
+
+        for (uint256 i; i < 23; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, 0, 10);
+        assertEq(page.length, 10);
+        assertEq(nextIdx, 10);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 10);
+        assertEq(page.length, 10);
+        assertEq(nextIdx, 20);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 10);
+        assertEq(page.length, 3);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 7);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 14);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 21);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 2);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 7);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 14);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 21);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 2);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 100);
+        assertEq(page.length, 23);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 100, 100);
+        assertEq(page.length, 0);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 3);
+        assertEq(page.length, 3);
+        assertEq(nextIdx, 3);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 10);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 2);
+        assertEq(page.length, 2);
+        assertEq(nextIdx, 12);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 9);
+        assertEq(page.length, 9);
+        assertEq(nextIdx, 21);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 4);
+        assertEq(page.length, 2);
+        assertEq(nextIdx, 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
