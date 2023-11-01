@@ -1,8 +1,0 @@
-BundleRegistryGasUsageTest:testGasRegisterWithSig() (gas: 1115092)
-IdGatewayGasUsageTest:testGasRegister() (gas: 1397812)
-IdGatewayGasUsageTest:testGasRegisterForAndRecover() (gas: 1969118)
-StorageRegistryGasUsageTest:testGasBatchCredit() (gas: 173053)
-StorageRegistryGasUsageTest:testGasBatchRent() (gas: 270579)
-StorageRegistryGasUsageTest:testGasContinuousCredit() (gas: 166530)
-StorageRegistryGasUsageTest:testGasCredit() (gas: 81890)
-StorageRegistryGasUsageTest:testGasRent() (gas: 163250)
