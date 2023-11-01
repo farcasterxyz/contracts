@@ -26,7 +26,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
     event Withdraw(address indexed to, uint256 amount);
 
     function testVersion() public {
-        assertEq(keyGateway.VERSION(), "2023.10.04");
+        assertEq(keyGateway.VERSION(), "2023.11.15");
     }
 
     /*//////////////////////////////////////////////////////////////

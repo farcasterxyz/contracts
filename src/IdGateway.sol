@@ -27,7 +27,7 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdGateway
      */
-    string public constant VERSION = "2023.10.04";
+    string public constant VERSION = "2023.11.15";
 
     /**
      * @inheritdoc IIdGateway

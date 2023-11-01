@@ -23,7 +23,7 @@ contract Bundler is IBundler {
     /**
      * @inheritdoc IBundler
      */
-    string public constant VERSION = "2023.10.04";
+    string public constant VERSION = "2023.11.15";
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES

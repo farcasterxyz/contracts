@@ -300,8 +300,8 @@ interface IKeyRegistry {
      * @param startIdx  Start index of lookup.
      * @param batchSize Number of items to return.
      *
-     * @return bytes[] page    Array of keys.
-     * @return bytes[] nextIdx Next index in the set of all keys.
+     * @return page    Array of keys.
+     * @return nextIdx Next index in the set of all keys.
      */
     function keysOf(
         uint256 fid,
