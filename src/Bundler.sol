@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import {IBundler} from "./interfaces/IBundler.sol";
 import {IIdGateway} from "./interfaces/IIdGateway.sol";
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
-import {TransferHelper} from "./lib/TransferHelper.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 /**
  * @title Farcaster Bundler

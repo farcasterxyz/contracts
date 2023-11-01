@@ -78,6 +78,7 @@ contract BundlerTest is BundlerTestSuite {
         uint8 _numSigners,
         uint40 _deadline
     ) public {
+        _assumeClean(caller);
         uint256 numSigners = bound(_numSigners, 0, 10);
         accountPk = _boundPk(accountPk);
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
@@ -119,6 +120,7 @@ contract BundlerTest is BundlerTestSuite {
         uint8 _numSigners,
         uint40 _deadline
     ) public {
+        _assumeClean(caller);
         uint256 numSigners = bound(_numSigners, 0, 10);
         accountPk = _boundPk(accountPk);
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
@@ -160,6 +162,7 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageUnits,
         uint256 delta
     ) public {
+        _assumeClean(caller);
         accountPk = _boundPk(accountPk);
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
@@ -193,6 +196,7 @@ contract BundlerTest is BundlerTestSuite {
         uint256 storageUnits,
         uint256 delta
     ) public {
+        _assumeClean(caller);
         accountPk = _boundPk(accountPk);
         vm.assume(caller != address(bundler)); // the bundle registry cannot call itself
         assumePayable(caller); // caller must be able to receive funds
@@ -231,9 +235,7 @@ contract BundlerTest is BundlerTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzRevertsDirectPayments(address sender, uint256 amount) public {
-        vm.assume(sender != address(storageRegistry));
-        vm.assume(sender != address(idGateway));
-        vm.assume(sender != address(keyGateway));
+        _assumeClean(sender);
 
         deal(sender, amount);
         vm.prank(sender);

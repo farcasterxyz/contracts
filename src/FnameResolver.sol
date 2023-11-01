@@ -5,7 +5,7 @@ import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {ERC165} from "openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-import {EIP712} from "./lib/EIP712.sol";
+import {EIP712} from "./abstract/EIP712.sol";
 
 interface IAddressQuery {
     function addr(bytes32 node) external view returns (address);

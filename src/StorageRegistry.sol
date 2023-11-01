@@ -7,7 +7,7 @@ import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
-import {TransferHelper} from "./lib/TransferHelper.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 /**
  * @title Farcaster StorageRegistry

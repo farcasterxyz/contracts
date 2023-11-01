@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import {IdRegistry, IIdRegistry} from "../../src/IdRegistry.sol";
-import {IMigration} from "../../src/interfaces/lib/IMigration.sol";
+import {IMigration} from "../../src/interfaces/abstract/IMigration.sol";
 
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
 import {BulkRegisterDataBuilder, BulkRegisterDefaultRecoveryDataBuilder} from "./IdRegistryTestHelpers.sol";

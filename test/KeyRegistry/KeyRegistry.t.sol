@@ -2,9 +2,9 @@
 pragma solidity ^0.8.19;
 
 import {KeyRegistry, IKeyRegistry} from "../../src/KeyRegistry.sol";
-import {IGuardians} from "../../src/lib/Guardians.sol";
-import {ISignatures} from "../../src/lib/Signatures.sol";
-import {IMigration} from "../../src/lib/Migration.sol";
+import {IGuardians} from "../../src/abstract/Guardians.sol";
+import {ISignatures} from "../../src/abstract/Signatures.sol";
+import {IMigration} from "../../src/abstract/Migration.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
 
 import {KeyRegistryTestSuite} from "./KeyRegistryTestSuite.sol";
@@ -793,8 +793,200 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
+                            ENUMERATION
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzKeysOf(address to, address recovery, uint32 keyType, uint8 metadataType, uint16 numKeys) public {
+        numKeys = uint16(bound(numKeys, 1, 1000));
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(1000);
+
+        assertEq(keyRegistry.totalKeys(fid), 0);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        bytes[] memory keys = keyRegistry.keysOf(1);
+
+        assertEq(keys.length, numKeys);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory expectedKey,) = _makeKey(i);
+            assertEq(keys[i], expectedKey);
+        }
+    }
+
+    function testFuzzKeyAt(address to, address recovery, uint32 keyType, uint8 metadataType, uint16 numKeys) public {
+        numKeys = uint16(bound(numKeys, 1, 1000));
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(1000);
+
+        assertEq(keyRegistry.totalKeys(fid), 0);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        assertEq(keyRegistry.totalKeys(fid), numKeys);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory expectedKey,) = _makeKey(i);
+            assertEq(keyRegistry.keyAt(fid, i), expectedKey);
+        }
+    }
+
+    function testFuzzKeyCounts(
+        address to,
+        address recovery,
+        uint32 keyType,
+        uint8 metadataType,
+        uint16 numKeys,
+        uint16 numRemove
+    ) public {
+        numKeys = uint16(bound(numKeys, 1, 1000));
+        numRemove = uint16(bound(numRemove, 1, numKeys));
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(1000);
+
+        assertEq(keyRegistry.totalKeys(fid), 0);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        assertEq(keyRegistry.totalKeys(fid), numKeys);
+
+        for (uint256 i; i < numRemove; i++) {
+            (bytes memory key,) = _makeKey(i);
+            vm.prank(to);
+            keyRegistry.remove(key);
+        }
+
+        assertEq(keyRegistry.totalKeys(fid), numKeys - numRemove);
+    }
+
+    function testFuzzKeysOfPaged(address to, address recovery, uint32 keyType, uint8 metadataType) public {
+        keyType = uint32(bound(keyType, 1, type(uint32).max));
+        metadataType = uint8(bound(metadataType, 1, type(uint8).max));
+
+        uint256 fid = _registerFid(to, recovery);
+        _registerValidator(keyType, metadataType);
+
+        vm.prank(owner);
+        keyRegistry.setMaxKeysPerFid(23);
+
+        for (uint256 i; i < 23; i++) {
+            (bytes memory key, bytes memory metadata) = _makeKey(i);
+            vm.prank(keyRegistry.keyGateway());
+            keyRegistry.add(to, keyType, key, metadataType, metadata);
+        }
+
+        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, 0, 10);
+        assertEq(page.length, 10);
+        assertEq(nextIdx, 10);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 10);
+        assertEq(page.length, 10);
+        assertEq(nextIdx, 20);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 10);
+        assertEq(page.length, 3);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 7);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 14);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 21);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 2);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 7);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 14);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 21);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 2);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 100);
+        assertEq(page.length, 23);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 100, 100);
+        assertEq(page.length, 0);
+        assertEq(nextIdx, 0);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 3);
+        assertEq(page.length, 3);
+        assertEq(nextIdx, 3);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        assertEq(page.length, 7);
+        assertEq(nextIdx, 10);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 2);
+        assertEq(page.length, 2);
+        assertEq(nextIdx, 12);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 9);
+        assertEq(page.length, 9);
+        assertEq(nextIdx, 21);
+
+        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 4);
+        assertEq(page.length, 2);
+        assertEq(nextIdx, 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
+
+    function _makeKey(uint256 i) internal pure returns (bytes memory key, bytes memory metadata) {
+        key = abi.encodePacked(keccak256(abi.encodePacked("key", i)));
+        metadata = abi.encodePacked(keccak256(abi.encodePacked("metadata", i)));
+    }
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
         vm.prank(idRegistry.idGateway());

@@ -258,6 +258,58 @@ interface IKeyRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Return number of active keys for a given fid.
+     *
+     * @param fid the fid associated with the keys.
+     *
+     * @return uint256 total number of active keys associated with the fid.
+     */
+    function totalKeys(uint256 fid) external view returns (uint256);
+
+    /**
+     * @notice Return key at the given index in the fid's key set. Can be
+     *         called to enumerate all active keys for a given fid.
+     *
+     * @param fid   the fid associated with the key.
+     * @param index index of the key in the fid's key set. Must be a value
+     *              less than totalKeys(fid). Note that because keys are
+     *              stored in an underlying enumerable set, the ordering of
+     *              keys is not guaranteed to be stable.
+     *
+     * @return bytes Bytes of the key.
+     */
+    function keyAt(uint256 fid, uint256 index) external view returns (bytes memory);
+
+    /**
+     * @notice Return an array of all active keys for a given fid.
+     * @dev    WARNING: This function will copy the entire key set to memory,
+     *         which can be quite expensive. This is intended to be called
+     *         offchain with eth_call, not onchain.
+     *
+     * @param fid the fid associated with the keys.
+     *
+     * @return bytes[] Array of all keys.
+     */
+    function keysOf(uint256 fid) external view returns (bytes[] memory);
+
+    /**
+     * @notice Return an array of all active keys for a given fid,
+     *         paged by index and batch size.
+     *
+     * @param fid       The fid associated with the keys.
+     * @param startIdx  Start index of lookup.
+     * @param batchSize Number of items to return.
+     *
+     * @return bytes[] page    Array of keys.
+     * @return bytes[] nextIdx Next index in the set of all keys.
+     */
+    function keysOf(
+        uint256 fid,
+        uint256 startIdx,
+        uint256 batchSize
+    ) external view returns (bytes[] memory page, uint256 nextIdx);
+
+    /**
      * @notice Retrieve state and type data for a given key.
      *
      * @param fid   The fid associated with the key.
@@ -324,7 +376,7 @@ interface IKeyRegistry {
      *         rather than REMOVED. This allows the owner to correct any errors in the initial migration until
      *         the grace period expires.
      *
-     * @param items    A list of BulkResetData structs including an fid and array of keys.
+     * @param items   A list of BulkResetData structs including an fid and array of keys.
      */
     function bulkResetKeysForMigration(BulkResetData[] calldata items) external;
 

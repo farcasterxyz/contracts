@@ -4,8 +4,8 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import {IdRegistry, IIdRegistry} from "../../src/IdRegistry.sol";
-import {ISignatures} from "../../src/lib/Signatures.sol";
-import {IMigration} from "../../src/interfaces/lib/IMigration.sol";
+import {ISignatures} from "../../src/abstract/Signatures.sol";
+import {IMigration} from "../../src/interfaces/abstract/IMigration.sol";
 import {ERC1271WalletMock, ERC1271MaliciousMockForceRevert} from "../Utils.sol";
 
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";

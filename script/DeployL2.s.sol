@@ -10,7 +10,7 @@ import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValid
 import {Bundler, IBundler} from "../src/Bundler.sol";
 import {RecoveryProxy} from "../src/RecoveryProxy.sol";
 import {IMetadataValidator} from "../src/interfaces/IMetadataValidator.sol";
-import {console, ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
+import {console, ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";
 
 contract DeployL2 is ImmutableCreate2Deployer {
     uint256 public constant INITIAL_USD_UNIT_PRICE = 5e8; // $5 USD
