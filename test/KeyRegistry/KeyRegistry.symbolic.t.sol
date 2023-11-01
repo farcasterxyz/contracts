@@ -145,9 +145,9 @@ contract KeyRegistrySymTest is SymTest, Test {
                     //   - add() must be called by the key manager contract.
                     assert(caller == keyGateway);
                 } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
-                    //   - bulkAdd() must be called by the owner of KeyRegistry.
+                    //   - bulkAdd() must be called by the migrator.
                     //   - bulkAdd() must be called before the key migration or within the grade period following the migration.
-                    assert(caller == address(this)); // `this` is the owner of KeyRegistry
+                    assert(caller == migrator); // KeyRegistry.migrator() address
                     assert(isNotMigratedOrGracePeriod);
                 } else {
                     assert(false);
@@ -160,7 +160,7 @@ contract KeyRegistrySymTest is SymTest, Test {
                 //   - It must be called before the key migration or within the grade period following the migration.
                 assert(oldStateX == IKeyRegistry.KeyState.ADDED);
                 assert(selector == keyRegistry.bulkResetKeysForMigration.selector);
-                assert(caller == address(this)); // `this` is the owner of KeyRegistry
+                assert(caller == migrator); // KeyRegistry.migrator() address
                 assert(isNotMigratedOrGracePeriod);
             } else {
                 // Ensure that no other state transitions are possible.
