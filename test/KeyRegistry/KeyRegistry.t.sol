@@ -1050,7 +1050,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             keyRegistry.add(to, keyType, key, metadataType, metadata);
         }
 
-        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, idx, size);
+        keyRegistry.keysOf(fid, idx, size);
     }
 
     /*//////////////////////////////////////////////////////////////
