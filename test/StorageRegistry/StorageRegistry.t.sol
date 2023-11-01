@@ -146,6 +146,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzRentRevertsZeroUnits(address msgSender, uint256 id) public {
+        _assumeClean(msgSender);
         vm.deal(msgSender, storageRegistry.price(100));
 
         vm.prank(msgSender);
@@ -339,6 +340,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzRentRevertsIfDeprecated(address msgSender, uint256 id, uint256 units) public {
+        _assumeClean(msgSender);
         units = bound(units, 0, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
         vm.deal(msgSender, price);
@@ -357,6 +359,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 units,
         uint256 delta
     ) public {
+        _assumeClean(msgSender);
         uint256 rentedUnits = storageRegistry.rentedUnits();
         units = bound(units, 1, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
@@ -416,6 +419,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzRentRevertsExceedsCapacity(address msgSender, uint256 id, uint256 units) public {
+        _assumeClean(msgSender);
         // Buy all the available units.
         uint256 maxUnits = storageRegistry.maxUnits();
         uint256 maxUnitsPrice = storageRegistry.price(maxUnits);
@@ -435,6 +439,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzRentRevertsWhenPaused(address msgSender, uint256 id, uint256 units) public {
+        _assumeClean(msgSender);
         uint256 rentedBefore = storageRegistry.rentedUnits();
 
         // Pause the contract.
@@ -579,6 +584,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
+        _assumeClean(msgSender);
         vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         uint256 rentedUnits = storageRegistry.rentedUnits();
@@ -618,6 +624,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
+        _assumeClean(msgSender);
         vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
         uint256 rentedUnits = storageRegistry.rentedUnits();
@@ -684,6 +691,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
+        _assumeClean(msgSender);
         uint256 rentedUnits = storageRegistry.rentedUnits();
         vm.prank(owner);
         storageRegistry.setMaxUnits(type(uint256).max);
@@ -721,6 +729,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint16[] calldata _units,
         uint256 delta
     ) public {
+        _assumeClean(msgSender);
         // Throw away runs with empty arrays.
         vm.assume(_ids.length > 0);
         vm.assume(_units.length > 0);
@@ -854,6 +863,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] calldata _ids,
         uint16[] calldata _units
     ) public {
+        _assumeClean(msgSender);
         // Throw away runs with empty arrays.
         vm.assume(_ids.length > 0);
         vm.assume(_units.length > 0);
@@ -1099,6 +1109,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzPriceFeedFailure(address msgSender, uint256 id, uint256 units) public {
+        _assumeClean(msgSender);
         units = bound(units, 1, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
         vm.deal(msgSender, price);
@@ -1234,6 +1245,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
     }
 
     function testFuzzUptimeFeedFailure(address msgSender, uint256 id, uint256 units) public {
+        _assumeClean(msgSender);
         units = bound(units, 1, storageRegistry.maxUnits());
         uint256 price = storageRegistry.price(units);
         vm.deal(msgSender, price);
@@ -2015,6 +2027,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256[] memory ids,
         uint256[] memory units
     ) public returns (uint256) {
+        _assumeClean(msgSender);
         uint256 rented = storageRegistry.rentedUnits();
         uint256 totalUnits;
         for (uint256 i; i < units.length; ++i) {
@@ -2062,6 +2075,7 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         uint256 id,
         uint256 units
     ) public returns (uint256, uint256, uint256, uint256) {
+        _assumeClean(msgSender);
         // Ensure that we can rent the number of units requested
         uint256 rented = storageRegistry.rentedUnits();
         uint256 remaining = storageRegistry.maxUnits() - rented;

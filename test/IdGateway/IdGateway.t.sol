@@ -39,6 +39,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzRegister(address caller, address recovery) public {
+        _assumeClean(caller);
         assertEq(idRegistry.idCounter(), 0);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -59,6 +60,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
     }
 
     function testFuzzRegisterExtraStorage(address caller, address recovery, uint16 extraStorage) public {
+        _assumeClean(caller);
         assertEq(idRegistry.idCounter(), 0);
 
         assertEq(idRegistry.idCounter(), 0);
@@ -101,6 +103,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
     }
 
     function testFuzzCannotRegisterToAnAddressThatOwnsAnId(address caller, address recovery) public {
+        _assumeClean(caller);
         _register(caller);
 
         assertEq(idRegistry.idCounter(), 1);
@@ -144,6 +147,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzRegisterFor(address registrar, uint256 recipientPk, address recovery, uint40 _deadline) public {
+        _assumeClean(registrar);
         uint256 deadline = _boundDeadline(_deadline);
         recipientPk = _boundPk(recipientPk);
 
@@ -174,6 +178,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         uint40 _deadline,
         uint16 extraStorage
     ) public {
+        _assumeClean(registrar);
         uint256 deadline = _boundDeadline(_deadline);
         recipientPk = _boundPk(recipientPk);
 
@@ -376,6 +381,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         address recovery,
         uint40 _deadline
     ) public {
+        _assumeClean(registrar);
         uint256 deadline = _boundDeadline(_deadline);
         recipientPk = _boundPk(recipientPk);
 
@@ -432,9 +438,10 @@ contract IdGatewayTest is IdGatewayTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzRevertsDirectPayments(address sender, uint256 amount) public {
+        _assumeClean(sender);
         vm.assume(sender != address(storageRegistry));
 
-        deal(sender, amount);
+        vm.deal(sender, amount);
         vm.prank(sender);
         vm.expectRevert(IIdGateway.Unauthorized.selector);
         payable(address(idGateway)).transfer(amount);
