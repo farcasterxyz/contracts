@@ -80,7 +80,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         xkey = svm.createBytes(32, "xkey");
     }
 
-    // Verify the KeyRegistry invariants
+    /// @custom:halmos --storage-layout=generic
     function check_Invariants(bytes4 selector, address caller) public {
         // Additional setup to cover various input states
         if (svm.createBool("migrate?")) {
