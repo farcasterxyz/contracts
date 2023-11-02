@@ -217,7 +217,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @dev Retrieve fid and validate sender/recipient
      */
-    function _validateTransfer(address from, address to) internal returns (uint256 fromId) {
+    function _validateTransfer(address from, address to) internal view returns (uint256 fromId) {
         fromId = idOf[from];
 
         /* Revert if the sender has no id */
