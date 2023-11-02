@@ -311,7 +311,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
 
-    function bulkRegisterIds(BulkRegisterData[] calldata ids) external migration {
+    function bulkRegisterIds(BulkRegisterData[] calldata ids) external onlyMigrator {
         // Safety: i can be incremented unchecked since it is bound by ids.length.
         unchecked {
             for (uint256 i = 0; i < ids.length; i++) {
@@ -325,7 +325,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
     function bulkRegisterIdsWithDefaultRecovery(
         BulkRegisterDefaultRecoveryData[] calldata ids,
         address recovery
-    ) external migration {
+    ) external onlyMigrator {
         // Safety: i can be incremented unchecked since it is bound by ids.length.
         unchecked {
             for (uint256 i = 0; i < ids.length; i++) {
@@ -336,7 +336,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         }
     }
 
-    function bulkResetIds(uint24[] calldata ids) external migration {
+    function bulkResetIds(uint24[] calldata ids) external onlyMigrator {
         // Safety: i can be incremented unchecked since it is bound by ids.length.
         unchecked {
             for (uint256 i = 0; i < ids.length; i++) {
@@ -352,7 +352,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         }
     }
 
-    function setIdCounter(uint256 _counter) external migration {
+    function setIdCounter(uint256 _counter) external onlyMigrator {
         emit SetIdCounter(idCounter, _counter);
         idCounter = _counter;
     }

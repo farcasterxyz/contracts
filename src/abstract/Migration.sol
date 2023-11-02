@@ -36,7 +36,7 @@ abstract contract Migration is IMigration, Guardians {
      * @notice Allow only the migrator to call the protected function.
      *         Revoke permissions after the migration period.
      */
-    modifier migration() {
+    modifier onlyMigrator() {
         if (msg.sender != migrator) revert OnlyMigrator();
         if (isMigrated() && block.timestamp > migratedAt + gracePeriod) {
             revert PermissionRevoked();

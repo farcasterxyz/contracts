@@ -9,7 +9,7 @@ import {Migration} from "../../../src/abstract/Migration.sol";
 contract MigrationExample is Migration {
     constructor(uint256 gracePeriod, address migrator, address owner) Migration(uint24(gracePeriod), migrator, owner) {}
 
-    function onlyCallableDuringMigration() external migration {}
+    function onlyCallableDuringMigration() external onlyMigrator {}
 }
 
 contract MigrationSymTest is SymTest, Test {

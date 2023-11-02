@@ -211,7 +211,7 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function bulkAddKeysForMigration(BulkAddData[] calldata items) external migration {
+    function bulkAddKeysForMigration(BulkAddData[] calldata items) external onlyMigrator {
         // Safety: i and j can be incremented unchecked since they are bound by items.length and
         // items[i].keys.length respectively.
         unchecked {
@@ -227,7 +227,7 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function bulkResetKeysForMigration(BulkResetData[] calldata items) external migration {
+    function bulkResetKeysForMigration(BulkResetData[] calldata items) external onlyMigrator {
         // Safety: i and j can be incremented unchecked since they are bound by items.length and
         // items[i].keys.length respectively.
         unchecked {
