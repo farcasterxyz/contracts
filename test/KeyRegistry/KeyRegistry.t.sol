@@ -65,14 +65,14 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
 
         vm.expectEmit();
         emit Add(fid, keyType, key, key, metadataType, metadata);
         vm.prank(keyRegistry.keyGateway());
         keyRegistry.add(to, keyType, key, metadataType, metadata);
 
-        assertEq(keyRegistry.totalKeys(fid), 1);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 1);
         assertAdded(fid, key, keyType);
     }
 
@@ -266,7 +266,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.add(to, keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
-        assertEq(keyRegistry.totalKeys(fid), 1);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 1);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), 0);
+        assertEq(keyRegistry.keyAt(fid, IKeyRegistry.KeyState.ADDED, 0), key);
 
         vm.expectEmit();
         emit Remove(fid, key, key);
@@ -274,7 +276,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.remove(key);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), 1);
+        assertEq(keyRegistry.keyAt(fid, IKeyRegistry.KeyState.REMOVED, 0), key);
 
         assertRemoved(fid, key, keyType);
     }
@@ -397,6 +401,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.add(owner, keyType, key, metadataType, metadata);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 1);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), 0);
+        assertEq(keyRegistry.keyAt(fid, IKeyRegistry.KeyState.ADDED, 0), key);
 
         vm.expectEmit();
         emit Remove(fid, key, key);
@@ -404,6 +411,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.removeFor(owner, key, deadline, sig);
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), 1);
+        assertEq(keyRegistry.keyAt(fid, IKeyRegistry.KeyState.REMOVED, 0), key);
 
         assertRemoved(fid, key, keyType);
     }
@@ -797,7 +807,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzKeysOf(address to, address recovery, uint32 keyType, uint8 metadataType, uint16 numKeys) public {
-        numKeys = uint16(bound(numKeys, 1, 1000));
+        numKeys = uint16(bound(numKeys, 1, 100));
         keyType = uint32(bound(keyType, 1, type(uint32).max));
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
 
@@ -805,9 +815,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         _registerValidator(keyType, metadataType);
 
         vm.prank(owner);
-        keyRegistry.setMaxKeysPerFid(1000);
+        keyRegistry.setMaxKeysPerFid(100);
 
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
 
         for (uint256 i; i < numKeys; i++) {
             (bytes memory key, bytes memory metadata) = _makeKey(i);
@@ -815,18 +825,38 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             keyRegistry.add(to, keyType, key, metadataType, metadata);
         }
 
-        bytes[] memory keys = keyRegistry.keysOf(1);
-
+        bytes[] memory keys = keyRegistry.keysOf(1, IKeyRegistry.KeyState.ADDED);
         assertEq(keys.length, numKeys);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), numKeys);
 
-        for (uint256 i; i < numKeys; i++) {
+        // Check keys
+        for (uint256 i = 0; i < numKeys; i++) {
             (bytes memory expectedKey,) = _makeKey(i);
             assertEq(keys[i], expectedKey);
+        }
+        // Remove keys
+        for (uint256 i = 0; i < numKeys; i++) {
+            (bytes memory key,) = _makeKey(i);
+            vm.prank(to);
+            keyRegistry.remove(key);
+        }
+        bytes[] memory added = keyRegistry.keysOf(1, IKeyRegistry.KeyState.ADDED);
+        assertEq(added.length, 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
+
+        bytes[] memory removed = keyRegistry.keysOf(1, IKeyRegistry.KeyState.REMOVED);
+        assertEq(removed.length, numKeys);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), numKeys);
+
+        // Check keys
+        for (uint256 i = 0; i < numKeys; i++) {
+            (bytes memory expectedKey,) = _makeKey(i);
+            assertEq(removed[i], expectedKey);
         }
     }
 
     function testFuzzKeyAt(address to, address recovery, uint32 keyType, uint8 metadataType, uint16 numKeys) public {
-        numKeys = uint16(bound(numKeys, 1, 1000));
+        numKeys = uint16(bound(numKeys, 1, 100));
         keyType = uint32(bound(keyType, 1, type(uint32).max));
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
 
@@ -834,9 +864,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         _registerValidator(keyType, metadataType);
 
         vm.prank(owner);
-        keyRegistry.setMaxKeysPerFid(1000);
+        keyRegistry.setMaxKeysPerFid(100);
 
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
 
         for (uint256 i; i < numKeys; i++) {
             (bytes memory key, bytes memory metadata) = _makeKey(i);
@@ -844,11 +874,26 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             keyRegistry.add(to, keyType, key, metadataType, metadata);
         }
 
-        assertEq(keyRegistry.totalKeys(fid), numKeys);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), numKeys);
 
         for (uint256 i; i < numKeys; i++) {
             (bytes memory expectedKey,) = _makeKey(i);
-            assertEq(keyRegistry.keyAt(fid, i), expectedKey);
+            assertEq(keyRegistry.keyAt(fid, IKeyRegistry.KeyState.ADDED, i), expectedKey);
+        }
+
+        // Remove keys
+        for (uint256 i = 0; i < numKeys; i++) {
+            (bytes memory key,) = _makeKey(i);
+            vm.prank(to);
+            keyRegistry.remove(key);
+        }
+
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), numKeys);
+
+        for (uint256 i; i < numKeys; i++) {
+            (bytes memory expectedKey,) = _makeKey(i);
+            assertEq(keyRegistry.keyAt(fid, IKeyRegistry.KeyState.REMOVED, i), expectedKey);
         }
     }
 
@@ -860,7 +905,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         uint16 numKeys,
         uint16 numRemove
     ) public {
-        numKeys = uint16(bound(numKeys, 1, 1000));
+        numKeys = uint16(bound(numKeys, 1, 100));
         numRemove = uint16(bound(numRemove, 1, numKeys));
         keyType = uint32(bound(keyType, 1, type(uint32).max));
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
@@ -869,9 +914,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         _registerValidator(keyType, metadataType);
 
         vm.prank(owner);
-        keyRegistry.setMaxKeysPerFid(1000);
+        keyRegistry.setMaxKeysPerFid(100);
 
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), 0);
 
         for (uint256 i; i < numKeys; i++) {
             (bytes memory key, bytes memory metadata) = _makeKey(i);
@@ -879,7 +925,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             keyRegistry.add(to, keyType, key, metadataType, metadata);
         }
 
-        assertEq(keyRegistry.totalKeys(fid), numKeys);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), numKeys);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), 0);
 
         for (uint256 i; i < numRemove; i++) {
             (bytes memory key,) = _makeKey(i);
@@ -887,10 +934,11 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             keyRegistry.remove(key);
         }
 
-        assertEq(keyRegistry.totalKeys(fid), numKeys - numRemove);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), numKeys - numRemove);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.REMOVED), numRemove);
     }
 
-    function testFuzzKeysOfPaged(address to, address recovery, uint32 keyType, uint8 metadataType) public {
+    function testFuzzKeysOfPaged(address to, address recovery, bool add, uint32 keyType, uint8 metadataType) public {
         keyType = uint32(bound(keyType, 1, type(uint32).max));
         metadataType = uint8(bound(metadataType, 1, type(uint8).max));
 
@@ -904,73 +952,62 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             (bytes memory key, bytes memory metadata) = _makeKey(i);
             vm.prank(keyRegistry.keyGateway());
             keyRegistry.add(to, keyType, key, metadataType, metadata);
+            if (!add) {
+                vm.prank(to);
+                keyRegistry.remove(key);
+            }
         }
+        IKeyRegistry.KeyState state = add ? IKeyRegistry.KeyState.ADDED : IKeyRegistry.KeyState.REMOVED;
 
-        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, 0, 10);
+        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, state, 0, 10);
         assertEq(page.length, 10);
         assertEq(nextIdx, 10);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 10);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 10);
         assertEq(page.length, 10);
         assertEq(nextIdx, 20);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 10);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 10);
         assertEq(page.length, 3);
         assertEq(nextIdx, 0);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 7);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, 0, 7);
         assertEq(page.length, 7);
         assertEq(nextIdx, 7);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 7);
         assertEq(page.length, 7);
         assertEq(nextIdx, 14);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 7);
         assertEq(page.length, 7);
         assertEq(nextIdx, 21);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 7);
         assertEq(page.length, 2);
         assertEq(nextIdx, 0);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 7);
-        assertEq(page.length, 7);
-        assertEq(nextIdx, 7);
-
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
-        assertEq(page.length, 7);
-        assertEq(nextIdx, 14);
-
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
-        assertEq(page.length, 7);
-        assertEq(nextIdx, 21);
-
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
-        assertEq(page.length, 2);
-        assertEq(nextIdx, 0);
-
-        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 100);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, 0, 100);
         assertEq(page.length, 23);
         assertEq(nextIdx, 0);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, 0, 3);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, 0, 3);
         assertEq(page.length, 3);
         assertEq(nextIdx, 3);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 7);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 7);
         assertEq(page.length, 7);
         assertEq(nextIdx, 10);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 2);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 2);
         assertEq(page.length, 2);
         assertEq(nextIdx, 12);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 9);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 9);
         assertEq(page.length, 9);
         assertEq(nextIdx, 21);
 
-        (page, nextIdx) = keyRegistry.keysOf(fid, nextIdx, 4);
+        (page, nextIdx) = keyRegistry.keysOf(fid, state, nextIdx, 4);
         assertEq(page.length, 2);
         assertEq(nextIdx, 0);
     }
@@ -996,7 +1033,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             keyRegistry.add(to, keyType, key, metadataType, metadata);
         }
 
-        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, 23, 10);
+        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, IKeyRegistry.KeyState.ADDED, 23, 10);
         assertEq(page.length, 0);
         assertEq(nextIdx, 0);
     }
@@ -1022,7 +1059,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             keyRegistry.add(to, keyType, key, metadataType, metadata);
         }
 
-        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, 100, 100);
+        (bytes[] memory page, uint256 nextIdx) = keyRegistry.keysOf(fid, IKeyRegistry.KeyState.ADDED, 100, 100);
         assertEq(page.length, 0);
         assertEq(nextIdx, 0);
     }
@@ -1050,7 +1087,21 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             keyRegistry.add(to, keyType, key, metadataType, metadata);
         }
 
-        keyRegistry.keysOf(fid, idx, size);
+        keyRegistry.keysOf(fid, IKeyRegistry.KeyState.ADDED, idx, size);
+    }
+
+    function testFuzzKeyHelpersRevertInvalidState() public {
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
+        keyRegistry.totalKeys(0, IKeyRegistry.KeyState.NULL);
+
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
+        keyRegistry.keyAt(0, IKeyRegistry.KeyState.NULL, 0);
+
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
+        keyRegistry.keysOf(0, IKeyRegistry.KeyState.NULL);
+
+        vm.expectRevert(IKeyRegistry.InvalidState.selector);
+        keyRegistry.keysOf(0, IKeyRegistry.KeyState.NULL, 0, 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1074,7 +1125,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function assertNull(uint256 fid, bytes memory key) internal {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.NULL);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
     }
 
     function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {

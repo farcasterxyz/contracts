@@ -47,7 +47,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         uint256 fid = _registerFid(to, recovery);
         _registerValidator(keyType, metadataType);
 
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
 
         vm.expectEmit();
         emit Add(fid, keyType, key, key, metadataType, metadata);
@@ -55,7 +55,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         keyGateway.add(keyType, key, metadataType, metadata);
 
         assertEq(address(keyGateway).balance, 0);
-        assertEq(keyRegistry.totalKeys(fid), 1);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 1);
         assertAdded(fid, key, keyType);
     }
 
@@ -485,7 +485,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
     function assertNull(uint256 fid, bytes memory key) internal {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.NULL);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
     }
 
     function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {
