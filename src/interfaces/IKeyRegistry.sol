@@ -269,7 +269,7 @@ interface IKeyRegistry {
      *
      * @return uint256 total number of active keys associated with the fid.
      */
-    function totalKeys(uint256 fid) external view returns (uint256);
+    function totalKeys(uint256 fid, KeyState state) external view returns (uint256);
 
     /**
      * @notice Return key at the given index in the fid's key set. Can be
@@ -283,7 +283,7 @@ interface IKeyRegistry {
      *
      * @return bytes Bytes of the key.
      */
-    function keyAt(uint256 fid, uint256 index) external view returns (bytes memory);
+    function keyAt(uint256 fid, KeyState state, uint256 index) external view returns (bytes memory);
 
     /**
      * @notice Return an array of all active keys for a given fid.
@@ -295,7 +295,7 @@ interface IKeyRegistry {
      *
      * @return bytes[] Array of all keys.
      */
-    function keysOf(uint256 fid) external view returns (bytes[] memory);
+    function keysOf(uint256 fid, KeyState state) external view returns (bytes[] memory);
 
     /**
      * @notice Return an array of all active keys for a given fid,
@@ -310,6 +310,7 @@ interface IKeyRegistry {
      */
     function keysOf(
         uint256 fid,
+        KeyState state,
         uint256 startIdx,
         uint256 batchSize
     ) external view returns (bytes[] memory page, uint256 nextIdx);

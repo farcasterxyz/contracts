@@ -418,7 +418,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     function assertNull(uint256 fid, bytes memory key) internal {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.NULL);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
-        assertEq(keyRegistry.totalKeys(fid), 0);
+        assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
     }
 
     function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {
