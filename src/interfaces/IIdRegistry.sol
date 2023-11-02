@@ -156,6 +156,11 @@ interface IIdRegistry {
     function TRANSFER_TYPEHASH() external view returns (bytes32);
 
     /**
+     * @notice EIP-712 typehash for TransferAndChangeRecovery signatures.
+     */
+    function TRANSFER_AND_CHANGE_RECOVERY_TYPEHASH() external view returns (bytes32);
+
+    /**
      * @notice EIP-712 typehash for ChangeRecoveryAddress signatures.
      */
     function CHANGE_RECOVERY_ADDRESS_TYPEHASH() external view returns (bytes32);
@@ -209,6 +214,21 @@ interface IIdRegistry {
     function transfer(address to, uint256 deadline, bytes calldata sig) external;
 
     /**
+     * @notice Transfer the fid owned by this address to another address that does not have an fid,
+     *         and change the fid's recovery address to the provided recovery address. This function
+     *         can be used to safely receive an fid from an untrusted address.
+     *
+     *         A signed TransferAndChangeRecovery message from the destination address including the
+     *         new recovery must be provided.
+     *
+     * @param to       The address to transfer the fid to.
+     * @param recovery The new recovery address.
+     * @param deadline Expiration timestamp of the signature.
+     * @param sig      EIP-712 Transfer signature signed by the to address.
+     */
+    function transferAndChangeRecovery(address to, address recovery, uint256 deadline, bytes calldata sig) external;
+
+    /**
      * @notice Transfer the fid owned by the from address to another address that does not
      *         have an fid. Caller must provide two signed Transfer messages: one signed by
      *         the from address and one signed by the to address.
@@ -223,6 +243,31 @@ interface IIdRegistry {
     function transferFor(
         address from,
         address to,
+        uint256 fromDeadline,
+        bytes calldata fromSig,
+        uint256 toDeadline,
+        bytes calldata toSig
+    ) external;
+
+    /**
+     * @notice Transfer the fid owned by the from address to another address that does not
+     *         have an fid, and change the fid's recovery address to the provided recovery
+     *         address. This can be used to safely receive an fid transfer from an untrusted
+     *         address. Caller must provide two signed TransferAndChangeRecovery messages:
+     *         one signed by the from address and one signed by the to address.
+     *
+     * @param from         The owner address of the fid to transfer.
+     * @param to           The address to transfer the fid to.
+     * @param recovery     The new recovery address.
+     * @param fromDeadline Expiration timestamp of the from signature.
+     * @param fromSig      EIP-712 Transfer signature signed by the from address.
+     * @param toDeadline   Expiration timestamp of the to signature.
+     * @param toSig        EIP-712 Transfer signature signed by the to address.
+     */
+    function transferAndChangeRecoveryFor(
+        address from,
+        address to,
+        address recovery,
         uint256 fromDeadline,
         bytes calldata fromSig,
         uint256 toDeadline,
