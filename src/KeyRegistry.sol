@@ -336,7 +336,6 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
         _keysByFid[fid].remove(key);
-        keyData.state = KeyState.ADDED;
         keyData.state = KeyState.REMOVED;
         emit Remove(fid, key, key);
     }
