@@ -147,6 +147,11 @@ interface IKeyRegistry {
      */
     event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
 
+    /**
+     * @dev Emit an event when the contract owner permanently freezes the KeyGateway address.
+     *
+     * @param keyGateway The permanent KeyGateway address.
+     */
     event FreezeKeyGateway(address keyGateway);
 
     /*//////////////////////////////////////////////////////////////

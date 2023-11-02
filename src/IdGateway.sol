@@ -36,7 +36,7 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
         keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)");
 
     /*//////////////////////////////////////////////////////////////
-                                STORAGE
+                              IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -44,10 +44,14 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
      */
     IIdRegistry public immutable idRegistry;
 
+    /*//////////////////////////////////////////////////////////////
+                              STORAGE
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @inheritdoc IIdGateway
      */
-    IStorageRegistry public immutable storageRegistry;
+    IStorageRegistry public storageRegistry;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -69,6 +73,7 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     ) Guardians(_initialOwner) EIP712("Farcaster IdGateway", "1") {
         idRegistry = IIdRegistry(_idRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
+        emit SetStorageRegistry(address(0), _storageRegistry);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -131,6 +136,18 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
         _verifyRegisterSig({to: to, recovery: recovery, deadline: deadline, sig: sig});
         fid = idRegistry.register(to, recovery);
         overpayment = _rentStorage(fid, extraStorage, msg.value, msg.sender);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         PERMISSIONED ACTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @inheritdoc IIdGateway
+     */
+    function setStorageRegistry(address _storageRegistry) external onlyOwner {
+        emit SetStorageRegistry(address(storageRegistry), _storageRegistry);
+        storageRegistry = IStorageRegistry(_storageRegistry);
     }
 
     /*//////////////////////////////////////////////////////////////

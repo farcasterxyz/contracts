@@ -13,6 +13,18 @@ interface IIdGateway {
     error Unauthorized();
 
     /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Emit an event when the admin sets a new StorageRegistry address.
+     *
+     * @param oldStorageRegistry The previous StorageRegistry address.
+     * @param newStorageRegistry The new StorageRegistry address.
+     */
+    event SetStorageRegistry(address oldStorageRegistry, address newStorageRegistry);
+
+    /*//////////////////////////////////////////////////////////////
                               CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
@@ -126,4 +138,15 @@ interface IIdGateway {
         bytes calldata sig,
         uint256 extraStorage
     ) external payable returns (uint256 fid, uint256 overpayment);
+
+    /*//////////////////////////////////////////////////////////////
+                         PERMISSIONED ACTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Set the StorageRegistry address. Only callable by owner.
+     *
+     * @param _storageRegistry The new StorageREgistry address.
+     */
+    function setStorageRegistry(address _storageRegistry) external;
 }

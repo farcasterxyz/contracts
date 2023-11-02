@@ -17,6 +17,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     event Register(address indexed to, uint256 indexed id, address recovery);
+    event SetStorageRegistry(address oldStorageRegistry, address newStorageRegistry);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -450,5 +451,32 @@ contract IdGatewayTest is IdGatewayTestSuite {
     function _pauseManager() internal {
         vm.prank(owner);
         idGateway.pause();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        SET STORAGE REGISTRY
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzSetStorageRegistry(address storageRegistry) public {
+        address prevStorageRegistry = address(idGateway.storageRegistry());
+
+        vm.expectEmit();
+        emit SetStorageRegistry(prevStorageRegistry, storageRegistry);
+
+        vm.prank(owner);
+        idGateway.setStorageRegistry(storageRegistry);
+
+        assertEq(address(idGateway.storageRegistry()), storageRegistry);
+    }
+
+    function testFuzzOnlyOwnerCanSetStorageRegistry(address caller, address storageRegistry) public {
+        vm.assume(caller != owner);
+        address prevStorageRegistry = address(idGateway.storageRegistry());
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        idGateway.setStorageRegistry(storageRegistry);
+
+        assertEq(address(idGateway.storageRegistry()), prevStorageRegistry);
     }
 }
