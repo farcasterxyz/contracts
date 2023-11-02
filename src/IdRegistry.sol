@@ -38,7 +38,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)");
 
     /**
-     *
+     * @inheritdoc IIdRegistry
      */
     bytes32 public constant TRANSFER_AND_CHANGE_RECOVERY_TYPEHASH =
         keccak256("TransferAndChangeRecovery(uint256 fid,address to,address recovery,uint256 nonce,uint256 deadline)");
@@ -130,18 +130,12 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
      * @inheritdoc IIdRegistry
      */
     function transfer(address to, uint256 deadline, bytes calldata sig) external {
-        address from = msg.sender;
-        uint256 fromId = idOf[from];
-
-        /* Revert if the sender has no id */
-        if (fromId == 0) revert HasNoId();
-        /* Revert if recipient has an id */
-        if (idOf[to] != 0) revert HasId();
+        uint256 fromId = _validateTransfer(msg.sender, to);
 
         /* Revert if signature is invalid */
         _verifyTransferSig({fid: fromId, to: to, deadline: deadline, signer: to, sig: sig});
 
-        _unsafeTransfer(fromId, from, to);
+        _unsafeTransfer(fromId, msg.sender, to);
     }
 
     /**
@@ -155,12 +149,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         uint256 toDeadline,
         bytes calldata toSig
     ) external {
-        uint256 fromId = idOf[from];
-
-        /* Revert if the sender has no id */
-        if (fromId == 0) revert HasNoId();
-        /* Revert if recipient has an id */
-        if (idOf[to] != 0) revert HasId();
+        uint256 fromId = _validateTransfer(from, to);
 
         /* Revert if either signature is invalid */
         _verifyTransferSig({fid: fromId, to: to, deadline: fromDeadline, signer: from, sig: fromSig});
@@ -169,14 +158,11 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         _unsafeTransfer(fromId, from, to);
     }
 
+    /**
+     * @inheritdoc IIdRegistry
+     */
     function transferAndChangeRecovery(address to, address recovery, uint256 deadline, bytes calldata sig) external {
-        address from = msg.sender;
-        uint256 fromId = idOf[from];
-
-        /* Revert if the sender has no id */
-        if (fromId == 0) revert HasNoId();
-        /* Revert if recipient has an id */
-        if (idOf[to] != 0) revert HasId();
+        uint256 fromId = _validateTransfer(msg.sender, to);
 
         /* Revert if signature is invalid */
         _verifyTransferAndChangeRecoverySig({
@@ -188,10 +174,13 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
             sig: sig
         });
 
-        _unsafeTransfer(fromId, from, to);
+        _unsafeTransfer(fromId, msg.sender, to);
         _unsafeChangeRecovery(fromId, recovery);
     }
 
+    /**
+     * @inheritdoc IIdRegistry
+     */
     function transferAndChangeRecoveryFor(
         address from,
         address to,
@@ -201,12 +190,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         uint256 toDeadline,
         bytes calldata toSig
     ) external {
-        uint256 fromId = idOf[from];
-
-        /* Revert if the sender has no id */
-        if (fromId == 0) revert HasNoId();
-        /* Revert if recipient has an id */
-        if (idOf[to] != 0) revert HasId();
+        uint256 fromId = _validateTransfer(from, to);
 
         /* Revert if either signature is invalid */
         _verifyTransferAndChangeRecoverySig({
@@ -228,6 +212,18 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
 
         _unsafeTransfer(fromId, from, to);
         _unsafeChangeRecovery(fromId, recovery);
+    }
+
+    /**
+     * @dev Retrieve fid and validate sender/recipient
+     */
+    function _validateTransfer(address from, address to) internal returns (uint256 fromId) {
+        fromId = idOf[from];
+
+        /* Revert if the sender has no id */
+        if (fromId == 0) revert HasNoId();
+        /* Revert if recipient has an id */
+        if (idOf[to] != 0) revert HasId();
     }
 
     /**
