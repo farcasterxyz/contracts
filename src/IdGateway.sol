@@ -15,7 +15,7 @@ import {Signatures} from "./abstract/Signatures.sol";
  *
  * @notice See https://github.com/farcasterxyz/contracts/blob/v3.1.0/docs/docs.md for an overview.
  *
- * @custom:security-contact security@farcaster.xyz
+ * @custom:security-contact security@merklemanufactory.com
  */
 contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     using TransferHelper for address;

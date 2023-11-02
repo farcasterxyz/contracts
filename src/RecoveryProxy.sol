@@ -17,7 +17,7 @@ import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
  *          recovery mechanisms in the future without requiring each user to
  *          come online and execute a transaction.
  *
- * @custom:security-contact security@farcaster.xyz
+ * @custom:security-contact security@merklemanufactory.com
  */
 contract RecoveryProxy is Ownable2Step {
     /*//////////////////////////////////////////////////////////////

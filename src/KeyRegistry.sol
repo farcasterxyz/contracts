@@ -17,7 +17,7 @@ import {EnumerableKeySet, KeySet} from "./libraries/EnumerableKeySet.sol";
  *
  * @notice See https://github.com/farcasterxyz/contracts/blob/v3.1.0/docs/docs.md for an overview.
  *
- * @custom:security-contact security@farcaster.xyz
+ * @custom:security-contact security@merklemanufactory.com
  */
 contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     using EnumerableKeySet for KeySet;

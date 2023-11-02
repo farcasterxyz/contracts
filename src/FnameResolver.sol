@@ -27,7 +27,7 @@ interface IResolverService {
  *
  * @notice See https://github.com/farcasterxyz/contracts/blob/v3.1.0/docs/docs.md for an overview.
  *
- * @custom:security-contact security@farcaster.xyz
+ * @custom:security-contact security@merklemanufactory.com
  */
 contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /*//////////////////////////////////////////////////////////////

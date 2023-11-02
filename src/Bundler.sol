@@ -11,7 +11,7 @@ import {TransferHelper} from "./libraries/TransferHelper.sol";
  *
  * @notice See https://github.com/farcasterxyz/contracts/blob/v3.1.0/docs/docs.md for an overview.
  *
- * @custom:security-contact security@farcaster.xyz
+ * @custom:security-contact security@merklemanufactory.com
  */
 contract Bundler is IBundler {
     using TransferHelper for address;
