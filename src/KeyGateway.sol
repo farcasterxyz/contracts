@@ -11,7 +11,7 @@ import {Signatures} from "./abstract/Signatures.sol";
 /**
  * @title Farcaster KeyGateway
  *
- * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.1.0/docs/docs.md for an overview.
  *
  * @custom:security-contact security@farcaster.xyz
  */
