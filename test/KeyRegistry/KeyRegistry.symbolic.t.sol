@@ -80,9 +80,11 @@ contract KeyRegistrySymTest is SymTest, Test {
         xkey = svm.createBytes(32, "xkey");
     }
 
+    // Verify the KeyRegistry invariants
     function check_Invariants(bytes4 selector, address caller) public {
         // Additional setup to cover various input states
         if (svm.createBool("migrate?")) {
+            vm.prank(migrator);
             keyRegistry.migrate();
         }
         /* NOTE: these configurations don't make any differences for the current KeyRegistry behaviors.
@@ -144,9 +146,9 @@ contract KeyRegistrySymTest is SymTest, Test {
                     //   - add() must be called by the key manager contract.
                     assert(caller == keyGateway);
                 } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
-                    //   - bulkAdd() must be called by the migrator.
+                    //   - bulkAdd() must be called by the owner of KeyRegistry.
                     //   - bulkAdd() must be called before the key migration or within the grade period following the migration.
-                    assert(caller == migrator); // KeyRegistry.migrator() address
+                    assert(caller == migrator); // `this` is the owner of KeyRegistry
                     assert(isNotMigratedOrGracePeriod);
                 } else {
                     assert(false);
@@ -159,7 +161,7 @@ contract KeyRegistrySymTest is SymTest, Test {
                 //   - It must be called before the key migration or within the grade period following the migration.
                 assert(oldStateX == IKeyRegistry.KeyState.ADDED);
                 assert(selector == keyRegistry.bulkResetKeysForMigration.selector);
-                assert(caller == migrator); // KeyRegistry.migrator() address
+                assert(caller == migrator); // `this` is the owner of KeyRegistry
                 assert(isNotMigratedOrGracePeriod);
             } else {
                 // Ensure that no other state transitions are possible.
@@ -175,8 +177,29 @@ contract KeyRegistrySymTest is SymTest, Test {
 
     function mk_calldata(bytes4 selector, address user) internal returns (bytes memory) {
         // Ignore view functions
+        vm.assume(selector != keyRegistry.REMOVE_TYPEHASH.selector);
+        vm.assume(selector != keyRegistry.VERSION.selector);
+        vm.assume(selector != keyRegistry.eip712Domain.selector);
+        vm.assume(selector != keyRegistry.gatewayFrozen.selector);
+        vm.assume(selector != keyRegistry.gracePeriod.selector);
+        vm.assume(selector != keyRegistry.guardians.selector);
+        vm.assume(selector != keyRegistry.idRegistry.selector);
+        vm.assume(selector != keyRegistry.isMigrated.selector);
+        vm.assume(selector != keyRegistry.keyAt.selector);
         vm.assume(selector != keyRegistry.keyDataOf.selector);
+        vm.assume(selector != keyRegistry.keyGateway.selector);
         vm.assume(selector != keyRegistry.keys.selector);
+        vm.assume(selector != bytes4(0x1f64222f)); // keysOf
+        vm.assume(selector != bytes4(0xf27995e3)); // keysOf paged
+        vm.assume(selector != keyRegistry.maxKeysPerFid.selector);
+        vm.assume(selector != keyRegistry.migratedAt.selector);
+        vm.assume(selector != keyRegistry.migrator.selector);
+        vm.assume(selector != keyRegistry.nonces.selector);
+        vm.assume(selector != keyRegistry.owner.selector);
+        vm.assume(selector != keyRegistry.paused.selector);
+        vm.assume(selector != keyRegistry.pendingOwner.selector);
+        vm.assume(selector != keyRegistry.totalKeys.selector);
+        vm.assume(selector != keyRegistry.validators.selector);
 
         // Create symbolic values to be included in calldata
         uint256 fid = svm.createUint256("fid");
@@ -234,7 +257,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         } else {
             // For functions where all parameters are static (not dynamic arrays or bytes),
             // a raw byte array is sufficient instead of explicitly specifying each argument.
-            args = svm.createBytes(1024, "data"); // choose a size that is large enough to cover all parameters
+            args = svm.createBytes(512, "data"); // choose a size that is large enough to cover all parameters
         }
         return abi.encodePacked(selector, args);
     }

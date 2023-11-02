@@ -193,6 +193,23 @@ contract IdRegistrySymTest is SymTest, Test {
                 svm.createUint256("toDeadline"),
                 svm.createBytes(65, "toSig")
             );
+        } else if (selector == idRegistry.transferAndChangeRecovery.selector) {
+            args = abi.encode(
+                svm.createAddress("to"),
+                svm.createAddress("recovery"),
+                svm.createUint256("deadline"),
+                svm.createBytes(65, "sig")
+            );
+        } else if (selector == idRegistry.transferAndChangeRecoveryFor.selector) {
+            args = abi.encode(
+                svm.createAddress("from"),
+                svm.createAddress("to"),
+                svm.createAddress("recovery"),
+                svm.createUint256("fromDeadline"),
+                svm.createBytes(65, "fromSig"),
+                svm.createUint256("toDeadline"),
+                svm.createBytes(65, "toSig")
+            );
         } else if (selector == idRegistry.changeRecoveryAddressFor.selector) {
             args = abi.encode(
                 svm.createAddress("owner"),
