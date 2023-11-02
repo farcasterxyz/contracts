@@ -38,6 +38,12 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)");
 
     /**
+     *
+     */
+    bytes32 public constant TRANSFER_AND_CHANGE_RECOVERY_TYPEHASH =
+        keccak256("TransferAndChangeRecovery(uint256 fid,address to,address recovery,uint256 nonce,uint256 deadline)");
+
+    /**
      * @inheritdoc IIdRegistry
      */
     bytes32 public constant CHANGE_RECOVERY_ADDRESS_TYPEHASH =
@@ -163,6 +169,67 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         _unsafeTransfer(fromId, from, to);
     }
 
+    function transferAndChangeRecovery(address to, address recovery, uint256 deadline, bytes calldata sig) external {
+        address from = msg.sender;
+        uint256 fromId = idOf[from];
+
+        /* Revert if the sender has no id */
+        if (fromId == 0) revert HasNoId();
+        /* Revert if recipient has an id */
+        if (idOf[to] != 0) revert HasId();
+
+        /* Revert if signature is invalid */
+        _verifyTransferAndChangeRecoverySig({
+            fid: fromId,
+            to: to,
+            recovery: recovery,
+            deadline: deadline,
+            signer: to,
+            sig: sig
+        });
+
+        _unsafeTransfer(fromId, from, to);
+        _unsafeChangeRecovery(fromId, recovery);
+    }
+
+    function transferAndChangeRecoveryFor(
+        address from,
+        address to,
+        address recovery,
+        uint256 fromDeadline,
+        bytes calldata fromSig,
+        uint256 toDeadline,
+        bytes calldata toSig
+    ) external {
+        uint256 fromId = idOf[from];
+
+        /* Revert if the sender has no id */
+        if (fromId == 0) revert HasNoId();
+        /* Revert if recipient has an id */
+        if (idOf[to] != 0) revert HasId();
+
+        /* Revert if either signature is invalid */
+        _verifyTransferAndChangeRecoverySig({
+            fid: fromId,
+            to: to,
+            recovery: recovery,
+            deadline: fromDeadline,
+            signer: from,
+            sig: fromSig
+        });
+        _verifyTransferAndChangeRecoverySig({
+            fid: fromId,
+            to: to,
+            recovery: recovery,
+            deadline: toDeadline,
+            signer: to,
+            sig: toSig
+        });
+
+        _unsafeTransfer(fromId, from, to);
+        _unsafeChangeRecovery(fromId, recovery);
+    }
+
     /**
      * @dev Register the fid without checking invariants.
      */
@@ -197,10 +264,7 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         uint256 ownerId = idOf[msg.sender];
         if (ownerId == 0) revert HasNoId();
 
-        /* Change the recovery address */
-        recoveryOf[ownerId] = recovery;
-
-        emit ChangeRecoveryAddress(ownerId, recovery);
+        _unsafeChangeRecovery(ownerId, recovery);
     }
 
     /**
@@ -225,10 +289,17 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
             sig: sig
         });
 
-        /* Change the recovery address */
-        recoveryOf[ownerId] = recovery;
+        _unsafeChangeRecovery(ownerId, recovery);
+    }
 
-        emit ChangeRecoveryAddress(ownerId, recovery);
+    /**
+     * @dev Change recovery address without checking invariants.
+     */
+    function _unsafeChangeRecovery(uint256 id, address recovery) internal whenNotPaused {
+        /* Change the recovery address */
+        recoveryOf[id] = recovery;
+
+        emit ChangeRecoveryAddress(id, recovery);
     }
 
     /**
@@ -380,6 +451,26 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
     function _verifyTransferSig(uint256 fid, address to, uint256 deadline, address signer, bytes memory sig) internal {
         _verifySig(
             _hashTypedDataV4(keccak256(abi.encode(TRANSFER_TYPEHASH, fid, to, _useNonce(signer), deadline))),
+            signer,
+            deadline,
+            sig
+        );
+    }
+
+    function _verifyTransferAndChangeRecoverySig(
+        uint256 fid,
+        address to,
+        address recovery,
+        uint256 deadline,
+        address signer,
+        bytes memory sig
+    ) internal {
+        _verifySig(
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(TRANSFER_AND_CHANGE_RECOVERY_TYPEHASH, fid, to, recovery, _useNonce(signer), deadline)
+                )
+            ),
             signer,
             deadline,
             sig
