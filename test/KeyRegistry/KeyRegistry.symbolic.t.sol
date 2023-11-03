@@ -6,7 +6,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {IKeyRegistry} from "../../src/interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
-import {KeyRegistry} from "../../src/KeyRegistry.sol";
+import {KeyRegistryHarness} from "./utils/KeyRegistryHarness.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {StubValidator} from "../Utils.sol";
 
@@ -14,7 +14,7 @@ contract KeyRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
     address idRegistration;
 
-    KeyRegistry keyRegistry;
+    KeyRegistryHarness keyRegistry;
     StubValidator validator;
     address keyGateway;
     address migrator;
@@ -53,7 +53,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         keyGateway = address(0x3000);
 
         // Setup KeyRegistry
-        keyRegistry = new KeyRegistry(address(idRegistry), migrator, address(this), 1000);
+        keyRegistry = new KeyRegistryHarness(address(idRegistry), migrator, address(this), 1000);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
         keyRegistry.setKeyGateway(keyGateway);
         keyRegistry.unpause();
