@@ -157,6 +157,8 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
             for (uint256 j; j < numKeys; ++j) {
                 assertAdded(ids[i], keys[i][j], 1);
             }
+            assertEq(keyRegistry.totalKeys(ids[i], IKeyRegistry.KeyState.ADDED), keys[i].length);
+            assertEq(keyRegistry.totalKeys(ids[i], IKeyRegistry.KeyState.REMOVED), 0);
         }
     }
 
@@ -280,12 +282,20 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.startPrank(migrator);
 
         keyRegistry.bulkAddKeysForMigration(addItems);
+
+        for (uint256 i; i < idsLength; ++i) {
+            assertEq(keyRegistry.totalKeys(ids[i], IKeyRegistry.KeyState.ADDED), keys[i].length);
+            assertEq(keyRegistry.totalKeys(ids[i], IKeyRegistry.KeyState.REMOVED), 0);
+        }
+
         keyRegistry.bulkResetKeysForMigration(resetItems);
 
         for (uint256 i; i < idsLength; ++i) {
             for (uint256 j; j < numKeys; ++j) {
                 assertNull(ids[i], keys[i][j]);
             }
+            assertEq(keyRegistry.totalKeys(ids[i], IKeyRegistry.KeyState.ADDED), 0);
+            assertEq(keyRegistry.totalKeys(ids[i], IKeyRegistry.KeyState.REMOVED), 0);
         }
 
         vm.stopPrank();

@@ -121,7 +121,7 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function totalKeys(uint256 fid, KeyState state) external view returns (uint256) {
+    function totalKeys(uint256 fid, KeyState state) public view virtual returns (uint256) {
         return _keysByState(fid, state).length();
     }
 
@@ -320,14 +320,14 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     ) internal {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.NULL) revert InvalidState();
-        if (_activeKeysByFid[fid].length() >= maxKeysPerFid) revert ExceedsMaximum();
+        if (totalKeys(fid, KeyState.ADDED) >= maxKeysPerFid) revert ExceedsMaximum();
 
         IMetadataValidator validator = validators[keyType][metadataType];
         if (validator == IMetadataValidator(address(0))) {
             revert ValidatorNotFound(keyType, metadataType);
         }
 
-        _activeKeysByFid[fid].add(key);
+        _addToKeySet(fid, key);
         keyData.state = KeyState.ADDED;
         keyData.keyType = keyType;
         emit Add(fid, keyType, key, key, metadataType, metadata);
@@ -342,8 +342,7 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
-        _activeKeysByFid[fid].remove(key);
-        _removedKeysByFid[fid].add(key);
+        _removeFromKeySet(fid, key);
         keyData.state = KeyState.REMOVED;
         emit Remove(fid, key, key);
     }
@@ -352,7 +351,7 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
         KeyData storage keyData = keys[fid][key];
         if (keyData.state != KeyState.ADDED) revert InvalidState();
 
-        _activeKeysByFid[fid].remove(key);
+        _resetFromKeySet(fid, key);
         keyData.state = KeyState.NULL;
         delete keyData.keyType;
         emit AdminReset(fid, key, key);
@@ -385,6 +384,19 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /*//////////////////////////////////////////////////////////////
                          KEY SET HELPERS
     //////////////////////////////////////////////////////////////*/
+
+    function _addToKeySet(uint256 fid, bytes memory key) internal virtual {
+        _activeKeysByFid[fid].add(key);
+    }
+
+    function _removeFromKeySet(uint256 fid, bytes memory key) internal virtual {
+        _activeKeysByFid[fid].remove(key);
+        _removedKeysByFid[fid].add(key);
+    }
+
+    function _resetFromKeySet(uint256 fid, bytes memory key) internal virtual {
+        _activeKeysByFid[fid].remove(key);
+    }
 
     function _keysByState(uint256 fid, KeyState state) internal view returns (KeySet storage) {
         if (state == KeyState.ADDED) {
