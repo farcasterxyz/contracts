@@ -257,7 +257,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         } else {
             // For functions where all parameters are static (not dynamic arrays or bytes),
             // a raw byte array is sufficient instead of explicitly specifying each argument.
-            args = svm.createBytes(512, "data"); // choose a size that is large enough to cover all parameters
+            args = svm.createBytes(1024, "data"); // choose a size that is large enough to cover all parameters
         }
         return abi.encodePacked(selector, args);
     }

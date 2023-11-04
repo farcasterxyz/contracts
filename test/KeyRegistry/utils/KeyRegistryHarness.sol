@@ -24,15 +24,15 @@ contract KeyRegistryHarness is KeyRegistry {
         return activeKeys[fid].length;
     }
 
-    function _addToKeySet(uint256 fid, bytes memory key) internal override {
+    function _addToKeySet(uint256 fid, bytes calldata key) internal override {
         activeKeys[fid].push(key);
     }
 
-    function _removeFromKeySet(uint256 fid, bytes memory) internal override {
+    function _removeFromKeySet(uint256 fid, bytes calldata) internal override {
         activeKeys[fid].pop();
     }
 
-    function _resetFromKeySet(uint256 fid, bytes memory) internal override {
+    function _resetFromKeySet(uint256 fid, bytes calldata) internal override {
         activeKeys[fid].pop();
     }
 }

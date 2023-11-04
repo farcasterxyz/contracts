@@ -19,7 +19,7 @@ library EnumerableKeySet {
      * Returns true if the value was added to the set, that is if it was not
      * already present.
      */
-    function add(KeySet storage set, bytes memory value) internal returns (bool) {
+    function add(KeySet storage set, bytes calldata value) internal returns (bool) {
         if (!contains(set, value)) {
             set._values.push(value);
             // The value is stored at length-1, but we add 1 to all indexes
@@ -37,7 +37,7 @@ library EnumerableKeySet {
      * Returns true if the value was removed from the set, that is if it was
      * present.
      */
-    function remove(KeySet storage set, bytes memory value) internal returns (bool) {
+    function remove(KeySet storage set, bytes calldata value) internal returns (bool) {
         // We read and store the value's index to prevent multiple reads from the same storage slot
         uint256 valueIndex = set._indexes[value];
 
@@ -74,7 +74,7 @@ library EnumerableKeySet {
     /**
      * @dev Returns true if the value is in the set. O(1).
      */
-    function contains(KeySet storage set, bytes memory value) internal view returns (bool) {
+    function contains(KeySet storage set, bytes calldata value) internal view returns (bool) {
         return set._indexes[value] != 0;
     }
 
