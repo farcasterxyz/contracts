@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
+import {Test} from "forge-std/Test.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {IdRegistry, IIdRegistry} from "../src/IdRegistry.sol";
 import {IdGateway} from "../src/IdGateway.sol";
@@ -12,7 +13,7 @@ import {RecoveryProxy} from "../src/RecoveryProxy.sol";
 import {IMetadataValidator} from "../src/interfaces/IMetadataValidator.sol";
 import {console, ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";
 
-contract UpgradeL2 is ImmutableCreate2Deployer {
+contract UpgradeL2 is ImmutableCreate2Deployer, Test {
     uint256 public constant INITIAL_USD_UNIT_PRICE = 5e8; // $5 USD
     uint256 public constant INITIAL_MAX_UNITS = 200_000;
     uint256 public constant INITIAL_PRICE_FEED_CACHE_DURATION = 1 days;
@@ -141,6 +142,41 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             contracts.keyRegistry.transferOwnership(params.initialKeyRegistryOwner);
 
             if (broadcast) vm.stopBroadcast();
+
+            // Post-deploy checks
+            assertEq(contracts.idRegistry.owner(), params.deployer);
+            assertEq(contracts.idRegistry.pendingOwner(), params.initialIdRegistryOwner);
+            assertEq(contracts.keyRegistry.owner(), params.deployer);
+            assertEq(contracts.keyRegistry.pendingOwner(), params.initialKeyRegistryOwner);
+
+            // Check key registry parameters
+            assertEq(address(contracts.keyRegistry.idRegistry()), address(contracts.idRegistry));
+            assertEq(address(contracts.keyRegistry.keyGateway()), address(contracts.keyGateway));
+            assertEq(contracts.keyRegistry.gracePeriod(), KEY_REGISTRY_MIGRATION_GRACE_PERIOD);
+            assertEq(address(contracts.keyRegistry.migrator()), params.migrator);
+            assertEq(contracts.keyRegistry.paused(), true);
+
+            // Check key gateway parameters
+            assertEq(address(contracts.keyGateway.keyRegistry()), address(contracts.keyRegistry));
+            assertEq(address(contracts.keyGateway.owner()), params.initialKeyRegistryOwner);
+
+            // Check ID registry parameters
+            assertEq(address(contracts.idRegistry.idGateway()), address(contracts.idGateway));
+            assertEq(address(contracts.idRegistry.migrator()), params.migrator);
+            assertEq(contracts.idRegistry.paused(), true);
+
+            // Check ID gateway parameters
+            assertEq(address(contracts.idGateway.idRegistry()), address(contracts.idRegistry));
+            assertEq(address(contracts.idGateway.storageRegistry()), address(contracts.storageRegistry));
+            assertEq(address(contracts.idGateway.owner()), params.initialIdRegistryOwner);
+
+            // Check bundler deploy parameters
+            assertEq(address(contracts.bundler.idGateway()), address(contracts.idGateway));
+            assertEq(address(contracts.bundler.keyGateway()), address(contracts.keyGateway));
+
+            // Recovery proxy owned by multisig, check deploy parameters
+            assertEq(contracts.recoveryProxy.owner(), params.initialRecoveryProxyOwner);
+            assertEq(address(contracts.recoveryProxy.idRegistry()), address(contracts.idRegistry));
         } else {
             console.log("No changes, skipping setup");
         }
@@ -163,9 +199,9 @@ contract UpgradeL2 is ImmutableCreate2Deployer {
             migrator: vm.envAddress("MIGRATOR_ADDRESS"),
             salts: Salts({
                 idRegistry: vm.envOr("ID_REGISTRY_CREATE2_SALT", bytes32(0)),
-                idGateway: vm.envOr("ID_MANAGER_CREATE2_SALT", bytes32(0)),
+                idGateway: vm.envOr("ID_GATEWAY_CREATE2_SALT", bytes32(0)),
                 keyRegistry: vm.envOr("KEY_REGISTRY_CREATE2_SALT", bytes32(0)),
-                keyGateway: vm.envOr("KEY_MANAGER_CREATE2_SALT", bytes32(0)),
+                keyGateway: vm.envOr("KEY_GATEWAY_CREATE2_SALT", bytes32(0)),
                 bundler: vm.envOr("BUNDLER_CREATE2_SALT", bytes32(0)),
                 recoveryProxy: vm.envOr("RECOVERY_PROXY_CREATE2_SALT", bytes32(0))
             })
