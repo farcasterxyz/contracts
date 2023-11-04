@@ -361,7 +361,7 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
                      SIGNATURE VERIFICATION HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _verifyRemoveSig(address fidOwner, bytes memory key, uint256 deadline, bytes memory sig) internal {
+    function _verifyRemoveSig(address fidOwner, bytes calldata key, uint256 deadline, bytes calldata sig) internal {
         _verifySig(
             _hashTypedDataV4(
                 keccak256(abi.encode(REMOVE_TYPEHASH, fidOwner, keccak256(key), _useNonce(fidOwner), deadline))
@@ -385,16 +385,16 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
                          KEY SET HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _addToKeySet(uint256 fid, bytes memory key) internal virtual {
+    function _addToKeySet(uint256 fid, bytes calldata key) internal virtual {
         _activeKeysByFid[fid].add(key);
     }
 
-    function _removeFromKeySet(uint256 fid, bytes memory key) internal virtual {
+    function _removeFromKeySet(uint256 fid, bytes calldata key) internal virtual {
         _activeKeysByFid[fid].remove(key);
         _removedKeysByFid[fid].add(key);
     }
 
-    function _resetFromKeySet(uint256 fid, bytes memory key) internal virtual {
+    function _resetFromKeySet(uint256 fid, bytes calldata key) internal virtual {
         _activeKeysByFid[fid].remove(key);
     }
 
