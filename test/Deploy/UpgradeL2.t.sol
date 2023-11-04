@@ -25,7 +25,7 @@ import {BulkAddDataBuilder, BulkResetDataBuilder} from "../KeyRegistry/KeyRegist
 
 /* solhint-disable state-visibility */
 
-contract UpgradeL2Test is UpgradeL2, Test {
+contract UpgradeL2Test is UpgradeL2 {
     using BulkRegisterDataBuilder for IIdRegistry.BulkRegisterData[];
     using BulkRegisterDefaultRecoveryDataBuilder for IIdRegistry.BulkRegisterDefaultRecoveryData[];
     using BulkAddDataBuilder for KeyRegistry.BulkAddData[];
