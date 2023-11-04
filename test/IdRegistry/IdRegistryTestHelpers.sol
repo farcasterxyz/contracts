@@ -22,6 +22,14 @@ library BulkRegisterDataBuilder {
             address(uint160(uint256(keccak256(abi.encodePacked(keccak256(abi.encodePacked(fid)))))));
         return newData;
     }
+
+    function custodyOf(uint24 fid) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked(fid)))));
+    }
+
+    function recoveryOf(uint24 fid) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked(keccak256(abi.encodePacked(fid)))))));
+    }
 }
 
 library BulkRegisterDefaultRecoveryDataBuilder {
@@ -41,5 +49,9 @@ library BulkRegisterDefaultRecoveryDataBuilder {
         newData[addData.length].fid = fid;
         newData[addData.length].custody = address(uint160(uint256(keccak256(abi.encodePacked(fid)))));
         return newData;
+    }
+
+    function custodyOf(uint24 fid) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked(fid)))));
     }
 }
