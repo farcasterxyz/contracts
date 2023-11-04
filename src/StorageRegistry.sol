@@ -7,14 +7,14 @@ import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 import {IStorageRegistry} from "./interfaces/IStorageRegistry.sol";
-import {TransferHelper} from "./lib/TransferHelper.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 /**
  * @title Farcaster StorageRegistry
  *
- * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.1.0/docs/docs.md for an overview.
  *
- * @custom:security-contact security@farcaster.xyz
+ * @custom:security-contact security@merklemanufactory.com
  */
 contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable {
     using FixedPointMathLib for uint256;

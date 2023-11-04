@@ -2,35 +2,32 @@
 pragma solidity 0.8.21;
 
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
-import {IdManagerTestSuite} from "../IdManager/IdManagerTestSuite.sol";
+import {IdGatewayTestSuite} from "../IdGateway/IdGatewayTestSuite.sol";
 
-import {KeyManager} from "../../src/KeyManager.sol";
+import {KeyGateway} from "../../src/KeyGateway.sol";
 import {Bundler} from "../../src/Bundler.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract BundlerTestSuite is IdManagerTestSuite {
-    KeyManager keyManager;
+abstract contract BundlerTestSuite is IdGatewayTestSuite {
+    KeyGateway keyGateway;
     Bundler bundler;
 
     function setUp() public virtual override {
         super.setUp();
 
-        keyManager = new KeyManager(address(keyRegistry), address(storageRegistry), owner, vault, 10e6);
+        keyGateway = new KeyGateway(address(keyRegistry), owner);
 
         vm.prank(owner);
-        keyRegistry.setKeyManager(address(keyManager));
+        keyRegistry.setKeyGateway(address(keyGateway));
 
         // Set up the BundleRegistry
         bundler = new Bundler(
-            address(idManager),
-            address(keyManager),
-            address(storageRegistry),
-            address(this),
-            owner
+            address(idGateway),
+            address(keyGateway)
         );
 
-        addKnownContract(address(keyManager));
+        addKnownContract(address(keyGateway));
         addKnownContract(address(bundler));
     }
 
@@ -55,7 +52,7 @@ abstract contract BundlerTestSuite is IdManagerTestSuite {
         bytes memory metadata,
         uint256 deadline
     ) internal returns (bytes memory signature) {
-        return _signAdd(pk, owner, keyType, key, metadataType, metadata, keyManager.nonces(owner), deadline);
+        return _signAdd(pk, owner, keyType, key, metadataType, metadata, keyGateway.nonces(owner), deadline);
     }
 
     function _signAdd(
@@ -68,10 +65,10 @@ abstract contract BundlerTestSuite is IdManagerTestSuite {
         uint256 nonce,
         uint256 deadline
     ) internal returns (bytes memory signature) {
-        bytes32 digest = keyManager.hashTypedDataV4(
+        bytes32 digest = keyGateway.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    keyManager.ADD_TYPEHASH(),
+                    keyGateway.ADD_TYPEHASH(),
                     owner,
                     keyType,
                     keccak256(key),

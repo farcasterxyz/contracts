@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
-import {Guardians} from "../../src/lib/Guardians.sol";
+import {IGuardians} from "../../src/abstract/Guardians.sol";
 
 /* solhint-disable state-visibility */
 
@@ -119,7 +119,7 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.paused(), false);
 
         vm.prank(alice);
-        vm.expectRevert(Guardians.OnlyGuardian.selector);
+        vm.expectRevert(IGuardians.OnlyGuardian.selector);
         idRegistry.pause();
 
         assertEq(idRegistry.paused(), false);

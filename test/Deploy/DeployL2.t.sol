@@ -6,9 +6,9 @@ import {
     DeployL2,
     StorageRegistry,
     IdRegistry,
-    IdManager,
+    IdGateway,
     KeyRegistry,
-    KeyManager,
+    KeyGateway,
     SignedKeyRequestValidator,
     Bundler,
     RecoveryProxy,
@@ -22,9 +22,9 @@ import "forge-std/console.sol";
 contract DeployL2Test is DeployL2, Test {
     StorageRegistry internal storageRegistry;
     IdRegistry internal idRegistry;
-    IdManager internal idManager;
+    IdGateway internal idGateway;
     KeyRegistry internal keyRegistry;
-    KeyManager internal keyManager;
+    KeyGateway internal keyGateway;
     SignedKeyRequestValidator internal validator;
     Bundler internal bundler;
     RecoveryProxy internal recoveryProxy;
@@ -48,6 +48,7 @@ contract DeployL2Test is DeployL2, Test {
     address internal beta = makeAddr("beta");
     address internal vault = makeAddr("vault");
     address internal relayer = makeAddr("relayer");
+    address internal migrator = makeAddr("migrator");
 
     // @dev OP Mainnet ETH/USD price feed
     address internal priceFeed = address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
@@ -70,11 +71,11 @@ contract DeployL2Test is DeployL2, Test {
         vm.deal(bob, 0.5 ether);
         vm.deal(carol, 0.5 ether);
         vm.deal(dave, 0.5 ether);
+        vm.deal(app, 0.5 ether);
 
         DeployL2.DeploymentParams memory params = DeployL2.DeploymentParams({
             initialIdRegistryOwner: alpha,
             initialKeyRegistryOwner: alpha,
-            initialBundlerOwner: alpha,
             initialValidatorOwner: alpha,
             initialRecoveryProxyOwner: alpha,
             priceFeed: priceFeed,
@@ -84,14 +85,14 @@ contract DeployL2Test is DeployL2, Test {
             admin: beta,
             operator: relayer,
             treasurer: relayer,
-            bundlerTrustedCaller: relayer,
             deployer: deployer,
+            migrator: migrator,
             salts: DeployL2.Salts({
                 storageRegistry: 0,
                 idRegistry: 0,
-                idManager: 0,
+                idGateway: 0,
                 keyRegistry: 0,
-                keyManager: 0,
+                keyGateway: 0,
                 signedKeyRequestValidator: 0,
                 bundler: 0,
                 recoveryProxy: 0
@@ -105,9 +106,9 @@ contract DeployL2Test is DeployL2, Test {
 
         storageRegistry = contracts.storageRegistry;
         idRegistry = contracts.idRegistry;
-        idManager = contracts.idManager;
+        idGateway = contracts.idGateway;
         keyRegistry = contracts.keyRegistry;
-        keyManager = contracts.keyManager;
+        keyGateway = contracts.keyGateway;
         validator = contracts.signedKeyRequestValidator;
         bundler = contracts.bundler;
         recoveryProxy = contracts.recoveryProxy;
@@ -144,30 +145,27 @@ contract DeployL2Test is DeployL2, Test {
         assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), deployer), false);
         assertEq(storageRegistry.hasRole(keccak256("TREASURER_ROLE"), relayer), true);
 
-        // Ownership transfers initiated from deployer to multisig
+        // Ownership transfer initiated from deployer to multisig
         assertEq(idRegistry.owner(), deployer);
         assertEq(idRegistry.pendingOwner(), alpha);
-
         assertEq(keyRegistry.owner(), deployer);
         assertEq(keyRegistry.pendingOwner(), alpha);
 
         // Check key registry parameters
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
-        assertEq(address(keyRegistry.keyManager()), address(keyManager));
+        assertEq(address(keyRegistry.keyGateway()), address(keyGateway));
         assertEq(keyRegistry.gracePeriod(), KEY_REGISTRY_MIGRATION_GRACE_PERIOD);
 
         // Check ID registry parameters
-        assertEq(address(idRegistry.idManager()), address(idManager));
+        assertEq(address(idRegistry.idGateway()), address(idGateway));
 
         // Validator owned by multisig, check deploy parameters
         assertEq(validator.owner(), alpha);
         assertEq(address(validator.idRegistry()), address(idRegistry));
 
-        // Bundler owned by multisig, check deploy parameters
-        assertEq(bundler.owner(), alpha);
-        assertEq(address(bundler.idManager()), address(idManager));
-        assertEq(address(bundler.storageRegistry()), address(storageRegistry));
-        assertEq(bundler.trustedCaller(), relayer);
+        // Check bundler deploy parameters
+        assertEq(address(bundler.idGateway()), address(idGateway));
+        assertEq(address(bundler.keyGateway()), address(keyGateway));
 
         // Recovery proxy owned by multisig, check deploy parameters
         assertEq(recoveryProxy.owner(), alpha);
@@ -178,35 +176,27 @@ contract DeployL2Test is DeployL2, Test {
         // Multisig accepts ownership transferred from deployer
         vm.startPrank(alpha);
         idRegistry.acceptOwnership();
-        idManager.acceptOwnership();
+        idRegistry.unpause();
+
         keyRegistry.acceptOwnership();
+        keyRegistry.unpause();
+
+        idGateway.acceptOwnership();
         vm.stopPrank();
 
-        // Bundler trusted registers an app fid
-        vm.prank(address(bundler));
-        uint256 requestFid = idManager.trustedRegister(app, address(0));
+        // Register an app fid
+        uint256 idFee = idGateway.price();
+        vm.prank(app);
+        (uint256 requestFid,) = idGateway.register{value: idFee}(address(0));
         uint256 deadline = block.timestamp + 60;
 
-        IBundler.UserData[] memory batch = new IBundler.UserData[](1);
-        batch[0] = IBundler.UserData({to: alice, recovery: address(recoveryProxy)});
-        // Relayer trusted registers a user fid
-        vm.prank(relayer);
-        bundler.trustedBatchRegister(batch);
-        assertEq(idRegistry.idOf(alice), 2);
-
-        // Multisig disables trusted mode
-        vm.startPrank(alpha);
-        idManager.disableTrustedOnly();
-        bundler.disableTrustedOnly();
-        vm.stopPrank();
-
-        // Carol permissionlessly registers an fid with Dave as recovery
-        uint256 idFee = idManager.price();
+        // Carol registers an fid with recoveryProxy as recovery
+        idFee = idGateway.price();
         vm.prank(carol);
-        idManager.register{value: idFee}(dave);
-        assertEq(idRegistry.idOf(carol), 3);
+        idGateway.register{value: idFee}(address(recoveryProxy));
+        assertEq(idRegistry.idOf(carol), 2);
 
-        // Carol permissionlessly adds a key to her fid
+        // Carol adds a key to her fid
         bytes memory carolKey = bytes.concat("carolKey", bytes24(0));
         bytes memory carolSig = _signMetadata(appPk, requestFid, carolKey, deadline);
         bytes memory carolMetadata = abi.encode(
@@ -218,20 +208,16 @@ contract DeployL2Test is DeployL2, Test {
             })
         );
 
-        uint256 keyFee = keyManager.price();
         vm.prank(carol);
-        keyManager.add{value: keyFee}(1, carolKey, 1, carolMetadata);
+        keyGateway.add(1, carolKey, 1, carolMetadata);
 
-        // Multisig recovers Alice's FID to bob
+        // Multisig recovers Carol's FID to Bob
         uint256 recoverDeadline = block.timestamp + 30;
         bytes memory recoverSig = _signTransfer(bobPk, 2, bob, recoverDeadline);
         vm.prank(alpha);
-        recoveryProxy.recover(alice, bob, recoverDeadline, recoverSig);
+        recoveryProxy.recover(carol, bob, recoverDeadline, recoverSig);
 
-        // Multisig withdraws keyManager and storageRegistry balances
-        vm.prank(alpha);
-        keyManager.withdraw(address(keyManager).balance);
-
+        // Multisig withdraws storageRegistry balance
         vm.prank(relayer);
         storageRegistry.withdraw(address(storageRegistry).balance);
     }

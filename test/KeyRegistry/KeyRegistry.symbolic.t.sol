@@ -6,7 +6,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {IKeyRegistry} from "../../src/interfaces/IKeyRegistry.sol";
 import {IMetadataValidator} from "../../src/interfaces/IMetadataValidator.sol";
-import {KeyRegistry} from "../../src/KeyRegistry.sol";
+import {KeyRegistryHarness} from "./utils/KeyRegistryHarness.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {StubValidator} from "../Utils.sol";
 
@@ -14,9 +14,10 @@ contract KeyRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
     address idRegistration;
 
-    KeyRegistry keyRegistry;
+    KeyRegistryHarness keyRegistry;
     StubValidator validator;
-    address keyManager;
+    address keyGateway;
+    address migrator;
 
     uint256 x;
     bytes xkey;
@@ -26,9 +27,12 @@ contract KeyRegistrySymTest is SymTest, Test {
         validator = new StubValidator();
         idRegistration = address(0x1000);
 
+        migrator = address(0x2000);
+
         // Setup IdRegistry
-        idRegistry = new IdRegistry(address(this));
-        idRegistry.setIdManager(address(idRegistration));
+        idRegistry = new IdRegistry(migrator, address(this));
+        idRegistry.setIdGateway(address(idRegistration));
+        idRegistry.unpause();
 
         // Register fids
         vm.prank(idRegistration);
@@ -46,12 +50,13 @@ contract KeyRegistrySymTest is SymTest, Test {
         assert(idRegistry.recoveryOf(2) == address(0x2002));
         assert(idRegistry.recoveryOf(3) == address(0x2003));
 
-        keyManager = address(0x3000);
+        keyGateway = address(0x3000);
 
         // Setup KeyRegistry
-        keyRegistry = new KeyRegistry(address(idRegistry), address(this), 1000);
+        keyRegistry = new KeyRegistryHarness(address(idRegistry), migrator, address(this), 1000);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
-        keyRegistry.setKeyManager(keyManager);
+        keyRegistry.setKeyGateway(keyGateway);
+        keyRegistry.unpause();
 
         // Set initial states:
         // - fid 1: removed
@@ -59,14 +64,14 @@ contract KeyRegistrySymTest is SymTest, Test {
         // - fid 3: null
 
         bytes memory key1 = svm.createBytes(32, "key1");
-        vm.prank(keyManager);
+        vm.prank(keyGateway);
         keyRegistry.add(address(0x1001), 1, key1, 1, "");
         vm.prank(address(0x1001));
         keyRegistry.remove(key1);
         assert(keyRegistry.keyDataOf(1, key1).state == IKeyRegistry.KeyState.REMOVED);
 
         bytes memory key2 = svm.createBytes(32, "key2");
-        vm.prank(keyManager);
+        vm.prank(keyGateway);
         keyRegistry.add(address(0x1002), 1, key2, 1, "");
         assert(keyRegistry.keyDataOf(2, key2).state == IKeyRegistry.KeyState.ADDED);
 
@@ -78,8 +83,9 @@ contract KeyRegistrySymTest is SymTest, Test {
     // Verify the KeyRegistry invariants
     function check_Invariants(bytes4 selector, address caller) public {
         // Additional setup to cover various input states
-        if (svm.createBool("migrateKeys?")) {
-            keyRegistry.migrateKeys();
+        if (svm.createBool("migrate?")) {
+            vm.prank(migrator);
+            keyRegistry.migrate();
         }
         /* NOTE: these configurations don't make any differences for the current KeyRegistry behaviors.
         if (svm.createBool("pause?")) {
@@ -98,7 +104,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         uint256 oldUserId = idRegistry.idOf(user);
 
         bool isNotMigratedOrGracePeriod =
-            !keyRegistry.isMigrated() || block.timestamp <= keyRegistry.keysMigratedAt() + keyRegistry.gracePeriod();
+            !keyRegistry.isMigrated() || block.timestamp <= keyRegistry.migratedAt() + keyRegistry.gracePeriod();
 
         // Execute an arbitrary tx to KeyRegistry
         vm.prank(caller);
@@ -138,11 +144,11 @@ contract KeyRegistrySymTest is SymTest, Test {
                 assert(oldStateX == IKeyRegistry.KeyState.NULL);
                 if (selector == keyRegistry.add.selector) {
                     //   - add() must be called by the key manager contract.
-                    assert(caller == keyManager);
+                    assert(caller == keyGateway);
                 } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
                     //   - bulkAdd() must be called by the owner of KeyRegistry.
                     //   - bulkAdd() must be called before the key migration or within the grade period following the migration.
-                    assert(caller == address(this)); // `this` is the owner of KeyRegistry
+                    assert(caller == migrator); // `this` is the owner of KeyRegistry
                     assert(isNotMigratedOrGracePeriod);
                 } else {
                     assert(false);
@@ -155,7 +161,7 @@ contract KeyRegistrySymTest is SymTest, Test {
                 //   - It must be called before the key migration or within the grade period following the migration.
                 assert(oldStateX == IKeyRegistry.KeyState.ADDED);
                 assert(selector == keyRegistry.bulkResetKeysForMigration.selector);
-                assert(caller == address(this)); // `this` is the owner of KeyRegistry
+                assert(caller == migrator); // `this` is the owner of KeyRegistry
                 assert(isNotMigratedOrGracePeriod);
             } else {
                 // Ensure that no other state transitions are possible.
@@ -171,8 +177,29 @@ contract KeyRegistrySymTest is SymTest, Test {
 
     function mk_calldata(bytes4 selector, address user) internal returns (bytes memory) {
         // Ignore view functions
+        vm.assume(selector != keyRegistry.REMOVE_TYPEHASH.selector);
+        vm.assume(selector != keyRegistry.VERSION.selector);
+        vm.assume(selector != keyRegistry.eip712Domain.selector);
+        vm.assume(selector != keyRegistry.gatewayFrozen.selector);
+        vm.assume(selector != keyRegistry.gracePeriod.selector);
+        vm.assume(selector != keyRegistry.guardians.selector);
+        vm.assume(selector != keyRegistry.idRegistry.selector);
+        vm.assume(selector != keyRegistry.isMigrated.selector);
+        vm.assume(selector != keyRegistry.keyAt.selector);
         vm.assume(selector != keyRegistry.keyDataOf.selector);
+        vm.assume(selector != keyRegistry.keyGateway.selector);
         vm.assume(selector != keyRegistry.keys.selector);
+        vm.assume(selector != bytes4(0x1f64222f)); // keysOf
+        vm.assume(selector != bytes4(0xf27995e3)); // keysOf paged
+        vm.assume(selector != keyRegistry.maxKeysPerFid.selector);
+        vm.assume(selector != keyRegistry.migratedAt.selector);
+        vm.assume(selector != keyRegistry.migrator.selector);
+        vm.assume(selector != keyRegistry.nonces.selector);
+        vm.assume(selector != keyRegistry.owner.selector);
+        vm.assume(selector != keyRegistry.paused.selector);
+        vm.assume(selector != keyRegistry.pendingOwner.selector);
+        vm.assume(selector != keyRegistry.totalKeys.selector);
+        vm.assume(selector != keyRegistry.validators.selector);
 
         // Create symbolic values to be included in calldata
         uint256 fid = svm.createUint256("fid");

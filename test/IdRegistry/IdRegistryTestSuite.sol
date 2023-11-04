@@ -12,7 +12,10 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     function setUp() public virtual override {
         super.setUp();
 
-        idRegistry = new IdRegistry(owner);
+        idRegistry = new IdRegistry(migrator, owner);
+
+        vm.prank(owner);
+        idRegistry.unpause();
 
         addKnownContract(address(idRegistry));
     }
@@ -26,7 +29,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
     }
 
     function _registerWithRecovery(address caller, address recovery) internal returns (uint256 fid) {
-        vm.prank(idRegistry.idManager());
+        vm.prank(idRegistry.idGateway());
         fid = idRegistry.register(caller, recovery);
     }
 
@@ -51,9 +54,10 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         assertEq(signature.length, 65);
     }
 
-    function _signChangeRecoveryAddress(
+    function _signTransferAndChangeRecovery(
         uint256 pk,
         uint256 fid,
+        address to,
         address recovery,
         uint256 deadline
     ) internal returns (bytes memory signature) {
@@ -61,7 +65,32 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         bytes32 digest = idRegistry.hashTypedDataV4(
             keccak256(
                 abi.encode(
-                    idRegistry.CHANGE_RECOVERY_ADDRESS_TYPEHASH(), fid, recovery, idRegistry.nonces(signer), deadline
+                    idRegistry.TRANSFER_AND_CHANGE_RECOVERY_TYPEHASH(),
+                    fid,
+                    to,
+                    recovery,
+                    idRegistry.nonces(signer),
+                    deadline
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        signature = abi.encodePacked(r, s, v);
+        assertEq(signature.length, 65);
+    }
+
+    function _signChangeRecoveryAddress(
+        uint256 pk,
+        uint256 fid,
+        address from,
+        address to,
+        uint256 deadline
+    ) internal returns (bytes memory signature) {
+        address signer = vm.addr(pk);
+        bytes32 digest = idRegistry.hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    idRegistry.CHANGE_RECOVERY_ADDRESS_TYPEHASH(), fid, from, to, idRegistry.nonces(signer), deadline
                 )
             )
         );

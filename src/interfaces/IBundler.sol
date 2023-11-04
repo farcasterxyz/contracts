@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import {IIdManager} from "./IIdManager.sol";
-import {IKeyManager} from "./IKeyManager.sol";
+import {IIdGateway} from "./IIdGateway.sol";
+import {IKeyGateway} from "./IKeyGateway.sol";
 import {IStorageRegistry} from "./IStorageRegistry.sol";
 
 interface IBundler {
     /*//////////////////////////////////////////////////////////////
-                                 STRUCTS
+                                 ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Data needed to trusted register a user with the fid and storage contracts.
-    struct UserData {
-        address to;
-        address recovery;
-    }
+    /// @dev Revert if the caller does not have the authority to perform the action.
+    error Unauthorized();
+
+    /*//////////////////////////////////////////////////////////////
+                                 STRUCTS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice Data needed to register an fid with signature.
     struct RegistrationParams {
@@ -44,19 +45,14 @@ interface IBundler {
     function VERSION() external view returns (string memory);
 
     /**
-     * @dev Address of the IdManager contract
+     * @dev Address of the IdGateway contract
      */
-    function idManager() external view returns (IIdManager);
+    function idGateway() external view returns (IIdGateway);
 
     /**
-     * @dev Address of the KeyManager contract
+     * @dev Address of the KeyGateway contract
      */
-    function keyManager() external view returns (IKeyManager);
-
-    /**
-     * @dev Address of the StorageRegistry contract
-     */
-    function storageRegistry() external view returns (IStorageRegistry);
+    function keyGateway() external view returns (IKeyGateway);
 
     /*//////////////////////////////////////////////////////////////
                                 VIEWS
@@ -65,13 +61,13 @@ interface IBundler {
     /**
      * @notice Calculate the total price of a registration.
      *
-     * @param signers      Number of signers to add.
-     * @param extraStorage Number of additional storage units to rent.
+     * @param extraStorage Number of additional storage units to rent. All registrations include 1
+     *                     storage unit, but additional storage can be rented at registration time.
      *
      * @return Total price in wei.
      *
      */
-    function price(uint256 signers, uint256 extraStorage) external view returns (uint256);
+    function price(uint256 extraStorage) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                           REGISTRATION
@@ -90,18 +86,5 @@ interface IBundler {
         RegistrationParams calldata registerParams,
         SignerParams[] calldata signerParams,
         uint256 extraStorage
-    ) external payable;
-
-    /*//////////////////////////////////////////////////////////////
-                         PERMISSIONED ACTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Register fids for multiple users in a single transaction. Can only be called by
-     *         the trustedCaller during the Seedable phase. Will be used when migrating across
-     *         Ethereum networks to bootstrap a new contract with existing data.
-     *
-     * @param users  Array of UserData structs to register
-     */
-    function trustedBatchRegister(UserData[] calldata users) external;
+    ) external payable returns (uint256 fid);
 }
