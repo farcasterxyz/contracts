@@ -94,9 +94,7 @@ abstract contract Migration is IMigration, Guardians {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Change the migrator address. Only callable by owner.
-     *
-     * @param _migrator The address of the new migrator
+     * @inheritdoc IMigration
      */
     function setMigrator(address _migrator) public onlyOwner {
         if (isMigrated()) revert AlreadyMigrated();
