@@ -6,7 +6,7 @@ This repository contains all the contracts deployed by the [Farcaster protocol](
 2. **[Storage Registry](./src/StorageRegistry.sol)** - allocates storage to fids and collects rent.
 3. **[Key Registry](./src/KeyRegistry.sol)** - tracks associations between fids and key pairs for signing messages.
 4. **[Id Gateway](./src/IdGateway.sol)** - issues farcaster identities (fids) to new users.
-5. **[Key Gateway](./src/KeyGateway.sol)** - associates key pairs with fids.
+5. **[Key Gateway](./src/KeyGateway.sol)** - adds new associations between fids and keys.
 6. **[Bundler](./src/Bundler.sol)** - allows calling gateways and storage in a single transaction.
 7. **[Signed Key Request Validator](./src/validators/SignedKeyRequestValidator.sol)** - validates key registry metadata.
 8. **[Recovery Proxy](./src/RecoveryProxy.sol)** - proxy for recovery service operators to initiate fid recovery.
@@ -44,7 +44,7 @@ The [v3.1 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1
 - [0xMacro Report A-3](https://0xmacro.com/library/audits/farcaster-1.html)
 - [Cyfrin Report](https://github.com/farcasterxyz/contracts/blob/fe24a79e8901e8f2479474b16e32f43b66455a1d/docs/audits/2023-11-05-cyfrin-farcaster-v1.0.pdf)
 
-The [v3.0 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1.0) contracts were reviewed by [0xMacro](https://0xmacro.com/):
+The [v3.0 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.0.0) contracts were reviewed by [0xMacro](https://0xmacro.com/):
 
 - [0xMacro Report A-1](https://0xmacro.com/library/audits/farcaster-1.html)
 - [0xMacro Report A-2](https://0xmacro.com/library/audits/farcaster-2.html)
