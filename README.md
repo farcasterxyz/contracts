@@ -42,7 +42,7 @@ The [v3.1 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1
 The [v3.1 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1.0) contracts were reviewed by [0xMacro](https://0xmacro.com/) and [Cyfrin](https://www.cyfrin.io/).
 
 - [0xMacro Report A-3](https://0xmacro.com/library/audits/farcaster-1.html)
-- [Cyfrin Report]("./docs/audits/2023-11-05-cyfrin-farcaster-v1.0.pdf")
+- [Cyfrin Report](https://github.com/farcasterxyz/contracts/blob/fe24a79e8901e8f2479474b16e32f43b66455a1d/docs/audits/2023-11-05-cyfrin-farcaster-v1.0.pdf)
 
 The [v3.0 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1.0) contracts were reviewed by [0xMacro](https://0xmacro.com/):
 
