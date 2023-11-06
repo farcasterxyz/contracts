@@ -5,7 +5,7 @@ import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {ERC165} from "openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-import {EIP712} from "./lib/EIP712.sol";
+import {EIP712} from "./abstract/EIP712.sol";
 
 interface IAddressQuery {
     function addr(bytes32 node) external view returns (address);
@@ -25,9 +25,9 @@ interface IResolverService {
 /**
  * @title Farcaster FnameResolver
  *
- * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.1.0/docs/docs.md for an overview.
  *
- * @custom:security-contact security@farcaster.xyz
+ * @custom:security-contact security@merklemanufactory.com
  */
 contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /*//////////////////////////////////////////////////////////////

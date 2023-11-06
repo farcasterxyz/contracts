@@ -18,9 +18,6 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         super.setUp();
 
         vm.prank(owner);
-        idRegistry.disableTrustedOnly();
-
-        vm.prank(owner);
         keyRegistry.setValidator(1, 1, IMetadataValidator(address(validator)));
     }
 
@@ -62,8 +59,8 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
 
         vm.expectEmit();
         emit Add(userFid, 1, key, key, 1, metadata);
-        vm.prank(to);
-        keyRegistry.add(1, key, 1, metadata);
+        vm.prank(keyRegistry.keyGateway());
+        keyRegistry.add(to, 1, key, 1, metadata);
 
         assertAdded(userFid, key, 1);
     }
@@ -97,9 +94,9 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
             })
         );
 
-        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
-        vm.prank(to);
-        keyRegistry.add(1, key, 1, metadata);
+        vm.prank(keyRegistry.keyGateway());
+        vm.expectRevert(IKeyRegistry.InvalidMetadata.selector);
+        keyRegistry.add(to, 1, key, 1, metadata);
     }
 
     function testFuzzAddRevertsLongKey(
@@ -131,9 +128,9 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
             })
         );
 
-        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
-        vm.prank(to);
-        keyRegistry.add(1, key, 1, metadata);
+        vm.prank(keyRegistry.keyGateway());
+        vm.expectRevert(IKeyRegistry.InvalidMetadata.selector);
+        keyRegistry.add(to, 1, key, 1, metadata);
     }
 
     function testFuzzAddRevertsInvalidSig(
@@ -165,9 +162,9 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
             })
         );
 
-        vm.expectRevert(KeyRegistry.InvalidMetadata.selector);
-        vm.prank(to);
-        keyRegistry.add(1, key, 1, metadata);
+        vm.prank(keyRegistry.keyGateway());
+        vm.expectRevert(IKeyRegistry.InvalidMetadata.selector);
+        keyRegistry.add(to, 1, key, 1, metadata);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -175,8 +172,8 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
     //////////////////////////////////////////////////////////////*/
 
     function _registerFid(address to, address recovery) internal returns (uint256) {
-        vm.prank(to);
-        return idRegistry.register(recovery);
+        vm.prank(idRegistry.idGateway());
+        return idRegistry.register(to, recovery);
     }
 
     function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal {

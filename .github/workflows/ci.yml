@@ -12,7 +12,6 @@ env:
   L1_MAINNET_RPC_URL: ${{ secrets.L1_MAINNET_RPC_URL }}
   L2_MAINNET_RPC_URL: ${{ secrets.L2_MAINNET_RPC_URL }}
 
-
 jobs:
   build-image:
     timeout-minutes: 5
@@ -87,7 +86,7 @@ jobs:
 
       - name: Confirm Bundler contract was deployed
         shell: bash
-        run: '[ $(cast call $BUNDLER_CONTRACT_ADDRESS "owner()") = 0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266 ]'
+        run: '[ $(cast call $BUNDLER_CONTRACT_ADDRESS "VERSION()") = 0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000a323032332e31312e313500000000000000000000000000000000000000000000 ]'
 
   test:
     strategy:
@@ -120,7 +119,7 @@ jobs:
         run: forge snapshot --check --match-contract Gas
 
   halmos:
-    runs-on: macos-latest
+    runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'macos-latest' || 'buildjet-16vcpu-ubuntu-2204' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -137,9 +136,12 @@ jobs:
         run: pip install halmos
 
       - name: Run halmos
-        run: halmos --error-unknown --test-parallel --solver-parallel --solver-timeout-assertion 0
+        run: halmos --error-unknown --test-parallel --solver-parallel --storage-layout=generic --solver-timeout-assertion 0
 
   coverage:
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ${{ vars.BUILDJET_DISABLED == 'true' && 'ubuntu-latest' || 'buildjet-2vcpu-ubuntu-2204' }}
     steps:
       - uses: actions/checkout@v3
@@ -158,7 +160,7 @@ jobs:
       - name: Filter directories
         run: |
           sudo apt update && sudo apt install -y lcov
-          lcov --remove lcov.info 'test/*' 'script/*' --output-file lcov.info --rc lcov_branch_coverage=1
+          lcov --remove lcov.info 'test/*' 'script/*' 'src/libraries/*' --output-file lcov.info --rc lcov_branch_coverage=1
 
       # Post a detailed coverage report as a comment and deletes previous comments on each push.
       - name: Post coverage report

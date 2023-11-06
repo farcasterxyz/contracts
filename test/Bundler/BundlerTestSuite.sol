@@ -2,28 +2,33 @@
 pragma solidity 0.8.21;
 
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
-import {StorageRegistryTestSuite} from "../StorageRegistry/StorageRegistryTestSuite.sol";
-import {IdRegistryTestSuite} from "../IdRegistry/IdRegistryTestSuite.sol";
-import {KeyRegistryTestSuite} from "../KeyRegistry/KeyRegistryTestSuite.sol";
+import {IdGatewayTestSuite} from "../IdGateway/IdGatewayTestSuite.sol";
 
+import {KeyGateway} from "../../src/KeyGateway.sol";
 import {Bundler} from "../../src/Bundler.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract BundlerTestSuite is StorageRegistryTestSuite, KeyRegistryTestSuite {
+abstract contract BundlerTestSuite is IdGatewayTestSuite {
+    KeyGateway keyGateway;
     Bundler bundler;
 
-    function setUp() public virtual override(StorageRegistryTestSuite, KeyRegistryTestSuite) {
+    function setUp() public virtual override {
         super.setUp();
+
+        keyGateway = new KeyGateway(address(keyRegistry), owner);
+
+        vm.prank(owner);
+        keyRegistry.setKeyGateway(address(keyGateway));
 
         // Set up the BundleRegistry
         bundler = new Bundler(
-            address(idRegistry),
-            address(storageRegistry),
-            address(keyRegistry),
-            address(this),
-            owner
+            address(idGateway),
+            address(keyGateway)
         );
+
+        addKnownContract(address(keyGateway));
+        addKnownContract(address(bundler));
     }
 
     // Assert that a given fname was correctly registered with id 1 and recovery
@@ -36,5 +41,46 @@ abstract contract BundlerTestSuite is StorageRegistryTestSuite, KeyRegistryTestS
     function _assertUnsuccessfulRegistration(address account) internal {
         assertEq(idRegistry.idOf(account), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
+    }
+
+    function _signAdd(
+        uint256 pk,
+        address owner,
+        uint32 keyType,
+        bytes memory key,
+        uint8 metadataType,
+        bytes memory metadata,
+        uint256 deadline
+    ) internal returns (bytes memory signature) {
+        return _signAdd(pk, owner, keyType, key, metadataType, metadata, keyGateway.nonces(owner), deadline);
+    }
+
+    function _signAdd(
+        uint256 pk,
+        address owner,
+        uint32 keyType,
+        bytes memory key,
+        uint8 metadataType,
+        bytes memory metadata,
+        uint256 nonce,
+        uint256 deadline
+    ) internal returns (bytes memory signature) {
+        bytes32 digest = keyGateway.hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    keyGateway.ADD_TYPEHASH(),
+                    owner,
+                    keyType,
+                    keccak256(key),
+                    metadataType,
+                    keccak256(metadata),
+                    nonce,
+                    deadline
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        signature = abi.encodePacked(r, s, v);
+        assertEq(signature.length, 65);
     }
 }

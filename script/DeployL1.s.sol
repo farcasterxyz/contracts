@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {FnameResolver} from "../src/FnameResolver.sol";
-import {console, ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
+import {console, ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";
 
 contract DeployL1 is ImmutableCreate2Deployer {
     bytes32 internal constant FNAME_RESOLVER_CREATE2_SALT = bytes32(0);

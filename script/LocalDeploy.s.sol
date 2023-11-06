@@ -32,15 +32,17 @@ contract LocalDeploy is Script {
         address admin = vm.envAddress("STORAGE_RENT_ADMIN_ADDRESS");
         address operator = vm.envAddress("STORAGE_RENT_OPERATOR_ADDRESS");
         address treasurer = vm.envAddress("STORAGE_RENT_TREASURER_ADDRESS");
+        address migrator = vm.envAddress("MIGRATOR_ADDRESS");
 
         vm.startBroadcast();
         (AggregatorV3Interface priceFeed, AggregatorV3Interface uptimeFeed) = _getOrDeployPriceFeeds();
         IdRegistry idRegistry = new IdRegistry{salt: ID_REGISTRY_CREATE2_SALT}(
+            migrator,
             initialIdRegistryOwner
         );
         KeyRegistry keyRegistry = new KeyRegistry{
             salt: KEY_REGISTRY_CREATE2_SALT
-        }(address(idRegistry), initialKeyRegistryOwner);
+        }(address(idRegistry), migrator, initialKeyRegistryOwner, 1000);
         StorageRegistry storageRegistry = new StorageRegistry{
             salt: STORAGE_RENT_CREATE2_SALT
         }(

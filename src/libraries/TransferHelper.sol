@@ -12,7 +12,7 @@ library TransferHelper {
         bool success;
 
         // solhint-disable-next-line no-inline-assembly
-        assembly {
+        assembly ("memory-safe") {
             // Transfer the native token and store if it succeeded or not.
             success := call(gas(), to, amount, 0, 0, 0, 0)
         }

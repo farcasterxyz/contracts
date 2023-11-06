@@ -4,7 +4,7 @@ pragma solidity 0.8.21;
 import "forge-std/Script.sol";
 
 import {FnameResolver} from "../src/FnameResolver.sol";
-import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
+import {ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";
 
 contract FnameResolverScript is ImmutableCreate2Deployer {
     function run() public {

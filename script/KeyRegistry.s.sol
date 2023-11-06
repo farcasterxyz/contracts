@@ -2,7 +2,7 @@
 pragma solidity 0.8.21;
 
 import {KeyRegistry} from "../src/KeyRegistry.sol";
-import {ImmutableCreate2Deployer} from "./lib/ImmutableCreate2Deployer.sol";
+import {ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";
 
 contract IdRegistryScript is ImmutableCreate2Deployer {
     uint24 internal constant KEY_REGISTRY_MIGRATION_GRACE_PERIOD = 1 days;

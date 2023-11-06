@@ -2,8 +2,8 @@
 pragma solidity ^0.8.19;
 
 import {IdRegistry} from "../../src/IdRegistry.sol";
-import {TrustedCaller} from "../../src/lib/TrustedCaller.sol";
 import {IdRegistryTestSuite} from "./IdRegistryTestSuite.sol";
+import {IGuardians} from "../../src/abstract/Guardians.sol";
 
 /* solhint-disable state-visibility */
 
@@ -12,65 +12,9 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event SetTrustedCaller(address indexed oldTrustedCaller, address indexed newTrustedCaller, address owner);
-    event DisableTrustedOnly();
+    event Add(address indexed guardian);
+    event Remove(address indexed guardian);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /*//////////////////////////////////////////////////////////////
-                             TRUSTED CALLER
-    //////////////////////////////////////////////////////////////*/
-
-    function testFuzzSetTrustedCaller(address alice) public {
-        vm.assume(alice != address(0));
-        assertEq(idRegistry.owner(), owner);
-
-        vm.prank(owner);
-        vm.expectEmit();
-        emit SetTrustedCaller(address(0), alice, owner);
-        idRegistry.setTrustedCaller(alice);
-        assertEq(idRegistry.trustedCaller(), alice);
-    }
-
-    function testFuzzCannotSetTrustedCallerToZeroAddr() public {
-        assertEq(idRegistry.owner(), owner);
-
-        vm.prank(owner);
-        vm.expectRevert(TrustedCaller.InvalidAddress.selector);
-        idRegistry.setTrustedCaller(address(0));
-
-        assertEq(idRegistry.trustedCaller(), address(0));
-    }
-
-    function testFuzzCannotSetTrustedCallerUnlessOwner(address alice, address bob) public {
-        vm.assume(bob != address(0));
-        vm.assume(idRegistry.owner() != alice);
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.setTrustedCaller(bob);
-        assertEq(idRegistry.trustedCaller(), address(0));
-    }
-
-    function testDisableTrustedCaller() public {
-        assertEq(idRegistry.owner(), owner);
-        assertEq(idRegistry.trustedOnly(), 1);
-
-        vm.prank(owner);
-        vm.expectEmit();
-        emit DisableTrustedOnly();
-        idRegistry.disableTrustedOnly();
-        assertEq(idRegistry.trustedOnly(), 0);
-    }
-
-    function testFuzzCannotDisableTrustedCallerUnlessOwner(address alice) public {
-        vm.assume(alice != address(0));
-        vm.assume(idRegistry.owner() != alice);
-
-        vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
-        idRegistry.disableTrustedOnly();
-        assertEq(idRegistry.trustedOnly(), 1);
-    }
 
     /*//////////////////////////////////////////////////////////////
                            TRANSFER OWNERSHIP
@@ -149,13 +93,33 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         _pause();
     }
 
-    function testFuzzCannotPauseUnlessOwner(address alice) public {
+    function testAddRemoveGuardian(address guardian) public {
+        assertEq(idRegistry.guardians(guardian), false);
+
+        vm.expectEmit();
+        emit Add(guardian);
+
+        vm.prank(owner);
+        idRegistry.addGuardian(guardian);
+
+        assertEq(idRegistry.guardians(guardian), true);
+
+        vm.expectEmit();
+        emit Remove(guardian);
+
+        vm.prank(owner);
+        idRegistry.removeGuardian(guardian);
+
+        assertEq(idRegistry.guardians(guardian), false);
+    }
+
+    function testFuzzCannotPauseUnlessGuardian(address alice) public {
         vm.assume(alice != owner && alice != address(0));
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.paused(), false);
 
         vm.prank(alice);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(IGuardians.OnlyGuardian.selector);
         idRegistry.pause();
 
         assertEq(idRegistry.paused(), false);
@@ -180,5 +144,27 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         idRegistry.unpause();
 
         assertEq(idRegistry.paused(), true);
+    }
+
+    function testCannotAddGuardianUnlessOwner(address caller, address guardian) public {
+        vm.assume(caller != owner);
+        assertEq(idRegistry.guardians(guardian), false);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.addGuardian(guardian);
+
+        assertEq(idRegistry.guardians(guardian), false);
+    }
+
+    function testCannotRemoveGuardianUnlessOwner(address caller, address guardian) public {
+        vm.assume(caller != owner);
+        assertEq(idRegistry.guardians(guardian), false);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        idRegistry.addGuardian(guardian);
+
+        assertEq(idRegistry.guardians(guardian), false);
     }
 }

@@ -23,10 +23,15 @@ graph TD
     end
 
     subgraph ETHL2["Ethereum L2: OP Mainnet"]
-    RP(Recovery Proxy) --> IR(Id Registry)
-    BN(Bundler) --> IR & SR(Storage Registry) & KR(Key Registry)
-    KR --> IR
+    BN(Bundler) --> IG(Id Gateway)
+    BN --> KG(Key gateway)
+    IG --> SR(Storage Registry)
+    IG --> IR(Id Registry)
+    KG --> KR(Key Registry)
     KR --> SKRV(Signed Key Request Validator)
+    KR --> IR
+    RP(RecoveryProxy) --> IG
+
     end
 
 
@@ -40,11 +45,13 @@ graph TD
 
 1. [L2 Contracts](#1-l2-contracts)
    1. [Id Registry](#11-id-registry)
-   2. [Storage Registry](#12-storage-registry)
-   3. [Key Registry](#13-key-registry)
-   4. [Validators](#14-validators)
-   5. [Bundler](#15-bundler)
-   6. [Recovery Proxy](#16-recovery-proxy)
+   2. [Id Gateway](#12-id-manager)
+   3. [Storage Registry](#13-storage-registry)
+   4. [Key Registry](#14-key-registry)
+   5. [Key Gateway](#15-key-manager)
+   6. [Validators](#16-validators)
+   7. [Bundler](#17-bundler)
+   8. [Recovery Proxy](#18-recovery-proxy)
 2. [L1 Contracts](#2-l1-contracts)
    1. [Fname Resolver](#21-fname-resolver)
 3. [Off-chain Systems](#3-off-chain-systems)
@@ -70,9 +77,38 @@ IdRegistry lets any Ethereum address claim a unique Farcaster ID or `fid`. Fids 
 
 1. owner is not malicious.
 
+### Administration
+
+The owner can pause and unpause the contract, which pauses registration, transfer, and recovery. The owner has one time use permissions to migrate data during the migration phase.
+
 ### Migration
 
-When deployed, the IdRegistry starts in the Seedable state, where only the trusted caller can register fids. Identities from previous versions of the contracts can be registered to their addresses by the owner. Once complete, the owner can move it to the Registrable state, where anyone can register fids. This state change cannot be reversed.
+The IdRegistry is deployed in a trusted state where keys may not be registered by anyone except the owner. The owner will populate the KeyRegistry with existing state by using bulk operations. Once complete, the owner will call `migrate()` to set a migration timestamp and emit an event. Hubs watch for the `Migrated` event and 24 hours after it is emitted, they cut over to this contract as the source of truth.
+
+### Upgradeability
+
+The IdRegistry contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
+
+1. A new IdRegistry contract is deployed.
+2. The current IdRegistry contract is paused.
+3. The new IdRegistry is seeded with all the registered fids in the old contract.
+4. The KeyRegistry is updated to point to the new IdRegistry.
+5. A new Bundler contract is deployed, pointing to the correct contracts.
+
+## 1.2. Id Gateway
+
+The IdManager is responsible for fid registration. While IdRegistry defines the rules of fid ownership, transfers, and
+recovery, the manager is responsible for the the actual registration logic. To prevent spamming fid registrations, the
+IdManager requires callers to rent 1 [storage unit](#13-storage-registry) at fid registration time.
+
+### Invariants
+
+1. In untrusted mode, callers must rent 1 storage unit at fid registration time.
+2. The contract can only transition to untrusted mode once, and never back to trusted mode.
+
+### Assumptions
+
+1. owner is not malicious.
 
 ### Administration
 
@@ -80,17 +116,14 @@ The owner can pause and unpause the contract, which pauses registration, transfe
 
 ### State Machine
 
-An fid can exist in three states:
+An fid can exist in two states:
 
-- `seedable` - the fid has never been issued and can be registered by the trusted caller
 - `registrable` - the fid has never been issued and can be registered by anyone
 - `registered` - the fid has been issued to an address
 
 ```mermaid
     stateDiagram-v2
         direction LR
-        seedable --> registrable: disable trusted only
-        seedable --> registered: trusted register
         registrable --> registered: register
         registered --> registered: transfer, recover
 ```
@@ -98,23 +131,23 @@ An fid can exist in three states:
 The fid state transitions when users take specific actions:
 
 - `register` - register a new fid from any address
-- `trusted register` - register a new fid from the trusted caller
-- `disable trusted only` - allow registration from any sender
 - `transfer` - move an fid to a new custody address
 - `recover` - recover (move) an fid to a new custody address
 
 ### Upgradeability
 
-The IdRegistry contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
+The IdManager contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. Since
+the IdManager depends on storage, we expect to update this contract in the future if the storage system changes.
 
-1. A new IdRegistry contract is deployed in the seedable state.
-2. The current IdRegistry contract is paused.
-3. The new IdRegistry is seeded with all the registered fids in the old contract.
-4. The KeyRegistry is updated to point to the new IdRegistry.
-5. A new Bundler contract is deployed, pointing to the correct contracts.
-6. The new IdRegistry is moved to the registrable state where anyone can register an fid.
+In such cases:
 
-## 1.2. Storage Registry
+1. A new IdManager contract is deployed in the seedable state.
+2. The IdRegistry is updated to point to the new IdManager.
+3. The old IdManager is paused.
+4. A new Bundler contract is deployed, pointing to the correct contracts.
+5. The new IdManager is moved to the registrable state where anyone can register an fid.
+
+## 1.3. Storage Registry
 
 The StorageRegistry contract lets anyone rent units of storage space on Farcaster Hubs for a given fid. Payment must be made in Ethereum to acquire storage for a year. Acquiring storage emits an event that is read off-chain by the Farcaster Hubs, which allocate space to the user. The contract will deprecate itself one year after deployment, and we expect to launch a new contract with updated logic. For more details, see [FIP-6](https://github.com/farcasterxyz/protocol/discussions/98).
 
@@ -150,7 +183,7 @@ An `operator` role can credit storage to fids without the payment of rent. This 
 
 A `treasurer` role can move funds from the contract to a pre-defined `vault` address, but cannot change this destination. Only the `owner` may change the vault address to a new destination. The `treasurer` may also refresh the oracle price.
 
-An `owner` role can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp. The owner may also pause and unpause the contract, disabling/enabling rentals and credits. 
+An `owner` role can modify many parameters including the total supply of storage units, the price of rent, the duration for which exchange prices are valid and the deprecation timestamp. The owner may also pause and unpause the contract, disabling/enabling rentals and credits.
 
 ### Upgradeability
 
@@ -164,7 +197,7 @@ The StorageRegistry contract may need to be upgraded in case a bug is discovered
 
 ## 1.3. Key Registry
 
-The Key Registry contract lets addresses with an fid add or remove public keys. Keys added onchain are tracked by Hubs and can be used to sign Farcaster messages. The same key can be added by different fids and can exist in different states. Keys contain a key type that indicates how they should be interpreted and used. During registration, metadata can also be emitted to provide additional context about the key. Keys contain a metadata type indicating how this metadata should be validated and interpreted. The Key Registry validates metadata at registration time and rejects keys with invalid metadata.
+The Key Registry contract lets addresses with an fid register or remove public keys. Keys added onchain are tracked by Hubs and can be used to sign Farcaster messages. The same key can be added by different fids and can exist in different states. Keys contain a key type that indicates how they should be interpreted and used. During registration, metadata can also be emitted to provide additional context about the key. Keys contain a metadata type indicating how this metadata should be validated and interpreted. The Key Registry validates metadata at registration time and rejects keys with invalid metadata.
 
 ### Key Types
 
@@ -181,6 +214,7 @@ Key types may have multiple associated metadata types, indicating how their asso
 3. Removal: A key can only move to the removed state if it was previously in the added state.
 4. Reset: A key can only move to the null state if it was previously in the added state, the contract hasn't been migrated, and the action was performed by the owner.
 5. Events: Event invariants are specified in comments above each event.
+6. Limits: A new key may not be added if its addition would exceed the keys per fid limit.
 
 ### Assumptions
 
@@ -189,7 +223,7 @@ Key types may have multiple associated metadata types, indicating how their asso
 
 ### Migration
 
-The KeyRegistry is deployed in the trusted state where keys may not be registered by anyone except the owner. The owner will populate the KeyRegistry with existing state by using bulk operations. Once complete, the owner will call `migrateKeys()` to set a migration timestamp and emit an event. Hubs watch for the `Migrated` event and 24 hours after it is emitted, they cut over to this contract as the source of truth.
+The KeyRegistry is deployed in the trusted state where keys may not be registered by anyone except the owner. The owner will populate the KeyRegistry with existing state by using bulk operations. Once complete, the owner will call `migrate()` to set a migration timestamp and emit an event. Hubs watch for the `Migrated` event and 24 hours after it is emitted, they cut over to this contract as the source of truth.
 
 ### State Machine
 
@@ -231,11 +265,40 @@ The KeyRegistry contract may need to be upgraded in case a bug is discovered or 
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The contract is set to untrusted state where anyone can register keys.
 
-## 1.4 Validators
+## 1.4. Key Gateway
+
+The Key Gateway is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Gateway is responsible for the the actual addition logic.
+
+### Invariants
+
+1. Fee: A key may only be added
+
+### Assumptions
+
+1. The KeyRegistry contract is functional.
+1. The StorageRegistry contract is functional.
+1. owner is not malicious.
+
+### Administration
+
+The Key Gateway owner may can pause and unpause the contract, disabling/enabling adding keys to the Key Registry.
+
+### Upgradeability
+
+The KeyManager contract may need to be upgraded in case a bug is discovered or the logic needs to be changed.
+
+In such cases:
+
+1. A new KeyManager contract is deployed.
+2. The KeyRegistry is updated to point to the new KeyManager.
+3. The old KeyManager is paused.
+4. A new Bundler contract is deployed, pointing to the correct contracts.
+
+## 1.5 Validators
 
 Validators are single purpose contracts that implement a simple interface to validate key metadata. At registration time, the Key Registry looks up the associated validator by key type and metadata type, and calls it to validate the format of provided metadata. This makes the key registry extensible to future key types and metadata formats.
 
-### 1.4.1 Signed Key Request Validator
+### 1.5.1 Signed Key Request Validator
 
 The only validator today is the Signed Key Request Validator, which validates that EdDSA key metadata is a "signed key request." A signed key request represents a third party request to add a public key associated with an fid. Requesting parties must own an fid in order to identify their key requests, and sign a message over their fid and the public key in order to authenticate their request. This allows third party applications requesting signer keys to identify themselves to users, and users to validate the authenticity of signer requests before approving them onchain.
 
@@ -243,17 +306,17 @@ The only validator today is the Signed Key Request Validator, which validates th
 
 An `owner` can update the address of the Id Registry contract.
 
-## 1.5. Bundler
+## 1.6. Bundler
 
 The Bundler contract lets a caller register an fid, rent storage units and register a key in a single transaction to save gas. It is a simple wrapper around contract methods and contains little logic beyond tracking contract addresses, collecting parameters and invoking the appropriate functions.
 
-## 1.6 Recovery Proxy
+## 1.7 Recovery Proxy
 
 The Recovery Proxy is an immutable proxy contract that allows the recovery execution logic to change without changing the recovery address associated with an fid. A client or recovery service operator can deploy a recovery proxy and use it as the recovery address for fids. For example, the Warpcast client uses a recovery proxy owned by a 2/3 multisig as the default recovery address for new accounts.
 
 #### Administration
 
-A recovery proxy can change its `owner`, and may be owned by an EOA, multisig, or smart contract. 
+A recovery proxy can change its `owner`, and may be owned by an EOA, multisig, or smart contract. The `owner` of the recovery proxy can change the configured `IdRegistry` address.
 
 # 2. L1 Contracts
 

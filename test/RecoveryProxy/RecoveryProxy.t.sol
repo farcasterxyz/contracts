@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.19;
 
+import {IIdRegistry} from "../../src/interfaces/IIdRegistry.sol";
 import {RecoveryProxyTestSuite} from "./RecoveryProxyTestSuite.sol";
 
 /* solhint-disable state-visibility */
 
 contract RecoveryProxyTest is RecoveryProxyTestSuite {
+    event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
+
     function testIdRegistry() public {
         assertEq(address(recoveryProxy.idRegistry()), address(idRegistry));
     }
@@ -93,5 +96,25 @@ contract RecoveryProxyTest is RecoveryProxyTestSuite {
         assertEq(idRegistry.idOf(from), 0);
         assertEq(idRegistry.idOf(to), 1);
         assertEq(idRegistry.recoveryOf(1), address(recoveryProxy));
+    }
+
+    function testFuzzOnlyOwnerCanSetIdRegistry(address caller, IIdRegistry _idRegistry) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        recoveryProxy.setIdRegistry(_idRegistry);
+    }
+
+    function testFuzzSetIdRegistry(IIdRegistry newIdRegistry) public {
+        IIdRegistry currentIdRegistry = recoveryProxy.idRegistry();
+
+        vm.expectEmit(false, false, false, true);
+        emit SetIdRegistry(address(currentIdRegistry), address(newIdRegistry));
+
+        vm.prank(owner);
+        recoveryProxy.setIdRegistry(newIdRegistry);
+
+        assertEq(address(recoveryProxy.idRegistry()), address(newIdRegistry));
     }
 }

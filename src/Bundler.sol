@@ -1,111 +1,83 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {IdRegistry} from "./IdRegistry.sol";
-import {StorageRegistry} from "./StorageRegistry.sol";
-import {KeyRegistry} from "./KeyRegistry.sol";
 import {IBundler} from "./interfaces/IBundler.sol";
-import {TrustedCaller} from "./lib/TrustedCaller.sol";
-import {TransferHelper} from "./lib/TransferHelper.sol";
+import {IIdGateway} from "./interfaces/IIdGateway.sol";
+import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
+import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 /**
  * @title Farcaster Bundler
  *
- * @notice See https://github.com/farcasterxyz/contracts/blob/v3.0.0/docs/docs.md for an overview.
+ * @notice See https://github.com/farcasterxyz/contracts/blob/v3.1.0/docs/docs.md for an overview.
  *
- * @custom:security-contact security@farcaster.xyz
+ * @custom:security-contact security@merklemanufactory.com
  */
-contract Bundler is IBundler, TrustedCaller {
+contract Bundler is IBundler {
     using TransferHelper for address;
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @dev Revert if the caller does not have the authority to perform the action.
-    error Unauthorized();
-
-    /// @dev Revert if the caller attempts to rent zero storage units.
-    error InvalidAmount();
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Contract version specified using Farcaster protocol version scheme.
+     * @inheritdoc IBundler
      */
-    string public constant VERSION = "2023.08.23";
+    string public constant VERSION = "2023.11.15";
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Address of the IdRegistry contract
+     * @inheritdoc IBundler
      */
-    IdRegistry public immutable idRegistry;
+    IIdGateway public immutable idGateway;
 
     /**
-     * @dev Address of the StorageRegistry contract
+     * @inheritdoc IBundler
      */
-    StorageRegistry public immutable storageRegistry;
-
-    /**
-     * @dev Address of the KeyRegistry contract
-     */
-    KeyRegistry public immutable keyRegistry;
+    IKeyGateway public immutable keyGateway;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Configure the addresses of the Registry contracts and the trusted caller, which is
-     *         allowed to register users during the bootstrap phase.
+     * @notice Configure the addresses of the IdGateway and KeyGateway contracts.
      *
-     * @param _idRegistry      Address of the IdRegistry contract
-     * @param _storageRegistry Address of the StorageRegistry contract
-     * @param _keyRegistry     Address of the KeyRegistry contract
-     * @param _trustedCaller   Address that can call trustedRegister and trustedBatchRegister
-     * @param _initialOwner    Address that can set the trusted caller
+     * @param _idGateway       Address of the IdGateway contract
+     * @param _keyGateway      Address of the KeyGateway contract
      */
-    constructor(
-        address _idRegistry,
-        address _storageRegistry,
-        address _keyRegistry,
-        address _trustedCaller,
-        address _initialOwner
-    ) TrustedCaller(_initialOwner) {
-        idRegistry = IdRegistry(_idRegistry);
-        storageRegistry = StorageRegistry(_storageRegistry);
-        keyRegistry = KeyRegistry(_keyRegistry);
-        _setTrustedCaller(_trustedCaller);
+    constructor(address _idGateway, address _keyGateway) {
+        idGateway = IIdGateway(payable(_idGateway));
+        keyGateway = IKeyGateway(payable(_keyGateway));
     }
 
     /**
-     * @notice Register an fid, multiple signers, and rent storage to an address in a single transaction.
-     *
-     * @param registration Struct containing registration parameters: to, recovery, deadline, and signature.
-     * @param signers      Array of structs containing signer parameters: keyType, key, metadataType,
-     *                        metadata, deadline, and signature.
-     * @param storageUnits Number of storage units to rent
-     *
+     * @inheritdoc IBundler
+     */
+    function price(uint256 extraStorage) external view returns (uint256) {
+        return idGateway.price(extraStorage);
+    }
+
+    /**
+     * @inheritdoc IBundler
      */
     function register(
-        RegistrationParams calldata registration,
-        SignerParams[] calldata signers,
-        uint256 storageUnits
-    ) external payable {
-        if (storageUnits == 0) revert InvalidAmount();
-        uint256 fid =
-            idRegistry.registerFor(registration.to, registration.recovery, registration.deadline, registration.sig);
+        RegistrationParams calldata registerParams,
+        SignerParams[] calldata signerParams,
+        uint256 extraStorage
+    ) external payable returns (uint256) {
+        (uint256 fid, uint256 overpayment) = idGateway.registerFor{value: msg.value}(
+            registerParams.to, registerParams.recovery, registerParams.deadline, registerParams.sig, extraStorage
+        );
 
-        uint256 signersLen = signers.length;
+        uint256 signersLen = signerParams.length;
         for (uint256 i; i < signersLen;) {
-            SignerParams calldata signer = signers[i];
-            keyRegistry.addFor(
-                registration.to,
+            SignerParams calldata signer = signerParams[i];
+            keyGateway.addFor(
+                registerParams.to,
                 signer.keyType,
                 signer.key,
                 signer.metadataType,
@@ -114,73 +86,16 @@ contract Bundler is IBundler, TrustedCaller {
                 signer.sig
             );
 
-            // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
+            // Safety: i can be incremented unchecked since it is bound by signerParams.length.
             unchecked {
                 ++i;
             }
         }
-
-        uint256 overpayment = storageRegistry.rent{value: msg.value}(fid, storageUnits);
-
-        if (overpayment > 0) {
-            msg.sender.sendNative(overpayment);
-        }
+        if (overpayment > 0) msg.sender.sendNative(overpayment);
+        return fid;
     }
 
-    /**
-     * @notice Register an fid, add a signer, and credit storage to an address in a single transaction. Can only
-     *         be called by the trustedCaller during the Seedable phase.
-     *
-     * @param user UserData struct including to/recovery address, key params, and number of storage units.
-     */
-    function trustedRegister(UserData calldata user) external onlyTrustedCaller {
-        // Will revert unless IdRegistry is in the Seedable phase
-        uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
-        uint256 signersLen = user.signers.length;
-        for (uint256 i; i < signersLen;) {
-            SignerData calldata signer = user.signers[i];
-            keyRegistry.trustedAdd(user.to, signer.keyType, signer.key, signer.metadataType, signer.metadata);
-            unchecked {
-                ++i;
-            }
-        }
-        storageRegistry.credit(fid, user.units);
-    }
-
-    /**
-     * @notice Register fids, keys, and credit storage for multiple users in a single transaction. Can
-     *         only be called by the trustedCaller during the Seedable phase. Will be used when
-     *         migrating across Ethereum networks to bootstrap a new contract with existing data.
-     *
-     * @param users  Array of UserData structs to register
-     */
-    function trustedBatchRegister(UserData[] calldata users) external onlyTrustedCaller {
-        // Safety: calls inside a loop are safe since caller is trusted
-        uint256 usersLen = users.length;
-        for (uint256 i; i < usersLen;) {
-            UserData calldata user = users[i];
-            uint256 fid = idRegistry.trustedRegister(user.to, user.recovery);
-            uint256 signersLen = user.signers.length;
-
-            for (uint256 j; j < signersLen;) {
-                SignerData calldata signer = user.signers[j];
-                keyRegistry.trustedAdd(user.to, signer.keyType, signer.key, signer.metadataType, signer.metadata);
-                unchecked {
-                    ++j;
-                }
-            }
-
-            storageRegistry.credit(fid, user.units);
-
-            // We know this will not overflow because it's less than the length of the array, which is a `uint256`.
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    // solhint-disable-next-line no-empty-blocks
     receive() external payable {
-        if (msg.sender != address(storageRegistry)) revert Unauthorized();
+        if (msg.sender != address(idGateway)) revert Unauthorized();
     }
 }
