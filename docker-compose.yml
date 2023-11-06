@@ -57,6 +57,8 @@ services:
       - STORAGE_RENT_OPERATOR_ADDRESS
       - STORAGE_RENT_TREASURER_ADDRESS
       - BUNDLER_TRUSTED_CALLER_ADDRESS
+      - METADATA_VALIDATOR_OWNER_ADDRESS
+      - MIGRATOR_ADDRESS
     entrypoint: |
       sh -c '
         set -e
@@ -68,7 +70,7 @@ services:
         echo "Enabling impersonation"
         cast rpc anvil_autoImpersonateAccount true --rpc-url "$$RPC_URL" > /dev/null
         echo "Funding deployer"
-        cast rpc anvil_setBalance "$$DEPLOYER" 0xde0b6b3a7640000 --rpc-url "$$RPC_URL" > /dev/null
+        cast rpc anvil_setBalance "$$DEPLOYER" 0xde0b6b3a7640000000 --rpc-url "$$RPC_URL" > /dev/null
         echo "Deploying contract"
         forge install
         forge script -v script/DeployL2.s.sol --rpc-url "$$RPC_URL" --unlocked --broadcast --sender "$$DEPLOYER"
