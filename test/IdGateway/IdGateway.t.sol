@@ -18,6 +18,8 @@ contract IdGatewayTest is IdGatewayTestSuite {
 
     event Register(address indexed to, uint256 indexed id, address recovery);
     event SetStorageRegistry(address oldStorageRegistry, address newStorageRegistry);
+    event AddRegistrar(address indexed registrarAddress, uint256 indexed registrarFid);
+    event RemoveRegistrar(address indexed registrarAddress, uint256 indexed registrarFid);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -478,5 +480,70 @@ contract IdGatewayTest is IdGatewayTestSuite {
         idGateway.setStorageRegistry(storageRegistry);
 
         assertEq(address(idGateway.storageRegistry()), prevStorageRegistry);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        ADD/REMOVE REGISTRARS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzAddRegistrar(address registrar, uint256 fid) public {
+        fid = bound(fid, 1, type(uint256).max);
+
+        vm.expectEmit();
+        emit AddRegistrar(registrar, fid);
+        assertEq(idGateway.isRegistrar(registrar), false);
+
+        vm.prank(owner);
+        idGateway.addRegistrar(registrar, fid);
+
+        assertEq(idGateway.registrars(registrar), fid);
+        assertEq(idGateway.isRegistrar(registrar), true);
+    }
+
+    function testFuzzCannotAddRegistrarForFidZero(address registrar) public {
+        vm.expectRevert(IIdGateway.InvalidRegistrarAddress.selector);
+        vm.prank(owner);
+        idGateway.addRegistrar(registrar, 0);
+    }
+
+    function testFuzzOnlyOwnerCanAddRegistrar(address caller, address registrar, uint256 fid) public {
+        fid = bound(fid, 1, type(uint256).max);
+
+        vm.assume(caller != owner);
+        assertEq(idGateway.isRegistrar(registrar), false);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        idGateway.addRegistrar(registrar, fid);
+
+        assertEq(idGateway.isRegistrar(registrar), false);
+    }
+
+    function testFuzzRemoveRegistrar(address registrar, uint256 fid) public {
+        fid = bound(fid, 1, type(uint256).max);
+
+        assertEq(idGateway.isRegistrar(registrar), false);
+
+        vm.expectEmit();
+        emit AddRegistrar(registrar, fid);
+
+        vm.prank(owner);
+        idGateway.addRegistrar(registrar, fid);
+
+        assertEq(idGateway.registrars(registrar), fid);
+        assertEq(idGateway.isRegistrar(registrar), true);
+
+        vm.prank(owner);
+        idGateway.removeRegistrar(registrar);
+        assertEq(idGateway.registrars(registrar), 0);
+        assertEq(idGateway.isRegistrar(registrar), false);
+    }
+
+    function testFuzzOnlyOwnerCanRemoveRegistrar(address caller, address registrar) public {
+        vm.assume(caller != owner);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        idGateway.removeRegistrar(registrar);
     }
 }

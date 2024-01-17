@@ -12,6 +12,8 @@ interface IIdGateway {
     /// @dev Revert if the caller does not have the authority to perform the action.
     error Unauthorized();
 
+    error InvalidRegistrarAddress();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -23,6 +25,11 @@ interface IIdGateway {
      * @param newStorageRegistry The new StorageRegistry address.
      */
     event SetStorageRegistry(address oldStorageRegistry, address newStorageRegistry);
+
+    event AddRegistrar(address indexed registrarAddress, uint256 indexed registrarFid);
+    event RemoveRegistrar(address indexed registrarAddress, uint256 indexed registrarFid);
+
+    event FreeRegister(address indexed registrar, uint256 indexed registrarFid, uint256 fid);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
@@ -41,6 +48,11 @@ interface IIdGateway {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Mapping of register address to fid.
+     */
+    function registrars(address) external view returns (uint256);
 
     /**
      * @notice The IdRegistry contract

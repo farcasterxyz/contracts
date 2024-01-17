@@ -53,6 +53,8 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
      */
     IStorageRegistry public storageRegistry;
 
+    mapping(address => uint256) public registrars;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -92,6 +94,10 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
      */
     function price(uint256 extraStorage) external view returns (uint256) {
         return storageRegistry.price(1 + extraStorage);
+    }
+
+    function isRegistrar(address caller) public view returns (bool) {
+        return registrars[caller] != 0;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -148,6 +154,17 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     function setStorageRegistry(address _storageRegistry) external onlyOwner {
         emit SetStorageRegistry(address(storageRegistry), _storageRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
+    }
+
+    function addRegistrar(address registrar, uint256 fid) external onlyOwner {
+        if (fid == 0) revert InvalidRegistrarAddress();
+        emit AddRegistrar(registrar, fid);
+        registrars[registrar] = fid;
+    }
+
+    function removeRegistrar(address registrar) external onlyOwner {
+        emit RemoveRegistrar(registrar, registrars[registrar]);
+        delete registrars[registrar];
     }
 
     /*//////////////////////////////////////////////////////////////
