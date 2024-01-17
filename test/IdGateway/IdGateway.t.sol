@@ -20,6 +20,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
     event SetStorageRegistry(address oldStorageRegistry, address newStorageRegistry);
     event AddRegistrar(address indexed registrarAddress, uint256 indexed registrarFid);
     event RemoveRegistrar(address indexed registrarAddress, uint256 indexed registrarFid);
+    event FreeRegister(address indexed registrar, uint256 indexed registrarFid, uint256 fid);
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -434,6 +435,44 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.idCounter(), 0);
         assertEq(idRegistry.idOf(mockWalletAddress), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        FREE REGISTER FOR TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzFreeRegisterFor(
+        address registrar,
+        uint256 recipientPk,
+        address recovery,
+        uint40 _deadline
+    ) public {
+        _assumeClean(registrar);
+        uint256 deadline = _boundDeadline(_deadline);
+        recipientPk = _boundPk(recipientPk);
+
+        address recipient = vm.addr(recipientPk);
+        bytes memory sig = _signRegister(recipientPk, recipient, recovery, deadline);
+
+        vm.prank(owner);
+        idGateway.addRegistrar(registrar, 2);
+
+        assertEq(idRegistry.idCounter(), 0);
+        assertEq(idRegistry.idOf(recipient), 0);
+        assertEq(idRegistry.recoveryOf(1), address(0));
+
+        vm.expectEmit();
+        emit Register(recipient, 1, recovery);
+
+        vm.expectEmit();
+        emit FreeRegister(registrar, 2, 1);
+
+        vm.prank(registrar);
+        idGateway.freeRegisterFor(recipient, recovery, deadline, sig);
+
+        assertEq(idRegistry.idCounter(), 1);
+        assertEq(idRegistry.idOf(recipient), 1);
+        assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
     /*//////////////////////////////////////////////////////////////

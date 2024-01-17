@@ -1,4 +1,4 @@
-BundleRegistryGasUsageTest:testGasRegisterWithSig() (gas: 1119756)
+BundleRegistryGasUsageTest:testGasRegisterWithSig() (gas: 1119954)
 IdGatewayGasUsageTest:testGasRegister() (gas: 1403564)
 IdGatewayGasUsageTest:testGasRegisterForAndRecover() (gas: 1974870)
 StorageRegistryGasUsageTest:testGasBatchCredit() (gas: 173053)

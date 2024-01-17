@@ -145,6 +145,23 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     }
 
     /*//////////////////////////////////////////////////////////////
+                          FREE REGISTER LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    function freeRegisterFor(
+        address to,
+        address recovery,
+        uint256 deadline,
+        bytes calldata sig
+    ) public whenNotPaused returns (uint256 fid) {
+        if (!isRegistrar(msg.sender)) revert Unauthorized();
+        /* Revert if signature is invalid */
+        _verifyRegisterSig({to: to, recovery: recovery, deadline: deadline, sig: sig});
+        fid = idRegistry.register(to, recovery);
+        emit FreeRegister(msg.sender, registrars[msg.sender], fid);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
