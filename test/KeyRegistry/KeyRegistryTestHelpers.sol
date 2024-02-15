@@ -42,9 +42,7 @@ library BulkAddDataBuilder {
         bytes memory metadata
     ) internal pure returns (KeyRegistry.BulkAddData[] memory) {
         KeyRegistry.BulkAddKey[] memory keys = addData[index].keys;
-        KeyRegistry.BulkAddKey[] memory newKeys = new KeyRegistry.BulkAddKey[](
-            keys.length + 1
-        );
+        KeyRegistry.BulkAddKey[] memory newKeys = new KeyRegistry.BulkAddKey[](keys.length + 1);
 
         for (uint256 i; i < keys.length; i++) {
             newKeys[i] = keys[i];
@@ -65,9 +63,7 @@ library BulkResetDataBuilder {
         KeyRegistry.BulkResetData[] memory resetData,
         uint256 fid
     ) internal pure returns (KeyRegistry.BulkResetData[] memory) {
-        KeyRegistry.BulkResetData[] memory newData = new KeyRegistry.BulkResetData[](
-                resetData.length + 1
-            );
+        KeyRegistry.BulkResetData[] memory newData = new KeyRegistry.BulkResetData[](resetData.length + 1);
         for (uint256 i; i < resetData.length; i++) {
             newData[i] = resetData[i];
         }

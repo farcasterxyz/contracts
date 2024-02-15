@@ -34,6 +34,7 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
     event SetKeyGateway(address oldKeyGateway, address newKeyGateway);
     event SetMaxKeysPerFid(uint256 oldMax, uint256 newMax);
     event FreezeKeyGateway(address keyGateway);
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
 
     function testInitialIdRegistry() public {
         assertEq(address(keyRegistry.idRegistry()), address(idRegistry));
@@ -41,6 +42,10 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
     function testInitialOwner() public {
         assertEq(keyRegistry.owner(), owner);
+    }
+
+    function testInitialPendingOwner() public {
+        assertEq(keyRegistry.pendingOwner(), address(0));
     }
 
     function testVersion() public {
@@ -1102,6 +1107,48 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
 
         vm.expectRevert(IKeyRegistry.InvalidState.selector);
         keyRegistry.keysOf(0, IKeyRegistry.KeyState.NULL, 0, 1);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        TRANSFER OWNERSHIP 2 STEP
+    //////////////////////////////////////////////////////////////*/
+
+    function testTransferOwnershipRevertNonOwner(address newOwner) public {
+        address randomUser = makeAddr("randomUser");
+
+        vm.prank(randomUser);
+        vm.expectRevert("Ownable: caller is not the owner");
+        keyRegistry.transferOwnership(newOwner);
+
+        assertEq(keyRegistry.pendingOwner(), address(0));
+        assertEq(keyRegistry.owner(), owner);
+    }
+
+    function testTransferOwnershipRevertNonNewOwnerAcceptance(address newOwner) public {
+        address randomUser = makeAddr("randomUser");
+
+        vm.prank(owner);
+        keyRegistry.transferOwnership(newOwner);
+
+        vm.prank(randomUser);
+        vm.expectRevert("Ownable2Step: caller is not the new owner");
+        keyRegistry.acceptOwnership();
+        assertEq(keyRegistry.pendingOwner(), newOwner);
+        assertEq(keyRegistry.owner(), owner);
+    }
+
+    function testFuzzTransferOwnership(address newOwner) public {
+        vm.prank(owner);
+        vm.expectEmit(address(keyRegistry));
+        emit OwnershipTransferStarted(owner, newOwner);
+        keyRegistry.transferOwnership(newOwner);
+
+        assertEq(keyRegistry.pendingOwner(), newOwner);
+
+        vm.prank(newOwner);
+        keyRegistry.acceptOwnership();
+
+        assertEq(keyRegistry.owner(), newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -16,11 +16,7 @@ abstract contract IdGatewayTestSuite is StorageRegistryTestSuite, KeyRegistryTes
     function setUp() public virtual override(StorageRegistryTestSuite, KeyRegistryTestSuite) {
         super.setUp();
 
-        idGateway = new IdGateway(
-            address(idRegistry),
-            address(storageRegistry),
-            owner
-        );
+        idGateway = new IdGateway(address(idRegistry), address(storageRegistry), owner);
 
         vm.startPrank(owner);
         idRegistry.setIdGateway(address(idGateway));
