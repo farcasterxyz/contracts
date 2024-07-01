@@ -1,5 +1,3 @@
-version: '3.9'
-
 x-build-defaults: &build-defaults
   build:
     dockerfile: Dockerfile.foundry
