@@ -36,16 +36,11 @@ contract LocalDeploy is Script {
 
         vm.startBroadcast();
         (AggregatorV3Interface priceFeed, AggregatorV3Interface uptimeFeed) = _getOrDeployPriceFeeds();
-        IdRegistry idRegistry = new IdRegistry{salt: ID_REGISTRY_CREATE2_SALT}(
-            migrator,
-            initialIdRegistryOwner
+        IdRegistry idRegistry = new IdRegistry{salt: ID_REGISTRY_CREATE2_SALT}(migrator, initialIdRegistryOwner);
+        KeyRegistry keyRegistry = new KeyRegistry{salt: KEY_REGISTRY_CREATE2_SALT}(
+            address(idRegistry), migrator, initialKeyRegistryOwner, 1000
         );
-        KeyRegistry keyRegistry = new KeyRegistry{
-            salt: KEY_REGISTRY_CREATE2_SALT
-        }(address(idRegistry), migrator, initialKeyRegistryOwner, 1000);
-        StorageRegistry storageRegistry = new StorageRegistry{
-            salt: STORAGE_RENT_CREATE2_SALT
-        }(
+        StorageRegistry storageRegistry = new StorageRegistry{salt: STORAGE_RENT_CREATE2_SALT}(
             priceFeed,
             uptimeFeed,
             INITIAL_USD_UNIT_PRICE,
