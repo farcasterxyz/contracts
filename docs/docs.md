@@ -347,7 +347,7 @@ The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an off-c
 
 # 3.1. Hubs
 
-[Hubs](https://docs.farcaster.xyz/protocol/hubs.html) are off-chain servers that store data on behalf of addresses that have registered an fid. They track the IdRegistry to know the addresses that have an fid, the StorageRegistry to find out how many messages they are allowed to store and the KeyRegistry to find out which key pairs can sign messages on behalf of the user.
+[Hubs](https://docs.farcaster.xyz/learn/architecture/hubs) are off-chain servers that store data on behalf of addresses that have registered an fid. They track the IdRegistry to know the addresses that have an fid, the StorageRegistry to find out how many messages they are allowed to store and the KeyRegistry to find out which key pairs can sign messages on behalf of the user.
 
 ### Assumptions
 
