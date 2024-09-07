@@ -1,6 +1,6 @@
 # Farcaster Contracts
 
-Users create accounts by registering with on-chain contracts. Farcaster contracts help set up identity key pairs, signing key pairs, usernames and with acquiring storage on off-chain systems. Contracts are deployed across multiple chains and off-chain services track the state of the these contracts by watching for events.
+Users create accounts by registering with on-chain contracts. Farcaster contracts help set up identity key pairs, signing key pairs, usernames and with acquiring storage on off-chain systems. Contracts are deployed across multiple chains and off-chain services track the state of these contracts by watching for events.
 
 This documentation is focused on the contracts but also clarifies assumptions made by off-chain services. For a full overview of the Farcaster protocol, please [read the docs](https://docs.farcaster.xyz/) or watch the [overview videos](https://www.youtube.com/playlist?list=PL0eq1PLf6eUdm35v_840EGLXkVJDhxhcF).
 
@@ -75,7 +75,7 @@ IdRegistry lets any Ethereum address claim a unique Farcaster ID or `fid`. Fids 
 
 ### Assumptions
 
-1. owner is not malicious.
+1. Owner is not malicious.
 
 ### Administration
 
@@ -98,7 +98,7 @@ The IdRegistry contract may need to be upgraded in case a bug is discovered or t
 ## 1.2. Id Gateway
 
 The IdManager is responsible for fid registration. While IdRegistry defines the rules of fid ownership, transfers, and
-recovery, the manager is responsible for the the actual registration logic. To prevent spamming fid registrations, the
+recovery, the manager is responsible for the actual registration logic. To prevent spamming fid registrations, the
 IdManager requires callers to rent 1 [storage unit](#13-storage-registry) at fid registration time.
 
 ### Invariants
@@ -108,7 +108,7 @@ IdManager requires callers to rent 1 [storage unit](#13-storage-registry) at fid
 
 ### Assumptions
 
-1. owner is not malicious.
+1. Owner is not malicious.
 
 ### Administration
 
@@ -118,8 +118,8 @@ The owner can pause and unpause the contract, which pauses registration, transfe
 
 An fid can exist in two states:
 
-- `registrable` - the fid has never been issued and can be registered by anyone
-- `registered` - the fid has been issued to an address
+- `registrable` - the fid has never been issued and can be registered by anyone.
+- `registered` - the fid has been issued to an address.
 
 ```mermaid
     stateDiagram-v2
@@ -130,9 +130,9 @@ An fid can exist in two states:
 
 The fid state transitions when users take specific actions:
 
-- `register` - register a new fid from any address
-- `transfer` - move an fid to a new custody address
-- `recover` - recover (move) an fid to a new custody address
+- `register` - register a new fid from any address.
+- `transfer` - move an fid to a new custody address.
+- `recover` - recover (move) an fid to a new custody address.
 
 ### Upgradeability
 
@@ -169,7 +169,7 @@ A price refresh occurs when a transaction is made after the cache period has pas
 
 1. Rented units are never released since we expect to renew the contract after a year, and this avoids expensive calculations.
 2. Chainlink oracle always returns a valid price for ETH-USD. (or it must be manually overridden).
-3. role admin, admin, treasurer and operator are not malicious
+3. Role admin, admin, treasurer and operator are not malicious.
 
 ### Migration
 
@@ -219,7 +219,7 @@ Key types may have multiple associated metadata types, indicating how their asso
 ### Assumptions
 
 1. The IdRegistry contract is functional.
-2. owner is not malicious.
+2. Owner is not malicious.
 
 ### Migration
 
@@ -267,21 +267,21 @@ The KeyRegistry contract may need to be upgraded in case a bug is discovered or 
 
 ## 1.4. Key Gateway
 
-The Key Gateway is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Gateway is responsible for the the actual addition logic.
+The Key Gateway is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Gateway is responsible for the actual addition logic.
 
 ### Invariants
 
-1. Fee: A key may only be added
+1. Fee: A key may only be added.
 
 ### Assumptions
 
 1. The KeyRegistry contract is functional.
 1. The StorageRegistry contract is functional.
-1. owner is not malicious.
+1. Owner is not malicious.
 
 ### Administration
 
-The Key Gateway owner may can pause and unpause the contract, disabling/enabling adding keys to the Key Registry.
+The Key Gateway owner may pause and unpause the contract, disabling/enabling adding keys to the Key Registry.
 
 ### Upgradeability
 
@@ -345,7 +345,7 @@ The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an off-c
 - All event history from IdRegistry will be accessible via an OP Mainnet node.
 - OP Mainnet will not re-org after 6 confirmations are received.
 
-# 3.1. Hubs
+# 3.2. Hubs
 
 [Hubs](https://docs.farcaster.xyz/protocol/hubs.html) are off-chain servers that store data on behalf of addresses that have registered an fid. They track the IdRegistry to know the addresses that have an fid, the StorageRegistry to find out how many messages they are allowed to store and the KeyRegistry to find out which key pairs can sign messages on behalf of the user.
 
