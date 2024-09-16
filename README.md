@@ -10,7 +10,7 @@ This repository contains all the contracts deployed by the [Farcaster protocol](
 6. **[Bundler](./src/Bundler.sol)** - allows calling gateways and storage in a single transaction.
 7. **[Signed Key Request Validator](./src/validators/SignedKeyRequestValidator.sol)** - validates key registry metadata.
 8. **[Recovery Proxy](./src/RecoveryProxy.sol)** - proxy for recovery service operators to initiate fid recovery.
-9. **[Fname Resolver](./src/FnameResolver.sol)** - validates Farcaster ENS names which were issued off-chain.
+9. **[Fname Resolver](./src/FnameResolver.sol)** - validates Farcaster ENS names which were issued offchain.
 
 Read the [docs](docs/docs.md) for more details on how the contracts work.
 
