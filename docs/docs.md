@@ -1,8 +1,8 @@
 # Farcaster Contracts
 
-Users create accounts by registering with on-chain contracts. Farcaster contracts help set up identity key pairs, signing key pairs, usernames and with acquiring storage on off-chain systems. Contracts are deployed across multiple chains and off-chain services track the state of the these contracts by watching for events.
+Users create accounts by registering with onchain contracts. Farcaster contracts help set up identity key pairs, signing key pairs, usernames and with acquiring storage on offchain systems. Contracts are deployed across multiple chains and offchain services track the state of the these contracts by watching for events.
 
-This documentation is focused on the contracts but also clarifies assumptions made by off-chain services. For a full overview of the Farcaster protocol, please [read the docs](https://docs.farcaster.xyz/) or watch the [overview videos](https://www.youtube.com/playlist?list=PL0eq1PLf6eUdm35v_840EGLXkVJDhxhcF).
+This documentation is focused on the contracts but also clarifies assumptions made by offchain services. For a full overview of the Farcaster protocol, please [read the docs](https://docs.farcaster.xyz/) or watch the [overview videos](https://www.youtube.com/playlist?list=PL0eq1PLf6eUdm35v_840EGLXkVJDhxhcF).
 
 ```mermaid
 
@@ -54,7 +54,7 @@ graph TD
    8. [Recovery Proxy](#18-recovery-proxy)
 2. [L1 Contracts](#2-l1-contracts)
    1. [Fname Resolver](#21-fname-resolver)
-3. [Off-chain Systems](#3-off-chain-systems)
+3. [Offchain Systems](#3-off-chain-systems)
    1. [Fname Registry](#31-fname-registry)
    2. [Hubs](#32-hubs)
 
@@ -149,7 +149,7 @@ In such cases:
 
 ## 1.3. Storage Registry
 
-The StorageRegistry contract lets anyone rent units of storage space on Farcaster Hubs for a given fid. Payment must be made in Ethereum to acquire storage for a year. Acquiring storage emits an event that is read off-chain by the Farcaster Hubs, which allocate space to the user. The contract will deprecate itself one year after deployment, and we expect to launch a new contract with updated logic. For more details, see [FIP-6](https://github.com/farcasterxyz/protocol/discussions/98).
+The StorageRegistry contract lets anyone rent units of storage space on Farcaster Hubs for a given fid. Payment must be made in Ethereum to acquire storage for a year. Acquiring storage emits an event that is read offchain by the Farcaster Hubs, which allocate space to the user. The contract will deprecate itself one year after deployment, and we expect to launch a new contract with updated logic. For more details, see [FIP-6](https://github.com/farcasterxyz/protocol/discussions/98).
 
 ### Pricing
 
@@ -324,7 +324,7 @@ The Fname Resolver contract is deployed on L1 Mainnet (chainid: 1).
 
 # 2.1. Fname Resolver
 
-The Fname Resolver contract validates usernames issued under the \*.fcast.id domain on-chain by implementing [ERC-3668](https://eips.ethereum.org/EIPS/eip-3668) and [ENSIP-10](https://docs.ens.domains/ens-improvement-proposals/ensip-10-wildcard-resolution). The resolver contains the url of the server which issues the usernames and proofs. It maintains a list of valid signers for the server and also validates proofs returned by the server.
+The Fname Resolver contract validates usernames issued under the \*.fcast.id domain onchain by implementing [ERC-3668](https://eips.ethereum.org/EIPS/eip-3668) and [ENSIP-10](https://docs.ens.domains/ens-improvement-proposals/ensip-10-wildcard-resolution). The resolver contains the url of the server which issues the usernames and proofs. It maintains a list of valid signers for the server and also validates proofs returned by the server.
 
 ### Invariants
 
@@ -334,11 +334,11 @@ The Fname Resolver contract validates usernames issued under the \*.fcast.id dom
 
 An `owner` can update the list of valid signers associated with the server.
 
-# 3. Off-chain Systems
+# 3. Offchain Systems
 
 # 3.1. Fname Registry
 
-The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an off-chain server that lets addresses with an fid acquire a unique username. Requests are authenticated by way of a signed message produced by the fid's custody address.
+The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an offchain server that lets addresses with an fid acquire a unique username. Requests are authenticated by way of a signed message produced by the fid's custody address.
 
 ### Assumptions
 
@@ -347,7 +347,7 @@ The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an off-c
 
 # 3.1. Hubs
 
-[Hubs](https://docs.farcaster.xyz/protocol/hubs.html) are off-chain servers that store data on behalf of addresses that have registered an fid. They track the IdRegistry to know the addresses that have an fid, the StorageRegistry to find out how many messages they are allowed to store and the KeyRegistry to find out which key pairs can sign messages on behalf of the user.
+[Hubs](https://docs.farcaster.xyz/protocol/hubs.html) are offchain servers that store data on behalf of addresses that have registered an fid. They track the IdRegistry to know the addresses that have an fid, the StorageRegistry to find out how many messages they are allowed to store and the KeyRegistry to find out which key pairs can sign messages on behalf of the user.
 
 ### Assumptions
 
