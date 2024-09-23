@@ -345,7 +345,7 @@ The [Fname registry](https://github.com/farcasterxyz/fname-registry) is an offch
 - All event history from IdRegistry will be accessible via an OP Mainnet node.
 - OP Mainnet will not re-org after 6 confirmations are received.
 
-# 3.1. Hubs
+# 3.2. Hubs
 
 [Hubs](https://docs.farcaster.xyz/protocol/hubs.html) are offchain servers that store data on behalf of addresses that have registered an fid. They track the IdRegistry to know the addresses that have an fid, the StorageRegistry to find out how many messages they are allowed to store and the KeyRegistry to find out which key pairs can sign messages on behalf of the user.
 
