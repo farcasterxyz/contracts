@@ -10,6 +10,7 @@ import {KeyRegistryHarness} from "./utils/KeyRegistryHarness.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {StubValidator} from "../Utils.sol";
 
+/// @custom:halmos --default-bytes-lengths 0,32,1024,65
 contract KeyRegistrySymTest is SymTest, Test {
     IdRegistry idRegistry;
     address idRegistration;
@@ -81,7 +82,7 @@ contract KeyRegistrySymTest is SymTest, Test {
     }
 
     // Verify the KeyRegistry invariants
-    function check_Invariants(bytes4 selector, address caller) public {
+    function check_Invariants(address caller) public {
         // Additional setup to cover various input states
         if (svm.createBool("migrate?")) {
             vm.prank(migrator);
@@ -107,8 +108,16 @@ contract KeyRegistrySymTest is SymTest, Test {
             !keyRegistry.isMigrated() || block.timestamp <= keyRegistry.migratedAt() + keyRegistry.gracePeriod();
 
         // Execute an arbitrary tx to KeyRegistry
+        bytes memory data = svm.createCalldata("KeyRegistry");
+        bytes4 selector = bytes4(data);
+
+        // Link the first argument of removeFor() to the user variable so that it can be used later in assertions
+        if (selector == keyRegistry.removeFor.selector) {
+            vm.assume(user == address(uint160(uint256(bytes32(this.slice(data, 4, 36))))));
+        }
+
         vm.prank(caller);
-        (bool success,) = address(keyRegistry).call(mk_calldata(selector, user));
+        (bool success,) = address(keyRegistry).call(data);
         vm.assume(success); // ignore reverting cases
 
         // Record post-state
@@ -170,95 +179,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         }
     }
 
-    // Case-splitting tactic: explicitly branching into two states: cond vs !cond
-    function split_cases(bool cond) internal pure {
-        if (cond) return;
-    }
-
-    function mk_calldata(bytes4 selector, address user) internal returns (bytes memory) {
-        // Ignore view functions
-        vm.assume(selector != keyRegistry.REMOVE_TYPEHASH.selector);
-        vm.assume(selector != keyRegistry.VERSION.selector);
-        vm.assume(selector != keyRegistry.eip712Domain.selector);
-        vm.assume(selector != keyRegistry.gatewayFrozen.selector);
-        vm.assume(selector != keyRegistry.gracePeriod.selector);
-        vm.assume(selector != keyRegistry.guardians.selector);
-        vm.assume(selector != keyRegistry.idRegistry.selector);
-        vm.assume(selector != keyRegistry.isMigrated.selector);
-        vm.assume(selector != keyRegistry.keyAt.selector);
-        vm.assume(selector != keyRegistry.keyDataOf.selector);
-        vm.assume(selector != keyRegistry.keyGateway.selector);
-        vm.assume(selector != keyRegistry.keys.selector);
-        vm.assume(selector != bytes4(0x1f64222f)); // keysOf
-        vm.assume(selector != bytes4(0xf27995e3)); // keysOf paged
-        vm.assume(selector != keyRegistry.maxKeysPerFid.selector);
-        vm.assume(selector != keyRegistry.migratedAt.selector);
-        vm.assume(selector != keyRegistry.migrator.selector);
-        vm.assume(selector != keyRegistry.nonces.selector);
-        vm.assume(selector != keyRegistry.owner.selector);
-        vm.assume(selector != keyRegistry.paused.selector);
-        vm.assume(selector != keyRegistry.pendingOwner.selector);
-        vm.assume(selector != keyRegistry.totalKeys.selector);
-        vm.assume(selector != keyRegistry.validators.selector);
-
-        // Create symbolic values to be included in calldata
-        uint256 fid = svm.createUint256("fid");
-        uint32 keyType = uint32(svm.createUint(32, "keyType"));
-        bytes memory key = svm.createBytes(32, "key");
-        uint8 metadataType = uint8(svm.createUint(8, "metadataType"));
-        bytes memory metadata = svm.createBytes(32, "metadata");
-        uint256 deadline = svm.createUint256("deadline");
-        bytes memory sig = svm.createBytes(65, "sig");
-
-        // Halmos requires symbolic dynamic arrays to be given with a specific size.
-        // In this test, we provide arrays with length 2.
-        IKeyRegistry.BulkAddData[] memory addData = new IKeyRegistry.BulkAddData[](2);
-        IKeyRegistry.BulkResetData[] memory resetData = new IKeyRegistry.BulkResetData[](2);
-
-        // New scope, stack workaround.
-        {
-            bytes[][] memory fidKeys = new bytes[][](2);
-            fidKeys[0] = new bytes[](1);
-            fidKeys[0][0] = key;
-
-            bytes memory key2 = svm.createBytes(32, "key2");
-            fidKeys[1] = new bytes[](1);
-            fidKeys[1][0] = key2;
-
-            uint256 fid2 = svm.createUint256("fid2");
-
-            IKeyRegistry.BulkAddKey[] memory keyData1 = new IKeyRegistry.BulkAddKey[](1);
-            IKeyRegistry.BulkAddKey[] memory keyData2 = new IKeyRegistry.BulkAddKey[](1);
-            keyData1[0] = IKeyRegistry.BulkAddKey({key: key, metadata: ""});
-            keyData2[0] = IKeyRegistry.BulkAddKey({key: key2, metadata: ""});
-
-            addData[0] = IKeyRegistry.BulkAddData({fid: fid, keys: keyData1});
-            addData[1] = IKeyRegistry.BulkAddData({fid: fid2, keys: keyData2});
-
-            resetData[0] = IKeyRegistry.BulkResetData({fid: fid, keys: fidKeys[0]});
-            resetData[1] = IKeyRegistry.BulkResetData({fid: fid2, keys: fidKeys[1]});
-        }
-
-        // Generate calldata based on the function selector
-        bytes memory args;
-        if (selector == keyRegistry.add.selector) {
-            // Explicitly branching based on conditions.
-            // Note: The negations of conditions are also taken into account.
-            split_cases(keyType == uint32(1) && metadataType == uint8(1));
-            args = abi.encode(user, keyType, key, metadataType, metadata);
-        } else if (selector == keyRegistry.remove.selector) {
-            args = abi.encode(key);
-        } else if (selector == keyRegistry.removeFor.selector) {
-            args = abi.encode(user, key, deadline, sig);
-        } else if (selector == keyRegistry.bulkAddKeysForMigration.selector) {
-            args = abi.encode(addData);
-        } else if (selector == keyRegistry.bulkResetKeysForMigration.selector) {
-            args = abi.encode(resetData);
-        } else {
-            // For functions where all parameters are static (not dynamic arrays or bytes),
-            // a raw byte array is sufficient instead of explicitly specifying each argument.
-            args = svm.createBytes(1024, "data"); // choose a size that is large enough to cover all parameters
-        }
-        return abi.encodePacked(selector, args);
+    function slice(bytes calldata data, uint start, uint end) external returns (bytes memory) {
+        return data[start:end];
     }
 }
