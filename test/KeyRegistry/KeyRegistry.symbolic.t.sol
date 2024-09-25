@@ -179,7 +179,7 @@ contract KeyRegistrySymTest is SymTest, Test {
         }
     }
 
-    function slice(bytes calldata data, uint start, uint end) external returns (bytes memory) {
+    function slice(bytes calldata data, uint start, uint end) external pure returns (bytes memory) {
         return data[start:end];
     }
 }
