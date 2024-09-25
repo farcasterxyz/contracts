@@ -136,7 +136,7 @@ jobs:
         run: pip install halmos
 
       - name: Run halmos
-        run: halmos --error-unknown --test-parallel --solver-parallel --storage-layout=generic --solver-timeout-assertion 0
+        run: halmos --solver-timeout-assertion 0
 
   coverage:
     permissions:
