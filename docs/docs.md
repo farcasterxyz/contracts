@@ -1,6 +1,6 @@
 # Farcaster Contracts
 
-Users create accounts by registering with onchain contracts. Farcaster contracts help set up identity key pairs, signing key pairs, usernames and with acquiring storage on offchain systems. Contracts are deployed across multiple chains and offchain services track the state of the these contracts by watching for events.
+Users create accounts by registering with onchain contracts. Farcaster contracts help set up identity key pairs, signing key pairs, usernames and with acquiring storage on offchain systems. Contracts are deployed across multiple chains and offchain services track the state of these contracts by watching for events.
 
 This documentation is focused on the contracts but also clarifies assumptions made by offchain services. For a full overview of the Farcaster protocol, please [read the docs](https://docs.farcaster.xyz/) or watch the [overview videos](https://www.youtube.com/playlist?list=PL0eq1PLf6eUdm35v_840EGLXkVJDhxhcF).
 
@@ -98,7 +98,7 @@ The IdRegistry contract may need to be upgraded in case a bug is discovered or t
 ## 1.2. Id Gateway
 
 The IdManager is responsible for fid registration. While IdRegistry defines the rules of fid ownership, transfers, and
-recovery, the manager is responsible for the the actual registration logic. To prevent spamming fid registrations, the
+recovery, the manager is responsible for the actual registration logic. To prevent spamming fid registrations, the
 IdManager requires callers to rent 1 [storage unit](#13-storage-registry) at fid registration time.
 
 ### Invariants
@@ -169,7 +169,7 @@ A price refresh occurs when a transaction is made after the cache period has pas
 
 1. Rented units are never released since we expect to renew the contract after a year, and this avoids expensive calculations.
 2. Chainlink oracle always returns a valid price for ETH-USD. (or it must be manually overridden).
-3. role admin, admin, treasurer and operator are not malicious
+3. Role admin, admin, treasurer and operator are not malicious
 
 ### Migration
 
@@ -267,7 +267,7 @@ The KeyRegistry contract may need to be upgraded in case a bug is discovered or 
 
 ## 1.4. Key Gateway
 
-The Key Gateway is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Gateway is responsible for the the actual addition logic.
+The Key Gateway is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Gateway is responsible for the actual addition logic.
 
 ### Invariants
 
@@ -281,7 +281,7 @@ The Key Gateway is the user-facing contract responsible for adding new keys to t
 
 ### Administration
 
-The Key Gateway owner may can pause and unpause the contract, disabling/enabling adding keys to the Key Registry.
+The Key Gateway owner may pause and unpause the contract, disabling/enabling adding keys to the Key Registry.
 
 ### Upgradeability
 
