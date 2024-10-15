@@ -29,16 +29,19 @@ contract MigrationSymTest is SymTest, Test {
         migration = new MigrationExample(gracePeriod, migrator, owner);
     }
 
-    function check_Invariants(bytes4 selector, address caller) public {
+    function check_Invariants(address caller) public {
         _initState();
 
         // Record pre-state
         uint40 oldMigratedAt = migration.migratedAt();
         address oldMigrator = migration.migrator();
 
+        bytes memory data = svm.createCalldata("MigrationExample");
+        bytes4 selector = bytes4(data);
+
         // Execute an arbitrary tx
         vm.prank(caller);
-        (bool success,) = address(migration).call(_calldataFor(selector));
+        (bool success,) = address(migration).call(data);
         vm.assume(success); // ignore reverting cases
 
         // Record post-state
@@ -107,12 +110,5 @@ contract MigrationSymTest is SymTest, Test {
             vm.prank(migration.migrator());
             migration.migrate();
         }
-    }
-
-    /**
-     * @dev Generates valid calldata for a given function selector.
-     */
-    function _calldataFor(bytes4 selector) internal returns (bytes memory) {
-        return abi.encodePacked(selector, svm.createBytes(1024, "data"));
     }
 }

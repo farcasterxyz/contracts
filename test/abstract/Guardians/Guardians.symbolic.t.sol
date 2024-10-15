@@ -27,7 +27,7 @@ contract GuardiansSymTest is SymTest, Test {
         y = svm.createAddress("y");
     }
 
-    function check_Invariants(bytes4 selector, address caller) public {
+    function check_Invariants(address caller) public {
         _initState();
         vm.assume(x != owner);
         vm.assume(x != y);
@@ -37,9 +37,12 @@ contract GuardiansSymTest is SymTest, Test {
         bool oldGuardianX = guarded.guardians(x);
         bool oldGuardianY = guarded.guardians(y);
 
+        bytes memory data = svm.createCalldata("GuardiansExample");
+        bytes4 selector = bytes4(data);
+
         // Execute an arbitrary tx
         vm.prank(caller);
-        (bool success,) = address(guarded).call(_calldataFor(selector));
+        (bool success,) = address(guarded).call(data);
         vm.assume(success); // ignore reverting cases
 
         // Record post-state
@@ -103,12 +106,5 @@ contract GuardiansSymTest is SymTest, Test {
             vm.prank(owner);
             guarded.pause();
         }
-    }
-
-    /**
-     * @dev Generates valid calldata for a given function selector.
-     */
-    function _calldataFor(bytes4 selector) internal returns (bytes memory) {
-        return abi.encodePacked(selector, svm.createBytes(1024, "data"));
     }
 }
