@@ -1,0 +1,262 @@
+
+signer "deployer" "evm::secret_key" {
+    secret_key = input.deployer_secret_key
+}
+
+variable "storage_registry_contract" {
+    description = "The StorageRegistry contract and deployment artifacts"
+    value = evm::get_contract_from_foundry_project("StorageRegistry")
+}
+action "deploy_storage_registry" "evm::deploy_contract_create2" {
+    description = "Deploy the Storage Registry contract using the Immutable Create2 Factory"
+    contract = variable.storage_registry_contract
+    constructor_args = [
+        evm::address(input.storage_rent_price_feed_address),
+        evm::address(input.storage_rent_uptime_feed_address),
+        variable.initial_usd_unit_price,
+        variable.initial_max_units,
+        evm::address(input.storage_rent_vault_address),
+        evm::address(input.deployer),
+        evm::address(input.storage_rent_admin_address),
+        evm::address(input.storage_rent_operator_address),
+        evm::address(input.storage_rent_treasurer_address)
+    ]
+    salt = input.storage_rent_create2_salt
+
+    create2_factory_address = input.immutable_create2_factory_address
+    create2_factory_function_name = "safeCreate2"
+    create2_factory_abi = variable.immutable_factory_abi
+
+    signer = signer.deployer
+}
+
+variable "id_registry_contract" {
+    description = "The IdRegistry contract and deployment artifacts"
+    value = evm::get_contract_from_foundry_project("IdRegistry")
+}
+action "deploy_id_registry" "evm::deploy_contract_create2" {
+    description = "Deploy the IdRegistry contract using the Immutable Create2 Factory"
+    contract = variable.id_registry_contract
+    constructor_args = [
+        evm::address(input.migrator_address), 
+        evm::address(input.deployer)
+    ]
+    salt = input.id_registry_create2_salt
+
+    create2_factory_address = input.immutable_create2_factory_address
+    create2_factory_function_name = "safeCreate2"
+    create2_factory_abi = variable.immutable_factory_abi
+
+    signer = signer.deployer
+}
+
+variable "id_gateway_contract" {
+    description = "The IdGateway contract and deployment artifacts"
+    value = evm::get_contract_from_foundry_project("IdGateway")
+}
+action "deploy_id_gateway" "evm::deploy_contract_create2" {
+    description = "Deploy the IdGateway contract using the Immutable Create2 Factory"
+    contract = variable.id_gateway_contract
+    constructor_args = [
+        action.deploy_id_registry.contract_address,
+        action.deploy_storage_registry.contract_address,
+        evm::address(input.deployer)
+    ]
+    salt = input.id_gateway_create2_salt
+
+    create2_factory_address = input.immutable_create2_factory_address
+    create2_factory_function_name = "safeCreate2"
+    create2_factory_abi = variable.immutable_factory_abi
+
+    signer = signer.deployer
+}
+
+variable "key_registry_contract" {
+    description = "The KeyRegistry contract and deployment artifacts"
+    value = evm::get_contract_from_foundry_project("KeyRegistry")
+}
+action "deploy_key_registry" "evm::deploy_contract_create2" {
+    description = "Deploy the KeyRegistry contract using the Immutable Create2 Factory"
+    contract = variable.key_registry_contract
+    constructor_args = [
+        action.deploy_id_registry.contract_address,
+        evm::address(input.migrator_address), 
+        evm::address(input.deployer),
+        variable.key_registry_max_keys_per_fid
+    ]
+    salt = input.key_registry_create2_salt
+
+    create2_factory_address = input.immutable_create2_factory_address
+    create2_factory_function_name = "safeCreate2"
+    create2_factory_abi = variable.immutable_factory_abi
+
+    signer = signer.deployer
+}
+
+action "deploy_key_gateway" "evm::deploy_contract_create2" {
+    description = "Deploy the KeyGateway contract using the Immutable Create2 Factory"
+    contract = evm::get_contract_from_foundry_project("KeyGateway")
+    constructor_args = [
+        action.deploy_key_registry.contract_address,
+        // this value was in the deployment script, but is not in the constructor
+        // action.deploy_storage_registry.contract_address, 
+        evm::address(input.key_registry_owner_address)
+    ]
+    salt = input.key_gateway_create2_salt
+
+    create2_factory_address = input.immutable_create2_factory_address
+    create2_factory_function_name = "safeCreate2"
+    create2_factory_abi = variable.immutable_factory_abi
+
+    signer = signer.deployer
+}
+
+action "deploy_signed_key_request_validator" "evm::deploy_contract_create2" {
+    description = "Deploy the SignedKeyRequestValidator contract using the Immutable Create2 Factory"
+    contract = evm::get_contract_from_foundry_project("SignedKeyRequestValidator")
+    constructor_args = [
+        action.deploy_id_registry.contract_address,
+        evm::address(input.metadata_validator_owner_address)
+    ]
+    salt = input.signed_key_request_validator_create2_salt
+
+    create2_factory_address = input.immutable_create2_factory_address
+    create2_factory_function_name = "safeCreate2"
+    create2_factory_abi = variable.immutable_factory_abi
+
+    signer = signer.deployer
+}
+
+action "deploy_bundler" "evm::deploy_contract_create2" {
+    description = "Deploy the Bundler contract using the Immutable Create2 Factory"
+    contract = evm::get_contract_from_foundry_project("Bundler")
+    constructor_args = [
+        action.deploy_id_gateway.contract_address,
+        action.deploy_key_gateway.contract_address,
+    ]
+    salt = input.bundler_create2_salt
+
+    create2_factory_address = input.immutable_create2_factory_address
+    create2_factory_function_name = "safeCreate2"
+    create2_factory_abi = variable.immutable_factory_abi
+
+    signer = signer.deployer
+}
+
+action "deploy_recovery_proxy" "evm::deploy_contract_create2" {
+    description = "Deploy the RecoveryProxy contract using the Immutable Create2 Factory"
+    contract = evm::get_contract_from_foundry_project("RecoveryProxy")
+    constructor_args = [
+        action.deploy_id_registry.contract_address,
+        evm::address(input.recovery_proxy_owner_address)
+    ]
+    salt = input.recovery_proxy_create2_salt
+
+    create2_factory_address = input.immutable_create2_factory_address
+    create2_factory_function_name = "safeCreate2"
+    create2_factory_abi = variable.immutable_factory_abi
+
+    signer = signer.deployer
+}
+
+// Post-deployment setup
+action "set_id_gateway" "evm::call_contract" {
+    description = "Set the IdGateway contract address in the IdRegistry contract"
+    contract_address = action.deploy_id_registry.contract_address
+    contract_abi = variable.id_registry_contract.abi
+    function_name = "setIdGateway"
+    function_args = [
+        action.deploy_id_gateway.contract_address
+    ]
+    signer = signer.deployer
+}
+
+action "transfer_id_registry_ownership" "evm::call_contract" {
+    description = "Transfer ownership of the IdRegistry contract to configured initial Id Registry Owner"
+    contract_address = action.deploy_id_registry.contract_address
+    contract_abi = variable.id_registry_contract.abi
+    function_name = "transferOwnership"
+    function_args = [
+        evm::address(input.id_registry_owner_address)
+    ]
+    signer = signer.deployer
+}
+
+action "transfer_id_gateway_ownership" "evm::call_contract" {
+    description = "Transfer ownership of the IdGateway contract to configured initial Id Registry Owner"
+    contract_address = action.deploy_id_gateway.contract_address
+    contract_abi = variable.id_gateway_contract.abi
+    function_name = "transferOwnership"
+    function_args = [
+        evm::address(input.id_registry_owner_address)
+    ]
+    signer = signer.deployer
+}
+
+action "key_registry_set_validator" "evm::call_contract" {
+    description = "Set the Validator for the KeyRegistry contract"
+    contract_address = action.deploy_key_registry.contract_address
+    contract_abi = variable.key_registry_contract.abi
+    function_name = "setValidator"
+    function_args = [
+        evm::uint32(1),
+        evm::uint8(1),
+        action.deploy_signed_key_request_validator.contract_address // todo: this might need a contract interface
+    ]
+    signer = signer.deployer
+}
+
+action "set_key_registry_key_gateway" "evm::call_contract" {
+    description = "Set the KeyGateway contract address in the KeyRegistry contract"
+    contract_address = action.deploy_key_registry.contract_address
+    contract_abi = variable.key_registry_contract.abi
+    function_name = "setKeyGateway"
+    function_args = [
+        action.deploy_key_gateway.contract_address
+    ]
+    signer = signer.deployer
+}
+
+action "transfer_key_registry_ownership" "evm::call_contract" {
+    description = "Transfer ownership of the KeyRegistry contract to configured initial Key Registry Owner"
+    contract_address = action.deploy_key_registry.contract_address
+    contract_abi = variable.key_registry_contract.abi
+    function_name = "transferOwnership"
+    function_args = [
+        evm::address(input.key_registry_owner_address)
+    ]
+    signer = signer.deployer
+}
+
+action "grant_operator_role" "evm::call_contract" {
+    contract_address = action.deploy_storage_registry.contract_address
+    contract_abi = variable.storage_registry_contract.abi
+    function_name = "grantRole"
+    function_args = [
+        evm::bytes32(std::keccak256("OPERATOR_ROLE")),
+        action.deploy_bundler.contract_address
+    ]
+    signer = signer.deployer
+}
+
+action "grant_admin_role" "evm::call_contract" {
+    contract_address = action.deploy_storage_registry.contract_address
+    contract_abi = variable.storage_registry_contract.abi
+    function_name = "grantRole"
+    function_args = [
+        evm::bytes32("0x0000000000000000000000000000000000000000000000000000000000000000"),
+        evm::address(input.storage_rent_role_admin_address)
+    ]
+    signer = signer.deployer
+}
+
+// action "renounce_role" "evm::call_contract" {
+//     contract_address = action.deploy_storage_registry.contract_address
+//     contract_abi = variable.storage_registry_contract.abi
+//     function_name = "renounceRole"
+//     function_args = [
+//         evm::bytes32("0x0000000000000000000000000000000000000000000000000000000000000000"),
+//         evm::address(input.deployer)
+//     ]
+//     signer = signer.deployer
+// }

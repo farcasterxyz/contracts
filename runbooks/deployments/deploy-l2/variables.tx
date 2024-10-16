@@ -1,0 +1,49 @@
+// The variable keyword is used to define a variable that can be used in other parts of the runbook. 
+// In this case, the variable immutable_factory_abi is defined with the value of the ABI of the Immutable Create2 Factory contract.
+variable "immutable_factory_abi" {
+    description = "ABI of the Immutable Create2 Factory"
+    value = "[{\"constant\":true,\"inputs\":[{\"name\":\"deploymentAddress\",\"type\":\"address\"}],\"name\":\"hasBeenDeployed\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"salt\",\"type\":\"bytes32\"},{\"name\":\"initializationCode\",\"type\":\"bytes\"}],\"name\":\"safeCreate2\",\"outputs\":[{\"name\":\"deploymentAddress\",\"type\":\"address\"}],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"salt\",\"type\":\"bytes32\"},{\"name\":\"initCode\",\"type\":\"bytes\"}],\"name\":\"findCreate2Address\",\"outputs\":[{\"name\":\"deploymentAddress\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"salt\",\"type\":\"bytes32\"},{\"name\":\"initCodeHash\",\"type\":\"bytes32\"}],\"name\":\"findCreate2AddressViaHash\",\"outputs\":[{\"name\":\"deploymentAddress\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+}
+
+variable "initial_usd_unit_price" {
+    description = "The initial USD unit price"
+    value = 500000000 // $5 USD
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+variable "initial_max_units" {
+    description = "The initial max units"
+    value = 200000
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+
+variable "initial_price_feed_cache_duration" {
+    description = "The initial price feed cache duration"
+    value = 86400 // 1 day, in seconds
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+variable "initial_uptime_feed_grace_period" {
+    description = "The initial uptime feed grace period"
+    value = 3600 // 1 hour, in seconds
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+variable "key_registry_migration_grace_period" {
+    description = "The grace period for key registry migration"
+    value = 86400 // 1 day, in seconds
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+variable "key_registry_max_keys_per_fid" {
+    description = "The maximum number of keys per fid"
+    value = 1000
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
