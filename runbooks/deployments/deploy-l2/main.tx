@@ -1,3 +1,7 @@
+addon "evm" {
+    chain_id = input.l2_chain_id
+    rpc_api_url = input.l2_rpc_api_url
+}
 
 signer "deployer" "evm::secret_key" {
     secret_key = input.deployer_secret_key
