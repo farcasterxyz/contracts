@@ -233,6 +233,7 @@ action "transfer_key_registry_ownership" "evm::call_contract" {
 }
 
 action "grant_operator_role" "evm::call_contract" {
+    description = "Grant the OPERATOR_ROLE to the Bundler contract"
     contract_address = action.deploy_storage_registry.contract_address
     contract_abi = variable.storage_registry_contract.abi
     function_name = "grantRole"
@@ -244,6 +245,7 @@ action "grant_operator_role" "evm::call_contract" {
 }
 
 action "grant_admin_role" "evm::call_contract" {
+    description = "Grant the ADMIN_ROLE to the Bundler contract"
     contract_address = action.deploy_storage_registry.contract_address
     contract_abi = variable.storage_registry_contract.abi
     function_name = "grantRole"
@@ -254,7 +256,9 @@ action "grant_admin_role" "evm::call_contract" {
     signer = signer.deployer
 }
 
+// I couldn't get this one transaction to succeed, it keeps reverting. Will need to investigate further.
 // action "renounce_role" "evm::call_contract" {
+//     description = "Renounce the OPERATOR_ROLE from the deployer"
 //     contract_address = action.deploy_storage_registry.contract_address
 //     contract_abi = variable.storage_registry_contract.abi
 //     function_name = "renounceRole"
