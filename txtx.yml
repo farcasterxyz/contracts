@@ -29,8 +29,8 @@ environments:
   # Devnet environment variables. Execute a Runbook with these variables with `txtx run <runbook-id> --env devnet`
   devnet:
     deployer_secret_key: 708c8e68f7cfc670783d848790a5503fb0a83580911760ca5762536bc0628969
-    deployer_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425
-    operator_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425
+    deployer_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    operator_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
     immutable_create2_factory_address: 0x0000000000FFe8B47B3e2130213B802212439497
     # Network params
     l1_rpc_api_url: http://localhost:8545
@@ -40,7 +40,7 @@ environments:
     # FNAME resolver params
     fname_resolver_server_url: https://fnames.farcaster.xyz/ccip/{sender}/{data}.json
     fname_resolver_signer_address: 0xBc5274eFc266311015793d89E9B591fa46294741
-    fname_resolver_owner_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    fname_resolver_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
     fname_resolver_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
     # L2 deployment salts
     storage_rent_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
@@ -57,26 +57,26 @@ environments:
     storage_rent_uptime_feed_address: 0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389
     # Storage rent params
     # Default address is Anvil test account 1
-    storage_rent_role_admin_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-    storage_rent_vault_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-    storage_rent_admin_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-    storage_rent_operator_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-    storage_rent_treasurer_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    storage_rent_role_admin_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    storage_rent_vault_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    storage_rent_admin_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    storage_rent_operator_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    storage_rent_treasurer_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
     # Deployer address.
     # Default address is Anvil test account 1
-    deployer: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    deployer: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
     # Migrator address.
     # Default address is Anvil test account 1
-    migrator_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    migrator_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
     # Key registry params
     # Default address is Anvil test account 1
-    key_registry_owner_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    key_registry_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
     # Metadata validator params
     # Default address is Anvil test account 1
-    metadata_validator_owner_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    metadata_validator_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
     # RecoveryProxy params
     # Default addresses are Anvil test account 1
-    recovery_proxy_owner_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    recovery_proxy_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
     # ID registry params
     # Default address is Anvil test account 1
-    id_registry_owner_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425 # 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    id_registry_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
