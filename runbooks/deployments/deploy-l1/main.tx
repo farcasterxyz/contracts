@@ -1,12 +1,22 @@
+// Txtx supports deployments to multiple blockchains, so here we load the
+// "evm" addon, which allows our Runbook to use evm-specific actions.
+addon "evm" {
+    // Variables defined in our `addon "evm"` block are use by default on all evm actions
+
+    // Pull the chain id from our txtx.yml manifest
+    chain_id = input.l1_chain_id
+    // Pull the rpc url from our txtx.yml manifest
+    rpc_api_url = input.l1_rpc_api_url
+}
 
 // Declare a signer named "deployer", which will be used to sign transactions.
 // This signer is created using the secret key provided as an input to the runbook.
-// signer "deployer" "evm::secret_key" {
-//     // Pull the secret key from our txtx.yml manifest
-//     secret_key = input.deployer_secret_key
-//     // Instead of a secret key, you can also use a mnemonic to create a signer
-//     // mnemonic = inputs.deployer_mnemonic
-// }
+signer "deployer" "evm::secret_key" {
+    // Pull the secret key from our txtx.yml manifest
+    secret_key = input.deployer_secret_key
+    // Instead of a secret key, you can also use a mnemonic to create a signer
+    // mnemonic = inputs.deployer_mnemonic
+}
 
 // Instead of copy/pasting keys/menomnics, you can also use the supervisor UI to sign all 
 // transactions in a browser wallet. To do this, use the web_wallet instead of secret_key:
