@@ -21,6 +21,12 @@ Deploys all L2 contracts. To execute, run:
 txtx run deploy-l2 -u --env devnet
 ```
 
+### Grant Role
+Calls the grantRole function of the StorageRegistry contract. To execute, run: 
+```console
+txtx run grant-role --env devnet
+```
+
 ## Getting Started
 
 This repository is using [txtx](https://txtx.sh) for handling its on-chain operations.
@@ -46,6 +52,7 @@ $ txtx ls
 ID                                      Name                                    Description
 deploy-l1                               Deploy L1                               Deploys all L1 contracts
 deploy-l2                               Deploy L2                               Deploys all L2 contracts
+grant-role                              Grant Role                              Calls the grantRole function of the StorageRegistry contract
 ```
 
 ### Scaffold a new runbook

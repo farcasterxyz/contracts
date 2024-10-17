@@ -21,11 +21,16 @@ runbooks:
     # or that have been updated since the last deployment.
     state:
       location: runbooks/deployments/deploy-l2/state
+  - name: Grant Role
+    id: grant-role
+    description: Calls the grantRole function of the StorageRegistry contract
+    location: runbooks/operations/grant-role.tx
 environments:
   # Devnet environment variables. Execute a Runbook with these variables with `txtx run <runbook-id> --env devnet`
   devnet:
     deployer_secret_key: 708c8e68f7cfc670783d848790a5503fb0a83580911760ca5762536bc0628969
     deployer_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425
+    operator_address: 0xCe246168E59dd8e28e367BB49b38Dc621768F425
     immutable_create2_factory_address: 0x0000000000FFe8B47B3e2130213B802212439497
     # Network params
     l1_rpc_api_url: http://localhost:8545
