@@ -1,0 +1,79 @@
+addon "evm" {
+    chain_id = input.l2_chain_id
+    rpc_api_url = input.l2_rpc_api_url
+}
+
+// we're using a web wallet for this runbook, so this Runbook should be executed without the `-u` flag:
+// txtx run grant-role --env devnet
+signer "operator" "evm::web_wallet" {
+    expected_address = input.operator_address
+}
+
+variable "storage_registry_contract" {
+    value = evm::get_contract_from_foundry_project("StorageRegistry")
+}
+
+variable "initial_usd_unit_price" {
+    description = "The initial USD unit price"
+    value = 500000000 // $5 USD
+    // uncomment to have this value editable by the operator in the supervisor UI:
+    // editable = true 
+}
+
+variable "initial_max_units" {
+    description = "The initial max units"
+    value = 200000
+    // uncomment to have this value editable by the operator in the supervisor UI:
+    // editable = true 
+}
+
+// use the create2 opcode directly to calculate the address of the contract, without needing to do any
+// on-chain interaction
+variable "storage_registry_address" {
+    value = evm::create2(
+        input.storage_rent_create2_salt,
+        evm::create_init_code(
+            variable.storage_registry_contract.bytecode,
+            [       
+                evm::address(input.storage_rent_price_feed_address),
+                evm::address(input.storage_rent_uptime_feed_address),
+                variable.initial_usd_unit_price,
+                variable.initial_max_units,
+                evm::address(input.storage_rent_vault_address),
+                evm::address(input.deployer),
+                evm::address(input.storage_rent_admin_address),
+                evm::address(input.storage_rent_operator_address),
+                evm::address(input.storage_rent_treasurer_address)
+            ]
+        )
+    )
+}
+
+variable "role" {
+    description = "The role to grant. Valid values are 'OPERATOR_ROLE', 'TREASURER_ROLE', and 'OWNER_ROLE', or '0x0000000000000000000000000000000000000000000000000000000000000000'"
+    value = "OPERATOR_ROLE"
+    editable = true
+}
+
+variable "address" {
+    description = "The address to grant the role to"
+    value = input.storage_rent_operator_address
+    editable = true
+}
+
+action "grant_operator_role" "evm::call_contract" {
+    description = "Grant the selected role to the selected address"
+    contract_address = variable.storage_registry_address
+    contract_abi = variable.storage_registry_contract.abi
+    function_name = "grantRole"
+    function_args = [
+        evm::bytes32(std::keccak256(variable.role)),
+        evm::address(variable.address)
+    ]
+    signer = signer.operator
+}
+
+output "tx_hash" {
+    description = "The transaction hash of the grant role transaction"
+    value = action.grant_operator_role.tx_hash
+}
