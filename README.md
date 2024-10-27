@@ -1,3 +1,5 @@
+![Farcaster Logo](farcasterlogo.png) 
+
 # Contracts
 
 This repository contains all the contracts deployed by the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are:
