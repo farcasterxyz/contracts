@@ -73,7 +73,7 @@ max-cache-ttl 100000000
 
 ### 2.3 Style Guide
 
-- `yarn format` uses [forge fmt](https://github.com/foundry-rs/foundry/tree/master/forge) to find and
+- `yarn format` uses [forge fmt](https://github.com/foundry-rs/foundry/tree/master/crates/forge) to find and
   auto-correct formatting issues.
 - `yarn format:check` performs the same checks, but alerts on errors and does not fix them.
 
