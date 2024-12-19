@@ -50,7 +50,7 @@ contract KeyGateway is IKeyGateway, Guardians, Signatures, EIP712, Nonces {
      *         Set the initial owner address.
      *
      * @param _keyRegistry  Address of the KeyRegistry contract.
-     * @param _initialOwner Address of the inital owner.
+     * @param _initialOwner Address of the initial owner.
      */
     constructor(
         address _keyRegistry,
