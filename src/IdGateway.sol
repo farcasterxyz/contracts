@@ -62,7 +62,7 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
      *         Set the owner of the contract to the provided _owner.
      *
      * @param _idRegistry      IdRegistry address.
-     * @param _storageRegistry StorageRegistery address.
+     * @param _storageRegistry StorageRegistry address.
      * @param _initialOwner    Initial owner address.
      *
      */

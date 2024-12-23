@@ -87,7 +87,7 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /// @dev Revert if transferred to the zero address.
     error InvalidAddress();
 
-    /// @dev Revert if the caller attempts a continuous credit withan invalid range.
+    /// @dev Revert if the caller attempts a continuous credit with an invalid range.
     error InvalidRangeInput();
 
     /*//////////////////////////////////////////////////////////////
