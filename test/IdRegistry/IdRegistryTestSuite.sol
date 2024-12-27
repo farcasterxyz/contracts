@@ -24,7 +24,9 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _register(address caller) internal returns (uint256 fid) {
+    function _register(
+        address caller
+    ) internal returns (uint256 fid) {
         fid = _registerWithRecovery(caller, address(0));
     }
 
@@ -44,7 +46,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         uint256 fid,
         address to,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
             keccak256(abi.encode(idRegistry.TRANSFER_TYPEHASH(), fid, to, idRegistry.nonces(signer), deadline))
@@ -60,7 +62,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         address to,
         address recovery,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
             keccak256(
@@ -85,7 +87,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         address from,
         address to,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
             keccak256(
@@ -99,7 +101,7 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
         assertEq(signature.length, 65);
     }
 
-    function _signDigest(uint256 pk, bytes32 digest) internal returns (bytes memory signature) {
+    function _signDigest(uint256 pk, bytes32 digest) internal pure returns (bytes memory signature) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         signature = abi.encodePacked(r, s, v);
         assertEq(signature.length, 65);

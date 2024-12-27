@@ -9,6 +9,7 @@ import {TransferHelper} from "./libraries/TransferHelper.sol";
 import {EIP712} from "./abstract/EIP712.sol";
 import {Nonces} from "./abstract/Nonces.sol";
 import {Signatures} from "./abstract/Signatures.sol";
+import {Address} from "openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title Farcaster IdGateway
@@ -19,6 +20,7 @@ import {Signatures} from "./abstract/Signatures.sol";
  */
 contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     using TransferHelper for address;
+    using Address for address;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTANTS
@@ -90,7 +92,9 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdGateway
      */
-    function price(uint256 extraStorage) external view returns (uint256) {
+    function price(
+        uint256 extraStorage
+    ) external view returns (uint256) {
         return storageRegistry.price(1 + extraStorage);
     }
 
@@ -101,7 +105,9 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdGateway
      */
-    function register(address recovery) external payable returns (uint256, uint256) {
+    function register(
+        address recovery
+    ) external payable returns (uint256, uint256) {
         return register(recovery, 0);
     }
 
@@ -145,7 +151,12 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdGateway
      */
-    function setStorageRegistry(address _storageRegistry) external onlyOwner {
+    function setStorageRegistry(
+        address _storageRegistry
+    ) external onlyOwner {
+        if (_storageRegistry == address(0)) revert Unauthorized();
+        if (!_storageRegistry.isContract()) revert Unauthorized();
+
         emit SetStorageRegistry(address(storageRegistry), _storageRegistry);
         storageRegistry = IStorageRegistry(_storageRegistry);
     }
