@@ -463,7 +463,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         vm.assume(storageRegistry != address(0));
         vm.assume(uint160(storageRegistry) > 9);
 
-        // Mocks that the address is a contract
+        // Mock that the address is a contract
         vm.etch(storageRegistry, hex"00");
 
         address prevStorageRegistry = address(idGateway.storageRegistry());

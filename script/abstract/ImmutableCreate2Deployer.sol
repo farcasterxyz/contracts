@@ -6,7 +6,9 @@ import "forge-std/console.sol";
 import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
 
 interface ImmutableCreate2Factory {
-    function hasBeenDeployed(address deploymentAddress) external view returns (bool);
+    function hasBeenDeployed(
+        address deploymentAddress
+    ) external view returns (bool);
 
     function findCreate2Address(
         bytes32 salt,
@@ -132,7 +134,9 @@ abstract contract ImmutableCreate2Deployer is Script {
     /**
      * @dev Deploy all registered contracts.
      */
-    function deploy(bool broadcast) internal {
+    function deploy(
+        bool broadcast
+    ) internal {
         console.log(pad("State", 10), pad("Name", 27), pad("Address", 43), "Initcode hash");
         for (uint256 i; i < names.length; i++) {
             _deploy(names[i], broadcast);
@@ -153,7 +157,9 @@ abstract contract ImmutableCreate2Deployer is Script {
         _deploy(name, broadcast);
     }
 
-    function deploy(string memory name) internal {
+    function deploy(
+        string memory name
+    ) internal {
         deploy(name, true);
     }
 

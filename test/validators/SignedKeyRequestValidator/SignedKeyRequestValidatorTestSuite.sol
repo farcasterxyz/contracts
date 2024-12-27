@@ -16,7 +16,9 @@ abstract contract SignedKeyRequestValidatorTestSuite is IdRegistryTestSuite {
         validator = new SignedKeyRequestValidator(address(idRegistry), owner);
     }
 
-    function _validKey(bytes memory keyBytes) internal pure returns (bytes memory) {
+    function _validKey(
+        bytes memory keyBytes
+    ) internal pure returns (bytes memory) {
         if (keyBytes.length < 32) {
             // pad with zero bytes
             bytes memory padding = new bytes(32 - keyBytes.length);
@@ -32,7 +34,7 @@ abstract contract SignedKeyRequestValidatorTestSuite is IdRegistryTestSuite {
         }
     }
 
-    function _shortKey(bytes memory keyBytes, uint8 _amount) internal view returns (bytes memory) {
+    function _shortKey(bytes memory keyBytes, uint8 _amount) internal pure returns (bytes memory) {
         uint256 amount = bound(_amount, 0, 31);
         assembly {
             mstore(keyBytes, amount)
@@ -40,7 +42,7 @@ abstract contract SignedKeyRequestValidatorTestSuite is IdRegistryTestSuite {
         return keyBytes;
     }
 
-    function _longKey(bytes memory keyBytes, uint8 _amount) internal view returns (bytes memory) {
+    function _longKey(bytes memory keyBytes, uint8 _amount) internal pure returns (bytes memory) {
         uint256 amount = bound(_amount, 1, type(uint8).max);
         bytes memory padding = new bytes(amount);
         return bytes.concat(_validKey(keyBytes), padding);
@@ -51,7 +53,7 @@ abstract contract SignedKeyRequestValidatorTestSuite is IdRegistryTestSuite {
         uint256 requestingFid,
         bytes memory signerPubKey,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         bytes32 digest = validator.hashTypedDataV4(
             keccak256(abi.encode(validator.METADATA_TYPEHASH(), requestingFid, keccak256(signerPubKey), deadline))
         );

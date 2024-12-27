@@ -20,5 +20,7 @@ interface IEIP712 {
      *
      * @return bytes32 EIP-712 message digest.
      */
-    function hashTypedDataV4(bytes32 structHash) external view returns (bytes32);
+    function hashTypedDataV4(
+        bytes32 structHash
+    ) external view returns (bytes32);
 }

@@ -25,7 +25,7 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
     event SetVault(address oldVault, address newVault);
     event Withdraw(address indexed to, uint256 amount);
 
-    function testVersion() public {
+    function testVersion() public view {
         assertEq(keyGateway.VERSION(), "2023.11.15");
     }
 
@@ -428,7 +428,9 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
                           PAUSE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAuthorizedCanPause(address caller) public {
+    function testFuzzOnlyAuthorizedCanPause(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -436,7 +438,9 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         keyGateway.pause();
     }
 
-    function testFuzzOnlyOwnerCanUnpause(address caller) public {
+    function testFuzzOnlyOwnerCanUnpause(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -454,7 +458,9 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         assertEq(keyGateway.paused(), false);
     }
 
-    function testFuzzPauseUnpauseGuardian(address caller) public {
+    function testFuzzPauseUnpauseGuardian(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(owner);
@@ -478,22 +484,22 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         return idRegistry.register(to, recovery);
     }
 
-    function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal {
+    function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal pure {
         assertEq(uint8(a), uint8(b));
     }
 
-    function assertNull(uint256 fid, bytes memory key) internal {
+    function assertNull(uint256 fid, bytes memory key) internal view {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.NULL);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
         assertEq(keyRegistry.totalKeys(fid, IKeyRegistry.KeyState.ADDED), 0);
     }
 
-    function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {
+    function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal view {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
     }
 
-    function assertRemoved(uint256 fid, bytes memory key, uint32 keyType) internal {
+    function assertRemoved(uint256 fid, bytes memory key, uint32 keyType) internal view {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.REMOVED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
     }

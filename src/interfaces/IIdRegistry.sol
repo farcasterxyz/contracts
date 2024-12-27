@@ -187,17 +187,23 @@ interface IIdRegistry {
     /**
      * @notice Maps each address to an fid, or zero if it does not own an fid.
      */
-    function idOf(address owner) external view returns (uint256 fid);
+    function idOf(
+        address owner
+    ) external view returns (uint256 fid);
 
     /**
      * @notice Maps each fid to the address that currently owns it.
      */
-    function custodyOf(uint256 fid) external view returns (address owner);
+    function custodyOf(
+        uint256 fid
+    ) external view returns (address owner);
 
     /**
      * @notice Maps each fid to an address that can initiate a recovery.
      */
-    function recoveryOf(uint256 fid) external view returns (address recovery);
+    function recoveryOf(
+        uint256 fid
+    ) external view returns (address recovery);
 
     /*//////////////////////////////////////////////////////////////
                              TRANSFER LOGIC
@@ -283,7 +289,9 @@ interface IIdRegistry {
      *
      * @param recovery The address which can recover the fid. Set to 0x0 to disable recovery.
      */
-    function changeRecoveryAddress(address recovery) external;
+    function changeRecoveryAddress(
+        address recovery
+    ) external;
 
     /**
      * @notice Change the recovery address of fid owned by the owner. Caller must provide an
@@ -364,7 +372,9 @@ interface IIdRegistry {
      *
      * @param _idGateway The new IdGateway address.
      */
-    function setIdGateway(address _idGateway) external;
+    function setIdGateway(
+        address _idGateway
+    ) external;
 
     /**
      * @notice Permanently freeze the IdGateway address. Only callable by owner.

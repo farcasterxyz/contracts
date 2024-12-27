@@ -76,7 +76,9 @@ contract RecoveryProxy is Ownable2Step {
      *
      * @param _idRegistry IDRegistry contract address.
      */
-    function setIdRegistry(IIdRegistry _idRegistry) external onlyOwner {
+    function setIdRegistry(
+        IIdRegistry _idRegistry
+    ) external onlyOwner {
         emit SetIdRegistry(idRegistry, _idRegistry);
         idRegistry = _idRegistry;
     }

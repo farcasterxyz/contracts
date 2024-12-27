@@ -114,7 +114,7 @@ contract DeployL2Test is DeployL2, Test {
         recoveryProxy = contracts.recoveryProxy;
     }
 
-    function test_deploymentParams() public {
+    function test_deploymentParams() public view {
         // Check deployment parameters
         assertEq(address(storageRegistry.priceFeed()), priceFeed);
         assertEq(address(storageRegistry.uptimeFeed()), uptimeFeed);
@@ -227,7 +227,7 @@ contract DeployL2Test is DeployL2, Test {
         uint256 fid,
         address to,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idRegistry.hashTypedDataV4(
             keccak256(abi.encode(idRegistry.TRANSFER_TYPEHASH(), fid, to, idRegistry.nonces(signer), deadline))
@@ -242,7 +242,7 @@ contract DeployL2Test is DeployL2, Test {
         uint256 requestFid,
         bytes memory signerPubKey,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         bytes32 digest = validator.hashTypedDataV4(
             keccak256(
                 abi.encode(

@@ -335,7 +335,9 @@ interface IKeyRegistry {
      *
      * @param key   Bytes of the key to remove.
      */
-    function remove(bytes calldata key) external;
+    function remove(
+        bytes calldata key
+    ) external;
 
     /**
      * @notice Remove a key on behalf of another fid owner, setting the key state to REMOVED.
@@ -374,7 +376,9 @@ interface IKeyRegistry {
      *
      * @param items An array of BulkAddData structs including fid and array of BulkAddKey structs.
      */
-    function bulkAddKeysForMigration(BulkAddData[] calldata items) external;
+    function bulkAddKeysForMigration(
+        BulkAddData[] calldata items
+    ) external;
 
     /**
      * @notice Reset multiple keys as part of the initial migration. Only callable by the contract owner.
@@ -384,7 +388,9 @@ interface IKeyRegistry {
      *
      * @param items   A list of BulkResetData structs including an fid and array of keys.
      */
-    function bulkResetKeysForMigration(BulkResetData[] calldata items) external;
+    function bulkResetKeysForMigration(
+        BulkResetData[] calldata items
+    ) external;
 
     /**
      * @notice Set a metadata validator contract for the given keyType and metadataType. Only callable by owner.
@@ -400,14 +406,18 @@ interface IKeyRegistry {
      *
      * @param _idRegistry The new IdRegistry address.
      */
-    function setIdRegistry(address _idRegistry) external;
+    function setIdRegistry(
+        address _idRegistry
+    ) external;
 
     /**
      * @notice Set the KeyGateway address allowed to add keys. Only callable by owner.
      *
      * @param _keyGateway The new KeyGateway address.
      */
-    function setKeyGateway(address _keyGateway) external;
+    function setKeyGateway(
+        address _keyGateway
+    ) external;
 
     /**
      * @notice Permanently freeze the KeyGateway address. Only callable by owner.
@@ -419,5 +429,7 @@ interface IKeyRegistry {
      *
      * @param _maxKeysPerFid The new max keys per fid.
      */
-    function setMaxKeysPerFid(uint256 _maxKeysPerFid) external;
+    function setMaxKeysPerFid(
+        uint256 _maxKeysPerFid
+    ) external;
 }

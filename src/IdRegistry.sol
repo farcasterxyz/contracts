@@ -255,7 +255,9 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdRegistry
      */
-    function changeRecoveryAddress(address recovery) external whenNotPaused {
+    function changeRecoveryAddress(
+        address recovery
+    ) external whenNotPaused {
         /* Revert if the caller does not own an fid */
         uint256 ownerId = idOf[msg.sender];
         if (ownerId == 0) revert HasNoId();
@@ -359,7 +361,9 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IIdRegistry
      */
-    function setIdGateway(address _idGateway) external onlyOwner {
+    function setIdGateway(
+        address _idGateway
+    ) external onlyOwner {
         if (gatewayFrozen) revert GatewayFrozen();
         emit SetIdGateway(idGateway, _idGateway);
         idGateway = _idGateway;
@@ -378,7 +382,9 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
 
-    function bulkRegisterIds(BulkRegisterData[] calldata ids) external onlyMigrator {
+    function bulkRegisterIds(
+        BulkRegisterData[] calldata ids
+    ) external onlyMigrator {
         // Safety: i can be incremented unchecked since it is bound by ids.length.
         unchecked {
             for (uint256 i = 0; i < ids.length; i++) {
@@ -403,7 +409,9 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         }
     }
 
-    function bulkResetIds(uint24[] calldata ids) external onlyMigrator {
+    function bulkResetIds(
+        uint24[] calldata ids
+    ) external onlyMigrator {
         // Safety: i can be incremented unchecked since it is bound by ids.length.
         unchecked {
             for (uint256 i = 0; i < ids.length; i++) {
@@ -419,7 +427,9 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
         }
     }
 
-    function setIdCounter(uint256 _counter) external onlyMigrator {
+    function setIdCounter(
+        uint256 _counter
+    ) external onlyMigrator {
         emit SetIdCounter(idCounter, _counter);
         idCounter = _counter;
     }

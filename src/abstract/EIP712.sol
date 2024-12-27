@@ -22,7 +22,9 @@ abstract contract EIP712 is IEIP712, EIP712Base {
     /**
      * @inheritdoc IEIP712
      */
-    function hashTypedDataV4(bytes32 structHash) external view returns (bytes32) {
+    function hashTypedDataV4(
+        bytes32 structHash
+    ) external view returns (bytes32) {
         return _hashTypedDataV4(structHash);
     }
 }

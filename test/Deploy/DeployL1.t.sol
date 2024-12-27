@@ -31,14 +31,14 @@ contract DeployL1Test is DeployL1, FnameResolverTestSuite {
         resolver = contracts.fnameResolver;
     }
 
-    function test_deploymentParams() public {
+    function test_deploymentParams() public view {
         // Check deployment parameters
         assertEq(resolver.url(), "https://fnames.farcaster.xyz/ccip/{sender}/{data}.json");
         assertEq(resolver.owner(), alpha);
         assertEq(resolver.signers(signer), true);
     }
 
-    function test_e2e() public {
+    function test_e2e() public view {
         uint256 timestamp = block.timestamp - 60;
         bytes memory signature = _signProof(signerPk, "alice.fcast.id", timestamp, alice);
         bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));

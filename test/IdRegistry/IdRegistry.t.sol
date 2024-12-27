@@ -32,11 +32,11 @@ contract IdRegistryTest is IdRegistryTestSuite {
                               PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
-    function testVersion() public {
+    function testVersion() public view {
         assertEq(idRegistry.VERSION(), "2023.11.15");
     }
 
-    function testName() public {
+    function testName() public view {
         assertEq(idRegistry.name(), "Farcaster FID");
     }
 
@@ -367,7 +367,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idOf(to), 1);
     }
 
-    function testTransferTypehash() public {
+    function testTransferTypehash() public view {
         assertEq(
             idRegistry.TRANSFER_TYPEHASH(), keccak256("Transfer(uint256 fid,address to,uint256 nonce,uint256 deadline)")
         );
@@ -1094,7 +1094,7 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.recoveryOf(fid), address(0));
     }
 
-    function testTransferAndChangeRecoveryTypehash() public {
+    function testTransferAndChangeRecoveryTypehash() public view {
         assertEq(
             idRegistry.TRANSFER_AND_CHANGE_RECOVERY_TYPEHASH(),
             keccak256(
@@ -2591,7 +2591,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
                           SET ID GATEWAY
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzSetIdGateway(address idGateway) public {
+    function testFuzzSetIdGateway(
+        address idGateway
+    ) public {
         address prevIdGateway = idRegistry.idGateway();
 
         vm.expectEmit();
@@ -2611,7 +2613,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.setIdGateway(idGateway);
     }
 
-    function testFuzzFreezeIdGateway(address idGateway) public {
+    function testFuzzFreezeIdGateway(
+        address idGateway
+    ) public {
         assertEq(idRegistry.gatewayFrozen(), false);
 
         vm.prank(owner);
@@ -2626,7 +2630,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.gatewayFrozen(), true);
     }
 
-    function testFuzzOnlyOwnerCanFreezeIdGateway(address caller) public {
+    function testFuzzOnlyOwnerCanFreezeIdGateway(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.expectRevert("Ownable: caller is not the owner");
@@ -2634,7 +2640,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.freezeIdGateway();
     }
 
-    function testFuzzSetIdGatewayRevertsWhenFrozen(address idGateway) public {
+    function testFuzzSetIdGatewayRevertsWhenFrozen(
+        address idGateway
+    ) public {
         assertEq(idRegistry.gatewayFrozen(), false);
 
         vm.prank(owner);

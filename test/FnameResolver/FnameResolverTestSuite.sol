@@ -52,7 +52,7 @@ abstract contract FnameResolverTestSuite is TestSuiteSetup {
         string memory name,
         uint256 timestamp,
         address owner
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         return _signProof(signerPk, name, timestamp, owner);
     }
 
@@ -61,7 +61,7 @@ abstract contract FnameResolverTestSuite is TestSuiteSetup {
         string memory name,
         uint256 timestamp,
         address owner
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         bytes32 eip712hash = resolver.hashTypedDataV4(
             keccak256(abi.encode(resolver.USERNAME_PROOF_TYPEHASH(), keccak256(bytes(name)), timestamp, owner))
         );

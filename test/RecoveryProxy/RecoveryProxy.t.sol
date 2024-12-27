@@ -9,11 +9,11 @@ import {RecoveryProxyTestSuite} from "./RecoveryProxyTestSuite.sol";
 contract RecoveryProxyTest is RecoveryProxyTestSuite {
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
-    function testIdRegistry() public {
+    function testIdRegistry() public view {
         assertEq(address(recoveryProxy.idRegistry()), address(idRegistry));
     }
 
-    function testInitialOwner() public {
+    function testInitialOwner() public view {
         assertEq(recoveryProxy.owner(), owner);
     }
 
@@ -106,7 +106,9 @@ contract RecoveryProxyTest is RecoveryProxyTestSuite {
         recoveryProxy.setIdRegistry(_idRegistry);
     }
 
-    function testFuzzSetIdRegistry(IIdRegistry newIdRegistry) public {
+    function testFuzzSetIdRegistry(
+        IIdRegistry newIdRegistry
+    ) public {
         IIdRegistry currentIdRegistry = recoveryProxy.idRegistry();
 
         vm.expectEmit(false, false, false, true);
