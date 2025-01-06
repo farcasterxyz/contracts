@@ -190,7 +190,7 @@ interface IStorageRegistry {
     function refreshPrice() external;
 
     /**
-     * @notice Change the price feed addresss. Callable by owner.
+     * @notice Change the price feed address. Callable by owner.
      *
      * @param feed The new price feed.
      */
