@@ -153,7 +153,9 @@ interface IStorageRegistry {
      * @param units Number of storage units.
      * @return uint256 cost in wei.
      */
-    function price(uint256 units) external view returns (uint256);
+    function price(
+        uint256 units
+    ) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
@@ -194,21 +196,27 @@ interface IStorageRegistry {
      *
      * @param feed The new price feed.
      */
-    function setPriceFeed(AggregatorV3Interface feed) external;
+    function setPriceFeed(
+        AggregatorV3Interface feed
+    ) external;
 
     /**
      * @notice Change the uptime feed addresss. Callable by owner.
      *
      * @param feed The new uptime feed.
      */
-    function setUptimeFeed(AggregatorV3Interface feed) external;
+    function setUptimeFeed(
+        AggregatorV3Interface feed
+    ) external;
 
     /**
      * @notice Change the USD price per storage unit. Callable by owner.
      *
      * @param usdPrice The new unit price in USD. Fixed point value with 8 decimals.
      */
-    function setPrice(uint256 usdPrice) external;
+    function setPrice(
+        uint256 usdPrice
+    ) external;
 
     /**
      * @notice Set the fixed ETH/USD price, disabling the price feed if the value is
@@ -219,56 +227,72 @@ interface IStorageRegistry {
      *                   Setting this value back to zero from a nonzero value will
      *                   re-enable the price feed.
      */
-    function setFixedEthUsdPrice(uint256 fixedPrice) external;
+    function setFixedEthUsdPrice(
+        uint256 fixedPrice
+    ) external;
 
     /**
      * @notice Change the maximum supply of storage units. Only callable by owner.
      *
      * @param max The new maximum supply of storage units.
      */
-    function setMaxUnits(uint256 max) external;
+    function setMaxUnits(
+        uint256 max
+    ) external;
 
     /**
      * @notice Change the deprecationTimestamp. Only callable by owner.
      *
      * @param timestamp The new deprecationTimestamp. Must be at least equal to block.timestamp.
      */
-    function setDeprecationTimestamp(uint256 timestamp) external;
+    function setDeprecationTimestamp(
+        uint256 timestamp
+    ) external;
 
     /**
      * @notice Change the priceFeedCacheDuration. Only callable by owner.
      *
      * @param duration The new priceFeedCacheDuration.
      */
-    function setCacheDuration(uint256 duration) external;
+    function setCacheDuration(
+        uint256 duration
+    ) external;
 
     /**
      * @notice Change the priceFeedMaxAge. Only callable by owner.
      *
      * @param age The new priceFeedMaxAge.
      */
-    function setMaxAge(uint256 age) external;
+    function setMaxAge(
+        uint256 age
+    ) external;
 
     /**
      * @notice Change the priceFeedMinAnswer. Only callable by owner.
      *
      * @param minPrice The new priceFeedMinAnswer. Must be less than current priceFeedMaxAnswer.
      */
-    function setMinAnswer(uint256 minPrice) external;
+    function setMinAnswer(
+        uint256 minPrice
+    ) external;
 
     /**
      * @notice Change the priceFeedMaxAnswer. Only callable by owner.
      *
      * @param maxPrice The new priceFeedMaxAnswer. Must be greater than current priceFeedMinAnswer.
      */
-    function setMaxAnswer(uint256 maxPrice) external;
+    function setMaxAnswer(
+        uint256 maxPrice
+    ) external;
 
     /**
      * @notice Change the uptimeFeedGracePeriod. Only callable by owner.
      *
      * @param period The new uptimeFeedGracePeriod.
      */
-    function setGracePeriod(uint256 period) external;
+    function setGracePeriod(
+        uint256 period
+    ) external;
 
     /**
      * @notice Change the vault address that can receive funds from this contract.
@@ -276,7 +300,9 @@ interface IStorageRegistry {
      *
      * @param vaultAddr The new vault address.
      */
-    function setVault(address vaultAddr) external;
+    function setVault(
+        address vaultAddr
+    ) external;
 
     /**
      * @notice Withdraw a specified amount of ether from the contract balance to the vault.
@@ -284,7 +310,9 @@ interface IStorageRegistry {
      *
      * @param amount The amount of ether to withdraw.
      */
-    function withdraw(uint256 amount) external;
+    function withdraw(
+        uint256 amount
+    ) external;
 
     /**
      * @notice Pause, disabling rentals and credits.

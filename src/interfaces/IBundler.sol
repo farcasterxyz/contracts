@@ -67,7 +67,9 @@ interface IBundler {
      * @return Total price in wei.
      *
      */
-    function price(uint256 extraStorage) external view returns (uint256);
+    function price(
+        uint256 extraStorage
+    ) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                           REGISTRATION

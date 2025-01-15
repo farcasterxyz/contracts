@@ -58,7 +58,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
                              SET MIGRATOR
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOwnerCanSetMigrator(address migrator) public {
+    function testFuzzOwnerCanSetMigrator(
+        address migrator
+    ) public {
         address oldMigrator = idRegistry.migrator();
 
         vm.expectEmit();
@@ -69,7 +71,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.migrator(), migrator);
     }
 
-    function testFuzzSetMigratorRevertsWhenMigrated(address migrator) public {
+    function testFuzzSetMigratorRevertsWhenMigrated(
+        address migrator
+    ) public {
         address oldMigrator = idRegistry.migrator();
 
         vm.prank(oldMigrator);
@@ -82,7 +86,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.migrator(), oldMigrator);
     }
 
-    function testFuzzSetMigratorRevertsWhenUnpaused(address migrator) public {
+    function testFuzzSetMigratorRevertsWhenUnpaused(
+        address migrator
+    ) public {
         address oldMigrator = idRegistry.migrator();
 
         vm.startPrank(owner);
@@ -98,7 +104,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzMigration(uint40 timestamp) public {
+    function testFuzzMigration(
+        uint40 timestamp
+    ) public {
         vm.assume(timestamp != 0);
 
         vm.warp(timestamp);
@@ -111,7 +119,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.migratedAt(), timestamp);
     }
 
-    function testFuzzOnlyMigratorCanMigrate(address caller) public {
+    function testFuzzOnlyMigratorCanMigrate(
+        address caller
+    ) public {
         vm.assume(caller != migrator);
 
         vm.prank(caller);
@@ -122,7 +132,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.migratedAt(), 0);
     }
 
-    function testFuzzCannotMigrateTwice(uint40 timestamp) public {
+    function testFuzzCannotMigrateTwice(
+        uint40 timestamp
+    ) public {
         timestamp = uint40(bound(timestamp, 1, type(uint40).max));
         vm.warp(timestamp);
         vm.prank(migrator);
@@ -141,7 +153,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
                           SET COUNTER
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzSetIdCounter(uint256 idCounter) public {
+    function testFuzzSetIdCounter(
+        uint256 idCounter
+    ) public {
         uint256 prevIdCounter = idRegistry.idCounter();
 
         vm.expectEmit();
@@ -188,7 +202,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.idCounter(), prevIdCounter);
     }
 
-    function testFuzzSetIdCounterUnpausedReverts(uint256 idCounter) public {
+    function testFuzzSetIdCounterUnpausedReverts(
+        uint256 idCounter
+    ) public {
         uint256 prevIdCounter = idRegistry.idCounter();
 
         vm.prank(owner);
@@ -239,7 +255,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.bulkRegisterIds(registerItems);
     }
 
-    function testFuzzBulkRegisterDuringGracePeriod(uint40 _warpForward) public {
+    function testFuzzBulkRegisterDuringGracePeriod(
+        uint40 _warpForward
+    ) public {
         IdRegistry.BulkRegisterData[] memory registerItems = BulkRegisterDataBuilder.empty().addFid(1);
 
         uint256 warpForward = bound(_warpForward, 1, idRegistry.gracePeriod() - 1);
@@ -253,7 +271,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testFuzzBulkRegisterAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
+    function testFuzzBulkRegisterAfterGracePeriodRevertsUnauthorized(
+        uint40 _warpForward
+    ) public {
         IdRegistry.BulkRegisterData[] memory registerItems = BulkRegisterDataBuilder.empty().addFid(1);
 
         uint256 warpForward =
@@ -317,7 +337,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         }
     }
 
-    function testBulkRegisterWithRecoveryEmitsEvent(address recovery) public {
+    function testBulkRegisterWithRecoveryEmitsEvent(
+        address recovery
+    ) public {
         IIdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
             BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1).addFid(2).addFid(3);
 
@@ -366,7 +388,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testBulkRegisterWithRecoveryCannotReRegister(address recovery) public {
+    function testBulkRegisterWithRecoveryCannotReRegister(
+        address recovery
+    ) public {
         IdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
             BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1).addFid(2).addFid(3);
 
@@ -377,7 +401,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testBulkRegisterWithRecoveryUnpausedReverts(address recovery) public {
+    function testBulkRegisterWithRecoveryUnpausedReverts(
+        address recovery
+    ) public {
         IdRegistry.BulkRegisterDefaultRecoveryData[] memory registerItems =
             BulkRegisterDefaultRecoveryDataBuilder.empty().addFid(1).addFid(2).addFid(3);
 
@@ -393,7 +419,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
                             BULK RESET
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzBulkResetIds(uint24[] memory _ids) public {
+    function testFuzzBulkResetIds(
+        uint24[] memory _ids
+    ) public {
         vm.assume(_ids.length > 0);
         uint256 len = bound(_ids.length, 1, 100);
 
@@ -442,7 +470,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.bulkResetIds(resetItems);
     }
 
-    function testFuzzBulkResetDuringGracePeriod(uint40 _warpForward) public {
+    function testFuzzBulkResetDuringGracePeriod(
+        uint40 _warpForward
+    ) public {
         IdRegistry.BulkRegisterData[] memory registerItems =
             BulkRegisterDataBuilder.empty().addFid(1).addFid(2).addFid(3);
         uint24[] memory resetItems = new uint24[](3);
@@ -464,7 +494,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testFuzzBulkResetAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
+    function testFuzzBulkResetAfterGracePeriodRevertsUnauthorized(
+        uint40 _warpForward
+    ) public {
         uint24[] memory resetItems = new uint24[](3);
 
         uint256 warpForward =

@@ -457,7 +457,9 @@ contract IdGatewayTest is IdGatewayTestSuite {
                         SET STORAGE REGISTRY
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzSetStorageRegistry(address storageRegistry) public {
+    function testFuzzSetStorageRegistry(
+        address storageRegistry
+    ) public {
         address prevStorageRegistry = address(idGateway.storageRegistry());
 
         vm.expectEmit();

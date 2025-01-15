@@ -81,7 +81,9 @@ library EnumerableKeySet {
     /**
      * @dev Returns the number of values in the set. O(1).
      */
-    function length(KeySet storage set) internal view returns (uint256) {
+    function length(
+        KeySet storage set
+    ) internal view returns (uint256) {
         return set._values.length;
     }
 
@@ -107,7 +109,9 @@ library EnumerableKeySet {
      * this function has an unbounded cost, and using it as part of a state-changing function may render the function
      * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
      */
-    function values(KeySet storage set) internal view returns (bytes[] memory) {
+    function values(
+        KeySet storage set
+    ) internal view returns (bytes[] memory) {
         return set._values;
     }
 }

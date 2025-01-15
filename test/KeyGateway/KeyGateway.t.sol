@@ -428,7 +428,9 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
                           PAUSE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAuthorizedCanPause(address caller) public {
+    function testFuzzOnlyAuthorizedCanPause(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -436,7 +438,9 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         keyGateway.pause();
     }
 
-    function testFuzzOnlyOwnerCanUnpause(address caller) public {
+    function testFuzzOnlyOwnerCanUnpause(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -454,7 +458,9 @@ contract KeyGatewayTest is KeyGatewayTestSuite {
         assertEq(keyGateway.paused(), false);
     }
 
-    function testFuzzPauseUnpauseGuardian(address caller) public {
+    function testFuzzPauseUnpauseGuardian(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(owner);

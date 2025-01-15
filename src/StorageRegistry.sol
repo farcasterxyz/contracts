@@ -501,7 +501,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function price(uint256 units) public view returns (uint256) {
+    function price(
+        uint256 units
+    ) public view returns (uint256) {
         uint256 ethPrice;
         if (fixedEthUsdPrice != 0) {
             ethPrice = fixedEthUsdPrice;
@@ -618,7 +620,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @dev Calculate the cost in wei to rent storage units.
      */
-    function _price(uint256 units) internal returns (uint256) {
+    function _price(
+        uint256 units
+    ) internal returns (uint256) {
         return _price(units, usdUnitPrice, _ethUsdPrice());
     }
 
@@ -697,7 +701,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setPriceFeed(AggregatorV3Interface feed) external onlyOwner {
+    function setPriceFeed(
+        AggregatorV3Interface feed
+    ) external onlyOwner {
         emit SetPriceFeed(address(priceFeed), address(feed));
         priceFeed = feed;
     }
@@ -705,7 +711,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setUptimeFeed(AggregatorV3Interface feed) external onlyOwner {
+    function setUptimeFeed(
+        AggregatorV3Interface feed
+    ) external onlyOwner {
         emit SetUptimeFeed(address(uptimeFeed), address(feed));
         uptimeFeed = feed;
     }
@@ -713,7 +721,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setPrice(uint256 usdPrice) external onlyOwner {
+    function setPrice(
+        uint256 usdPrice
+    ) external onlyOwner {
         emit SetPrice(usdUnitPrice, usdPrice);
         usdUnitPrice = usdPrice;
     }
@@ -721,7 +731,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setFixedEthUsdPrice(uint256 fixedPrice) external onlyOwner {
+    function setFixedEthUsdPrice(
+        uint256 fixedPrice
+    ) external onlyOwner {
         if (fixedPrice != 0) {
             if (fixedPrice < priceFeedMinAnswer || fixedPrice > priceFeedMaxAnswer) revert InvalidFixedPrice();
         }
@@ -732,7 +744,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setMaxUnits(uint256 max) external onlyOwner {
+    function setMaxUnits(
+        uint256 max
+    ) external onlyOwner {
         emit SetMaxUnits(maxUnits, max);
         maxUnits = max;
     }
@@ -740,7 +754,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setDeprecationTimestamp(uint256 timestamp) external onlyOwner {
+    function setDeprecationTimestamp(
+        uint256 timestamp
+    ) external onlyOwner {
         if (timestamp < block.timestamp) revert InvalidDeprecationTimestamp();
         emit SetDeprecationTimestamp(deprecationTimestamp, timestamp);
         deprecationTimestamp = timestamp;
@@ -749,7 +765,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setCacheDuration(uint256 duration) external onlyOwner {
+    function setCacheDuration(
+        uint256 duration
+    ) external onlyOwner {
         emit SetCacheDuration(priceFeedCacheDuration, duration);
         priceFeedCacheDuration = duration;
     }
@@ -757,7 +775,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setMaxAge(uint256 age) external onlyOwner {
+    function setMaxAge(
+        uint256 age
+    ) external onlyOwner {
         emit SetMaxAge(priceFeedMaxAge, age);
         priceFeedMaxAge = age;
     }
@@ -765,7 +785,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setMinAnswer(uint256 minPrice) external onlyOwner {
+    function setMinAnswer(
+        uint256 minPrice
+    ) external onlyOwner {
         if (minPrice >= priceFeedMaxAnswer) revert InvalidMinAnswer();
         emit SetMinAnswer(priceFeedMinAnswer, minPrice);
         priceFeedMinAnswer = minPrice;
@@ -774,7 +796,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setMaxAnswer(uint256 maxPrice) external onlyOwner {
+    function setMaxAnswer(
+        uint256 maxPrice
+    ) external onlyOwner {
         if (maxPrice <= priceFeedMinAnswer) revert InvalidMaxAnswer();
         emit SetMaxAnswer(priceFeedMaxAnswer, maxPrice);
         priceFeedMaxAnswer = maxPrice;
@@ -783,7 +807,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setGracePeriod(uint256 period) external onlyOwner {
+    function setGracePeriod(
+        uint256 period
+    ) external onlyOwner {
         emit SetGracePeriod(uptimeFeedGracePeriod, period);
         uptimeFeedGracePeriod = period;
     }
@@ -791,7 +817,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function setVault(address vaultAddr) external onlyOwner {
+    function setVault(
+        address vaultAddr
+    ) external onlyOwner {
         if (vaultAddr == address(0)) revert InvalidAddress();
         emit SetVault(vault, vaultAddr);
         vault = vaultAddr;
@@ -800,7 +828,9 @@ contract StorageRegistry is IStorageRegistry, AccessControlEnumerable, Pausable 
     /**
      * @inheritdoc IStorageRegistry
      */
-    function withdraw(uint256 amount) external onlyTreasurer {
+    function withdraw(
+        uint256 amount
+    ) external onlyTreasurer {
         emit Withdraw(vault, amount);
         vault.sendNative(amount);
     }

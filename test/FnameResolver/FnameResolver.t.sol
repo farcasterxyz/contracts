@@ -129,7 +129,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
                                  SIGNERS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOwnerCanAddSigner(address signer) public {
+    function testFuzzOwnerCanAddSigner(
+        address signer
+    ) public {
         vm.expectEmit(true, false, false, false);
         emit AddSigner(signer);
 
@@ -147,7 +149,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.addSigner(signer);
     }
 
-    function testFuzzOwnerCanRemoveSigner(address signer) public {
+    function testFuzzOwnerCanRemoveSigner(
+        address signer
+    ) public {
         vm.prank(owner);
         resolver.addSigner(signer);
 
@@ -182,7 +186,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assertEq(resolver.supportsInterface(type(IERC165).interfaceId), true);
     }
 
-    function testFuzzInterfaceDetectionUnsupportedInterface(bytes4 interfaceId) public {
+    function testFuzzInterfaceDetectionUnsupportedInterface(
+        bytes4 interfaceId
+    ) public {
         vm.assume(interfaceId != type(IExtendedResolver).interfaceId && interfaceId != type(IERC165).interfaceId);
         assertEq(resolver.supportsInterface(interfaceId), false);
     }

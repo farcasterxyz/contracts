@@ -53,7 +53,9 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
                             ACCEPT OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzAcceptOwnership(address newOwner) public {
+    function testFuzzAcceptOwnership(
+        address newOwner
+    ) public {
         vm.assume(newOwner != owner && newOwner != address(0));
         vm.prank(owner);
         idRegistry.transferOwnership(newOwner);
@@ -93,7 +95,9 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         _pause();
     }
 
-    function testAddRemoveGuardian(address guardian) public {
+    function testAddRemoveGuardian(
+        address guardian
+    ) public {
         assertEq(idRegistry.guardians(guardian), false);
 
         vm.expectEmit();
@@ -113,7 +117,9 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.guardians(guardian), false);
     }
 
-    function testFuzzCannotPauseUnlessGuardian(address alice) public {
+    function testFuzzCannotPauseUnlessGuardian(
+        address alice
+    ) public {
         vm.assume(alice != owner && alice != address(0));
         assertEq(idRegistry.owner(), owner);
         assertEq(idRegistry.paused(), false);
@@ -134,7 +140,9 @@ contract IdRegistryOwnerTest is IdRegistryTestSuite {
         assertEq(idRegistry.paused(), false);
     }
 
-    function testFuzzCannotUnpauseUnlessOwner(address alice) public {
+    function testFuzzCannotUnpauseUnlessOwner(
+        address alice
+    ) public {
         vm.assume(alice != owner && alice != address(0));
         assertEq(idRegistry.owner(), owner);
         _pause();

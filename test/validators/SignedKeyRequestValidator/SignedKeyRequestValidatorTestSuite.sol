@@ -16,7 +16,9 @@ abstract contract SignedKeyRequestValidatorTestSuite is IdRegistryTestSuite {
         validator = new SignedKeyRequestValidator(address(idRegistry), owner);
     }
 
-    function _validKey(bytes memory keyBytes) internal pure returns (bytes memory) {
+    function _validKey(
+        bytes memory keyBytes
+    ) internal pure returns (bytes memory) {
         if (keyBytes.length < 32) {
             // pad with zero bytes
             bytes memory padding = new bytes(32 - keyBytes.length);

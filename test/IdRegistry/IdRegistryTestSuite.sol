@@ -24,7 +24,9 @@ abstract contract IdRegistryTestSuite is TestSuiteSetup {
                               TEST HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _register(address caller) internal returns (uint256 fid) {
+    function _register(
+        address caller
+    ) internal returns (uint256 fid) {
         fid = _registerWithRecovery(caller, address(0));
     }
 

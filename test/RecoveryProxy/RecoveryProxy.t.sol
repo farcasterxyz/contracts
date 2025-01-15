@@ -106,7 +106,9 @@ contract RecoveryProxyTest is RecoveryProxyTestSuite {
         recoveryProxy.setIdRegistry(_idRegistry);
     }
 
-    function testFuzzSetIdRegistry(IIdRegistry newIdRegistry) public {
+    function testFuzzSetIdRegistry(
+        IIdRegistry newIdRegistry
+    ) public {
         IIdRegistry currentIdRegistry = recoveryProxy.idRegistry();
 
         vm.expectEmit(false, false, false, true);

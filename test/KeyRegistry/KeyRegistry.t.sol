@@ -618,7 +618,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                            PAUSABILITY
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAdminCanPause(address caller) public {
+    function testFuzzOnlyAdminCanPause(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -652,7 +654,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.setIdRegistry(idRegistry);
     }
 
-    function testFuzzSetIdRegistry(address idRegistry) public {
+    function testFuzzSetIdRegistry(
+        address idRegistry
+    ) public {
         address currentIdRegistry = address(keyRegistry.idRegistry());
 
         vm.expectEmit(false, false, false, true);
@@ -724,7 +728,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.setMaxKeysPerFid(newMax);
     }
 
-    function testFuzzSetMaxKeysPerFid(uint256 newMax) public {
+    function testFuzzSetMaxKeysPerFid(
+        uint256 newMax
+    ) public {
         uint256 currentMax = keyRegistry.maxKeysPerFid();
         newMax = bound(newMax, currentMax + 1, type(uint256).max);
 
@@ -737,7 +743,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.maxKeysPerFid(), newMax);
     }
 
-    function testFuzzSetMaxKeysPerFidRevertsLessThanOrEqualToCurrentMax(uint256 newMax) public {
+    function testFuzzSetMaxKeysPerFidRevertsLessThanOrEqualToCurrentMax(
+        uint256 newMax
+    ) public {
         uint256 currentMax = keyRegistry.maxKeysPerFid();
         newMax = bound(newMax, 0, currentMax);
 
@@ -760,7 +768,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.setKeyGateway(keyGateway);
     }
 
-    function testFuzzSetKeyGateway(address keyGateway) public {
+    function testFuzzSetKeyGateway(
+        address keyGateway
+    ) public {
         address currentKeyGateway = address(keyRegistry.keyGateway());
 
         vm.expectEmit(false, false, false, true);
@@ -772,7 +782,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(address(keyRegistry.keyGateway()), keyGateway);
     }
 
-    function testFuzzSetKeyGatewayRevertsWhenFrozen(address keyGateway) public {
+    function testFuzzSetKeyGatewayRevertsWhenFrozen(
+        address keyGateway
+    ) public {
         address currentKeyGateway = address(keyRegistry.keyGateway());
 
         vm.prank(owner);
@@ -794,7 +806,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.freezeKeyGateway();
     }
 
-    function testOnlyOwnerCanFreezeKeyGateway(address caller) public {
+    function testOnlyOwnerCanFreezeKeyGateway(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -1108,7 +1122,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _makeKey(uint256 i) internal pure returns (bytes memory key, bytes memory metadata) {
+    function _makeKey(
+        uint256 i
+    ) internal pure returns (bytes memory key, bytes memory metadata) {
         key = abi.encodePacked(keccak256(abi.encodePacked("key", i)));
         metadata = abi.encodePacked(keccak256(abi.encodePacked("metadata", i)));
     }

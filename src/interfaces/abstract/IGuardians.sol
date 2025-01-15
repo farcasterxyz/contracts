@@ -36,14 +36,18 @@ interface IGuardians {
      *
      * @param guardian Address of the guardian.
      */
-    function addGuardian(address guardian) external;
+    function addGuardian(
+        address guardian
+    ) external;
 
     /**
      * @notice Remove a guardian. Only callable by owner.
      *
      * @param guardian Address of the guardian.
      */
-    function removeGuardian(address guardian) external;
+    function removeGuardian(
+        address guardian
+    ) external;
 
     /**
      * @notice Pause the contract. Only callable by owner or a guardian.
