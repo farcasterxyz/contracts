@@ -7,6 +7,7 @@ import {FnameResolver} from "../src/FnameResolver.sol";
 import {IdRegistry} from "../src/IdRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
+import {USDPriceFeed} from "../src/abstract/USDPriceFeed.sol";
 import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
 import {Bundler} from "../src/Bundler.sol";
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
@@ -14,6 +15,38 @@ import {IERC1271} from "openzeppelin/contracts/interfaces/IERC1271.sol";
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 /* solhint-disable no-empty-blocks */
+
+contract USDPriceFeedHarness is USDPriceFeed {
+    constructor(
+        AggregatorV3Interface _priceFeed,
+        AggregatorV3Interface _uptimeFeed,
+        uint256 _usdUnitPrice,
+        address _vault,
+        address _roleAdmin,
+        address _owner,
+        address _operator,
+        address _treasurer
+    ) USDPriceFeed(_priceFeed, _uptimeFeed, _usdUnitPrice, _vault, _roleAdmin, _owner, _operator, _treasurer) {}
+
+    function readPrice() external {
+        _price(1);
+    }
+
+    function ownerRoleId() external pure returns (bytes32) {
+        return OWNER_ROLE;
+    }
+
+    function operatorRoleId() external pure returns (bytes32) {
+        return OPERATOR_ROLE;
+    }
+
+    function treasurerRoleId() external pure returns (bytes32) {
+        return TREASURER_ROLE;
+    }
+
+    /* solhint-disable-next-line no-empty-blocks */
+    receive() external payable {}
+}
 
 contract StorageRegistryHarness is StorageRegistry {
     constructor(
