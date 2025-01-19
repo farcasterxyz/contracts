@@ -89,8 +89,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev URL of the CCIP lookup gateway. Set once during deployment and
-     *   cannot be changed.
+     * @dev URL of the CCIP lookup gateway. Set once during deployment and cannot be changed.
      */
     string public url;
 
