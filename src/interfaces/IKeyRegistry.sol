@@ -201,7 +201,7 @@ interface IKeyRegistry {
      *      and its associated metadata.
      *
      * @param key  Bytes of the signer key.
-     * @param metadata Metadata of the signer key.
+     * @param metadata Metadata about the signer key.
      */
     struct BulkAddKey {
         bytes key;
