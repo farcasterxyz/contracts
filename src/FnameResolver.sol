@@ -79,7 +79,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     string public constant VERSION = "2023.08.23";
 
     /**
-     * @dev EIP-712 typehash of the UsernameProof struct.
+     * @dev EIP-712 typehash of the UserNameProof struct.
      */
     bytes32 public constant USERNAME_PROOF_TYPEHASH =
         keccak256("UserNameProof(string name,uint256 timestamp,address owner)");
