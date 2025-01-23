@@ -54,7 +54,7 @@ abstract contract Migration is IMigration, Guardians {
      *         Pauses contract at deployment time.
      *
      * @param _gracePeriod  Migration grace period in seconds.
-     * @param _initialOwner Initial owner address. Set as migrator.
+     * @param _initialOwner Initial owner address. Used in Guardians.
      */
     constructor(uint24 _gracePeriod, address _migrator, address _initialOwner) Guardians(_initialOwner) {
         gracePeriod = _gracePeriod;
