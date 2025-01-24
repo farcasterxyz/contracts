@@ -39,7 +39,7 @@ contract IdRegistrySymTest is SymTest, Test {
         y = svm.createAddress("y");
     }
 
-    function check_Invariants_PostMigration(bytes4 selector, address caller) public {
+    function check_Invariants_PostMigration(address caller) public {
         _assumeMigrated();
         _initState();
         vm.assume(x != y);
@@ -52,7 +52,7 @@ contract IdRegistrySymTest is SymTest, Test {
 
         // Execute an arbitrary tx to IdRegistry
         vm.prank(caller);
-        (bool success,) = address(idRegistry).call(_calldataFor(selector));
+        (bool success,) = address(idRegistry).call(svm.createCalldata("IdRegistry"));
         vm.assume(success); // ignore reverting cases
 
         // Record post-state
@@ -175,85 +175,5 @@ contract IdRegistrySymTest is SymTest, Test {
         bool migrationCompleted =
             idRegistry.isMigrated() && block.timestamp > idRegistry.migratedAt() + idRegistry.gracePeriod();
         vm.assume(migrationCompleted);
-    }
-
-    /**
-     * @dev Generates valid calldata for a given function selector.
-     */
-    function _calldataFor(bytes4 selector) internal returns (bytes memory) {
-        bytes memory args;
-        if (selector == idRegistry.transfer.selector) {
-            args = abi.encode(svm.createAddress("to"), svm.createUint256("deadline"), svm.createBytes(65, "sig"));
-        } else if (selector == idRegistry.transferFor.selector) {
-            args = abi.encode(
-                svm.createAddress("from"),
-                svm.createAddress("to"),
-                svm.createUint256("fromDeadline"),
-                svm.createBytes(65, "fromSig"),
-                svm.createUint256("toDeadline"),
-                svm.createBytes(65, "toSig")
-            );
-        } else if (selector == idRegistry.transferAndChangeRecovery.selector) {
-            args = abi.encode(
-                svm.createAddress("to"),
-                svm.createAddress("recovery"),
-                svm.createUint256("deadline"),
-                svm.createBytes(65, "sig")
-            );
-        } else if (selector == idRegistry.transferAndChangeRecoveryFor.selector) {
-            args = abi.encode(
-                svm.createAddress("from"),
-                svm.createAddress("to"),
-                svm.createAddress("recovery"),
-                svm.createUint256("fromDeadline"),
-                svm.createBytes(65, "fromSig"),
-                svm.createUint256("toDeadline"),
-                svm.createBytes(65, "toSig")
-            );
-        } else if (selector == idRegistry.changeRecoveryAddressFor.selector) {
-            args = abi.encode(
-                svm.createAddress("owner"),
-                svm.createAddress("recovery"),
-                svm.createUint256("deadline"),
-                svm.createBytes(65, "sig")
-            );
-        } else if (selector == idRegistry.recover.selector) {
-            args = abi.encode(
-                svm.createAddress("from"),
-                svm.createAddress("to"),
-                svm.createUint256("deadline"),
-                svm.createBytes(65, "sig")
-            );
-        } else if (selector == idRegistry.recoverFor.selector) {
-            args = abi.encode(
-                svm.createAddress("from"),
-                svm.createAddress("to"),
-                svm.createUint256("recoveryDeadline"),
-                svm.createBytes(65, "recoverySig"),
-                svm.createUint256("toDeadline"),
-                svm.createBytes(65, "toSig")
-            );
-        } else if (selector == idRegistry.verifyFidSignature.selector) {
-            args = abi.encode(
-                svm.createAddress("custodyAddress"),
-                svm.createUint256("fid"),
-                svm.createBytes32("digest"),
-                svm.createBytes(65, "sig")
-            );
-        } else if (selector == idRegistry.bulkRegisterIds.selector) {
-            IIdRegistry.BulkRegisterData[] memory ids = new IIdRegistry.BulkRegisterData[](0);
-            args = abi.encode(ids);
-        } else if (selector == idRegistry.bulkRegisterIdsWithDefaultRecovery.selector) {
-            IIdRegistry.BulkRegisterDefaultRecoveryData[] memory ids =
-                new IIdRegistry.BulkRegisterDefaultRecoveryData[](0);
-            args = abi.encode(ids, address(0));
-        } else if (selector == idRegistry.bulkResetIds.selector) {
-            uint24[] memory ids = new uint24[](0);
-            args = abi.encode(ids);
-        } else {
-            args = svm.createBytes(1024, "data");
-        }
-
-        return abi.encodePacked(selector, args);
     }
 }
