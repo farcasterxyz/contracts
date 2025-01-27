@@ -112,7 +112,9 @@ contract MigrationSymTest is SymTest, Test {
     /**
      * @dev Generates valid calldata for a given function selector.
      */
-    function _calldataFor(bytes4 selector) internal returns (bytes memory) {
+    function _calldataFor(
+        bytes4 selector
+    ) internal returns (bytes memory) {
         return abi.encodePacked(selector, svm.createBytes(1024, "data"));
     }
 }

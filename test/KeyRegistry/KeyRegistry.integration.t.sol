@@ -176,16 +176,16 @@ contract KeyRegistryIntegrationTest is KeyRegistryTestSuite, SignedKeyRequestVal
         return idRegistry.register(to, recovery);
     }
 
-    function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal {
+    function assertEq(IKeyRegistry.KeyState a, IKeyRegistry.KeyState b) internal pure {
         assertEq(uint8(a), uint8(b));
     }
 
-    function assertNull(uint256 fid, bytes memory key) internal {
+    function assertNull(uint256 fid, bytes memory key) internal view {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.NULL);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, 0);
     }
 
-    function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal {
+    function assertAdded(uint256 fid, bytes memory key, uint32 keyType) internal view {
         assertEq(keyRegistry.keyDataOf(fid, key).state, IKeyRegistry.KeyState.ADDED);
         assertEq(keyRegistry.keyDataOf(fid, key).keyType, keyType);
     }

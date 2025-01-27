@@ -13,19 +13,19 @@ contract FnameResolverTest is FnameResolverTestSuite {
     event AddSigner(address indexed signer);
     event RemoveSigner(address indexed signer);
 
-    function testURL() public {
+    function testURL() public view {
         assertEq(resolver.url(), FNAME_SERVER_URL);
     }
 
-    function testInitialOwner() public {
+    function testInitialOwner() public view {
         assertEq(resolver.owner(), owner);
     }
 
-    function testSignerIsAuthorized() public {
+    function testSignerIsAuthorized() public view {
         assertEq(resolver.signers(signer), true);
     }
 
-    function testVersion() public {
+    function testVersion() public view {
         assertEq(resolver.VERSION(), "2023.08.23");
     }
 
@@ -64,7 +64,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
                            RESOLVE WITH PROOF
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzResolveWithProofValidSignature(string memory name, uint256 timestamp, address owner) public {
+    function testFuzzResolveWithProofValidSignature(string memory name, uint256 timestamp, address owner) public view {
         bytes memory signature = _signProof(name, timestamp, owner);
         bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
         bytes memory response = resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), extraData);
@@ -119,7 +119,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), "");
     }
 
-    function testProofTypehash() public {
+    function testProofTypehash() public view {
         assertEq(
             resolver.USERNAME_PROOF_TYPEHASH(), keccak256("UserNameProof(string name,uint256 timestamp,address owner)")
         );
@@ -129,7 +129,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
                                  SIGNERS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOwnerCanAddSigner(address signer) public {
+    function testFuzzOwnerCanAddSigner(
+        address signer
+    ) public {
         vm.expectEmit(true, false, false, false);
         emit AddSigner(signer);
 
@@ -147,7 +149,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.addSigner(signer);
     }
 
-    function testFuzzOwnerCanRemoveSigner(address signer) public {
+    function testFuzzOwnerCanRemoveSigner(
+        address signer
+    ) public {
         vm.prank(owner);
         resolver.addSigner(signer);
 
@@ -174,15 +178,17 @@ contract FnameResolverTest is FnameResolverTestSuite {
                            INTERFACE DETECTION
     //////////////////////////////////////////////////////////////*/
 
-    function testInterfaceDetectionIExtendedResolver() public {
+    function testInterfaceDetectionIExtendedResolver() public view {
         assertEq(resolver.supportsInterface(type(IExtendedResolver).interfaceId), true);
     }
 
-    function testInterfaceDetectionERC165() public {
+    function testInterfaceDetectionERC165() public view {
         assertEq(resolver.supportsInterface(type(IERC165).interfaceId), true);
     }
 
-    function testFuzzInterfaceDetectionUnsupportedInterface(bytes4 interfaceId) public {
+    function testFuzzInterfaceDetectionUnsupportedInterface(
+        bytes4 interfaceId
+    ) public view {
         vm.assume(interfaceId != type(IExtendedResolver).interfaceId && interfaceId != type(IERC165).interfaceId);
         assertEq(resolver.supportsInterface(interfaceId), false);
     }

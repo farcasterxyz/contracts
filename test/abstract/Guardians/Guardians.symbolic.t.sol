@@ -7,7 +7,9 @@ import {Test} from "forge-std/Test.sol";
 import {Guardians} from "../../../src/abstract/Guardians.sol";
 
 contract GuardiansExample is Guardians {
-    constructor(address owner) Guardians(owner) {}
+    constructor(
+        address owner
+    ) Guardians(owner) {}
 }
 
 contract GuardiansSymTest is SymTest, Test {
@@ -108,7 +110,9 @@ contract GuardiansSymTest is SymTest, Test {
     /**
      * @dev Generates valid calldata for a given function selector.
      */
-    function _calldataFor(bytes4 selector) internal returns (bytes memory) {
+    function _calldataFor(
+        bytes4 selector
+    ) internal returns (bytes memory) {
         return abi.encodePacked(selector, svm.createBytes(1024, "data"));
     }
 }

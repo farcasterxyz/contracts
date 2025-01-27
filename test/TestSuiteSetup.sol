@@ -49,38 +49,44 @@ abstract contract TestSuiteSetup is Test {
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function addKnownContract(address contractAddress) public {
+    function addKnownContract(
+        address contractAddress
+    ) public {
         isKnownContract[contractAddress] = true;
     }
 
     // Ensures that a fuzzed address input does not match a known contract address
-    function _assumeClean(address a) internal {
-        assumeNoPrecompiles(a);
+    function _assumeClean(
+        address a
+    ) internal view {
+        assumeNotPrecompile(a);
         vm.assume(!isKnownContract[a]);
         vm.assume(a != ADMIN);
         vm.assume(a != address(0));
     }
 
-    function _boundPk(uint256 pk) internal view returns (uint256) {
+    function _boundPk(
+        uint256 pk
+    ) internal pure returns (uint256) {
         return bound(pk, 1, SECP_256K1_ORDER - 1);
     }
 
-    function _boundDeadline(uint40 deadline) internal view returns (uint256) {
+    function _boundDeadline(
+        uint40 deadline
+    ) internal view returns (uint256) {
         return block.timestamp + uint256(bound(deadline, 0, type(uint40).max));
     }
 
-    function _createMockERC1271(address ownerAddress)
-        internal
-        returns (ERC1271WalletMock mockWallet, address mockWalletAddress)
-    {
+    function _createMockERC1271(
+        address ownerAddress
+    ) internal returns (ERC1271WalletMock mockWallet, address mockWalletAddress) {
         mockWallet = new ERC1271WalletMock(ownerAddress);
         mockWalletAddress = address(mockWallet);
     }
 
-    function _createMaliciousMockERC1271(address ownerAddress)
-        internal
-        returns (ERC1271MaliciousMockForceRevert mockWallet, address mockWalletAddress)
-    {
+    function _createMaliciousMockERC1271(
+        address ownerAddress
+    ) internal returns (ERC1271MaliciousMockForceRevert mockWallet, address mockWalletAddress) {
         mockWallet = new ERC1271MaliciousMockForceRevert(ownerAddress);
         mockWalletAddress = address(mockWallet);
     }

@@ -22,23 +22,22 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
         keyRegistry.setKeyGateway(address(keyGateway));
 
         // Set up the BundleRegistry
-        bundler = new Bundler(
-            address(idGateway),
-            address(keyGateway)
-        );
+        bundler = new Bundler(address(idGateway), address(keyGateway));
 
         addKnownContract(address(keyGateway));
         addKnownContract(address(bundler));
     }
 
     // Assert that a given fname was correctly registered with id 1 and recovery
-    function _assertSuccessfulRegistration(address account, address recovery) internal {
+    function _assertSuccessfulRegistration(address account, address recovery) internal view {
         assertEq(idRegistry.idOf(account), 1);
         assertEq(idRegistry.recoveryOf(1), recovery);
     }
 
     // Assert that a given fname was not registered and the contracts have no registrations
-    function _assertUnsuccessfulRegistration(address account) internal {
+    function _assertUnsuccessfulRegistration(
+        address account
+    ) internal view {
         assertEq(idRegistry.idOf(account), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
     }
@@ -51,7 +50,7 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
         uint8 metadataType,
         bytes memory metadata,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         return _signAdd(pk, owner, keyType, key, metadataType, metadata, keyGateway.nonces(owner), deadline);
     }
 
@@ -64,7 +63,7 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
         bytes memory metadata,
         uint256 nonce,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         bytes32 digest = keyGateway.hashTypedDataV4(
             keccak256(
                 abi.encode(

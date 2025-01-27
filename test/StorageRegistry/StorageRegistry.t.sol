@@ -38,85 +38,87 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                            INITIALIZED VALUES
     //////////////////////////////////////////////////////////////*/
 
-    function testVersion() public {
+    function testVersion() public view {
         assertEq(storageRegistry.VERSION(), "2023.08.23");
     }
 
-    function testRoles() public {
+    function testRoles() public view {
         assertEq(storageRegistry.ownerRoleId(), keccak256("OWNER_ROLE"));
         assertEq(storageRegistry.operatorRoleId(), keccak256("OPERATOR_ROLE"));
         assertEq(storageRegistry.treasurerRoleId(), keccak256("TREASURER_ROLE"));
     }
 
-    function testDefaultAdmin() public {
+    function testDefaultAdmin() public view {
         assertTrue(storageRegistry.hasRole(storageRegistry.DEFAULT_ADMIN_ROLE(), roleAdmin));
     }
 
-    function testPriceFeedDefault() public {
+    function testPriceFeedDefault() public view {
         assertEq(address(storageRegistry.priceFeed()), address(priceFeed));
     }
 
-    function testUptimeFeedDefault() public {
+    function testUptimeFeedDefault() public view {
         assertEq(address(storageRegistry.uptimeFeed()), address(uptimeFeed));
     }
 
-    function testDeprecationTimestampDefault() public {
+    function testDeprecationTimestampDefault() public view {
         assertEq(storageRegistry.deprecationTimestamp(), DEPLOYED_AT + INITIAL_RENTAL_PERIOD);
     }
 
-    function testUsdUnitPriceDefault() public {
+    function testUsdUnitPriceDefault() public view {
         assertEq(storageRegistry.usdUnitPrice(), INITIAL_USD_UNIT_PRICE);
     }
 
-    function testMaxUnitsDefault() public {
+    function testMaxUnitsDefault() public view {
         assertEq(storageRegistry.maxUnits(), INITIAL_MAX_UNITS);
     }
 
-    function testRentedUnitsDefault() public {
+    function testRentedUnitsDefault() public view {
         assertEq(storageRegistry.rentedUnits(), 0);
     }
 
-    function testEthUSDPriceDefault() public {
+    function testEthUSDPriceDefault() public view {
         assertEq(storageRegistry.ethUsdPrice(), uint256(ETH_USD_PRICE));
     }
 
-    function testPrevEthUSDPriceDefault() public {
+    function testPrevEthUSDPriceDefault() public view {
         assertEq(storageRegistry.prevEthUsdPrice(), uint256(ETH_USD_PRICE));
     }
 
-    function testLastPriceFeedUpdateDefault() public {
+    function testLastPriceFeedUpdateDefault() public view {
         assertEq(storageRegistry.lastPriceFeedUpdateTime(), block.timestamp);
     }
 
-    function testLastPriceFeedUpdateBlockDefault() public {
+    function testLastPriceFeedUpdateBlockDefault() public view {
         assertEq(storageRegistry.lastPriceFeedUpdateBlock(), block.number);
     }
 
-    function testPriceFeedCacheDurationDefault() public {
+    function testPriceFeedCacheDurationDefault() public view {
         assertEq(storageRegistry.priceFeedCacheDuration(), INITIAL_PRICE_FEED_CACHE_DURATION);
     }
 
-    function testPriceFeedMaxAgeDefault() public {
+    function testPriceFeedMaxAgeDefault() public view {
         assertEq(storageRegistry.priceFeedMaxAge(), INITIAL_PRICE_FEED_MAX_AGE);
     }
 
-    function testPriceFeedMinAnswerDefault() public {
+    function testPriceFeedMinAnswerDefault() public view {
         assertEq(storageRegistry.priceFeedMinAnswer(), INITIAL_PRICE_FEED_MIN_ANSWER);
     }
 
-    function testPriceFeedMaxAnswerDefault() public {
+    function testPriceFeedMaxAnswerDefault() public view {
         assertEq(storageRegistry.priceFeedMaxAnswer(), INITIAL_PRICE_FEED_MAX_ANSWER);
     }
 
-    function testUptimeFeedGracePeriodDefault() public {
+    function testUptimeFeedGracePeriodDefault() public view {
         assertEq(storageRegistry.uptimeFeedGracePeriod(), INITIAL_UPTIME_FEED_GRACE_PERIOD);
     }
 
-    function testFuzzInitialPrice(uint128 quantity) public {
+    function testFuzzInitialPrice(
+        uint128 quantity
+    ) public view {
         assertEq(storageRegistry.price(quantity), INITIAL_PRICE_IN_ETH * quantity);
     }
 
-    function testInitialUnitPrice() public {
+    function testInitialUnitPrice() public view {
         assertEq(storageRegistry.unitPrice(), INITIAL_PRICE_IN_ETH);
     }
 
@@ -992,7 +994,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                PRICE FEED
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzPriceFeedRevertsInvalidPrice(int256 price) public {
+    function testFuzzPriceFeedRevertsInvalidPrice(
+        int256 price
+    ) public {
         // Ensure price is zero or negative
         price = price > 0 ? -price : price;
         priceFeed.setPrice(price);
@@ -1035,7 +1039,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.refreshPrice();
     }
 
-    function testFuzzPriceFeedRevertsAnswerBelowBound(uint256 delta) public {
+    function testFuzzPriceFeedRevertsAnswerBelowBound(
+        uint256 delta
+    ) public {
         delta = bound(delta, 1, uint256(storageRegistry.priceFeedMinAnswer()) - 1);
 
         priceFeed.setRoundData(
@@ -1053,7 +1059,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.refreshPrice();
     }
 
-    function testPriceFeedRevertsAnswerAboveBound(uint256 delta) public {
+    function testPriceFeedRevertsAnswerAboveBound(
+        uint256 delta
+    ) public {
         delta = bound(delta, 1, uint256(type(int256).max) - storageRegistry.priceFeedMaxAnswer());
 
         priceFeed.setRoundData(
@@ -1154,7 +1162,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                UPTIME FEED
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzUptimeFeedRevertsSequencerDown(int256 answer) public {
+    function testFuzzUptimeFeedRevertsSequencerDown(
+        int256 answer
+    ) public {
         if (answer == 0) ++answer;
         // Set nonzero answer. It's counterintuitive, but a zero answer
         // means the sequencer is up.
@@ -1190,7 +1200,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.refreshPrice();
     }
 
-    function testFuzzUptimeFeedRevertsInvalidTimestamp(uint256 secondsAhead) public {
+    function testFuzzUptimeFeedRevertsInvalidTimestamp(
+        uint256 secondsAhead
+    ) public {
         secondsAhead = bound(secondsAhead, 1, type(uint256).max - block.timestamp);
 
         // Set timestamp in future
@@ -1290,7 +1302,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                               REFRESH PRICE
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyAuthorizedCanRefreshPrice(address caller) public {
+    function testFuzzOnlyAuthorizedCanRefreshPrice(
+        address caller
+    ) public {
         vm.assume(caller != owner && caller != treasurer);
 
         vm.prank(caller);
@@ -1344,7 +1358,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.credit(fid, units);
     }
 
-    function testFuzzCreditRevertsZeroUnits(uint256 fid) public {
+    function testFuzzCreditRevertsZeroUnits(
+        uint256 fid
+    ) public {
         vm.expectRevert(StorageRegistry.InvalidAmount.selector);
         vm.prank(operator);
         storageRegistry.credit(fid, 0);
@@ -1367,7 +1383,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         _batchCreditStorage(fids, units);
     }
 
-    function testFuzzBatchCreditRevertsZeroAmount(uint256[] calldata fids) public {
+    function testFuzzBatchCreditRevertsZeroAmount(
+        uint256[] calldata fids
+    ) public {
         vm.expectRevert(StorageRegistry.InvalidAmount.selector);
         vm.prank(operator);
         storageRegistry.batchCredit(fids, 0);
@@ -1510,7 +1528,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setPriceFeed(AggregatorV3Interface(newFeed));
     }
 
-    function testFuzzSetPriceFeed(address newFeed) public {
+    function testFuzzSetPriceFeed(
+        address newFeed
+    ) public {
         AggregatorV3Interface currentFeed = storageRegistry.priceFeed();
 
         vm.expectEmit();
@@ -1530,7 +1550,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setUptimeFeed(AggregatorV3Interface(newFeed));
     }
 
-    function testFuzzSetUptimeFeed(address newFeed) public {
+    function testFuzzSetUptimeFeed(
+        address newFeed
+    ) public {
         AggregatorV3Interface currentFeed = storageRegistry.uptimeFeed();
 
         vm.expectEmit();
@@ -1554,7 +1576,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setPrice(unitPrice);
     }
 
-    function testFuzzSetUSDUnitPrice(uint256 unitPrice) public {
+    function testFuzzSetUSDUnitPrice(
+        uint256 unitPrice
+    ) public {
         uint256 currentPrice = storageRegistry.usdUnitPrice();
 
         vm.expectEmit(false, false, false, true);
@@ -1578,7 +1602,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setFixedEthUsdPrice(fixedPrice);
     }
 
-    function testFuzzSetFixedEthUsdPrice(uint256 fixedPrice) public {
+    function testFuzzSetFixedEthUsdPrice(
+        uint256 fixedPrice
+    ) public {
         fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMinAnswer(), storageRegistry.priceFeedMaxAnswer());
         assertEq(storageRegistry.fixedEthUsdPrice(), 0);
 
@@ -1591,7 +1617,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.fixedEthUsdPrice(), fixedPrice);
     }
 
-    function testFuzzSetFixedEthUsdPriceRevertsLessThanMinPrice(uint256 fixedPrice) public {
+    function testFuzzSetFixedEthUsdPriceRevertsLessThanMinPrice(
+        uint256 fixedPrice
+    ) public {
         fixedPrice = bound(fixedPrice, 1, storageRegistry.priceFeedMinAnswer() - 1);
         assertEq(storageRegistry.fixedEthUsdPrice(), 0);
 
@@ -1600,7 +1628,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setFixedEthUsdPrice(fixedPrice);
     }
 
-    function testFuzzSetFixedEthUsdPriceRevertsGreaterThanMaxPrice(uint256 fixedPrice) public {
+    function testFuzzSetFixedEthUsdPriceRevertsGreaterThanMaxPrice(
+        uint256 fixedPrice
+    ) public {
         fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMaxAnswer() + 1, type(uint256).max);
         assertEq(storageRegistry.fixedEthUsdPrice(), 0);
 
@@ -1609,7 +1639,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setFixedEthUsdPrice(fixedPrice);
     }
 
-    function testFuzzSetFixedEthUsdPriceOverridesPriceFeed(uint256 fixedPrice) public {
+    function testFuzzSetFixedEthUsdPriceOverridesPriceFeed(
+        uint256 fixedPrice
+    ) public {
         fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMinAnswer(), storageRegistry.priceFeedMaxAnswer());
         vm.assume(fixedPrice != storageRegistry.ethUsdPrice());
         fixedPrice = bound(fixedPrice, 1, type(uint256).max);
@@ -1626,7 +1658,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(priceAfter, usdUnitPrice.divWadUp(fixedPrice));
     }
 
-    function testFuzzRemoveFixedEthUsdPriceReenablesPriceFeed(uint256 fixedPrice) public {
+    function testFuzzRemoveFixedEthUsdPriceReenablesPriceFeed(
+        uint256 fixedPrice
+    ) public {
         fixedPrice = bound(fixedPrice, storageRegistry.priceFeedMinAnswer(), storageRegistry.priceFeedMaxAnswer());
         vm.assume(fixedPrice != storageRegistry.ethUsdPrice());
         fixedPrice = bound(fixedPrice, 1, type(uint256).max);
@@ -1662,7 +1696,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setMaxUnits(maxUnits);
     }
 
-    function testFuzzSetMaxUnitsEmitsEvent(uint256 maxUnits) public {
+    function testFuzzSetMaxUnitsEmitsEvent(
+        uint256 maxUnits
+    ) public {
         uint256 currentMax = storageRegistry.maxUnits();
 
         vm.expectEmit(false, false, false, true);
@@ -1686,7 +1722,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setDeprecationTimestamp(timestamp);
     }
 
-    function testFuzzSetDeprecationTime(uint256 timestamp) public {
+    function testFuzzSetDeprecationTime(
+        uint256 timestamp
+    ) public {
         timestamp = bound(timestamp, block.timestamp, type(uint256).max);
         uint256 currentEnd = storageRegistry.deprecationTimestamp();
 
@@ -1699,7 +1737,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.deprecationTimestamp(), timestamp);
     }
 
-    function testFuzzSetDeprecationTimeRevertsInPast(uint256 timestamp) public {
+    function testFuzzSetDeprecationTimeRevertsInPast(
+        uint256 timestamp
+    ) public {
         timestamp = bound(timestamp, 1, type(uint256).max);
         vm.warp(timestamp);
 
@@ -1722,7 +1762,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setCacheDuration(duration);
     }
 
-    function testFuzzSetCacheDuration(uint256 duration) public {
+    function testFuzzSetCacheDuration(
+        uint256 duration
+    ) public {
         uint256 currentDuration = storageRegistry.priceFeedCacheDuration();
 
         vm.expectEmit(false, false, false, true);
@@ -1746,7 +1788,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setMaxAge(age);
     }
 
-    function testFuzzSetMaxAge(uint256 age) public {
+    function testFuzzSetMaxAge(
+        uint256 age
+    ) public {
         uint256 currentAge = storageRegistry.priceFeedMaxAge();
 
         vm.expectEmit(false, false, false, true);
@@ -1770,7 +1814,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setMinAnswer(answer);
     }
 
-    function testFuzzSetMinAnswer(uint256 answer) public {
+    function testFuzzSetMinAnswer(
+        uint256 answer
+    ) public {
         answer = bound(answer, 0, storageRegistry.priceFeedMaxAnswer() - 1);
         uint256 currentMin = storageRegistry.priceFeedMinAnswer();
 
@@ -1783,7 +1829,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.priceFeedMinAnswer(), answer);
     }
 
-    function testFuzzCannotSetMinEqualOrAboveMax(uint256 answer) public {
+    function testFuzzCannotSetMinEqualOrAboveMax(
+        uint256 answer
+    ) public {
         answer = bound(answer, storageRegistry.priceFeedMaxAnswer(), type(uint256).max);
 
         vm.prank(owner);
@@ -1799,7 +1847,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setMaxAnswer(answer);
     }
 
-    function testFuzzSetMaxAnswer(uint256 answer) public {
+    function testFuzzSetMaxAnswer(
+        uint256 answer
+    ) public {
         answer = bound(answer, storageRegistry.priceFeedMinAnswer() + 1, type(uint256).max);
         uint256 currentMax = storageRegistry.priceFeedMaxAnswer();
 
@@ -1812,7 +1862,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.priceFeedMaxAnswer(), answer);
     }
 
-    function testFuzzCannotSetMaxEqualOrBelowMin(uint256 answer) public {
+    function testFuzzCannotSetMaxEqualOrBelowMin(
+        uint256 answer
+    ) public {
         answer = bound(answer, 0, storageRegistry.priceFeedMinAnswer());
 
         vm.prank(owner);
@@ -1832,7 +1884,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.setGracePeriod(duration);
     }
 
-    function testFuzzSetGracePeriod(uint256 duration) public {
+    function testFuzzSetGracePeriod(
+        uint256 duration
+    ) public {
         uint256 currentGracePeriod = storageRegistry.uptimeFeedGracePeriod();
 
         vm.expectEmit(false, false, false, true);
@@ -1848,7 +1902,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
                                 SET VAULT
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzSetVault(address newVault) public {
+    function testFuzzSetVault(
+        address newVault
+    ) public {
         vm.assume(newVault != address(0));
         vm.expectEmit(false, false, false, true);
         emit SetVault(vault, newVault);
@@ -1891,7 +1947,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(storageRegistry.paused(), false);
     }
 
-    function testFuzzOnlyOwnerCanPause(address caller) public {
+    function testFuzzOnlyOwnerCanPause(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -1899,7 +1957,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.pause();
     }
 
-    function testFuzzOnlyOwnerCanUnpause(address caller) public {
+    function testFuzzOnlyOwnerCanUnpause(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
@@ -1931,7 +1991,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         assertEq(balanceChange, amount);
     }
 
-    function testFuzzWithdrawalRevertsInsufficientFunds(uint256 amount) public {
+    function testFuzzWithdrawalRevertsInsufficientFunds(
+        uint256 amount
+    ) public {
         // Ensure amount is >=0 and deal a smaller amount to the contract
         amount = bound(amount, 1, type(uint256).max);
         vm.deal(address(storageRegistry), amount - 1);
@@ -1941,7 +2003,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.withdraw(amount);
     }
 
-    function testFuzzWithdrawalRevertsCallFailed(uint256 amount) public {
+    function testFuzzWithdrawalRevertsCallFailed(
+        uint256 amount
+    ) public {
         vm.deal(address(storageRegistry), amount);
 
         vm.prank(owner);
@@ -1961,7 +2025,9 @@ contract StorageRegistryTest is StorageRegistryTestSuite {
         storageRegistry.withdraw(amount);
     }
 
-    function testFuzzWithdraw(uint256 amount) public {
+    function testFuzzWithdraw(
+        uint256 amount
+    ) public {
         // Deal an amount > 1 wei so we can withraw at least 1
         amount = bound(amount, 2, type(uint256).max);
         vm.deal(address(storageRegistry), amount);

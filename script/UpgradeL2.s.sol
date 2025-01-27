@@ -69,7 +69,9 @@ contract UpgradeL2 is ImmutableCreate2Deployer, Test {
         runSetup(runDeploy(loadDeploymentParams()));
     }
 
-    function runDeploy(DeploymentParams memory params) public returns (Contracts memory) {
+    function runDeploy(
+        DeploymentParams memory params
+    ) public returns (Contracts memory) {
         return runDeploy(params, true);
     }
 
@@ -182,12 +184,14 @@ contract UpgradeL2 is ImmutableCreate2Deployer, Test {
         }
     }
 
-    function runSetup(Contracts memory contracts) public {
+    function runSetup(
+        Contracts memory contracts
+    ) public {
         DeploymentParams memory params = loadDeploymentParams();
         runSetup(contracts, params, true);
     }
 
-    function loadDeploymentParams() internal returns (DeploymentParams memory) {
+    function loadDeploymentParams() internal view returns (DeploymentParams memory) {
         return DeploymentParams({
             initialIdRegistryOwner: vm.envAddress("ID_REGISTRY_OWNER_ADDRESS"),
             initialKeyRegistryOwner: vm.envAddress("KEY_REGISTRY_OWNER_ADDRESS"),

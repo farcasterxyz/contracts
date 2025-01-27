@@ -18,7 +18,7 @@ contract EIP712Test is TestSuiteSetup {
         eip712 = new EIP712Example();
     }
 
-    function testExposesDomainSeparator() public {
+    function testExposesDomainSeparator() public view {
         assertEq(eip712.domainSeparatorV4(), 0x0617e266f62048821cb1d443cca5b7a0e073cb89f23c9f20046cdf79ecb42429);
     }
 }

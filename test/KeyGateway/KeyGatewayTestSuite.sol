@@ -32,7 +32,7 @@ abstract contract KeyGatewayTestSuite is KeyRegistryTestSuite, StorageRegistryTe
         uint8 metadataType,
         bytes memory metadata,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         return _signAdd(pk, owner, keyType, key, metadataType, metadata, keyGateway.nonces(owner), deadline);
     }
 
@@ -45,7 +45,7 @@ abstract contract KeyGatewayTestSuite is KeyRegistryTestSuite, StorageRegistryTe
         bytes memory metadata,
         uint256 nonce,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         bytes32 digest = keyGateway.hashTypedDataV4(
             keccak256(
                 abi.encode(

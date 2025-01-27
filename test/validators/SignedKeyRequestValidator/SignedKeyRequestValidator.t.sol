@@ -7,13 +7,13 @@ import {SignedKeyRequestValidatorTestSuite} from "./SignedKeyRequestValidatorTes
 contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
     event SetIdRegistry(address oldIdRegistry, address newIdRegistry);
 
-    function testMetadataTypeHash() public {
+    function testMetadataTypeHash() public view {
         assertEq(
             validator.METADATA_TYPEHASH(), keccak256("SignedKeyRequest(uint256 requestFid,bytes key,uint256 deadline)")
         );
     }
 
-    function testVersion() public {
+    function testVersion() public view {
         assertEq(validator.VERSION(), "2023.08.23");
     }
 
@@ -277,7 +277,7 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         address requestSigner,
         bytes calldata signature,
         uint256 deadline
-    ) public {
+    ) public view {
         SignedKeyRequestValidator.SignedKeyRequestMetadata memory request = SignedKeyRequestValidator
             .SignedKeyRequestMetadata({
             requestFid: requestFid,
@@ -308,7 +308,9 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         validator.setIdRegistry(idRegistry);
     }
 
-    function testFuzzSetIdRegistry(address idRegistry) public {
+    function testFuzzSetIdRegistry(
+        address idRegistry
+    ) public {
         address currentIdRegistry = address(validator.idRegistry());
 
         vm.expectEmit(false, false, false, true);

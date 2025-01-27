@@ -12,7 +12,9 @@ interface IdRegistryLike {
     /**
      * @notice Maps each address to an fid, or zero if it does not own an fid.
      */
-    function idOf(address fidOwner) external view returns (uint256);
+    function idOf(
+        address fidOwner
+    ) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEWS

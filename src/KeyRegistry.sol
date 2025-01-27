@@ -194,7 +194,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function remove(bytes calldata key) external whenNotPaused {
+    function remove(
+        bytes calldata key
+    ) external whenNotPaused {
         _remove(_fidOf(msg.sender), key);
     }
 
@@ -218,7 +220,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function bulkAddKeysForMigration(BulkAddData[] calldata items) external onlyMigrator {
+    function bulkAddKeysForMigration(
+        BulkAddData[] calldata items
+    ) external onlyMigrator {
         // Safety: i and j can be incremented unchecked since they are bound by items.length and
         // items[i].keys.length respectively.
         unchecked {
@@ -234,7 +238,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function bulkResetKeysForMigration(BulkResetData[] calldata items) external onlyMigrator {
+    function bulkResetKeysForMigration(
+        BulkResetData[] calldata items
+    ) external onlyMigrator {
         // Safety: i and j can be incremented unchecked since they are bound by items.length and
         // items[i].keys.length respectively.
         unchecked {
@@ -264,7 +270,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function setIdRegistry(address _idRegistry) external onlyOwner {
+    function setIdRegistry(
+        address _idRegistry
+    ) external onlyOwner {
         emit SetIdRegistry(address(idRegistry), _idRegistry);
         idRegistry = IdRegistryLike(_idRegistry);
     }
@@ -272,7 +280,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function setKeyGateway(address _keyGateway) external onlyOwner {
+    function setKeyGateway(
+        address _keyGateway
+    ) external onlyOwner {
         if (gatewayFrozen) revert GatewayFrozen();
         emit SetKeyGateway(keyGateway, _keyGateway);
         keyGateway = _keyGateway;
@@ -290,7 +300,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
     /**
      * @inheritdoc IKeyRegistry
      */
-    function setMaxKeysPerFid(uint256 _maxKeysPerFid) external onlyOwner {
+    function setMaxKeysPerFid(
+        uint256 _maxKeysPerFid
+    ) external onlyOwner {
         if (_maxKeysPerFid <= maxKeysPerFid) revert InvalidMaxKeys();
         emit SetMaxKeysPerFid(maxKeysPerFid, _maxKeysPerFid);
         maxKeysPerFid = _maxKeysPerFid;
@@ -376,7 +388,9 @@ contract KeyRegistry is IKeyRegistry, Migration, Signatures, EIP712, Nonces {
                            FID HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _fidOf(address fidOwner) internal view returns (uint256 fid) {
+    function _fidOf(
+        address fidOwner
+    ) internal view returns (uint256 fid) {
         fid = idRegistry.idOf(fidOwner);
         if (fid == 0) revert Unauthorized();
     }

@@ -23,15 +23,15 @@ contract IdGatewayTest is IdGatewayTestSuite {
                               PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
-    function testVersion() public {
+    function testVersion() public view {
         assertEq(idGateway.VERSION(), "2023.11.15");
     }
 
-    function testIdRegistry() public {
+    function testIdRegistry() public view {
         assertEq(address(idGateway.idRegistry()), address(idRegistry));
     }
 
-    function testStorageRegistry() public {
+    function testStorageRegistry() public view {
         assertEq(address(idGateway.storageRegistry()), address(storageRegistry));
     }
 
@@ -365,7 +365,7 @@ contract IdGatewayTest is IdGatewayTestSuite {
         assertEq(idRegistry.recoveryOf(1), address(0));
     }
 
-    function testRegisterTypehash() public {
+    function testRegisterTypehash() public view {
         assertEq(
             idGateway.REGISTER_TYPEHASH(),
             keccak256("Register(address to,address recovery,uint256 nonce,uint256 deadline)")
@@ -457,7 +457,15 @@ contract IdGatewayTest is IdGatewayTestSuite {
                         SET STORAGE REGISTRY
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzSetStorageRegistry(address storageRegistry) public {
+    function testFuzzSetStorageRegistry(
+        address storageRegistry
+    ) public {
+        vm.assume(storageRegistry != address(0));
+        vm.assume(uint160(storageRegistry) > 9);
+
+        // Mock that the address is a contract
+        vm.etch(storageRegistry, hex"00");
+
         address prevStorageRegistry = address(idGateway.storageRegistry());
 
         vm.expectEmit();
