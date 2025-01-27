@@ -168,17 +168,25 @@ contract IdGateway is IIdGateway, Guardians, Signatures, EIP712, Nonces {
     //////////////////////////////////////////////////////////////*/
 
     function _rentStorage(
-        uint256 fid,
-        uint256 extraUnits,
-        uint256 payment,
-        address payer
+      uint256 fid,
+      uint256 extraUnits,
+      uint256 payment,
+      address payer
     ) internal returns (uint256 overpayment) {
-        overpayment = storageRegistry.rent{value: payment}(fid, 1 + extraUnits);
+    // Calculate the overpayment before making any external calls
+      uint256 amountToRent = 1 + extraUnits;
+      overpayment = payment - storageRegistry.price(amountToRent);
 
-        if (overpayment > 0) {
-            payer.sendNative(overpayment);
-        }
+    // Make the external call to rent storage
+      storageRegistry.rent{value: payment}(fid, amountToRent);
+
+    // Return the overpayment after the external call
+      if (overpayment > 0) {
+        (bool success, ) = payer.call{value: overpayment}("");
+        require(success, "Transfer failed");
+      }
     }
+
 
     receive() external payable {
         if (msg.sender != address(storageRegistry)) revert Unauthorized();
