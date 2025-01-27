@@ -16,11 +16,7 @@ abstract contract IdGatewayTestSuite is StorageRegistryTestSuite, KeyRegistryTes
     function setUp() public virtual override(StorageRegistryTestSuite, KeyRegistryTestSuite) {
         super.setUp();
 
-        idGateway = new IdGateway(
-            address(idRegistry),
-            address(storageRegistry),
-            owner
-        );
+        idGateway = new IdGateway(address(idRegistry), address(storageRegistry), owner);
 
         vm.startPrank(owner);
         idRegistry.setIdGateway(address(idGateway));
@@ -29,7 +25,9 @@ abstract contract IdGatewayTestSuite is StorageRegistryTestSuite, KeyRegistryTes
         addKnownContract(address(idGateway));
     }
 
-    function _registerTo(address caller) internal returns (uint256 fid) {
+    function _registerTo(
+        address caller
+    ) internal returns (uint256 fid) {
         fid = _registerWithRecovery(caller, address(0));
     }
 
@@ -58,7 +56,7 @@ abstract contract IdGatewayTestSuite is StorageRegistryTestSuite, KeyRegistryTes
         address to,
         address recovery,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         address signer = vm.addr(pk);
         bytes32 digest = idGateway.hashTypedDataV4(
             keccak256(abi.encode(idGateway.REGISTER_TYPEHASH(), to, recovery, idGateway.nonces(signer), deadline))

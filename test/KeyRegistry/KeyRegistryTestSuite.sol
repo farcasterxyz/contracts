@@ -32,7 +32,7 @@ abstract contract KeyRegistryTestSuite is IdRegistryTestSuite {
         address owner,
         bytes memory key,
         uint256 deadline
-    ) internal returns (bytes memory signature) {
+    ) internal view returns (bytes memory signature) {
         bytes32 digest = keyRegistry.hashTypedDataV4(
             keccak256(
                 abi.encode(keyRegistry.REMOVE_TYPEHASH(), owner, keccak256(key), keyRegistry.nonces(owner), deadline)
