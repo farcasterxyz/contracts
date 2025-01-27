@@ -194,6 +194,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      * @param signer The signer address.
      */
     function removeSigner(address signer) external onlyOwner {
+	require(signers[signer], "Signer does not exist");
         signers[signer] = false;
         emit RemoveSigner(signer);
     }
