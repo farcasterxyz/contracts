@@ -1,0 +1,69 @@
+// Txtx supports deployments to multiple blockchains, so here we load the
+// "evm" addon, which allows our Runbook to use evm-specific actions.
+addon "evm" {
+    // Variables defined in our `addon "evm"` block are use by default on all evm actions
+
+    // Pull the chain id from our txtx.yml manifest
+    chain_id = input.l1_chain_id
+    // Pull the rpc url from our txtx.yml manifest
+    rpc_api_url = input.l1_rpc_api_url
+}
+
+// Declare a signer named "deployer", which will be used to sign transactions.
+// This signer is created using the secret key provided as an input to the runbook.
+signer "deployer" "evm::secret_key" {
+    // Pull the secret key from our txtx.yml manifest
+    secret_key = input.deployer_secret_key
+    // Instead of a secret key, you can also use a mnemonic to create a signer
+    // mnemonic = inputs.deployer_mnemonic
+}
+
+// Instead of copy/pasting keys/menomnics, you can also use the supervisor UI to sign all 
+// transactions in a browser wallet. To do this, use the web_wallet instead of secret_key:
+// signer "deployer" "evm::web_wallet" {
+//     expected_address = input.deployer_address
+// }
+
+
+// Declare an action named "deploy_fname_resolver" that will deploy the FNAME resolver contract
+// using the Create2 opcode. By default, the foundry create2 factory will be used, but you can
+// specify a different factory contract if needed. See the docs for more info:
+// https://docs.txtx.sh/addons/evm/actions#deploy-contract-create2
+action "deploy_fname_resolver" "evm::deploy_contract_create2" {
+    description = "Deploy the FNAME resolver contract using the Immutable Create2 Factory"
+    // Using this function, txtx can automatically pull all of the needed artifacts to deploy this contract
+    contract = evm::get_contract_from_foundry_project("FnameResolver")
+    // The constructor args for the deployment. For the FNAME resolver, we need
+    // the server URL, the signer address, and the owner address.
+    constructor_args = [
+        // The server URL, pulled from the `txtx.yml` manifest
+        input.fname_resolver_server_url,
+        // The signer address, pulled from the `txtx.yml` manifest. 
+        // Wrap in the `evm::address` function to properly encode the string as an address.
+        evm::address(input.fname_resolver_signer_address),
+        // The owner address, pulled from the `txtx.yml` manifest
+        // Wrap in the `evm::address` function to properly encode the string as an address,
+        evm::address(input.fname_resolver_owner_address)
+    ]
+    // Pull the salt from the `txtx.yml` manifest
+    salt = input.fname_resolver_create2_salt
+
+    // Specify the alternative create2 factory address to use the Immutable Create2 Factory
+    create2_factory_address = input.immutable_create2_factory_address
+    // Specify the function to call on the create2 factory contract
+    create2_factory_function_name = "safeCreate2"
+    // Specify the ABI of the create2 factory contract
+    create2_factory_abi = variable.immutable_factory_abi
+
+    // The signer to use for this action
+    signer = signer.deployer
+    // Uncomment this to include an assertion that the deployed address matches the expected address.
+    // If there isn't a match, the deployment will not take place, and Runbook execution will not progress,
+    // preventing subsequent actions from running.
+    // expected_contract_address = inputs.FNAME_RESOLVER_ADDRESS
+}
+
+output "fname_resolver_address" {
+    description = "FNAME Resolver contract address"
+    value = action.deploy_fname_resolver.contract_address
+}
