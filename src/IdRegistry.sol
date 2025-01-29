@@ -241,9 +241,9 @@ contract IdRegistry is IIdRegistry, Migration, Signatures, EIP712, Nonces {
      * @dev Transfer the fid to another address without checking invariants.
      */
     function _unsafeTransfer(uint256 id, address from, address to) internal whenNotPaused {
+        delete idOf[from];
         idOf[to] = id;
         custodyOf[id] = to;
-        delete idOf[from];
 
         emit Transfer(from, to, id);
     }
