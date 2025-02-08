@@ -51,7 +51,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.resolve(name, data);
     }
 
-    function testFuzzResolveRevertsNonAddrFunction(bytes calldata name, bytes memory data) public {
+    function testFuzzResolveRevertsUnsupportedFunction(bytes calldata name, bytes memory data) public {
         data = bytes.concat(hex"00000001", data);
         string[] memory urls = new string[](1);
         urls[0] = FNAME_SERVER_URL;
@@ -64,48 +64,48 @@ contract FnameResolverTest is FnameResolverTestSuite {
                            RESOLVE WITH PROOF
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzResolveWithProofValidSignature(bytes memory result, uint256 timestamp, address owner) public {
-        bytes memory signature = _signProof(result, timestamp, owner);
+    function testFuzzResolveWithProofValidSignature(bytes memory result, uint256 validUntil) public {
+        vm.assume(validUntil > block.timestamp);
         bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
-        bytes memory response = resolver.resolveWithProof(abi.encode(result, timestamp, owner, signature), extraData);
+        bytes32 extraDataHash = keccak256(extraData);
+        bytes memory signature = _signProof(extraDataHash, result, validUntil);
+        bytes memory response =
+            resolver.resolveWithProof(abi.encode(extraDataHash, result, validUntil, signature), extraData);
         assertEq(response, result);
     }
 
-    function testFuzzResolveWithProofInvalidOwner(bytes memory result, uint256 timestamp, address owner) public {
-        address wrongOwner = address(~uint160(owner));
-        bytes memory signature = _signProof(result, timestamp, owner);
-
-        vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(result, timestamp, wrongOwner, signature), "");
+    function testFuzzResolveWithProofMismatchingRequest(bytes memory result, uint256 validUntil) public {
+        vm.assume(validUntil > block.timestamp);
+        bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
+        bytes32 extraDataHash = keccak256(extraData);
+        bytes memory signature = _signProof(extraDataHash, result, validUntil);
+        vm.expectRevert(FnameResolver.MismatchedRequest.selector);
+        resolver.resolveWithProof(abi.encode(extraDataHash, result, validUntil, signature), "");
     }
 
-    function testFuzzResolveWithProofInvalidTimestamp(bytes memory result, uint256 timestamp, address owner) public {
-        uint256 wrongTimestamp = ~timestamp;
-        bytes memory signature = _signProof(result, timestamp, owner);
-
-        vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(result, wrongTimestamp, owner, signature), "");
+    function testFuzzResolveWithProofExpiredSignature(bytes memory result, uint256 validUntil) public {
+        vm.assume(validUntil < block.timestamp);
+        bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
+        bytes32 extraDataHash = keccak256(extraData);
+        bytes memory signature = _signProof(extraDataHash, result, validUntil);
+        vm.expectRevert(FnameResolver.ExpiredSignature.selector);
+        resolver.resolveWithProof(abi.encode(extraDataHash, result, validUntil, signature), extraData);
     }
 
-    function testFuzzResolveWithProofInvalidName(bytes memory result, uint256 timestamp, address owner) public {
-        bytes memory wrongResult = bytes.concat(bytes4(0x00000001), result);
-        bytes memory signature = _signProof(result, timestamp, owner);
+    function testFuzzResolveWithProofWrongSigner(bytes memory result, uint256 validUntil) public {
+        vm.assume(validUntil > block.timestamp);
+        bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
+        bytes32 extraDataHash = keccak256(extraData);
+        bytes memory signature = _signProof(malloryPk, extraDataHash, result, validUntil);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(wrongResult, timestamp, owner, signature), "");
-    }
-
-    function testFuzzResolveWithProofWrongSigner(bytes memory result, uint256 timestamp, address owner) public {
-        bytes memory signature = _signProof(malloryPk, result, timestamp, owner);
-
-        vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(result, timestamp, owner, signature), "");
+        resolver.resolveWithProof(abi.encode(extraDataHash, result, validUntil, signature), extraData);
     }
 
     function testFuzzResolveWithProofInvalidSignerLength(
+        bytes32 extraDataHash,
         bytes memory result,
-        uint256 timestamp,
-        address owner,
+        uint256 validUntil,
         bytes memory signature,
         uint8 _length
     ) public {
@@ -116,11 +116,14 @@ contract FnameResolverTest is FnameResolverTestSuite {
         } /* truncate signature length */
 
         vm.expectRevert("ECDSA: invalid signature length");
-        resolver.resolveWithProof(abi.encode(result, timestamp, owner, signature), "");
+        resolver.resolveWithProof(abi.encode(extraDataHash, result, validUntil, signature), "");
     }
 
     function testProofTypehash() public {
-        assertEq(resolver.DATA_PROOF_TYPEHASH(), keccak256("DataProof(bytes data,uint256 timestamp,address owner)"));
+        assertEq(
+            resolver.DATA_PROOF_TYPEHASH(),
+            keccak256("DataProof(bytes32 extraDataHash,bytes result,uint256 validUntil)")
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -12,7 +12,6 @@ import "forge-std/console.sol";
 contract DeployL1Test is DeployL1, FnameResolverTestSuite {
     address internal deployer = address(this);
     address internal alpha = makeAddr("alpha");
-    address internal alice = makeAddr("alice");
 
     function setUp() public override {
         vm.createSelectFork("l1_mainnet");
@@ -39,11 +38,14 @@ contract DeployL1Test is DeployL1, FnameResolverTestSuite {
     }
 
     function test_e2e() public {
-        uint256 timestamp = block.timestamp - 60;
-        bytes memory signature = _signProof(signerPk, "alice.fcast.id", timestamp, alice);
+        // calldata  of resolve()
         bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
+        bytes32 requestHash = keccak256(extraData);
+        uint256 expiration = block.timestamp + 60;
+        bytes memory result = abi.encode(address(alpha));
+        bytes memory signature = _signProof(signerPk, requestHash, result, expiration);
         bytes memory response =
-            resolver.resolveWithProof(abi.encode("alice.fcast.id", timestamp, alice, signature), extraData);
-        assertEq(response, abi.encode(alice));
+            resolver.resolveWithProof(abi.encode(requestHash, result, expiration, signature), extraData);
+        assertEq(response, result);
     }
 }

@@ -23,14 +23,18 @@ abstract contract FnameResolverTestSuite is TestSuiteSetup {
      *      - 2 bytes for the label ("id")
      *      - A null byte terminating the encoded name.
      */
-    bytes internal constant DNS_ENCODED_NAME =
-        (hex"05" hex"616c696365" hex"05" hex"6663617374" hex"02" hex"6964" hex"00");
+    bytes internal constant DNS_ENCODED_NAME = hex"05616c696365096661726361737465720365746800";
+
+    /**
+     * @dev Namehash of "alice.farcaster.eth"
+     */
+    bytes internal constant ENS_NODE = hex"e224cf2d7e9641e5b9cde025d9e3db25df5d8789bb7a5c9f4bb28b3e18c2717e";
 
     /**
      * @dev Encoded calldata for a call to addr(bytes32 node), where node is the ENS
-     *      nameHash encoded value of "alice.fcast.id"
+     *      nameHash encoded value of "alice.farcaster.eth"
      */
-    bytes internal constant ADDR_QUERY_CALLDATA = hex"c30dc5a16498c5b6d46f97ca0c74d092ebbee1290b1c88f6e435dd4fb306ca36";
+    bytes internal constant ADDR_QUERY_CALLDATA = hex"e224cf2d7e9641e5b9cde025d9e3db25df5d8789bb7a5c9f4bb28b3e18c2717e";
 
     address internal signer;
     uint256 internal signerPk;
@@ -49,21 +53,21 @@ abstract contract FnameResolverTestSuite is TestSuiteSetup {
     //////////////////////////////////////////////////////////////*/
 
     function _signProof(
+        bytes32 requestHash,
         bytes memory result,
-        uint256 timestamp,
-        address owner
+        uint256 validUntil
     ) internal returns (bytes memory signature) {
-        return _signProof(signerPk, result, timestamp, owner);
+        return _signProof(signerPk, requestHash, result, validUntil);
     }
 
     function _signProof(
         uint256 pk,
+        bytes32 requestHash,
         bytes memory result,
-        uint256 timestamp,
-        address owner
+        uint256 validUntil
     ) internal returns (bytes memory signature) {
         bytes32 eip712hash = resolver.hashTypedDataV4(
-            keccak256(abi.encode(resolver.DATA_PROOF_TYPEHASH(), keccak256(result), timestamp, owner))
+            keccak256(abi.encode(resolver.DATA_PROOF_TYPEHASH(), requestHash, keccak256(result), validUntil))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, eip712hash);
         signature = abi.encodePacked(r, s, v);

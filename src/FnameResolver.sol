@@ -47,6 +47,12 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /// @dev Revert if the recovered signer address is not an authorized signer.
     error InvalidSigner();
 
+    /// @dev Revert if the extra data hash does not match the original request.
+    error MismatchedRequest();
+
+    /// @dev Revert if the signature is expired.
+    error ExpiredSignature();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -77,7 +83,8 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /**
      * @dev EIP-712 typehash of the DataProof struct.
      */
-    bytes32 public constant DATA_PROOF_TYPEHASH = keccak256("DataProof(bytes data,uint256 timestamp,address owner)");
+    bytes32 public constant DATA_PROOF_TYPEHASH =
+        keccak256("DataProof(bytes32 extraDataHash,bytes result,uint256 validUntil)");
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -157,21 +164,22 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *                 - uint256: Timestamp of the username proof.
      *                 - address: Owner address that signed the username proof.
      *                 - bytes: EIP-712 signature provided by the CCIP gateway server.
-     * @param extraData Calldata from the original resolve() call so the contract can verify that the query the gateway
-     *                  answered is the one the contract originally requested.
+     * @param extraData Calldata from the original resolve() call. Used to verify that the gateway is answering the
+     *                  right query.
      *
      * @return ABI-encoded data (can be address or text record).
      */
-    // TODO: Add extraData to the proof hash, both in the contract and in the fname server.
     function resolveWithProof(bytes calldata response, bytes calldata extraData) external view returns (bytes memory) {
-        (bytes memory result, uint256 timestamp, address fnameOwner, bytes memory signature) =
-            abi.decode(response, (bytes, uint256, address, bytes));
+        (bytes32 extraDataHash, bytes memory result, uint256 validUntil, bytes memory signature) =
+            abi.decode(response, (bytes32, bytes, uint256, bytes));
 
-        bytes32 proofHash = keccak256(abi.encode(DATA_PROOF_TYPEHASH, keccak256(result), timestamp, fnameOwner));
+        bytes32 proofHash = keccak256(abi.encode(DATA_PROOF_TYPEHASH, extraDataHash, keccak256(result), validUntil));
         bytes32 eip712hash = _hashTypedDataV4(proofHash);
         address signer = ECDSA.recover(eip712hash, signature);
 
         if (!signers[signer]) revert InvalidSigner();
+        if (block.timestamp > validUntil) revert ExpiredSignature();
+        if (keccak256(extraData) != extraDataHash) revert MismatchedRequest();
 
         return result;
     }
@@ -185,7 +193,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *
      * @param signer The signer address.
      */
-    function addSigner(address signer) external onlyOwner {
+    function addSigner(
+        address signer
+    ) external onlyOwner {
         signers[signer] = true;
         emit AddSigner(signer);
     }
@@ -195,7 +205,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *
      * @param signer The signer address.
      */
-    function removeSigner(address signer) external onlyOwner {
+    function removeSigner(
+        address signer
+    ) external onlyOwner {
         signers[signer] = false;
         emit RemoveSigner(signer);
     }
@@ -204,7 +216,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
                          INTERFACE DETECTION
     //////////////////////////////////////////////////////////////*/
 
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override returns (bool) {
         return interfaceId == type(IExtendedResolver).interfaceId || super.supportsInterface(interfaceId);
     }
 }
