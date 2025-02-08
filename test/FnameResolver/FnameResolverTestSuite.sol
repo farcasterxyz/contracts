@@ -49,21 +49,21 @@ abstract contract FnameResolverTestSuite is TestSuiteSetup {
     //////////////////////////////////////////////////////////////*/
 
     function _signProof(
-        string memory name,
+        bytes memory result,
         uint256 timestamp,
         address owner
     ) internal returns (bytes memory signature) {
-        return _signProof(signerPk, name, timestamp, owner);
+        return _signProof(signerPk, result, timestamp, owner);
     }
 
     function _signProof(
         uint256 pk,
-        string memory name,
+        bytes memory result,
         uint256 timestamp,
         address owner
     ) internal returns (bytes memory signature) {
         bytes32 eip712hash = resolver.hashTypedDataV4(
-            keccak256(abi.encode(resolver.USERNAME_PROOF_TYPEHASH(), keccak256(bytes(name)), timestamp, owner))
+            keccak256(abi.encode(resolver.DATA_PROOF_TYPEHASH(), keccak256(result), timestamp, owner))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, eip712hash);
         signature = abi.encodePacked(r, s, v);

@@ -7,10 +7,6 @@ import {ERC165} from "openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {EIP712} from "./abstract/EIP712.sol";
 
-interface IAddressQuery {
-    function addr(bytes32 node) external view returns (address);
-}
-
 interface IExtendedResolver {
     function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
 }
@@ -19,7 +15,7 @@ interface IResolverService {
     function resolve(
         bytes calldata name,
         bytes calldata data
-    ) external view returns (string memory fname, uint256 timestamp, address owner, bytes memory signature);
+    ) external view returns (bytes memory result, uint256 timestamp, address owner, bytes memory signature);
 }
 
 /**
@@ -79,10 +75,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     string public constant VERSION = "2023.08.23";
 
     /**
-     * @dev EIP-712 typehash of the UsernameProof struct.
+     * @dev EIP-712 typehash of the DataProof struct.
      */
-    bytes32 public constant USERNAME_PROOF_TYPEHASH =
-        keccak256("UserNameProof(string name,uint256 timestamp,address owner)");
+    bytes32 public constant DATA_PROOF_TYPEHASH = keccak256("DataProof(bytes data,uint256 timestamp,address owner)");
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -97,6 +92,11 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      * @dev Mapping of signer address to authorized boolean.
      */
     mapping(address signer => bool isAuthorized) public signers;
+
+    /**
+     * @dev Mapping of resolver function selector to allowed boolean.
+     */
+    mapping(bytes4 selector => bool isAllowed) public allowedSelectors;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -118,6 +118,11 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
         url = _url;
         signers[_signer] = true;
         emit AddSigner(_signer);
+
+        // Only support addr(node), addr(node, cointype), and text(node, key)
+        allowedSelectors[0x3b3b57de] = true;
+        allowedSelectors[0xf1cb7e06] = true;
+        allowedSelectors[0x59d1d43c] = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -134,9 +139,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *             other resolver function will revert.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
-        if (bytes4(data[:4]) != IAddressQuery.addr.selector) {
-            revert ResolverFunctionNotSupported();
-        }
+        if (!allowedSelectors[bytes4(data[:4])]) revert ResolverFunctionNotSupported();
 
         bytes memory callData = abi.encodeCall(IResolverService.resolve, (name, data));
         string[] memory urls = new string[](1);
@@ -155,23 +158,22 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *                 - address: Owner address that signed the username proof.
      *                 - bytes: EIP-712 signature provided by the CCIP gateway server.
      *
-     * @return ABI-encoded address of the fname owner.
+     * @return ABI-encoded data (can be address or text record).
      */
     function resolveWithProof(
         bytes calldata response,
         bytes calldata /* extraData */
     ) external view returns (bytes memory) {
-        (string memory fname, uint256 timestamp, address fnameOwner, bytes memory signature) =
-            abi.decode(response, (string, uint256, address, bytes));
+        (bytes memory result, uint256 timestamp, address fnameOwner, bytes memory signature) =
+            abi.decode(response, (bytes, uint256, address, bytes));
 
-        bytes32 proofHash =
-            keccak256(abi.encode(USERNAME_PROOF_TYPEHASH, keccak256(bytes(fname)), timestamp, fnameOwner));
+        bytes32 proofHash = keccak256(abi.encode(DATA_PROOF_TYPEHASH, keccak256(result), timestamp, fnameOwner));
         bytes32 eip712hash = _hashTypedDataV4(proofHash);
         address signer = ECDSA.recover(eip712hash, signature);
 
         if (!signers[signer]) revert InvalidSigner();
 
-        return abi.encode(fnameOwner);
+        return result;
     }
 
     /*//////////////////////////////////////////////////////////////

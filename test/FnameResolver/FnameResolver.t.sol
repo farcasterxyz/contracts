@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {IERC165} from "openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import {FnameResolverTestSuite} from "./FnameResolverTestSuite.sol";
-import {FnameResolver, IResolverService, IExtendedResolver, IAddressQuery} from "../../src/FnameResolver.sol";
+import {FnameResolver, IResolverService, IExtendedResolver} from "../../src/FnameResolver.sol";
 
 /* solhint-disable state-visibility */
 
@@ -34,7 +34,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzResolveRevertsWithOffchainLookup(bytes calldata name, bytes memory data) public {
-        data = bytes.concat(IAddressQuery.addr.selector, data);
+        data = bytes.concat(bytes4(0x3b3b57de), data);
         string[] memory urls = new string[](1);
         urls[0] = FNAME_SERVER_URL;
 
@@ -64,46 +64,46 @@ contract FnameResolverTest is FnameResolverTestSuite {
                            RESOLVE WITH PROOF
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzResolveWithProofValidSignature(string memory name, uint256 timestamp, address owner) public {
-        bytes memory signature = _signProof(name, timestamp, owner);
+    function testFuzzResolveWithProofValidSignature(bytes memory result, uint256 timestamp, address owner) public {
+        bytes memory signature = _signProof(result, timestamp, owner);
         bytes memory extraData = abi.encodeCall(IResolverService.resolve, (DNS_ENCODED_NAME, ADDR_QUERY_CALLDATA));
-        bytes memory response = resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), extraData);
-        assertEq(response, abi.encode(owner));
+        bytes memory response = resolver.resolveWithProof(abi.encode(result, timestamp, owner, signature), extraData);
+        assertEq(response, result);
     }
 
-    function testFuzzResolveWithProofInvalidOwner(string memory name, uint256 timestamp, address owner) public {
+    function testFuzzResolveWithProofInvalidOwner(bytes memory result, uint256 timestamp, address owner) public {
         address wrongOwner = address(~uint160(owner));
-        bytes memory signature = _signProof(name, timestamp, owner);
+        bytes memory signature = _signProof(result, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(name, timestamp, wrongOwner, signature), "");
+        resolver.resolveWithProof(abi.encode(result, timestamp, wrongOwner, signature), "");
     }
 
-    function testFuzzResolveWithProofInvalidTimestamp(string memory name, uint256 timestamp, address owner) public {
+    function testFuzzResolveWithProofInvalidTimestamp(bytes memory result, uint256 timestamp, address owner) public {
         uint256 wrongTimestamp = ~timestamp;
-        bytes memory signature = _signProof(name, timestamp, owner);
+        bytes memory signature = _signProof(result, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(name, wrongTimestamp, owner, signature), "");
+        resolver.resolveWithProof(abi.encode(result, wrongTimestamp, owner, signature), "");
     }
 
-    function testFuzzResolveWithProofInvalidName(string memory name, uint256 timestamp, address owner) public {
-        string memory wrongName = string.concat("~", name);
-        bytes memory signature = _signProof(name, timestamp, owner);
+    function testFuzzResolveWithProofInvalidName(bytes memory result, uint256 timestamp, address owner) public {
+        bytes memory wrongResult = bytes.concat(bytes4(0x00000001), result);
+        bytes memory signature = _signProof(result, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(wrongName, timestamp, owner, signature), "");
+        resolver.resolveWithProof(abi.encode(wrongResult, timestamp, owner, signature), "");
     }
 
-    function testFuzzResolveWithProofWrongSigner(string memory name, uint256 timestamp, address owner) public {
-        bytes memory signature = _signProof(malloryPk, name, timestamp, owner);
+    function testFuzzResolveWithProofWrongSigner(bytes memory result, uint256 timestamp, address owner) public {
+        bytes memory signature = _signProof(malloryPk, result, timestamp, owner);
 
         vm.expectRevert(FnameResolver.InvalidSigner.selector);
-        resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), "");
+        resolver.resolveWithProof(abi.encode(result, timestamp, owner, signature), "");
     }
 
     function testFuzzResolveWithProofInvalidSignerLength(
-        string memory name,
+        bytes memory result,
         uint256 timestamp,
         address owner,
         bytes memory signature,
@@ -116,20 +116,20 @@ contract FnameResolverTest is FnameResolverTestSuite {
         } /* truncate signature length */
 
         vm.expectRevert("ECDSA: invalid signature length");
-        resolver.resolveWithProof(abi.encode(name, timestamp, owner, signature), "");
+        resolver.resolveWithProof(abi.encode(result, timestamp, owner, signature), "");
     }
 
     function testProofTypehash() public {
-        assertEq(
-            resolver.USERNAME_PROOF_TYPEHASH(), keccak256("UserNameProof(string name,uint256 timestamp,address owner)")
-        );
+        assertEq(resolver.DATA_PROOF_TYPEHASH(), keccak256("DataProof(bytes data,uint256 timestamp,address owner)"));
     }
 
     /*//////////////////////////////////////////////////////////////
                                  SIGNERS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOwnerCanAddSigner(address signer) public {
+    function testFuzzOwnerCanAddSigner(
+        address signer
+    ) public {
         vm.expectEmit(true, false, false, false);
         emit AddSigner(signer);
 
@@ -147,7 +147,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.addSigner(signer);
     }
 
-    function testFuzzOwnerCanRemoveSigner(address signer) public {
+    function testFuzzOwnerCanRemoveSigner(
+        address signer
+    ) public {
         vm.prank(owner);
         resolver.addSigner(signer);
 
@@ -182,7 +184,9 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assertEq(resolver.supportsInterface(type(IERC165).interfaceId), true);
     }
 
-    function testFuzzInterfaceDetectionUnsupportedInterface(bytes4 interfaceId) public {
+    function testFuzzInterfaceDetectionUnsupportedInterface(
+        bytes4 interfaceId
+    ) public {
         vm.assume(interfaceId != type(IExtendedResolver).interfaceId && interfaceId != type(IERC165).interfaceId);
         assertEq(resolver.supportsInterface(interfaceId), false);
     }
