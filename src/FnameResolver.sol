@@ -157,13 +157,13 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *                 - uint256: Timestamp of the username proof.
      *                 - address: Owner address that signed the username proof.
      *                 - bytes: EIP-712 signature provided by the CCIP gateway server.
+     * @param extraData Calldata from the original resolve() call so the contract can verify that the query the gateway
+     *                  answered is the one the contract originally requested.
      *
      * @return ABI-encoded data (can be address or text record).
      */
-    function resolveWithProof(
-        bytes calldata response,
-        bytes calldata /* extraData */
-    ) external view returns (bytes memory) {
+    // TODO: Add extraData to the proof hash, both in the contract and in the fname server.
+    function resolveWithProof(bytes calldata response, bytes calldata extraData) external view returns (bytes memory) {
         (bytes memory result, uint256 timestamp, address fnameOwner, bytes memory signature) =
             abi.decode(response, (bytes, uint256, address, bytes));
 
