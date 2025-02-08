@@ -84,7 +84,7 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      * @dev EIP-712 typehash of the DataProof struct.
      */
     bytes32 public constant DATA_PROOF_TYPEHASH =
-        keccak256("DataProof(bytes32 extraDataHash,bytes result,uint256 validUntil)");
+        keccak256("DataProof(bytes32 request,bytes32 result,uint256 validUntil)");
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS

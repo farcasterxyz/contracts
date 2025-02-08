@@ -121,8 +121,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
 
     function testProofTypehash() public {
         assertEq(
-            resolver.DATA_PROOF_TYPEHASH(),
-            keccak256("DataProof(bytes32 extraDataHash,bytes result,uint256 validUntil)")
+            resolver.DATA_PROOF_TYPEHASH(), keccak256("DataProof(bytes32 request,bytes32 result,uint256 validUntil)")
         );
     }
 
