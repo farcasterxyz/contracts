@@ -44,6 +44,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /// @dev Revert queries for unimplemented resolver functions.
     error ResolverFunctionNotSupported();
 
+    /// @dev Revert if the text record key is not allowed.
+    error TextRecordNotSupported();
+
     /// @dev Revert if the recovered signer address is not an authorized signer.
     error InvalidSigner();
 
@@ -105,6 +108,11 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      */
     mapping(bytes4 selector => bool isAllowed) public allowedSelectors;
 
+    /**
+     * @dev Mapping of text record key to allowed boolean.
+     */
+    mapping(string textRecordKey => bool isAllowed) public allowedTextRecords;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -126,10 +134,15 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
         signers[_signer] = true;
         emit AddSigner(_signer);
 
-        // Only support addr(node), addr(node, cointype), and text(node, key)
+        // Only support `addr(node)`, `addr(node, cointype)` and `text(node, key)`
         allowedSelectors[0x3b3b57de] = true;
         allowedSelectors[0xf1cb7e06] = true;
         allowedSelectors[0x59d1d43c] = true;
+
+        // Only support `avatar`, `description` and `url`
+        allowedTextRecords["avatar"] = true;
+        allowedTextRecords["description"] = true;
+        allowedTextRecords["url"] = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,6 +160,12 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
         if (!allowedSelectors[bytes4(data[:4])]) revert ResolverFunctionNotSupported();
+
+        // Save requests to the gateway by only forwarding certain text record lookups
+        if (bytes4(data[:4]) == 0x59d1d43c) {
+            (, string memory key) = abi.decode(data[4:], (bytes32, string));
+            if (!allowedTextRecords[key]) revert TextRecordNotSupported();
+        }
 
         bytes memory callData = abi.encodeCall(IResolverService.resolve, (name, data));
         string[] memory urls = new string[](1);

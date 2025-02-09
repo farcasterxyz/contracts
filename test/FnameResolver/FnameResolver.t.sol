@@ -51,6 +51,33 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.resolve(name, data);
     }
 
+    function testRevertsWithOffchainLookupForTextRecord() public {
+        string[] memory keys = new string[](3);
+        keys[0] = "avatar";
+        keys[1] = "description";
+        keys[2] = "url";
+
+        string[] memory urls = new string[](1);
+        urls[0] = FNAME_SERVER_URL;
+
+        for (uint256 i = 0; i < keys.length; i++) {
+            bytes memory textCallData = abi.encodeWithSelector(0x59d1d43c, ENS_NODE, keys[i]);
+            bytes memory callData = abi.encodeCall(resolver.resolve, (DNS_ENCODED_NAME, textCallData));
+
+            bytes memory offchainLookup = abi.encodeWithSelector(
+                FnameResolver.OffchainLookup.selector,
+                address(resolver),
+                urls,
+                callData,
+                resolver.resolveWithProof.selector,
+                callData
+            );
+
+            vm.expectRevert(offchainLookup);
+            resolver.resolve(DNS_ENCODED_NAME, textCallData);
+        }
+    }
+
     function testFuzzResolveRevertsUnsupportedFunction(bytes calldata name, bytes memory data) public {
         data = bytes.concat(hex"00000001", data);
         string[] memory urls = new string[](1);
@@ -58,6 +85,19 @@ contract FnameResolverTest is FnameResolverTestSuite {
 
         vm.expectRevert(FnameResolver.ResolverFunctionNotSupported.selector);
         resolver.resolve(name, data);
+    }
+
+    function testFuzzResolveTextRecordNotSupported(
+        string memory key
+    ) public {
+        // Calldata for the text(node, key) function (signature 0x59d1d43c)
+        bytes memory textCallData = abi.encodeWithSelector(0x59d1d43c, ENS_NODE, key);
+
+        string[] memory urls = new string[](1);
+        urls[0] = FNAME_SERVER_URL;
+
+        vm.expectRevert(FnameResolver.TextRecordNotSupported.selector);
+        resolver.resolve(DNS_ENCODED_NAME, textCallData);
     }
 
     /*//////////////////////////////////////////////////////////////
