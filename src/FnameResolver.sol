@@ -15,7 +15,7 @@ interface IResolverService {
     function resolve(
         bytes calldata name,
         bytes calldata data
-    ) external view returns (bytes memory result, uint256 timestamp, address owner, bytes memory signature);
+    ) external view returns (bytes memory result, uint256 validUntil, address owner, bytes memory signature);
 }
 
 /**
@@ -43,9 +43,6 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
 
     /// @dev Revert queries for unimplemented resolver functions.
     error ResolverFunctionNotSupported();
-
-    /// @dev Revert if the text record key is not allowed.
-    error TextRecordNotSupported();
 
     /// @dev Revert if the recovered signer address is not an authorized signer.
     error InvalidSigner();
@@ -99,6 +96,16 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     string public url;
 
     /**
+     * @dev DNS-encoded name this contract will be used with.
+     */
+    bytes public dnsEncodedName;
+
+    /**
+     * @dev Address of the ENS resolver to passthrough calls to `name` to.
+     */
+    IExtendedResolver public immutable passthroughResolver;
+
+    /**
      * @dev Mapping of signer address to authorized boolean.
      */
     mapping(address signer => bool isAuthorized) public signers;
@@ -120,16 +127,22 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /**
      * @notice Set the lookup gateway URL and initial signer.
      *
+     * @param _name         DNS-encoded name this contract will be used with. This is set permanently.
+     * @param _resolver     Address of the ENS resolver to passthrough calls to the 2LD to. This is set permanently.
      * @param _url          Lookup gateway URL. This value is set permanently.
      * @param _signer       Initial authorized signer address.
      * @param _initialOwner Initial owner address.
      */
     constructor(
+        bytes memory _name,
+        IExtendedResolver _resolver,
         string memory _url,
         address _signer,
         address _initialOwner
     ) EIP712("Farcaster name verification", "1") {
         _transferOwnership(_initialOwner);
+        dnsEncodedName = _name;
+        passthroughResolver = _resolver;
         url = _url;
         signers[_signer] = true;
         emit AddSigner(_signer);
@@ -159,12 +172,18 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *             other resolver function will revert.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
-        if (!allowedSelectors[bytes4(data[:4])]) revert ResolverFunctionNotSupported();
+        if (keccak256(name) == keccak256(dnsEncodedName)) {
+            return passthroughResolver.resolve(name, data);
+        }
+
+        if (!allowedSelectors[bytes4(data[:4])]) {
+            revert ResolverFunctionNotSupported();
+        }
 
         // Save requests to the gateway by only forwarding certain text record lookups
         if (bytes4(data[:4]) == 0x59d1d43c) {
             (, string memory key) = abi.decode(data[4:], (bytes32, string));
-            if (!allowedTextRecords[key]) revert TextRecordNotSupported();
+            if (!allowedTextRecords[key]) return abi.encode("");
         }
 
         bytes memory callData = abi.encodeCall(IResolverService.resolve, (name, data));

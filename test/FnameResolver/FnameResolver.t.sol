@@ -29,6 +29,14 @@ contract FnameResolverTest is FnameResolverTestSuite {
         assertEq(resolver.VERSION(), "2023.08.23");
     }
 
+    function testName() public {
+        assertEq(resolver.dnsEncodedName(), PARENT_DNS_ENCODED_NAME);
+    }
+
+    function testPassthroughResolver() public {
+        assertEq(address(resolver.passthroughResolver()), address(PASSTHROUGH_RESOLVER));
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  RESOLVE
     //////////////////////////////////////////////////////////////*/
@@ -87,7 +95,7 @@ contract FnameResolverTest is FnameResolverTestSuite {
         resolver.resolve(name, data);
     }
 
-    function testFuzzResolveTextRecordNotSupported(
+    function testFuzzResolveEmptyForUnsupportedTextRecord(
         string memory key
     ) public {
         // Calldata for the text(node, key) function (signature 0x59d1d43c)
@@ -96,8 +104,19 @@ contract FnameResolverTest is FnameResolverTestSuite {
         string[] memory urls = new string[](1);
         urls[0] = FNAME_SERVER_URL;
 
-        vm.expectRevert(FnameResolver.TextRecordNotSupported.selector);
-        resolver.resolve(DNS_ENCODED_NAME, textCallData);
+        bytes memory result = resolver.resolve(DNS_ENCODED_NAME, textCallData);
+        assertEq(result, abi.encode(""));
+    }
+
+    function testFuzzResolvePassthrough(
+        string memory key
+    ) public {
+        // namehash("farcaster.eth")
+        bytes32 node = 0x69d89a3b352fc56b7b2f65be229e08de44303dab8b7fd10e9f104766f17bdf29;
+        bytes memory textCallData = abi.encodeWithSelector(0x59d1d43c, node, key);
+
+        bytes memory result = resolver.passthroughResolver().resolve(PARENT_DNS_ENCODED_NAME, textCallData);
+        assertEq(result, abi.encode("farcaster"));
     }
 
     /*//////////////////////////////////////////////////////////////

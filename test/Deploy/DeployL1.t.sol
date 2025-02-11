@@ -19,6 +19,8 @@ contract DeployL1Test is DeployL1, FnameResolverTestSuite {
         (signer, signerPk) = makeAddrAndKey("signer");
 
         DeployL1.DeploymentParams memory params = DeployL1.DeploymentParams({
+            name: hex"096661726361737465720365746800",
+            resolver: 0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63,
             serverURL: "https://fnames.farcaster.xyz/ccip/{sender}/{data}.json",
             signer: signer,
             owner: alpha,
@@ -32,6 +34,8 @@ contract DeployL1Test is DeployL1, FnameResolverTestSuite {
 
     function test_deploymentParams() public {
         // Check deployment parameters
+        assertEq(resolver.dnsEncodedName(), hex"096661726361737465720365746800");
+        assertEq(address(resolver.passthroughResolver()), 0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63);
         assertEq(resolver.url(), "https://fnames.farcaster.xyz/ccip/{sender}/{data}.json");
         assertEq(resolver.owner(), alpha);
         assertEq(resolver.signers(signer), true);
