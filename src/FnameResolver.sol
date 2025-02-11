@@ -7,10 +7,6 @@ import {ERC165} from "openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import {EIP712} from "./abstract/EIP712.sol";
 
-interface IAddressQuery {
-    function addr(bytes32 node) external view returns (address);
-}
-
 interface IExtendedResolver {
     function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
 }
@@ -19,7 +15,7 @@ interface IResolverService {
     function resolve(
         bytes calldata name,
         bytes calldata data
-    ) external view returns (string memory fname, uint256 timestamp, address owner, bytes memory signature);
+    ) external view returns (bytes memory result, uint256 validUntil, address owner, bytes memory signature);
 }
 
 /**
@@ -51,6 +47,12 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /// @dev Revert if the recovered signer address is not an authorized signer.
     error InvalidSigner();
 
+    /// @dev Revert if the extra data hash does not match the original request.
+    error MismatchedRequest();
+
+    /// @dev Revert if the signature is expired.
+    error ExpiredSignature();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -79,10 +81,10 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     string public constant VERSION = "2023.08.23";
 
     /**
-     * @dev EIP-712 typehash of the UsernameProof struct.
+     * @dev EIP-712 typehash of the DataProof struct.
      */
-    bytes32 public constant USERNAME_PROOF_TYPEHASH =
-        keccak256("UserNameProof(string name,uint256 timestamp,address owner)");
+    bytes32 public constant DATA_PROOF_TYPEHASH =
+        keccak256("DataProof(bytes32 request,bytes32 result,uint256 validUntil)");
 
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
@@ -94,9 +96,29 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     string public url;
 
     /**
+     * @dev DNS-encoded name this contract will be used with.
+     */
+    bytes public dnsEncodedName;
+
+    /**
+     * @dev Address of the ENS resolver to passthrough calls to `name` to.
+     */
+    IExtendedResolver public immutable passthroughResolver;
+
+    /**
      * @dev Mapping of signer address to authorized boolean.
      */
     mapping(address signer => bool isAuthorized) public signers;
+
+    /**
+     * @dev Mapping of resolver function selector to allowed boolean.
+     */
+    mapping(bytes4 selector => bool isAllowed) public allowedSelectors;
+
+    /**
+     * @dev Mapping of text record key to allowed boolean.
+     */
+    mapping(string textRecordKey => bool isAllowed) public allowedTextRecords;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -105,19 +127,35 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
     /**
      * @notice Set the lookup gateway URL and initial signer.
      *
+     * @param _name         DNS-encoded name this contract will be used with. This is set permanently.
+     * @param _resolver     Address of the ENS resolver to passthrough calls to the 2LD to. This is set permanently.
      * @param _url          Lookup gateway URL. This value is set permanently.
      * @param _signer       Initial authorized signer address.
      * @param _initialOwner Initial owner address.
      */
     constructor(
+        bytes memory _name,
+        IExtendedResolver _resolver,
         string memory _url,
         address _signer,
         address _initialOwner
     ) EIP712("Farcaster name verification", "1") {
         _transferOwnership(_initialOwner);
+        dnsEncodedName = _name;
+        passthroughResolver = _resolver;
         url = _url;
         signers[_signer] = true;
         emit AddSigner(_signer);
+
+        // Only support `addr(node)`, `addr(node, cointype)` and `text(node, key)`
+        allowedSelectors[0x3b3b57de] = true;
+        allowedSelectors[0xf1cb7e06] = true;
+        allowedSelectors[0x59d1d43c] = true;
+
+        // Only support `avatar`, `description` and `url`
+        allowedTextRecords["avatar"] = true;
+        allowedTextRecords["description"] = true;
+        allowedTextRecords["url"] = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -134,8 +172,18 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *             other resolver function will revert.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
-        if (bytes4(data[:4]) != IAddressQuery.addr.selector) {
+        if (keccak256(name) == keccak256(dnsEncodedName)) {
+            return passthroughResolver.resolve(name, data);
+        }
+
+        if (!allowedSelectors[bytes4(data[:4])]) {
             revert ResolverFunctionNotSupported();
+        }
+
+        // Save requests to the gateway by only forwarding certain text record lookups
+        if (bytes4(data[:4]) == 0x59d1d43c) {
+            (, string memory key) = abi.decode(data[4:], (bytes32, string));
+            if (!allowedTextRecords[key]) return abi.encode("");
         }
 
         bytes memory callData = abi.encodeCall(IResolverService.resolve, (name, data));
@@ -154,24 +202,24 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *                 - uint256: Timestamp of the username proof.
      *                 - address: Owner address that signed the username proof.
      *                 - bytes: EIP-712 signature provided by the CCIP gateway server.
+     * @param extraData Calldata from the original resolve() call. Used to verify that the gateway is answering the
+     *                  right query.
      *
-     * @return ABI-encoded address of the fname owner.
+     * @return ABI-encoded data (can be address or text record).
      */
-    function resolveWithProof(
-        bytes calldata response,
-        bytes calldata /* extraData */
-    ) external view returns (bytes memory) {
-        (string memory fname, uint256 timestamp, address fnameOwner, bytes memory signature) =
-            abi.decode(response, (string, uint256, address, bytes));
+    function resolveWithProof(bytes calldata response, bytes calldata extraData) external view returns (bytes memory) {
+        (bytes32 extraDataHash, bytes memory result, uint256 validUntil, bytes memory signature) =
+            abi.decode(response, (bytes32, bytes, uint256, bytes));
 
-        bytes32 proofHash =
-            keccak256(abi.encode(USERNAME_PROOF_TYPEHASH, keccak256(bytes(fname)), timestamp, fnameOwner));
+        bytes32 proofHash = keccak256(abi.encode(DATA_PROOF_TYPEHASH, extraDataHash, keccak256(result), validUntil));
         bytes32 eip712hash = _hashTypedDataV4(proofHash);
         address signer = ECDSA.recover(eip712hash, signature);
 
         if (!signers[signer]) revert InvalidSigner();
+        if (block.timestamp > validUntil) revert ExpiredSignature();
+        if (keccak256(extraData) != extraDataHash) revert MismatchedRequest();
 
-        return abi.encode(fnameOwner);
+        return result;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -183,7 +231,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *
      * @param signer The signer address.
      */
-    function addSigner(address signer) external onlyOwner {
+    function addSigner(
+        address signer
+    ) external onlyOwner {
         signers[signer] = true;
         emit AddSigner(signer);
     }
@@ -193,7 +243,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *
      * @param signer The signer address.
      */
-    function removeSigner(address signer) external onlyOwner {
+    function removeSigner(
+        address signer
+    ) external onlyOwner {
         signers[signer] = false;
         emit RemoveSigner(signer);
     }
@@ -202,7 +254,9 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
                          INTERFACE DETECTION
     //////////////////////////////////////////////////////////////*/
 
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override returns (bool) {
         return interfaceId == type(IExtendedResolver).interfaceId || super.supportsInterface(interfaceId);
     }
 }

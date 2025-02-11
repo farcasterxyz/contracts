@@ -1,5 +1,5 @@
 [hooks]
-pre-commit = "forge fmt --check && forge snapshot --check --match-contract Gas && forge test -vvv"
+pre-commit = "forge snapshot --check --match-contract Gas && forge test -vvv"
 
 [logging]
 verbose = true
