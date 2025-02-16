@@ -45,10 +45,10 @@ graph TD
 
 1. [L2 Contracts](#1-l2-contracts)
    1. [Id Registry](#11-id-registry)
-   2. [Id Gateway](#12-id-manager)
+   2. [Id Gateway](#12-id-gateway)
    3. [Storage Registry](#13-storage-registry)
    4. [Key Registry](#14-key-registry)
-   5. [Key Gateway](#15-key-manager)
+   5. [Key Gateway](#15-key-gateway)
    6. [Validators](#16-validators)
    7. [Bundler](#17-bundler)
    8. [Recovery Proxy](#18-recovery-proxy)
