@@ -195,7 +195,7 @@ The StorageRegistry contract may need to be upgraded in case a bug is discovered
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The new storage contract is unpaused.
 
-## 1.3. Key Registry
+## 1.4. Key Registry
 
 The Key Registry contract lets addresses with an fid register or remove public keys. Keys added onchain are tracked by Hubs and can be used to sign Farcaster messages. The same key can be added by different fids and can exist in different states. Keys contain a key type that indicates how they should be interpreted and used. During registration, metadata can also be emitted to provide additional context about the key. Keys contain a metadata type indicating how this metadata should be validated and interpreted. The Key Registry validates metadata at registration time and rejects keys with invalid metadata.
 
@@ -265,7 +265,7 @@ The KeyRegistry contract may need to be upgraded in case a bug is discovered or 
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The contract is set to untrusted state where anyone can register keys.
 
-## 1.4. Key Gateway
+## 1.5. Key Gateway
 
 The Key Gateway is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Gateway is responsible for the actual addition logic.
 
@@ -294,7 +294,7 @@ In such cases:
 3. The old KeyManager is paused.
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 
-## 1.5 Validators
+## 1.6. Validators
 
 Validators are single purpose contracts that implement a simple interface to validate key metadata. At registration time, the Key Registry looks up the associated validator by key type and metadata type, and calls it to validate the format of provided metadata. This makes the key registry extensible to future key types and metadata formats.
 
@@ -306,11 +306,11 @@ The only validator today is the Signed Key Request Validator, which validates th
 
 An `owner` can update the address of the Id Registry contract.
 
-## 1.6. Bundler
+## 1.7. Bundler
 
 The Bundler contract lets a caller register an fid, rent storage units and register a key in a single transaction to save gas. It is a simple wrapper around contract methods and contains little logic beyond tracking contract addresses, collecting parameters and invoking the appropriate functions.
 
-## 1.7 Recovery Proxy
+## 1.8. Recovery Proxy
 
 The Recovery Proxy is an immutable proxy contract that allows the recovery execution logic to change without changing the recovery address associated with an fid. A client or recovery service operator can deploy a recovery proxy and use it as the recovery address for fids. For example, the Warpcast client uses a recovery proxy owned by a 2/3 multisig as the default recovery address for new accounts.
 
