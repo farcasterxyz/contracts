@@ -11,6 +11,10 @@ interface IAddressQuery {
     function addr(bytes32 node) external view returns (address);
 }
 
+interface INameQuery {
+    function name(bytes32 node) external view returns (string memory);
+}
+
 interface IExtendedResolver {
     function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
 }
@@ -129,12 +133,14 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *         offchain lookup.
      *
      * @param name DNS-encoded name to resolve.
-     * @param data Encoded calldata of an ENS resolver function. This resolver supports only
-     *             address resolution (Signature 0x3b3b57de). Calling the CCIP gateway with any
-     *             other resolver function will revert.
+     * @param data Encoded calldata of an ENS resolver function. This resolver supports address
+     *             resolution (Signature 0x3b3b57de) and name resolution (Signature 0x691f3431).
+     *             Calling the CCIP gateway with any other resolver function will revert.
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
-        if (bytes4(data[:4]) != IAddressQuery.addr.selector) {
+        bytes4 selector = bytes4(data[:4]);
+        
+        if (selector != IAddressQuery.addr.selector && selector != INameQuery.name.selector) {
             revert ResolverFunctionNotSupported();
         }
 
@@ -154,12 +160,13 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
      *                 - uint256: Timestamp of the username proof.
      *                 - address: Owner address that signed the username proof.
      *                 - bytes: EIP-712 signature provided by the CCIP gateway server.
+     * @param extraData Additional data from the original request, containing the original function selector.
      *
-     * @return ABI-encoded address of the fname owner.
+     * @return ABI-encoded address of the fname owner or the name, depending on the original request.
      */
     function resolveWithProof(
         bytes calldata response,
-        bytes calldata /* extraData */
+        bytes calldata extraData
     ) external view returns (bytes memory) {
         (string memory fname, uint256 timestamp, address fnameOwner, bytes memory signature) =
             abi.decode(response, (string, uint256, address, bytes));
@@ -171,6 +178,15 @@ contract FnameResolver is IExtendedResolver, EIP712, ERC165, Ownable2Step {
 
         if (!signers[signer]) revert InvalidSigner();
 
+        // Determine which function was originally called
+        bytes4 originalSelector = bytes4(extraData[:4]);
+        
+        if (originalSelector == INameQuery.name.selector) {
+            // If the original request was for a name, return the fname
+            return abi.encode(fname);
+        }
+        
+        // Default to returning the address (for addr selector)
         return abi.encode(fnameOwner);
     }
 
