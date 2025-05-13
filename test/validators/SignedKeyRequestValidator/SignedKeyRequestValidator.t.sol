@@ -308,7 +308,9 @@ contract SignedKeyRequestValidatorTest is SignedKeyRequestValidatorTestSuite {
         validator.setIdRegistry(idRegistry);
     }
 
-    function testFuzzSetIdRegistry(address idRegistry) public {
+    function testFuzzSetIdRegistry(
+        address idRegistry
+    ) public {
         address currentIdRegistry = address(validator.idRegistry());
 
         vm.expectEmit(false, false, false, true);

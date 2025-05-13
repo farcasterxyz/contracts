@@ -2591,7 +2591,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
                           SET ID GATEWAY
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzSetIdGateway(address idGateway) public {
+    function testFuzzSetIdGateway(
+        address idGateway
+    ) public {
         address prevIdGateway = idRegistry.idGateway();
 
         vm.expectEmit();
@@ -2611,7 +2613,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.setIdGateway(idGateway);
     }
 
-    function testFuzzFreezeIdGateway(address idGateway) public {
+    function testFuzzFreezeIdGateway(
+        address idGateway
+    ) public {
         assertEq(idRegistry.gatewayFrozen(), false);
 
         vm.prank(owner);
@@ -2626,7 +2630,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         assertEq(idRegistry.gatewayFrozen(), true);
     }
 
-    function testFuzzOnlyOwnerCanFreezeIdGateway(address caller) public {
+    function testFuzzOnlyOwnerCanFreezeIdGateway(
+        address caller
+    ) public {
         vm.assume(caller != owner);
 
         vm.expectRevert("Ownable: caller is not the owner");
@@ -2634,7 +2640,9 @@ contract IdRegistryTest is IdRegistryTestSuite {
         idRegistry.freezeIdGateway();
     }
 
-    function testFuzzSetIdGatewayRevertsWhenFrozen(address idGateway) public {
+    function testFuzzSetIdGatewayRevertsWhenFrozen(
+        address idGateway
+    ) public {
         assertEq(idRegistry.gatewayFrozen(), false);
 
         vm.prank(owner);

@@ -75,7 +75,9 @@ contract DeployL2 is ImmutableCreate2Deployer {
         runSetup(runDeploy(loadDeploymentParams()));
     }
 
-    function runDeploy(DeploymentParams memory params) public returns (Contracts memory) {
+    function runDeploy(
+        DeploymentParams memory params
+    ) public returns (Contracts memory) {
         return runDeploy(params, true);
     }
 
@@ -175,7 +177,9 @@ contract DeployL2 is ImmutableCreate2Deployer {
         }
     }
 
-    function runSetup(Contracts memory contracts) public {
+    function runSetup(
+        Contracts memory contracts
+    ) public {
         DeploymentParams memory params = loadDeploymentParams();
         runSetup(contracts, params, true);
     }

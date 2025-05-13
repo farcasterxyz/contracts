@@ -41,9 +41,7 @@ contract BundlerTest is BundlerTestSuite {
         uint256 deadline,
         uint256 numSigners
     ) internal returns (IBundler.SignerParams[] memory) {
-        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](
-            numSigners
-        );
+        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](numSigners);
         uint256 nonce = keyRegistry.nonces(account);
 
         // The duplication below is ugly but necessary to work around a stack too deep error.
@@ -64,7 +62,7 @@ contract BundlerTest is BundlerTestSuite {
                     abi.encodePacked("metadata", keccak256(abi.encode(i))),
                     nonce + i,
                     deadline
-                    )
+                )
             });
         }
         return signers;

@@ -171,7 +171,9 @@ contract KeyRegistrySymTest is SymTest, Test {
     }
 
     // Case-splitting tactic: explicitly branching into two states: cond vs !cond
-    function split_cases(bool cond) internal pure {
+    function split_cases(
+        bool cond
+    ) internal pure {
         if (cond) return;
     }
 

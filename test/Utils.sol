@@ -64,7 +64,9 @@ contract StubValidator {
         return isValid;
     }
 
-    function setIsValid(bool val) external {
+    function setIsValid(
+        bool val
+    ) external {
         isValid = val;
     }
 }
@@ -92,23 +94,33 @@ contract MockChainlinkFeed is AggregatorV3Interface {
         description = _description;
     }
 
-    function setShouldRevert(bool _shouldRevert) external {
+    function setShouldRevert(
+        bool _shouldRevert
+    ) external {
         shouldRevert = _shouldRevert;
     }
 
-    function setStubTimeStamp(bool _stubTimeStamp) external {
+    function setStubTimeStamp(
+        bool _stubTimeStamp
+    ) external {
         stubTimeStamp = _stubTimeStamp;
     }
 
-    function setAnswer(int256 value) external {
+    function setAnswer(
+        int256 value
+    ) external {
         roundData.answer = value;
     }
 
-    function setRoundData(RoundData calldata _roundData) external {
+    function setRoundData(
+        RoundData calldata _roundData
+    ) external {
         roundData = _roundData;
     }
 
-    function getRoundData(uint80) external view returns (uint80, int256, uint256, uint256, uint80) {
+    function getRoundData(
+        uint80
+    ) external view returns (uint80, int256, uint256, uint256, uint80) {
         return latestRoundData();
     }
 
@@ -125,7 +137,9 @@ contract MockChainlinkFeed is AggregatorV3Interface {
 }
 
 contract MockPriceFeed is MockChainlinkFeed(8, "Mock ETH/USD Price Feed") {
-    function setPrice(int256 _price) external {
+    function setPrice(
+        int256 _price
+    ) external {
         roundData.answer = _price;
     }
 }
@@ -143,7 +157,9 @@ contract RevertOnReceive {
 //////////////////////////////////////////////////////////////*/
 
 contract ERC1271WalletMock is Ownable, IERC1271 {
-    constructor(address owner) {
+    constructor(
+        address owner
+    ) {
         super.transferOwnership(owner);
     }
 
@@ -156,11 +172,15 @@ contract ERC1271WalletMock is Ownable, IERC1271 {
 contract ERC1271MaliciousMockForceRevert is Ownable, IERC1271 {
     bool internal _forceRevert = true;
 
-    constructor(address owner) {
+    constructor(
+        address owner
+    ) {
         super.transferOwnership(owner);
     }
 
-    function setForceRevert(bool forceRevert) external {
+    function setForceRevert(
+        bool forceRevert
+    ) external {
         _forceRevert = forceRevert;
     }
 

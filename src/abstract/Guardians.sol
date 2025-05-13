@@ -36,7 +36,9 @@ abstract contract Guardians is IGuardians, Ownable2Step, Pausable {
      *
      * @param _initialOwner Address of the contract owner.
      */
-    constructor(address _initialOwner) {
+    constructor(
+        address _initialOwner
+    ) {
         _transferOwnership(_initialOwner);
     }
 
@@ -47,7 +49,9 @@ abstract contract Guardians is IGuardians, Ownable2Step, Pausable {
     /**
      * @inheritdoc IGuardians
      */
-    function addGuardian(address guardian) external onlyOwner {
+    function addGuardian(
+        address guardian
+    ) external onlyOwner {
         guardians[guardian] = true;
         emit Add(guardian);
     }
@@ -55,7 +59,9 @@ abstract contract Guardians is IGuardians, Ownable2Step, Pausable {
     /**
      * @inheritdoc IGuardians
      */
-    function removeGuardian(address guardian) external onlyOwner {
+    function removeGuardian(
+        address guardian
+    ) external onlyOwner {
         guardians[guardian] = false;
         emit Remove(guardian);
     }

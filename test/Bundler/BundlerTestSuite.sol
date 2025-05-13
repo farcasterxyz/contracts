@@ -22,10 +22,7 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
         keyRegistry.setKeyGateway(address(keyGateway));
 
         // Set up the BundleRegistry
-        bundler = new Bundler(
-            address(idGateway),
-            address(keyGateway)
-        );
+        bundler = new Bundler(address(idGateway), address(keyGateway));
 
         addKnownContract(address(keyGateway));
         addKnownContract(address(bundler));
@@ -38,7 +35,9 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
     }
 
     // Assert that a given fname was not registered and the contracts have no registrations
-    function _assertUnsuccessfulRegistration(address account) internal {
+    function _assertUnsuccessfulRegistration(
+        address account
+    ) internal {
         assertEq(idRegistry.idOf(account), 0);
         assertEq(idRegistry.recoveryOf(1), address(0));
     }

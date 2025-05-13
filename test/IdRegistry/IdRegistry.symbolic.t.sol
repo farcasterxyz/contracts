@@ -180,7 +180,9 @@ contract IdRegistrySymTest is SymTest, Test {
     /**
      * @dev Generates valid calldata for a given function selector.
      */
-    function _calldataFor(bytes4 selector) internal returns (bytes memory) {
+    function _calldataFor(
+        bytes4 selector
+    ) internal returns (bytes memory) {
         bytes memory args;
         if (selector == idRegistry.transfer.selector) {
             args = abi.encode(svm.createAddress("to"), svm.createUint256("deadline"), svm.createBytes(65, "sig"));
