@@ -46,6 +46,9 @@ contract AuthKeysTest is Test {
     address internal app;
     uint256 internal appPk;
 
+    address internal horsefacts = address(0x2cd85a093261f59270804A6EA697CeA4CeBEcafE);
+    address internal warpcastWallet = address(0x2cd85a093261f59270804A6EA697CeA4CeBEcafE);
+
     address internal invalid;
 
     address internal alpha = address(0x53c6dA835c777AD11159198FBe11f95E5eE6B692);
@@ -53,14 +56,6 @@ contract AuthKeysTest is Test {
     address internal vault = address(0x53c6dA835c777AD11159198FBe11f95E5eE6B692);
     address internal relayer = address(0x2D93c2F74b2C4697f9ea85D0450148AA45D4D5a2);
     address internal migrator = relayer;
-
-    // @dev OP Mainnet ETH/USD price feed
-    address internal priceFeed = address(0x13e3Ee699D1909E989722E753853AE30b17e08c5);
-
-    // @dev OP Mainnet sequencer uptime feed
-    address internal uptimeFeed = address(0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389);
-
-    address internal deployer = address(0x6D2b70e39C6bc63763098e336323591eb77Cd0C6);
 
     function setUp() public {
         vm.createSelectFork("l2_mainnet", 134877573);
@@ -92,7 +87,7 @@ contract AuthKeysTest is Test {
         keyRegistry.setValidator(2, 1, IMetadataValidator(address(validator)));
 
         // Register an auth key
-        bytes memory authKey = abi.encode(address(0xE36D2F95a9B69dF60DBF029BF7c4fa7D1FF56b90));
+        bytes memory authKey = abi.encode(address(warpcastWallet));
         bytes memory sig = _signMetadata(appPk, requestFid, authKey, deadline);
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequestMetadata({
@@ -103,7 +98,7 @@ contract AuthKeysTest is Test {
             })
         );
 
-        vm.prank(0x2cd85a093261f59270804A6EA697CeA4CeBEcafE);
+        vm.startPrank(horsefacts);
         keyGateway.add(2, authKey, 1, metadata);
 
         IKeyRegistry.KeyData memory keyData = keyRegistry.keyDataOf(3621, authKey);
@@ -128,11 +123,9 @@ contract AuthKeysTest is Test {
             })
         );
 
-        vm.prank(0x2cd85a093261f59270804A6EA697CeA4CeBEcafE);
         keyGateway.add(1, appKey, 1, appKeyMetadata);
 
         // Revoke auth key
-        vm.prank(0x2cd85a093261f59270804A6EA697CeA4CeBEcafE);
         keyRegistry.remove(authKey);
 
         keyData = keyRegistry.keyDataOf(3621, authKey);
@@ -141,12 +134,17 @@ contract AuthKeysTest is Test {
 
         // Auth key is permanently revoked
         vm.expectRevert(IKeyRegistry.InvalidState.selector);
-        vm.prank(0x2cd85a093261f59270804A6EA697CeA4CeBEcafE);
         keyGateway.add(2, authKey, 1, metadata);
 
         // Revoke new app key
-        vm.prank(0x2cd85a093261f59270804A6EA697CeA4CeBEcafE);
         keyRegistry.remove(appKey);
+
+        // App key is permanently revoked
+        keyData = keyRegistry.keyDataOf(3621, appKey);
+        assertEq(keyData.keyType, 1);
+        assertEq(uint8(keyData.state), uint8(IKeyRegistry.KeyState.REMOVED));
+
+        vm.stopPrank();
     }
 
     function _signTransfer(
