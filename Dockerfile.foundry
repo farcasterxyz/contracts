@@ -6,15 +6,10 @@
 
 FROM ubuntu:latest
 
-RUN apt-get update -y && apt-get install -y bash curl git gzip netcat
+RUN apt-get update -y && apt-get install -y bash curl git gzip netcat-openbsd
 
-# Foundry only keeps the latest 3 nightly releases available, removing older
-# ones. We host the artifacts ourselves to ensure they are always there.
-#
-# This also makes the build very fast (building from source takes ~10 minutes on an M2 Max)
-ARG TARGETARCH COMMIT_HASH=577dae3f632b392856d1d62a5016c765fadd872d
-RUN curl --proto '=https' --tlsv1.2 -sSf \
-  "https://download.farcaster.xyz/foundry/foundry_${COMMIT_HASH}_linux_${TARGETARCH}.tar.gz" \
-  | tar -xzf - -C /usr/local/bin
+RUN curl --proto '=https' --tlsv1.2 -L "https://foundry.paradigm.xyz" | bash
+ENV PATH="$PATH:/root/.foundry/bin"
+RUN foundryup --install stable
 
 ENV RUST_BACKTRACE=full

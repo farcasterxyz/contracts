@@ -51,7 +51,9 @@ contract IdGatewayOwnerTest is IdGatewayTestSuite {
                             ACCEPT OWNERSHIP
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzAcceptOwnership(address newOwner) public {
+    function testFuzzAcceptOwnership(
+        address newOwner
+    ) public {
         vm.assume(newOwner != owner && newOwner != address(0));
         vm.prank(owner);
         idGateway.transferOwnership(newOwner);
@@ -93,7 +95,9 @@ contract IdGatewayOwnerTest is IdGatewayTestSuite {
         assertEq(idGateway.paused(), true);
     }
 
-    function testFuzzCannotPauseUnlessGuardian(address alice) public {
+    function testFuzzCannotPauseUnlessGuardian(
+        address alice
+    ) public {
         vm.assume(alice != owner && alice != address(0));
         assertEq(idGateway.owner(), owner);
         assertEq(idGateway.paused(), false);
@@ -116,7 +120,9 @@ contract IdGatewayOwnerTest is IdGatewayTestSuite {
         assertEq(idGateway.paused(), false);
     }
 
-    function testFuzzCannotUnpauseUnlessOwner(address alice) public {
+    function testFuzzCannotUnpauseUnlessOwner(
+        address alice
+    ) public {
         vm.assume(alice != owner && alice != address(0));
         assertEq(idGateway.owner(), owner);
 

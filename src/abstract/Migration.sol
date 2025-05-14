@@ -96,7 +96,9 @@ abstract contract Migration is IMigration, Guardians {
     /**
      * @inheritdoc IMigration
      */
-    function setMigrator(address _migrator) public onlyOwner {
+    function setMigrator(
+        address _migrator
+    ) public onlyOwner {
         if (isMigrated()) revert AlreadyMigrated();
         _requirePaused();
         emit SetMigrator(migrator, _migrator);

@@ -22,7 +22,9 @@ contract DeployL1 is ImmutableCreate2Deployer {
         runDeploy(loadDeploymentParams());
     }
 
-    function runDeploy(DeploymentParams memory params) public returns (Contracts memory) {
+    function runDeploy(
+        DeploymentParams memory params
+    ) public returns (Contracts memory) {
         return runDeploy(params, true);
     }
 

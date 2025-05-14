@@ -88,5 +88,7 @@ interface IMigration {
      *
      * @param _migrator Migrator address.
      */
-    function setMigrator(address _migrator) external;
+    function setMigrator(
+        address _migrator
+    ) external;
 }

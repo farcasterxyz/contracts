@@ -132,7 +132,9 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      *
      * @return bytes memory Bytes of ABI-encoded struct.
      */
-    function encodeMetadata(SignedKeyRequestMetadata calldata metadata) external pure returns (bytes memory) {
+    function encodeMetadata(
+        SignedKeyRequestMetadata calldata metadata
+    ) external pure returns (bytes memory) {
         return abi.encode(metadata);
     }
 
@@ -145,7 +147,9 @@ contract SignedKeyRequestValidator is IMetadataValidator, Ownable2Step, EIP712 {
      *
      * @param _idRegistry The new IdRegistry address.
      */
-    function setIdRegistry(address _idRegistry) external onlyOwner {
+    function setIdRegistry(
+        address _idRegistry
+    ) external onlyOwner {
         emit SetIdRegistry(address(idRegistry), _idRegistry);
         idRegistry = IdRegistryLike(_idRegistry);
     }

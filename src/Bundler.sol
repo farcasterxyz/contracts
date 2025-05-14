@@ -57,7 +57,9 @@ contract Bundler is IBundler {
     /**
      * @inheritdoc IBundler
      */
-    function price(uint256 extraStorage) external view returns (uint256) {
+    function price(
+        uint256 extraStorage
+    ) external view returns (uint256) {
         return idGateway.price(extraStorage);
     }
 

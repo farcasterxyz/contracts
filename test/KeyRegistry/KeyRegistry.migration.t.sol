@@ -55,7 +55,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                              SET MIGRATOR
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOwnerCanSetMigrator(address migrator) public {
+    function testFuzzOwnerCanSetMigrator(
+        address migrator
+    ) public {
         address oldMigrator = keyRegistry.migrator();
 
         vm.expectEmit();
@@ -66,7 +68,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.migrator(), migrator);
     }
 
-    function testFuzzSetMigratorRevertsWhenMigrated(address migrator) public {
+    function testFuzzSetMigratorRevertsWhenMigrated(
+        address migrator
+    ) public {
         address oldMigrator = keyRegistry.migrator();
 
         vm.prank(oldMigrator);
@@ -79,7 +83,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.migrator(), oldMigrator);
     }
 
-    function testFuzzSetMigratorRevertsWhenUnpaused(address migrator) public {
+    function testFuzzSetMigratorRevertsWhenUnpaused(
+        address migrator
+    ) public {
         address oldMigrator = keyRegistry.migrator();
 
         vm.startPrank(owner);
@@ -95,7 +101,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
                                 MIGRATION
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzMigration(uint40 timestamp) public {
+    function testFuzzMigration(
+        uint40 timestamp
+    ) public {
         vm.assume(timestamp != 0);
 
         vm.warp(timestamp);
@@ -108,7 +116,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.migratedAt(), timestamp);
     }
 
-    function testFuzzOnlyMigratorCanMigrate(address caller) public {
+    function testFuzzOnlyMigratorCanMigrate(
+        address caller
+    ) public {
         vm.assume(caller != migrator);
 
         vm.prank(caller);
@@ -119,7 +129,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         assertEq(keyRegistry.migratedAt(), 0);
     }
 
-    function testFuzzCannotMigrateTwice(uint40 timestamp) public {
+    function testFuzzCannotMigrateTwice(
+        uint40 timestamp
+    ) public {
         timestamp = uint40(bound(timestamp, 1, type(uint40).max));
         vm.warp(timestamp);
         vm.prank(migrator);
@@ -186,7 +198,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         keyRegistry.bulkAddKeysForMigration(addItems);
     }
 
-    function testFuzzBulkAddKeyForMigrationDuringGracePeriod(uint40 _warpForward) public {
+    function testFuzzBulkAddKeyForMigrationDuringGracePeriod(
+        uint40 _warpForward
+    ) public {
         _registerValidator(1, 1);
 
         KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1");
@@ -203,7 +217,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testFuzzBulkAddSignerForMigrationAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
+    function testFuzzBulkAddSignerForMigrationAfterGracePeriodRevertsUnauthorized(
+        uint40 _warpForward
+    ) public {
         KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFid(1).addKey(0, "key1", "metadata1");
 
         uint256 warpForward =
@@ -364,7 +380,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testFuzzBulkRemoveSignerForMigrationDuringGracePeriod(uint40 _warpForward) public {
+    function testFuzzBulkRemoveSignerForMigrationDuringGracePeriod(
+        uint40 _warpForward
+    ) public {
         _registerValidator(1, 1);
 
         KeyRegistry.BulkAddData[] memory addItems = BulkAddDataBuilder.empty().addFid(1).addKey(0, "key", "metadata");
@@ -384,7 +402,9 @@ contract KeyRegistryTest is KeyRegistryTestSuite {
         vm.stopPrank();
     }
 
-    function testFuzzBulkRemoveSignerForMigrationAfterGracePeriodRevertsUnauthorized(uint40 _warpForward) public {
+    function testFuzzBulkRemoveSignerForMigrationAfterGracePeriodRevertsUnauthorized(
+        uint40 _warpForward
+    ) public {
         KeyRegistry.BulkResetData[] memory items = BulkResetDataBuilder.empty().addFid(1).addKey(0, "key");
 
         uint256 warpForward =

@@ -70,7 +70,9 @@ interface IIdGateway {
      *
      * @return Total price in wei.
      */
-    function price(uint256 extraStorage) external view returns (uint256);
+    function price(
+        uint256 extraStorage
+    ) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                              REGISTRATION LOGIC
@@ -83,7 +85,9 @@ interface IIdGateway {
      *
      * @return fid registered FID.
      */
-    function register(address recovery) external payable returns (uint256 fid, uint256 overpayment);
+    function register(
+        address recovery
+    ) external payable returns (uint256 fid, uint256 overpayment);
 
     /**
      * @notice Register a new Farcaster ID (fid) to the caller and rent additional storage.
@@ -148,5 +152,7 @@ interface IIdGateway {
      *
      * @param _storageRegistry The new StorageREgistry address.
      */
-    function setStorageRegistry(address _storageRegistry) external;
+    function setStorageRegistry(
+        address _storageRegistry
+    ) external;
 }
