@@ -6,7 +6,7 @@
 
 FROM ubuntu:latest
 
-RUN apt-get update -y && apt-get install -y bash curl git gzip netcat
+RUN apt-get update -y && apt-get install -y bash curl git gzip netcat-openbsd
 
 # Foundry only keeps the latest 3 nightly releases available, removing older
 # ones. We host the artifacts ourselves to ensure they are always there.
