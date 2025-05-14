@@ -16,7 +16,6 @@ bytecode_hash = 'none'
 [profile.ci]
 verbosity = 3
 fuzz = { runs = 2500 }
-no_match_path = ""
 match_path = "test/*/**"
 
 [fmt]
