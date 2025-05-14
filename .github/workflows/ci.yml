@@ -120,6 +120,8 @@ jobs:
 
   halmos:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/a16z/halmos:latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -128,15 +130,8 @@ jobs:
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
-
-      - name: Install halmos
-        run: pip install halmos
-
       - name: Run halmos
-        run: halmos --debug
+        run: halmos --test-parallel --solver-parallel --storage-layout=generic --solver-timeout-assertion 0
 
   coverage:
     permissions:
