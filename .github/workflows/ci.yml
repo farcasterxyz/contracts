@@ -136,7 +136,7 @@ jobs:
         run: pip install halmos
 
       - name: Run halmos
-        run: halmos --solver-command yices-smt2 --test-parallel --solver-parallel --storage-layout=generic --solver-timeout-assertion 0
+        run: halmos --debug
 
   coverage:
     permissions:
