@@ -86,8 +86,8 @@ contract AuthKeysTest is Test {
         vm.prank(alpha);
         keyRegistry.setValidator(2, 1, IMetadataValidator(address(validator)));
 
-        // Register an auth key
-        bytes memory authKey = abi.encode(address(warpcastWallet));
+        // Register auth key with index 0
+        bytes memory authKey = bytes.concat(bytes12(uint96(0)), bytes20(address(warpcastWallet)));
         bytes memory sig = _signMetadata(appPk, requestFid, authKey, deadline);
         bytes memory metadata = abi.encode(
             SignedKeyRequestValidator.SignedKeyRequestMetadata({
@@ -143,6 +143,23 @@ contract AuthKeysTest is Test {
         keyData = keyRegistry.keyDataOf(3621, appKey);
         assertEq(keyData.keyType, 1);
         assertEq(uint8(keyData.state), uint8(IKeyRegistry.KeyState.REMOVED));
+
+        // Register new auth key with index 1
+        bytes memory authKeyIdx1 = bytes.concat(bytes12(uint96(1)), bytes20(address(warpcastWallet)));
+        bytes memory sigIdx1 = _signMetadata(appPk, requestFid, authKeyIdx1, deadline);
+        bytes memory metadataIdx1 = abi.encode(
+            SignedKeyRequestValidator.SignedKeyRequestMetadata({
+                requestFid: requestFid,
+                requestSigner: app,
+                signature: sigIdx1,
+                deadline: deadline
+            })
+        );
+
+        keyGateway.add(2, authKeyIdx1, 1, metadataIdx1);
+        keyData = keyRegistry.keyDataOf(3621, authKeyIdx1);
+        assertEq(keyData.keyType, 2);
+        assertEq(uint8(keyData.state), uint8(IKeyRegistry.KeyState.ADDED));
 
         vm.stopPrank();
     }
