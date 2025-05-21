@@ -151,10 +151,10 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
 
         uint256 cost = pricePerDay * forDays;
 
+        emit PurchasedTier(fid, tier, forDays);
+
         IERC20 token = IERC20(paymentToken);
         token.safeTransferFrom(payer, vault, cost);
-
-        emit PurchasedTier(fid, tier, forDays);
     }
 
     /**
@@ -180,12 +180,12 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
             totalCost += pricePerDay * numDays;
         }
 
-        IERC20 token = IERC20(paymentToken);
-        token.safeTransferFrom(payer, vault, totalCost);
-
         for (uint256 i; i < fids.length; ++i) {
             emit PurchasedTier(fids[i], tiers[i], forDays[i]);
         }
+
+        IERC20 token = IERC20(paymentToken);
+        token.safeTransferFrom(payer, vault, totalCost);
     }
 
     /*//////////////////////////////////////////////////////////////
