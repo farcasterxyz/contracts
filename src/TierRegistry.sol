@@ -52,6 +52,7 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    // TODO(aditi): Maybe rename without Purchase in name
     event PurchasedTier(uint256 indexed fid, uint256 tier, uint256 forDays);
 
     /**
