@@ -60,7 +60,7 @@ graph TD
 
 # 1. L2 Contracts
 
-The Identity, Storage and Key Registry contracts are deployed on OP Mainnet (chainid: 10).
+The Identity, Storage and Key Registry contracts are deployed on OP Mainnet. The Tier Registry contract is deployed on Base Mainnet. 
 
 ## 1.1. Id Registry
 
@@ -317,6 +317,37 @@ The Recovery Proxy is an immutable proxy contract that allows the recovery execu
 #### Administration
 
 A recovery proxy can change its `owner`, and may be owned by an EOA, multisig, or smart contract. The `owner` of the recovery proxy can change the configured `IdRegistry` address.
+
+## 1.8. Tier Registry
+
+The Tier Registry contract lets addresses purchase a subscription tier for an fid for a certain amount of time. Time purchased for each tier is additive. Each tier is also associated with some metadata including the token payment is accepted in and the price per day. Being a member of a tier will guarantee an fid a certain set of additional features on the Farcaster protocol until the time purchased expires. 
+
+### Tiers 
+
+The only tier today is the Pro tier (id 1) which guarantees users on the protocol long casts and 4 embeds. 
+
+### Invariants
+
+1. Adding a tier: Tier ids are strictly incrementing. A new tier will have an id of 1 + the last added tier id. 
+2. Deactivating a tier: A tier can only be deactivated if it has been created and isn't already deactivated.
+3. No balance: The contract never holds a payment token balance.
+4. Events: Event invariants are specified in comments above each event.
+
+### Assumptions
+
+1. Owner is not malicious.
+2. Payment tokens will not include [weird ERC20s](https://github.com/d-xo/weird-erc20).
+
+### Migration
+
+This is the first TierRegistry contract so no migration is required. 
+
+### Upgradeability
+
+The TierRegistry contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
+1. A new TierRegistry contract should be deployed in a paused state
+2. The tier metadata (payment token, price, min and max times per purchase) should be manually entered by the owner using `setTier`
+3. The owner should resume the contract
 
 # 2. L1 Contracts
 
