@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-import {MockPriceFeed, MockUptimeFeed, MockChainlinkFeed, RevertOnReceive} from "../Utils.sol";
 import {TierRegistryHarness} from "./TierRegistryHarness.sol";
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 import "openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -14,7 +13,6 @@ contract TestToken is ERC20 {
 
 abstract contract TierRegistryTestSuite is TestSuiteSetup {
     TierRegistryHarness tierRegistry;
-    RevertOnReceive internal revertOnReceive;
     TestToken public token;
 
     address internal deployer = address(this);
@@ -28,14 +26,12 @@ abstract contract TierRegistryTestSuite is TestSuiteSetup {
     function setUp() public virtual override {
         super.setUp();
 
-        revertOnReceive = new RevertOnReceive();
         token = new TestToken();
 
         vm.warp(DEPLOYED_AT);
 
         tierRegistry = new TierRegistryHarness(owner);
 
-        addKnownContract(address(revertOnReceive));
         addKnownContract(address(tierRegistry));
         addKnownContract(address(token));
     }
