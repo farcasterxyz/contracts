@@ -3,15 +3,15 @@ pragma solidity 0.8.21;
 
 import {stdError} from "forge-std/StdError.sol";
 
-import {Bundler, IBundler} from "../../src/Bundler.sol";
+import {BundlerV1, IBundlerV1} from "../../src/BundlerV1.sol";
 import {IdRegistry} from "../../src/IdRegistry.sol";
 import {KeyRegistry} from "../../src/KeyRegistry.sol";
 import {StorageRegistry} from "../../src/StorageRegistry.sol";
-import {BundlerTestSuite} from "./BundlerTestSuite.sol";
+import {BundlerV1TestSuite} from "./BundlerV1TestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract BundlerTest is BundlerTestSuite {
+contract BundlerV1Test is BundlerV1TestSuite {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -40,14 +40,14 @@ contract BundlerTest is BundlerTestSuite {
         address account,
         uint256 deadline,
         uint256 numSigners
-    ) internal returns (IBundler.SignerParams[] memory) {
-        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](numSigners);
+    ) internal returns (IBundlerV1.SignerParams[] memory) {
+        IBundlerV1.SignerParams[] memory signers = new IBundlerV1.SignerParams[](numSigners);
         uint256 nonce = keyRegistry.nonces(account);
 
         // The duplication below is ugly but necessary to work around a stack too deep error.
         for (uint256 i = 0; i < numSigners; i++) {
             _registerValidator(uint32(i + 1), uint8(i + 1));
-            signers[i] = IBundler.SignerParams({
+            signers[i] = IBundlerV1.SignerParams({
                 keyType: uint32(i + 1),
                 key: abi.encodePacked("key", keccak256(abi.encode(i))),
                 metadataType: uint8(i + 1),
@@ -90,12 +90,12 @@ contract BundlerTest is BundlerTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory registerSig = _signRegister(accountPk, account, recovery, deadline);
 
-        IBundler.SignerParams[] memory signers = _generateSigners(accountPk, account, deadline, numSigners);
+        IBundlerV1.SignerParams[] memory signers = _generateSigners(accountPk, account, deadline, numSigners);
 
         vm.deal(caller, price);
         vm.prank(caller);
         bundler.register{value: price}(
-            IBundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: registerSig}),
+            IBundlerV1.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: registerSig}),
             signers,
             storageUnits
         );
@@ -131,12 +131,12 @@ contract BundlerTest is BundlerTestSuite {
         uint256 deadline = _boundDeadline(_deadline);
         bytes memory registerSig = _signRegister(accountPk, account, recovery, deadline);
 
-        IBundler.SignerParams[] memory signers = _generateSigners(accountPk, account, deadline, numSigners);
+        IBundlerV1.SignerParams[] memory signers = _generateSigners(accountPk, account, deadline, numSigners);
 
         vm.deal(caller, price);
         vm.prank(caller);
         bundler.register{value: price}(
-            IBundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: registerSig}),
+            IBundlerV1.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: registerSig}),
             signers,
             0
         );
@@ -174,13 +174,13 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, price - 1);
 
-        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](0);
+        IBundlerV1.SignerParams[] memory signers = new IBundlerV1.SignerParams[](0);
 
         vm.deal(caller, price);
         vm.prank(caller);
         vm.expectRevert(StorageRegistry.InvalidPayment.selector);
         bundler.register{value: price - delta}(
-            IBundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            IBundlerV1.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
             signers,
             storageUnits
         );
@@ -208,12 +208,12 @@ contract BundlerTest is BundlerTestSuite {
         bytes memory sig = _signRegister(accountPk, account, recovery, deadline);
         delta = bound(delta, 1, type(uint256).max - price);
 
-        IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](0);
+        IBundlerV1.SignerParams[] memory signers = new IBundlerV1.SignerParams[](0);
 
         vm.deal(caller, price + delta);
         vm.prank(caller);
         bundler.register{value: price + delta}(
-            IBundler.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
+            IBundlerV1.RegistrationParams({to: account, recovery: recovery, deadline: deadline, sig: sig}),
             signers,
             storageUnits
         );
@@ -237,7 +237,7 @@ contract BundlerTest is BundlerTestSuite {
 
         deal(sender, amount);
         vm.prank(sender);
-        vm.expectRevert(IBundler.Unauthorized.selector);
+        vm.expectRevert(IBundlerV1.Unauthorized.selector);
         payable(address(bundler)).transfer(amount);
     }
 }

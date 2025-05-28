@@ -13,9 +13,9 @@ import {
     IKeyRegistry,
     KeyGateway,
     SignedKeyRequestValidator,
-    Bundler,
+    BundlerV1,
     RecoveryProxy,
-    IBundler,
+    IBundlerV1,
     IMetadataValidator
 } from "../../script/UpgradeL2.s.sol";
 
@@ -28,7 +28,7 @@ contract AuthKeysTest is Test {
     KeyRegistry internal keyRegistry = KeyRegistry(0x00000000Fc1237824fb747aBDE0FF18990E59b7e);
     KeyGateway internal keyGateway = KeyGateway(0x00000000fC56947c7E7183f8Ca4B62398CaAdf0B);
     SignedKeyRequestValidator internal validator = SignedKeyRequestValidator(0x00000000FC700472606ED4fA22623Acf62c60553);
-    Bundler internal bundler = Bundler(payable(0x00000000FC04c910A0b5feA33b03E0447AD0B0aA));
+    BundlerV1 internal bundler = BundlerV1(payable(0x00000000FC04c910A0b5feA33b03E0447AD0B0aA));
     RecoveryProxy internal recoveryProxy = RecoveryProxy(0x00000000FcB080a4D6c39a9354dA9EB9bC104cd7);
 
     address internal alice;

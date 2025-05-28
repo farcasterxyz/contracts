@@ -5,7 +5,7 @@ import {IIdGateway} from "./IIdGateway.sol";
 import {IKeyGateway} from "./IKeyGateway.sol";
 import {IStorageRegistry} from "./IStorageRegistry.sol";
 
-interface IBundler {
+interface IBundlerV1 {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/

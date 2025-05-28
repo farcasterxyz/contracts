@@ -5,13 +5,13 @@ import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 import {IdGatewayTestSuite} from "../IdGateway/IdGatewayTestSuite.sol";
 
 import {KeyGateway} from "../../src/KeyGateway.sol";
-import {Bundler} from "../../src/Bundler.sol";
+import {BundlerV1} from "../../src/BundlerV1.sol";
 
 /* solhint-disable state-visibility */
 
-abstract contract BundlerTestSuite is IdGatewayTestSuite {
+abstract contract BundlerV1TestSuite is IdGatewayTestSuite {
     KeyGateway keyGateway;
-    Bundler bundler;
+    BundlerV1 bundler;
 
     function setUp() public virtual override {
         super.setUp();
@@ -21,8 +21,7 @@ abstract contract BundlerTestSuite is IdGatewayTestSuite {
         vm.prank(owner);
         keyRegistry.setKeyGateway(address(keyGateway));
 
-        // Set up the BundleRegistry
-        bundler = new Bundler(address(idGateway), address(keyGateway));
+        bundler = new BundlerV1(address(idGateway), address(keyGateway));
 
         addKnownContract(address(keyGateway));
         addKnownContract(address(bundler));
