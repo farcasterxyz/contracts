@@ -299,17 +299,17 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
     }
 
     function setMinDays(
-        uint256 minDays
+        uint256 numDays
     ) external onlyOwner {
-        if (minDays == 0) revert InvalidAmount();
-        minDays = minDays;
+        if (numDays == 0) revert InvalidAmount();
+        minDays = numDays;
     }
 
     function setMaxDays(
-        uint256 maxDays
+        uint256 numDays
     ) external onlyOwner {
-        if (maxDays == 0) revert InvalidAmount();
-        maxDays = maxDays;
+        if (numDays == 0) revert InvalidAmount();
+        maxDays = numDays;
     }
 
     /**
