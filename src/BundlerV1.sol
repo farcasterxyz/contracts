@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {IBundler} from "./interfaces/IBundler.sol";
+import {IBundlerV1} from "./interfaces/IBundlerV1.sol";
 import {IIdGateway} from "./interfaces/IIdGateway.sol";
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
 import {TransferHelper} from "./libraries/TransferHelper.sol";
@@ -13,7 +13,7 @@ import {TransferHelper} from "./libraries/TransferHelper.sol";
  *
  * @custom:security-contact security@merklemanufactory.com
  */
-contract Bundler is IBundler {
+contract BundlerV1 is IBundlerV1 {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -21,21 +21,21 @@ contract Bundler is IBundler {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
-    string public constant VERSION = "2025.06.13";
+    string public constant VERSION = "2023.11.15";
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     IIdGateway public immutable idGateway;
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     IKeyGateway public immutable keyGateway;
 
@@ -55,7 +55,7 @@ contract Bundler is IBundler {
     }
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     function price(
         uint256 extraStorage
@@ -64,7 +64,7 @@ contract Bundler is IBundler {
     }
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     function register(
         RegistrationParams calldata registerParams,
@@ -74,24 +74,18 @@ contract Bundler is IBundler {
         (uint256 fid, uint256 overpayment) = idGateway.registerFor{value: msg.value}(
             registerParams.to, registerParams.recovery, registerParams.deadline, registerParams.sig, extraStorage
         );
-        _addKeys(registerParams.to, signerParams);
-        if (overpayment > 0) msg.sender.sendNative(overpayment);
-        return fid;
-    }
 
-    /**
-     * @inheritdoc IBundler
-     */
-    function addKeys(address fidOwner, SignerParams[] calldata signerParams) external {
-        _addKeys(fidOwner, signerParams);
-    }
-
-    function _addKeys(address fidOwner, SignerParams[] calldata signerParams) internal {
         uint256 signersLen = signerParams.length;
         for (uint256 i; i < signersLen;) {
             SignerParams calldata signer = signerParams[i];
             keyGateway.addFor(
-                fidOwner, signer.keyType, signer.key, signer.metadataType, signer.metadata, signer.deadline, signer.sig
+                registerParams.to,
+                signer.keyType,
+                signer.key,
+                signer.metadataType,
+                signer.metadata,
+                signer.deadline,
+                signer.sig
             );
 
             // Safety: i can be incremented unchecked since it is bound by signerParams.length.
@@ -99,6 +93,8 @@ contract Bundler is IBundler {
                 ++i;
             }
         }
+        if (overpayment > 0) msg.sender.sendNative(overpayment);
+        return fid;
     }
 
     receive() external payable {

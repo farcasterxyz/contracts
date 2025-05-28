@@ -8,7 +8,7 @@ import {IdRegistry} from "../src/IdRegistry.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
-import {Bundler} from "../src/Bundler.sol";
+import {BundlerV1} from "../src/BundlerV1.sol";
 import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
 import {IERC1271} from "openzeppelin/contracts/interfaces/IERC1271.sol";
 import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";

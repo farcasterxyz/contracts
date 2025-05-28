@@ -7,7 +7,7 @@ import {IdGateway} from "../src/IdGateway.sol";
 import {KeyRegistry} from "../src/KeyRegistry.sol";
 import {KeyGateway} from "../src/KeyGateway.sol";
 import {SignedKeyRequestValidator} from "../src/validators/SignedKeyRequestValidator.sol";
-import {Bundler, IBundler} from "../src/Bundler.sol";
+import {BundlerV1, IBundlerV1} from "../src/BundlerV1.sol";
 import {RecoveryProxy} from "../src/RecoveryProxy.sol";
 import {IMetadataValidator} from "../src/interfaces/IMetadataValidator.sol";
 import {console, ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";
@@ -67,7 +67,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
         KeyRegistry keyRegistry;
         KeyGateway keyGateway;
         SignedKeyRequestValidator signedKeyRequestValidator;
-        Bundler bundler;
+        BundlerV1 bundler;
         RecoveryProxy recoveryProxy;
     }
 
@@ -130,7 +130,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             abi.encode(addrs.idRegistry, params.initialValidatorOwner)
         );
         addrs.bundler = register(
-            "Bundler", params.salts.bundler, type(Bundler).creationCode, abi.encode(addrs.idGateway, addrs.keyGateway)
+            "Bundler", params.salts.bundler, type(BundlerV1).creationCode, abi.encode(addrs.idGateway, addrs.keyGateway)
         );
         addrs.recoveryProxy = register(
             "RecoveryProxy",
@@ -148,7 +148,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             keyRegistry: KeyRegistry(addrs.keyRegistry),
             keyGateway: KeyGateway(payable(addrs.keyGateway)),
             signedKeyRequestValidator: SignedKeyRequestValidator(addrs.signedKeyRequestValidator),
-            bundler: Bundler(payable(addrs.bundler)),
+            bundler: BundlerV1(payable(addrs.bundler)),
             recoveryProxy: RecoveryProxy(addrs.recoveryProxy)
         });
     }

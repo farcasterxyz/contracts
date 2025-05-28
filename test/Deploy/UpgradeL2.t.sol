@@ -13,9 +13,9 @@ import {
     IKeyRegistry,
     KeyGateway,
     SignedKeyRequestValidator,
-    Bundler,
+    BundlerV1,
     RecoveryProxy,
-    IBundler,
+    IBundlerV1,
     IMetadataValidator
 } from "../../script/UpgradeL2.s.sol";
 import {
@@ -37,7 +37,7 @@ contract UpgradeL2Test is UpgradeL2 {
     KeyRegistry internal keyRegistry;
     KeyGateway internal keyGateway;
     SignedKeyRequestValidator internal validator;
-    Bundler internal bundler;
+    BundlerV1 internal bundler;
     RecoveryProxy internal recoveryProxy;
 
     address internal alice;
