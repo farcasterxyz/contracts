@@ -10,20 +10,10 @@ import {SignatureChecker} from "openzeppelin/contracts/utils/cryptography/Signat
 
 contract TierRegistryHarness is TierRegistry {
     constructor(
-        address _token,
-        address _vault,
-        address _roleAdmin,
-        address _owner,
-        address _operator,
-        uint256 _minDays,
-        uint256 _maxDays
-    ) TierRegistry(_token, _vault, _roleAdmin, _owner, _operator, _minDays, _maxDays) {}
+        address _owner
+    ) TierRegistry(_owner) {}
 
     function ownerRoleId() external pure returns (bytes32) {
         return OWNER_ROLE;
-    }
-
-    function operatorRoleId() external pure returns (bytes32) {
-        return OPERATOR_ROLE;
     }
 }

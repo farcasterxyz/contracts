@@ -23,9 +23,9 @@ interface ITierRegistry {
 
     function purchaseTier(uint256 fid, uint256 tier, uint256 forDays, address payer) external;
 
-    function batchPurchaseTiers(
+    function batchPurchaseTier(
+        uint256 tier,
         uint256[] calldata fids,
-        uint256[] calldata tiers,
         uint256[] calldata forDays,
         address payer
     ) external;
@@ -34,25 +34,14 @@ interface ITierRegistry {
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function creditTier(uint256 fid, uint256 tier, uint256 forDays) external;
-
-    function batchCreditTiers(uint256[] calldata fids, uint256[] calldata tiers, uint256[] calldata forDays) external;
-
-    /**
-     * @notice Change the vault address that can receive funds from this contract.
-     *         Only callable by owner.
-     *
-     * @param vaultAddr The new vault address.
-     */
-    function setVault(
-        address vaultAddr
+    function setTier(
+        uint256 tier,
+        address paymentToken,
+        uint256 minDays,
+        uint256 maxDays,
+        uint256 tokenPricePerDay,
+        address vault
     ) external;
-
-    function setToken(
-        address tokenAddr
-    ) external;
-
-    function setTier(uint256 tier, uint256 price) external;
 
     function removeTier(
         uint256 tier

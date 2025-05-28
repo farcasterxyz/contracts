@@ -2,21 +2,19 @@
 pragma solidity 0.8.21;
 
 import "forge-std/Test.sol";
-import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
-import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
-
 import {TierRegistry} from "../../src/TierRegistry.sol";
 import {TransferHelper} from "../../src/libraries/TransferHelper.sol";
 import {TierRegistryTestSuite, TierRegistryHarness} from "./TierRegistryTestSuite.sol";
-import {MockChainlinkFeed} from "../Utils.sol";
+import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract TierRegistryTest is TierRegistryTestSuite {
-    using FixedPointMathLib for uint256;
+    using SafeERC20 for IERC20;
 
-    event PurchasedTier(uint256 indexed fid, uint256 tier, uint256 forDays);
-    event SetVault(address oldVault, address newVault);
-    event SetToken(address oldToken, address newToken);
-    event SetTierPrice(uint256 tier, address token, uint256 oldPrice, uint256 newPrice);
+    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays);
+    event RemoveTier(uint256 tier);
+    event SetTier(
+        uint256 tier, uint256 minDays, uint256 maxDays, address vault, address paymentToken, uint256 tokenPricePerDay
+    );
 
     function testVersion() public {
         assertEq(tierRegistry.VERSION(), "2025.05.21");
@@ -24,62 +22,16 @@ contract TierRegistryTest is TierRegistryTestSuite {
 
     function testRoles() public {
         assertEq(tierRegistry.ownerRoleId(), keccak256("OWNER_ROLE"));
-        assertEq(tierRegistry.operatorRoleId(), keccak256("OPERATOR_ROLE"));
-    }
-
-    function testDefaultAdmin() public {
-        assertTrue(tierRegistry.hasRole(tierRegistry.DEFAULT_ADMIN_ROLE(), roleAdmin));
     }
 
     function testFuzzPurchaseTier(uint256 fid, uint256 tier, uint256 price, uint256 forDays, address payer) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        vm.assume(forDays >= tierRegistry.minDays());
-        vm.assume(forDays <= tierRegistry.maxDays());
         vm.assume(price < 1 << 20);
-        _setPriceForTier(tier, price);
+        vm.assume(forDays >= DEFAULT_MIN_DAYS);
+        vm.assume(forDays <= DEFAULT_MAX_DAYS);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
         _purchaseTier(fid, tier, forDays, payer);
-    }
-
-    function testFuzzSetVault(
-        address newVault
-    ) public {
-        vm.assume(newVault != address(0));
-        vm.expectEmit(false, false, false, true);
-        emit SetVault(vault, newVault);
-
-        vm.prank(owner);
-        tierRegistry.setVault(newVault);
-
-        assertEq(tierRegistry.vault(), newVault);
-    }
-
-    function testFuzzOnlyOwnerCanSetVault(address caller, address vault) public {
-        vm.assume(caller != owner);
-
-        vm.prank(caller);
-        vm.expectRevert(TierRegistry.NotOwner.selector);
-        tierRegistry.setVault(vault);
-    }
-
-    function testSetVaultCannotBeZeroAddress() public {
-        vm.prank(owner);
-        vm.expectRevert(TierRegistry.InvalidAddress.selector);
-        tierRegistry.setVault(address(0));
-    }
-
-    function testPauseUnpause() public {
-        assertEq(tierRegistry.paused(), false);
-
-        vm.prank(owner);
-        tierRegistry.pause();
-
-        assertEq(tierRegistry.paused(), true);
-
-        vm.prank(owner);
-        tierRegistry.unpause();
-
-        assertEq(tierRegistry.paused(), false);
     }
 
     function testFuzzOnlyOwnerCanPause(
@@ -102,18 +54,38 @@ contract TierRegistryTest is TierRegistryTestSuite {
         tierRegistry.unpause();
     }
 
-    function _setPriceForTier(uint256 tier, uint256 price) public {
+    function _setTier(
+        uint256 tier,
+        address paymentToken,
+        uint256 price,
+        uint256 minDays,
+        uint256 maxDays,
+        address vault
+    ) public {
         vm.deal(owner, 100_000);
         vm.expectEmit();
-        uint256 oldPrice = tierRegistry.tokenPricePerDay(tier);
-        emit SetTierPrice(tier, address(token), oldPrice, price);
+        emit SetTier(tier, minDays, maxDays, vault, paymentToken, price);
         vm.prank(owner);
-        tierRegistry.setTier(tier, price);
-        assertEq(tierRegistry.tokenPricePerDay(tier), price);
+        tierRegistry.setTier(tier, paymentToken, minDays, maxDays, price, vault);
+        (
+            uint256 newMinDays,
+            uint256 newMaxDays,
+            address newVault,
+            IERC20 newPaymentToken,
+            uint256 newPrice,
+            bool newIsActive
+        ) = tierRegistry.tierInfoByTier(tier);
+        assertEq(paymentToken, address(newPaymentToken));
+        assertEq(price, newPrice);
+        assertEq(minDays, newMinDays);
+        assertEq(maxDays, newMaxDays);
+        assertEq(vault, newVault);
+        assert(newIsActive);
     }
 
     function _purchaseTier(uint256 fid, uint256 tier, uint256 forDays, address payer) public {
-        uint256 amount = tierRegistry.tokenPricePerDay(tier) * forDays;
+        (,,,, uint256 pricePerDay,) = tierRegistry.tierInfoByTier(tier);
+        uint256 amount = pricePerDay * forDays;
         vm.assume(amount <= token.totalSupply());
         token.transfer(payer, amount);
 

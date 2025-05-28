@@ -15,15 +15,15 @@ contract TestToken is ERC20 {
 abstract contract TierRegistryTestSuite is TestSuiteSetup {
     TierRegistryHarness tierRegistry;
     RevertOnReceive internal revertOnReceive;
-    TestToken internal token;
+    TestToken public token;
 
     address internal deployer = address(this);
     address internal mallory = makeAddr("mallory");
-    address internal vault = makeAddr("vault");
-    address internal roleAdmin = makeAddr("roleAdmin");
-    address internal operator = makeAddr("operator");
 
     uint256 internal immutable DEPLOYED_AT = block.timestamp + 3600;
+    uint256 public immutable DEFAULT_MIN_DAYS = 30;
+    uint256 public immutable DEFAULT_MAX_DAYS = 100_000;
+    address public immutable DEFAULT_VAULT = makeAddr("vault");
 
     function setUp() public virtual override {
         super.setUp();
@@ -33,7 +33,7 @@ abstract contract TierRegistryTestSuite is TestSuiteSetup {
 
         vm.warp(DEPLOYED_AT);
 
-        tierRegistry = new TierRegistryHarness(address(token), vault, roleAdmin, owner, operator, 30, 100_000);
+        tierRegistry = new TierRegistryHarness(owner);
 
         addKnownContract(address(revertOnReceive));
         addKnownContract(address(tierRegistry));
