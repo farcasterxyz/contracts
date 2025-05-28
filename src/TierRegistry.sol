@@ -302,6 +302,7 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
         uint256 numDays
     ) external onlyOwner {
         if (numDays == 0) revert InvalidAmount();
+        SetMinDays(minDays, numDays);
         minDays = numDays;
     }
 
@@ -309,6 +310,7 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
         uint256 numDays
     ) external onlyOwner {
         if (numDays == 0) revert InvalidAmount();
+        emit SetMaxDays(maxDays, numDays);
         maxDays = numDays;
     }
 
