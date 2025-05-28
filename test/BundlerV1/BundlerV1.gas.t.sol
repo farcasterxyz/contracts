@@ -3,12 +3,12 @@ pragma solidity 0.8.21;
 
 import "forge-std/Test.sol";
 
-import {Bundler, IBundler} from "../../src/Bundler.sol";
-import {BundlerTestSuite} from "./BundlerTestSuite.sol";
+import {BundlerV1, IBundlerV1} from "../../src/BundlerV1.sol";
+import {BundlerV1TestSuite} from "./BundlerV1TestSuite.sol";
 
 /* solhint-disable state-visibility */
 
-contract BundleRegistryGasUsageTest is BundlerTestSuite {
+contract BundleRegistryGasUsageTest is BundlerV1TestSuite {
     function setUp() public override {
         super.setUp();
         _registerValidator(1, 1);
@@ -20,12 +20,12 @@ contract BundleRegistryGasUsageTest is BundlerTestSuite {
             bytes memory sig = _signRegister(i, account, address(0), type(uint40).max);
             uint256 price = bundler.price(1);
 
-            IBundler.SignerParams[] memory signers = new IBundler.SignerParams[](0);
+            IBundlerV1.SignerParams[] memory signers = new IBundlerV1.SignerParams[](0);
 
             vm.deal(account, 10_000 ether);
             vm.prank(account);
             bundler.register{value: price}(
-                IBundler.RegistrationParams({to: account, recovery: address(0), deadline: type(uint40).max, sig: sig}),
+                IBundlerV1.RegistrationParams({to: account, recovery: address(0), deadline: type(uint40).max, sig: sig}),
                 signers,
                 1
             );

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {IBundler} from "./interfaces/IBundler.sol";
+import {IBundlerV1} from "./interfaces/IBundlerV1.sol";
 import {IIdGateway} from "./interfaces/IIdGateway.sol";
 import {IKeyGateway} from "./interfaces/IKeyGateway.sol";
 import {TransferHelper} from "./libraries/TransferHelper.sol";
@@ -13,7 +13,7 @@ import {TransferHelper} from "./libraries/TransferHelper.sol";
  *
  * @custom:security-contact security@merklemanufactory.com
  */
-contract Bundler is IBundler {
+contract BundlerV1 is IBundlerV1 {
     using TransferHelper for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -21,7 +21,7 @@ contract Bundler is IBundler {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     string public constant VERSION = "2023.11.15";
 
@@ -30,12 +30,12 @@ contract Bundler is IBundler {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     IIdGateway public immutable idGateway;
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     IKeyGateway public immutable keyGateway;
 
@@ -55,7 +55,7 @@ contract Bundler is IBundler {
     }
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     function price(
         uint256 extraStorage
@@ -64,7 +64,7 @@ contract Bundler is IBundler {
     }
 
     /**
-     * @inheritdoc IBundler
+     * @inheritdoc IBundlerV1
      */
     function register(
         RegistrationParams calldata registerParams,
