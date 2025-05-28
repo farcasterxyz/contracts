@@ -65,6 +65,8 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
 
     event SetTierPrice(uint256 tier, address token, uint256 oldPrice, uint256 newPrice);
 
+    event RemoveTier(uint256 tier);
+
     event SetMinDays(uint256 oldMinDays, uint256 newMinDays);
 
     event SetMaxDays(uint256 oldMaxDays, uint256 newMaxDays);
@@ -288,6 +290,8 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
     function removeTier(
         uint256 tier
     ) external onlyOwner {
+        if (tokenPricePerDay[tier] == 0) revert InvalidTier();
+        emit RemoveTier(tier);
         delete tokenPricePerDay[tier];
         for (uint256 i; i < validTiers.length; ++i) {
             if (validTiers[i] == tier) {
@@ -302,7 +306,7 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
         uint256 numDays
     ) external onlyOwner {
         if (numDays == 0) revert InvalidAmount();
-        SetMinDays(minDays, numDays);
+        emit SetMinDays(minDays, numDays);
         minDays = numDays;
     }
 
