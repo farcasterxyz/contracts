@@ -10,8 +10,6 @@ import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ITierRegistry} from "./interfaces/ITierRegistry.sol";
 import {TransferHelper} from "./libraries/TransferHelper.sol";
 
-// TODO(aditi): Add docs
-
 /**
  * @title Farcaster StorageRegistry
  *
@@ -67,6 +65,10 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
 
     event SetTierPrice(uint256 tier, address token, uint256 oldPrice, uint256 newPrice);
 
+    event SetMinDays(uint256 oldMinDays, uint256 newMinDays);
+
+    event SetMaxDays(uint256 oldMaxDays, uint256 newMaxDays);
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -110,13 +112,21 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
         address _initialVault,
         address _initialRoleAdmin,
         address _initialOwner,
-        address _initialOperator
+        address _initialOperator,
+        uint256 _initialMinDays,
+        uint256 _initialMaxDays
     ) {
         vault = _initialVault;
         emit SetVault(address(0), _initialVault);
 
         paymentToken = _initialToken;
         emit SetToken(address(0), _initialToken);
+
+        minDays = _initialMinDays;
+        emit SetMinDays(0, minDays);
+
+        maxDays = _initialMaxDays;
+        emit SetMaxDays(0, maxDays);
 
         _grantRole(DEFAULT_ADMIN_ROLE, _initialRoleAdmin);
         _grantRole(OWNER_ROLE, _initialOwner);
@@ -148,6 +158,8 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
         uint256 pricePerDay = tokenPricePerDay[tier];
         if (forDays == 0) revert InvalidAmount();
         if (pricePerDay == 0) revert InvalidTier();
+        if (forDays < minDays) revert InvalidAmount();
+        if (forDays > maxDays) revert InvalidAmount();
 
         uint256 cost = pricePerDay * forDays;
 
@@ -177,6 +189,8 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
             uint256 numDays = forDays[i];
             if (numDays == 0) revert InvalidAmount();
             if (pricePerDay == 0) revert InvalidTier();
+            if (numDays < minDays) revert InvalidAmount();
+            if (numDays > maxDays) revert InvalidAmount();
             totalCost += pricePerDay * numDays;
         }
 
@@ -198,6 +212,8 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
     function creditTier(uint256 fid, uint256 tier, uint256 forDays) external onlyOperator whenNotPaused {
         if (forDays == 0) revert InvalidAmount();
         if (tokenPricePerDay[tier] == 0) revert InvalidTier();
+        if (forDays < minDays) revert InvalidAmount();
+        if (forDays > maxDays) revert InvalidAmount();
 
         emit PurchasedTier(fid, tier, forDays);
     }
@@ -218,6 +234,8 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
         for (uint256 i; i < fids.length; ++i) {
             if (forDays[i] == 0) revert InvalidAmount();
             if (tokenPricePerDay[tiers[i]] == 0) revert InvalidTier();
+            if (forDays[i] < minDays) revert InvalidAmount();
+            if (forDays[i] > maxDays) revert InvalidAmount();
         }
 
         for (uint256 i; i < fids.length; ++i) {
