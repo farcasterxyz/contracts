@@ -105,7 +105,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         address payer
     ) public {
         vm.assume(payer != address(0));
-        vm.assume(payer != owner);
+        vm.assume(payer != tokenSource);
         vm.assume(price != 0);
         vm.assume(price < 1 << 20);
         vm.assume(forDays >= DEFAULT_MIN_DAYS);
@@ -114,8 +114,8 @@ contract TierRegistryTest is TierRegistryTestSuite {
 
         uint256 amount = tierRegistry.price(tier, forDays);
         vm.assume(amount < token.totalSupply());
+        vm.prank(tokenSource);
         token.transfer(payer, amount - 1);
-        vm.deal(payer, 100_000); // gas
         vm.prank(payer);
         token.approve(address(tierRegistry), amount);
 
@@ -135,7 +135,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         address payer
     ) public {
         vm.assume(payer != address(0));
-        vm.assume(payer != owner);
+        vm.assume(payer != tokenSource);
         vm.assume(price != 0);
         vm.assume(price < 1 << 20);
         vm.assume(forDays >= DEFAULT_MIN_DAYS);
@@ -144,6 +144,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
 
         uint256 amount = tierRegistry.price(tier, forDays);
         vm.assume(amount < token.totalSupply());
+        vm.prank(tokenSource);
         token.transfer(payer, amount);
         vm.deal(payer, 100_000); // gas
         vm.prank(payer);
@@ -350,6 +351,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
     function _purchaseTier(uint256 fid, uint256 tier, uint256 forDays, address payer) public {
         uint256 amount = tierRegistry.price(tier, forDays);
         vm.assume(amount <= token.totalSupply());
+        vm.prank(tokenSource);
         token.transfer(payer, amount);
 
         vm.deal(payer, 100_000);
