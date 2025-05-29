@@ -39,7 +39,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     // TODO(aditi): Maybe rename without Purchase in name
     event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays);
 
-    event RemoveTier(uint256 tier);
+    event DeactivateTier(uint256 tier);
 
     event SetTier(
         uint256 tier, uint256 minDays, uint256 maxDays, address vault, address paymentToken, uint256 tokenPricePerDay
@@ -64,7 +64,6 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         uint256 maxDays;
         address vault;
         IERC20 paymentToken;
-        // Keep tier a number not enum so we don't need to ugrade contract to add a new one.
         uint256 tokenPricePerDay;
         bool isActive;
     }
@@ -180,12 +179,12 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     /**
      * @inheritdoc ITierRegistry
      */
-    function removeTier(
+    function deactivateTier(
         uint256 tier
     ) external onlyOwner {
         if (!tierInfoByTier[tier].isActive) revert InvalidTier();
 
-        emit RemoveTier(tier);
+        emit DeactivateTier(tier);
 
         tierInfoByTier[tier].isActive = false;
     }

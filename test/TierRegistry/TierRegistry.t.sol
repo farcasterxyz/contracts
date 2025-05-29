@@ -11,7 +11,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
     using SafeERC20 for IERC20;
 
     event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays);
-    event RemoveTier(uint256 tier);
+    event DeactivateTier(uint256 tier);
     event SetTier(
         uint256 tier, uint256 minDays, uint256 maxDays, address vault, address paymentToken, uint256 tokenPricePerDay
     );
@@ -69,7 +69,11 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(forDays <= DEFAULT_MAX_DAYS);
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
         vm.prank(owner);
-        tierRegistry.removeTier(tier);
+
+        vm.expectEmit();
+        emit DeactivateTier(tier);
+        tierRegistry.deactivateTier(tier);
+
         vm.prank(payer);
         vm.expectRevert(TierRegistry.InvalidTier.selector);
         tierRegistry.purchaseTier(fid, tier, forDays);
@@ -160,6 +164,10 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 price,
         address vault
     ) public {
+        vm.assume(minDays != 0);
+        vm.assume(maxDays != 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
         vm.expectRevert(TierRegistry.InvalidAddress.selector);
         vm.prank(owner);
         tierRegistry.setTier(tier, address(0), price, minDays, maxDays, vault);
@@ -173,6 +181,9 @@ contract TierRegistryTest is TierRegistryTestSuite {
         address vault
     ) public {
         vm.assume(token != address(0));
+        vm.assume(maxDays != 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
         vm.expectRevert(TierRegistry.InvalidAmount.selector);
         vm.prank(owner);
         tierRegistry.setTier(tier, token, price, 0, maxDays, vault);
@@ -186,6 +197,9 @@ contract TierRegistryTest is TierRegistryTestSuite {
         address vault
     ) public {
         vm.assume(token != address(0));
+        vm.assume(minDays != 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
         vm.expectRevert(TierRegistry.InvalidAmount.selector);
         vm.prank(owner);
         tierRegistry.setTier(tier, token, price, minDays, 0, vault);
@@ -199,9 +213,90 @@ contract TierRegistryTest is TierRegistryTestSuite {
         address vault
     ) public {
         vm.assume(token != address(0));
+        vm.assume(minDays != 0);
+        vm.assume(maxDays != 0);
+        vm.assume(vault != address(0));
         vm.expectRevert(TierRegistry.InvalidAmount.selector);
         vm.prank(owner);
         tierRegistry.setTier(tier, token, minDays, maxDays, 0, vault);
+    }
+
+    function testFuzzSetTierInvalidVault(
+        address token,
+        uint256 tier,
+        uint256 minDays,
+        uint256 maxDays,
+        uint256 price
+    ) public {
+        vm.assume(token != address(0));
+        vm.assume(minDays != 0);
+        vm.assume(maxDays != 0);
+        vm.assume(price != 0);
+        vm.expectRevert(TierRegistry.InvalidAddress.selector);
+        vm.prank(owner);
+        tierRegistry.setTier(tier, token, minDays, maxDays, price, address(0));
+    }
+
+    function testFuzzDeactivateInactiveTier(
+        uint256 tier
+    ) public {
+        vm.expectRevert(TierRegistry.InvalidTier.selector);
+        vm.prank(owner);
+        tierRegistry.deactivateTier(tier);
+    }
+
+    function testFuzzViewStateForInactiveTier(
+        uint256 tier,
+        uint256 minDays,
+        uint256 maxDays,
+        uint256 price,
+        address vault
+    ) public {
+        vm.assume(price != 0);
+        vm.assume(minDays != 0);
+        vm.assume(maxDays != 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, minDays, maxDays, vault);
+
+        vm.expectEmit();
+        emit DeactivateTier(tier);
+        vm.prank(owner);
+        tierRegistry.deactivateTier(tier);
+
+        (
+            uint256 tierMinDays,
+            uint256 tierMaxDays,
+            address tierVault,
+            IERC20 paymentToken,
+            uint256 tierPrice,
+            bool isActive
+        ) = tierRegistry.tierInfoByTier(tier);
+        assertEq(tierMinDays, minDays);
+        assertEq(tierMaxDays, maxDays);
+        assertEq(tierVault, vault);
+        assertEq(tierPrice, price);
+        assertEq(address(paymentToken), address(token));
+        assert(!isActive);
+    }
+
+    function testFuzzOnlyOwnerCanAdjustTiers(
+        uint256 tier,
+        uint256 minDays,
+        uint256 maxDays,
+        uint256 price,
+        address vault,
+        address caller
+    ) public {
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        tierRegistry.setTier(tier, address(token), minDays, maxDays, price, vault);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        tierRegistry.deactivateTier(tier);
     }
 
     function testFuzzOnlyOwnerCanPause(

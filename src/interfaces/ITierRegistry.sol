@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
-
 interface ITierRegistry {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -20,6 +18,7 @@ interface ITierRegistry {
     /*//////////////////////////////////////////////////////////////
                         STORAGE RENTAL LOGIC
     //////////////////////////////////////////////////////////////*/
+    function price(uint256 tier, uint256 forDays) external view returns (uint256 value);
 
     function purchaseTier(uint256 fid, uint256 tier, uint256 forDays) external;
 
@@ -38,7 +37,7 @@ interface ITierRegistry {
         address vault
     ) external;
 
-    function removeTier(
+    function deactivateTier(
         uint256 tier
     ) external;
 
