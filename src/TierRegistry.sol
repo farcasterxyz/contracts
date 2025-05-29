@@ -6,7 +6,6 @@ import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {ITierRegistry} from "./interfaces/ITierRegistry.sol";
-import {TransferHelper} from "./libraries/TransferHelper.sol";
 
 /**
  * @title Farcaster StorageRegistry
@@ -32,9 +31,6 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     error InvalidBatchInput();
 
     error InvalidAddress();
-
-    /// @dev Revert if the caller is not an owner.
-    error NotOwner();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
