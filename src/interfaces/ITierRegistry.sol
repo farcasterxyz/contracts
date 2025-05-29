@@ -21,14 +21,9 @@ interface ITierRegistry {
                         STORAGE RENTAL LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function purchaseTier(uint256 fid, uint256 tier, uint256 forDays, address payer) external;
+    function purchaseTier(uint256 fid, uint256 tier, uint256 forDays) external;
 
-    function batchPurchaseTier(
-        uint256 tier,
-        uint256[] calldata fids,
-        uint256[] calldata forDays,
-        address payer
-    ) external;
+    function batchPurchaseTier(uint256 tier, uint256[] calldata fids, uint256[] calldata forDays) external;
 
     /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS

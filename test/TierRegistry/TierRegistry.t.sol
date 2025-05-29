@@ -20,10 +20,6 @@ contract TierRegistryTest is TierRegistryTestSuite {
         assertEq(tierRegistry.VERSION(), "2025.05.21");
     }
 
-    function testRoles() public {
-        assertEq(tierRegistry.ownerRoleId(), keccak256("OWNER_ROLE"));
-    }
-
     function testFuzzPurchaseTier(uint256 fid, uint256 tier, uint256 price, uint256 forDays, address payer) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
@@ -34,13 +30,187 @@ contract TierRegistryTest is TierRegistryTestSuite {
         _purchaseTier(fid, tier, forDays, payer);
     }
 
+    function testFuzzPurchaseTierWithNoTime(uint256 fid, uint256 tier, uint256 price, address payer) public {
+        vm.assume(payer != address(0));
+        vm.assume(price != 0 && price < 1 << 20);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.prank(payer);
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        tierRegistry.purchaseTier(fid, tier, 0);
+    }
+
+    function testFuzzPurchaseUnregisteredTier(
+        uint256 fid,
+        uint256 tier,
+        uint256 price,
+        uint256 forDays,
+        address payer
+    ) public {
+        vm.assume(payer != address(0));
+        vm.assume(price < 1 << 20);
+        vm.assume(forDays >= DEFAULT_MIN_DAYS);
+        vm.assume(forDays <= DEFAULT_MAX_DAYS);
+        vm.prank(payer);
+        vm.expectRevert(TierRegistry.InvalidTier.selector);
+        tierRegistry.purchaseTier(fid, tier, forDays);
+    }
+
+    function testFuzzPurchaseRemovedTier(
+        uint256 fid,
+        uint256 tier,
+        uint256 price,
+        uint256 forDays,
+        address payer
+    ) public {
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(price < 1 << 20);
+        vm.assume(forDays >= DEFAULT_MIN_DAYS);
+        vm.assume(forDays <= DEFAULT_MAX_DAYS);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.prank(owner);
+        tierRegistry.removeTier(tier);
+        vm.prank(payer);
+        vm.expectRevert(TierRegistry.InvalidTier.selector);
+        tierRegistry.purchaseTier(fid, tier, forDays);
+    }
+
+    function testFuzzPurchaseTierForTooMuchTime(uint256 fid, uint256 tier, uint256 price, address payer) public {
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.prank(payer);
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        tierRegistry.purchaseTier(fid, tier, DEFAULT_MAX_DAYS + 1);
+    }
+
+    function testFuzzPurchaseTierForTooLittleTime(uint256 fid, uint256 tier, uint256 price, address payer) public {
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.prank(payer);
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        tierRegistry.purchaseTier(fid, tier, DEFAULT_MIN_DAYS - 1);
+    }
+
+    function testFuzzPurchaseTierWithInsufficientFunds(
+        uint256 fid,
+        uint256 tier,
+        uint256 price,
+        uint256 forDays,
+        address payer
+    ) public {
+        vm.assume(payer != address(0));
+        vm.assume(payer != owner);
+        vm.assume(price != 0);
+        vm.assume(price < 1 << 20);
+        vm.assume(forDays >= DEFAULT_MIN_DAYS);
+        vm.assume(forDays <= DEFAULT_MAX_DAYS);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+
+        uint256 amount = tierRegistry.price(tier, forDays);
+        vm.assume(amount < token.totalSupply());
+        token.transfer(payer, amount - 1);
+        vm.deal(payer, 100_000); // gas
+        vm.prank(payer);
+        token.approve(address(tierRegistry), amount);
+
+        vm.prank(payer);
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        tierRegistry.purchaseTier(fid, tier, forDays);
+        // We shouldn't consume any of the payer's balance
+        uint256 payerBalance = token.balanceOf(payer);
+        assertEq(payerBalance, amount - 1);
+    }
+
+    function testFuzzPurchaseTierWithInsufficientApprovedFunds(
+        uint256 fid,
+        uint256 tier,
+        uint256 price,
+        uint256 forDays,
+        address payer
+    ) public {
+        vm.assume(payer != address(0));
+        vm.assume(payer != owner);
+        vm.assume(price != 0);
+        vm.assume(price < 1 << 20);
+        vm.assume(forDays >= DEFAULT_MIN_DAYS);
+        vm.assume(forDays <= DEFAULT_MAX_DAYS);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+
+        uint256 amount = tierRegistry.price(tier, forDays);
+        vm.assume(amount < token.totalSupply());
+        token.transfer(payer, amount);
+        vm.deal(payer, 100_000); // gas
+        vm.prank(payer);
+        token.approve(address(tierRegistry), amount - 1);
+
+        vm.prank(payer);
+        vm.expectRevert("ERC20: insufficient allowance");
+        tierRegistry.purchaseTier(fid, tier, forDays);
+        // We shouldn't consume any of the payer's balance
+        uint256 payerBalance = token.balanceOf(payer);
+        assertEq(payerBalance, amount);
+    }
+
+    function testFuzzSetTierInvalidToken(
+        uint256 tier,
+        uint256 minDays,
+        uint256 maxDays,
+        uint256 price,
+        address vault
+    ) public {
+        vm.expectRevert(TierRegistry.InvalidAddress.selector);
+        vm.prank(owner);
+        tierRegistry.setTier(tier, address(0), price, minDays, maxDays, vault);
+    }
+
+    function testFuzzSetTierInvalidMinDays(
+        address token,
+        uint256 tier,
+        uint256 maxDays,
+        uint256 price,
+        address vault
+    ) public {
+        vm.assume(token != address(0));
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.prank(owner);
+        tierRegistry.setTier(tier, token, price, 0, maxDays, vault);
+    }
+
+    function testFuzzSetTierInvalidMaxDays(
+        address token,
+        uint256 tier,
+        uint256 minDays,
+        uint256 price,
+        address vault
+    ) public {
+        vm.assume(token != address(0));
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.prank(owner);
+        tierRegistry.setTier(tier, token, price, minDays, 0, vault);
+    }
+
+    function testFuzzSetTierInvalidPrice(
+        address token,
+        uint256 tier,
+        uint256 minDays,
+        uint256 maxDays,
+        address vault
+    ) public {
+        vm.assume(token != address(0));
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.prank(owner);
+        tierRegistry.setTier(tier, token, minDays, maxDays, 0, vault);
+    }
+
     function testFuzzOnlyOwnerCanPause(
         address caller
     ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(TierRegistry.NotOwner.selector);
+        vm.expectRevert("Ownable: caller is not the owner");
         tierRegistry.pause();
     }
 
@@ -50,7 +220,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert(TierRegistry.NotOwner.selector);
+        vm.expectRevert("Ownable: caller is not the owner");
         tierRegistry.unpause();
     }
 
@@ -62,7 +232,6 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 maxDays,
         address vault
     ) public {
-        vm.deal(owner, 100_000);
         vm.expectEmit();
         emit SetTier(tier, minDays, maxDays, vault, paymentToken, price);
         vm.prank(owner);
@@ -84,8 +253,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
     }
 
     function _purchaseTier(uint256 fid, uint256 tier, uint256 forDays, address payer) public {
-        (,,,, uint256 pricePerDay,) = tierRegistry.tierInfoByTier(tier);
-        uint256 amount = pricePerDay * forDays;
+        uint256 amount = tierRegistry.price(tier, forDays);
         vm.assume(amount <= token.totalSupply());
         token.transfer(payer, amount);
 
@@ -95,6 +263,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
 
         vm.expectEmit();
         emit PurchasedTier(fid, tier, forDays);
-        tierRegistry.purchaseTier(fid, tier, forDays, payer);
+        vm.prank(payer);
+        tierRegistry.purchaseTier(fid, tier, forDays);
     }
 }

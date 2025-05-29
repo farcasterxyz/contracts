@@ -7,8 +7,4 @@ contract TierRegistryHarness is TierRegistry {
     constructor(
         address _owner
     ) TierRegistry(_owner) {}
-
-    function ownerRoleId() external pure returns (bytes32) {
-        return OWNER_ROLE;
-    }
 }

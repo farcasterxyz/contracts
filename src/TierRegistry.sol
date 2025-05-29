@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {AccessControlEnumerable} from "openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
 import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
 import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -15,7 +15,7 @@ import {TransferHelper} from "./libraries/TransferHelper.sol";
  *
  * @custom:security-contact security@merklemanufactory.com
  */
-contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
+contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -59,8 +59,6 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
     string public constant VERSION = "2025.05.21";
     // TODO(aditi): Update the date
 
-    bytes32 internal constant OWNER_ROLE = keccak256("OWNER_ROLE");
-
     /*//////////////////////////////////////////////////////////////
                               PARAMETERS
     //////////////////////////////////////////////////////////////*/
@@ -89,16 +87,17 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
     constructor(
         address _initialOwner
     ) {
-        _grantRole(OWNER_ROLE, _initialOwner);
+        _transferOwnership(_initialOwner);
     }
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    modifier onlyOwner() {
-        if (!hasRole(OWNER_ROLE, msg.sender)) revert NotOwner();
-        _;
+    function price(uint256 tier, uint256 forDays) external view returns (uint256 value) {
+        TierInfo storage tierInfo = tierInfoByTier[tier];
+        if (!tierInfo.isActive) revert InvalidTier();
+        return tierInfo.tokenPricePerDay * forDays;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -108,7 +107,7 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
     /**
      * @inheritdoc ITierRegistry
      */
-    function purchaseTier(uint256 fid, uint256 tier, uint256 forDays, address payer) external whenNotPaused {
+    function purchaseTier(uint256 fid, uint256 tier, uint256 forDays) external whenNotPaused {
         TierInfo storage tierInfo = tierInfoByTier[tier];
         if (forDays == 0) revert InvalidAmount();
         if (!tierInfo.isActive) revert InvalidTier();
@@ -119,7 +118,7 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
 
         emit PurchasedTier(fid, tier, forDays);
 
-        tierInfo.paymentToken.safeTransferFrom(payer, tierInfo.vault, cost);
+        tierInfo.paymentToken.safeTransferFrom(msg.sender, tierInfo.vault, cost);
     }
 
     /**
@@ -128,8 +127,7 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
     function batchPurchaseTier(
         uint256 tier,
         uint256[] calldata fids,
-        uint256[] calldata forDays,
-        address payer
+        uint256[] calldata forDays
     ) external whenNotPaused {
         if (fids.length == 0) revert InvalidBatchInput();
         if (fids.length != forDays.length) revert InvalidBatchInput();
@@ -150,7 +148,7 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
             emit PurchasedTier(fids[i], tier, forDays[i]);
         }
 
-        tierInfo.paymentToken.safeTransferFrom(payer, tierInfo.vault, totalCost);
+        tierInfo.paymentToken.safeTransferFrom(msg.sender, tierInfo.vault, totalCost);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -166,8 +164,8 @@ contract TierRegistry is ITierRegistry, AccessControlEnumerable, Pausable {
         address vault
     ) external onlyOwner {
         if (paymentToken == address(0)) revert InvalidAddress();
-        if (minDays == 0) revert InvalidAddress();
-        if (maxDays == 0) revert InvalidAddress();
+        if (minDays == 0) revert InvalidAmount();
+        if (maxDays == 0) revert InvalidAmount();
         if (tokenPricePerDay == 0) revert InvalidAmount();
         if (vault == address(0)) revert InvalidAddress();
 
