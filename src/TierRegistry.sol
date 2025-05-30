@@ -103,7 +103,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        STORAGE RENTAL LOGIC
+                        TIER PURCHASING LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /**

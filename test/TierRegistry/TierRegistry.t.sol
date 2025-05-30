@@ -629,6 +629,54 @@ contract TierRegistryTest is TierRegistryTestSuite {
         tierRegistry.unpause();
     }
 
+    function testFuzzGetPrice(uint256 tier, uint64 price, address vault, uint64 forDays, address caller) public {
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+        vm.prank(caller);
+        uint256 totalPrice = tierRegistry.price(tier, forDays);
+        assertEq(totalPrice, uint256(forDays) * uint256(price));
+    }
+
+    function testFuzzGetPriceForInvalidTier(
+        uint256 tier,
+        uint64 price,
+        address vault,
+        uint64 forDays,
+        address caller
+    ) public {
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        vm.expectRevert(TierRegistry.InvalidTier.selector);
+        vm.prank(caller);
+        tierRegistry.price(tier, forDays);
+    }
+
+    function testFuzzGetTierInfo(uint256 tier, uint64 price, address vault, uint64 forDays, address caller) public {
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+        vm.prank(caller);
+        TierRegistry.TierInfo memory tierInfo = tierRegistry.tierInfo(tier);
+        assertEq(tierInfo.minDays, DEFAULT_MIN_DAYS);
+        assertEq(tierInfo.maxDays, DEFAULT_MAX_DAYS);
+        assertEq(tierInfo.vault, vault);
+        assertEq(address(tierInfo.paymentToken), address(token));
+        assertEq(tierInfo.tokenPricePerDay, price);
+        assertEq(tierInfo.isActive, true);
+    }
+
+    function testFuzzGetTierInfoForInvalidTier(uint256 tier, uint64 forDays, address caller) public {
+        vm.prank(caller);
+        TierRegistry.TierInfo memory tierInfo = tierRegistry.tierInfo(tier);
+        assertEq(tierInfo.minDays, 0);
+        assertEq(tierInfo.maxDays, 0);
+        assertEq(tierInfo.vault, address(0));
+        assertEq(address(tierInfo.paymentToken), address(0));
+        assertEq(tierInfo.tokenPricePerDay, 0);
+        assertEq(tierInfo.isActive, false);
+    }
+
     function _normalizeBatchInputs(
         uint256[] calldata _fids,
         uint16[] calldata _forDays
