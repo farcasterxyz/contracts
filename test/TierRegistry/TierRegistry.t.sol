@@ -36,6 +36,35 @@ contract TierRegistryTest is TierRegistryTestSuite {
         _purchaseTier(fid, tier, forDays, payer);
     }
 
+    function testFuzzBatchPurchaseTier(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length > 0);
+        vm.assume(_forDays.length > 0);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
+        // Truncate the longer one so their lengths match.
+        uint256 length = _fids.length <= _forDays.length ? _fids.length : _forDays.length;
+        uint256[] memory fids = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            fids[i] = _fids[i];
+        }
+        uint256[] memory forDays = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            // prevent the 0 case
+            forDays[i] = uint256(_forDays[i]) + 1;
+        }
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+        _batchPurchaseTier(tier, fids, forDays, payer);
+    }
+
     function testFuzzPurchaseTierWithNoTime(
         uint256 fid,
         uint256 tier,
@@ -378,13 +407,36 @@ contract TierRegistryTest is TierRegistryTestSuite {
         assert(newIsActive);
     }
 
+    function _batchPurchaseTier(uint256 tier, uint256[] memory fids, uint256[] memory forDays, address payer) public {
+        uint256 totalTime;
+        for (uint256 i; i < fids.length; ++i) {
+            totalTime += forDays[i];
+        }
+        uint256 totalCost = tierRegistry.price(tier, totalTime);
+        vm.assume(totalCost <= token.totalSupply());
+
+        vm.prank(tokenSource);
+        token.transfer(payer, totalCost);
+
+        vm.prank(payer);
+        token.approve(address(tierRegistry), totalCost);
+
+        // Expect emitted events
+        for (uint256 i; i < fids.length; ++i) {
+            vm.expectEmit();
+            emit PurchasedTier(fids[i], tier, forDays[i]);
+        }
+
+        vm.prank(payer);
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+    }
+
     function _purchaseTier(uint256 fid, uint256 tier, uint256 forDays, address payer) public {
         uint256 amount = tierRegistry.price(tier, forDays);
         vm.assume(amount <= token.totalSupply());
         vm.prank(tokenSource);
         token.transfer(payer, amount);
 
-        vm.deal(payer, 100_000);
         vm.prank(payer);
         token.approve(address(tierRegistry), amount);
 
