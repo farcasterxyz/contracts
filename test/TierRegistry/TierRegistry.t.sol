@@ -10,7 +10,7 @@ import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 contract TierRegistryTest is TierRegistryTestSuite {
     using SafeERC20 for IERC20;
 
-    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays);
+    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays, address payer);
     event DeactivateTier(uint256 tier);
     event SetTier(
         uint256 tier, uint256 minDays, uint256 maxDays, address vault, address paymentToken, uint256 tokenPricePerDay
@@ -652,7 +652,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         tierRegistry.price(tier, forDays);
     }
 
-    function testFuzzGetTierInfo(uint256 tier, uint64 price, address vault, uint64 forDays, address caller) public {
+    function testFuzzGetTierInfo(uint256 tier, uint64 price, address vault, address caller) public {
         vm.assume(price != 0);
         vm.assume(vault != address(0));
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
@@ -666,7 +666,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         assertEq(tierInfo.isActive, true);
     }
 
-    function testFuzzGetTierInfoForInvalidTier(uint256 tier, uint64 forDays, address caller) public {
+    function testFuzzGetTierInfoForInvalidTier(uint256 tier, address caller) public {
         vm.prank(caller);
         TierRegistry.TierInfo memory tierInfo = tierRegistry.tierInfo(tier);
         assertEq(tierInfo.minDays, 0);
@@ -740,7 +740,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         // Expect emitted events
         for (uint256 i; i < fids.length; ++i) {
             vm.expectEmit();
-            emit PurchasedTier(fids[i], tier, forDays[i]);
+            emit PurchasedTier(fids[i], tier, forDays[i], payer);
         }
 
         vm.prank(payer);
@@ -757,7 +757,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         token.approve(address(tierRegistry), amount);
 
         vm.expectEmit();
-        emit PurchasedTier(fid, tier, forDays);
+        emit PurchasedTier(fid, tier, forDays, payer);
         vm.prank(payer);
         tierRegistry.purchaseTier(fid, tier, forDays);
     }

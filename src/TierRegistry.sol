@@ -36,8 +36,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    // TODO(aditi): Maybe rename without Purchase in name
-    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays);
+    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays, address payer);
 
     event DeactivateTier(uint256 tier);
 
@@ -118,7 +117,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
 
         uint256 cost = info.tokenPricePerDay * forDays;
 
-        emit PurchasedTier(fid, tier, forDays);
+        emit PurchasedTier(fid, tier, forDays, msg.sender);
 
         info.paymentToken.safeTransferFrom(msg.sender, info.vault, cost);
     }
@@ -147,7 +146,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         }
 
         for (uint256 i; i < fids.length; ++i) {
-            emit PurchasedTier(fids[i], tier, forDays[i]);
+            emit PurchasedTier(fids[i], tier, forDays[i], msg.sender);
         }
 
         info.paymentToken.safeTransferFrom(msg.sender, info.vault, totalCost);
