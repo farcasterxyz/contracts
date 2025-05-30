@@ -161,6 +161,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         if (paymentToken == address(0)) revert InvalidAddress();
         if (minDays == 0) revert InvalidAmount();
         if (maxDays == 0) revert InvalidAmount();
+        if (minDays > maxDays) revert InvalidAmount();
         if (tokenPricePerDay == 0) revert InvalidAmount();
         if (vault == address(0)) revert InvalidAddress();
 

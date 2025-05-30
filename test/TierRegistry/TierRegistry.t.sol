@@ -20,19 +20,33 @@ contract TierRegistryTest is TierRegistryTestSuite {
         assertEq(tierRegistry.VERSION(), "2025.05.21");
     }
 
-    function testFuzzPurchaseTier(uint256 fid, uint256 tier, uint64 price, uint256 forDays, address payer) public {
+    function testFuzzPurchaseTier(
+        uint256 fid,
+        uint256 tier,
+        uint64 price,
+        uint64 forDays,
+        address payer,
+        address vault
+    ) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        vm.assume(forDays >= DEFAULT_MIN_DAYS);
-        vm.assume(forDays <= DEFAULT_MAX_DAYS);
-        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.assume(vault != address(0));
+        vm.assume(forDays != 0);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
         _purchaseTier(fid, tier, forDays, payer);
     }
 
-    function testFuzzPurchaseTierWithNoTime(uint256 fid, uint256 tier, uint64 price, address payer) public {
+    function testFuzzPurchaseTierWithNoTime(
+        uint256 fid,
+        uint256 tier,
+        uint64 price,
+        address payer,
+        address vault
+    ) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
         vm.prank(payer);
         vm.expectRevert(TierRegistry.InvalidAmount.selector);
         tierRegistry.purchaseTier(fid, tier, 0);
@@ -42,13 +56,12 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 fid,
         uint256 tier,
         uint64 price,
-        uint256 forDays,
+        uint64 forDays,
         address payer
     ) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        vm.assume(forDays >= DEFAULT_MIN_DAYS);
-        vm.assume(forDays <= DEFAULT_MAX_DAYS);
+        vm.assume(forDays != 0);
         vm.prank(payer);
         vm.expectRevert(TierRegistry.InvalidTier.selector);
         tierRegistry.purchaseTier(fid, tier, forDays);
@@ -58,14 +71,15 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 fid,
         uint256 tier,
         uint64 price,
-        uint256 forDays,
-        address payer
+        uint64 forDays,
+        address payer,
+        address vault
     ) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        vm.assume(forDays >= DEFAULT_MIN_DAYS);
-        vm.assume(forDays <= DEFAULT_MAX_DAYS);
-        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.assume(vault != address(0));
+        vm.assume(forDays != 0);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
         vm.prank(owner);
 
         vm.expectEmit();
@@ -77,37 +91,52 @@ contract TierRegistryTest is TierRegistryTestSuite {
         tierRegistry.purchaseTier(fid, tier, forDays);
     }
 
-    function testFuzzPurchaseTierForTooMuchTime(uint256 fid, uint256 tier, uint64 price, address payer) public {
+    function testFuzzPurchaseTierForTooMuchTime(
+        uint256 fid,
+        uint256 tier,
+        uint64 price,
+        address payer,
+        address vault
+    ) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, 300, vault);
         vm.prank(payer);
         vm.expectRevert(TierRegistry.InvalidAmount.selector);
-        tierRegistry.purchaseTier(fid, tier, DEFAULT_MAX_DAYS + 1);
+        tierRegistry.purchaseTier(fid, tier, 301);
     }
 
-    function testFuzzPurchaseTierForTooLittleTime(uint256 fid, uint256 tier, uint64 price, address payer) public {
+    function testFuzzPurchaseTierForTooLittleTime(
+        uint256 fid,
+        uint256 tier,
+        uint64 price,
+        address payer,
+        address vault
+    ) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, 30, DEFAULT_MAX_DAYS, vault);
         vm.prank(payer);
         vm.expectRevert(TierRegistry.InvalidAmount.selector);
-        tierRegistry.purchaseTier(fid, tier, DEFAULT_MIN_DAYS - 1);
+        tierRegistry.purchaseTier(fid, tier, 29);
     }
 
     function testFuzzPurchaseTierWithInsufficientFunds(
         uint256 fid,
         uint256 tier,
         uint64 price,
-        uint256 forDays,
-        address payer
+        uint64 forDays,
+        address payer,
+        address vault
     ) public {
         vm.assume(payer != address(0));
         vm.assume(payer != tokenSource);
         vm.assume(price != 0);
-        vm.assume(forDays >= DEFAULT_MIN_DAYS);
-        vm.assume(forDays <= DEFAULT_MAX_DAYS);
-        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.assume(forDays != 0);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
 
         uint256 amount = tierRegistry.price(tier, forDays);
         vm.assume(amount < token.totalSupply());
@@ -128,15 +157,16 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 fid,
         uint256 tier,
         uint64 price,
-        uint256 forDays,
-        address payer
+        uint64 forDays,
+        address payer,
+        address vault
     ) public {
         vm.assume(payer != address(0));
         vm.assume(payer != tokenSource);
         vm.assume(price != 0);
-        vm.assume(forDays >= DEFAULT_MIN_DAYS);
-        vm.assume(forDays <= DEFAULT_MAX_DAYS);
-        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
+        vm.assume(forDays != 0);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
 
         uint256 amount = tierRegistry.price(tier, forDays);
         vm.assume(amount < token.totalSupply());
@@ -221,16 +251,18 @@ contract TierRegistryTest is TierRegistryTestSuite {
     function testFuzzSetTierInvalidVault(
         address token,
         uint256 tier,
-        uint256 minDays,
-        uint256 maxDays,
+        uint256 daysBound1,
+        uint256 daysBound2,
         uint64 price
     ) public {
         vm.assume(token != address(0));
-        vm.assume(minDays != 0);
-        vm.assume(maxDays != 0);
+        vm.assume(daysBound1 != 0);
+        vm.assume(daysBound2 != 0);
         vm.assume(price != 0);
         vm.expectRevert(TierRegistry.InvalidAddress.selector);
         vm.prank(owner);
+        (uint256 minDays, uint256 maxDays) =
+            daysBound1 < daysBound2 ? (daysBound1, daysBound2) : (daysBound2, daysBound1);
         tierRegistry.setTier(tier, token, minDays, maxDays, price, address(0));
     }
 
@@ -244,16 +276,18 @@ contract TierRegistryTest is TierRegistryTestSuite {
 
     function testFuzzViewStateForInactiveTier(
         uint256 tier,
-        uint256 minDays,
-        uint256 maxDays,
+        uint256 daysBound1,
+        uint256 daysBound2,
         uint64 price,
         address vault
     ) public {
         vm.assume(price != 0);
-        vm.assume(minDays != 0);
-        vm.assume(maxDays != 0);
+        vm.assume(daysBound1 != 0);
+        vm.assume(daysBound2 != 0);
         vm.assume(price != 0);
         vm.assume(vault != address(0));
+        (uint256 minDays, uint256 maxDays) =
+            daysBound1 < daysBound2 ? (daysBound1, daysBound2) : (daysBound2, daysBound1);
         _setTier(tier, address(token), price, minDays, maxDays, vault);
 
         vm.expectEmit();

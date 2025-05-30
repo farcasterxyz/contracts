@@ -21,9 +21,8 @@ abstract contract TierRegistryTestSuite is TestSuiteSetup {
     address internal tokenSource = makeAddr("tokenSource");
 
     uint256 internal immutable DEPLOYED_AT = block.timestamp + 3600;
-    uint256 public immutable DEFAULT_MIN_DAYS = 30;
-    uint256 public immutable DEFAULT_MAX_DAYS = 100_000;
-    address public immutable DEFAULT_VAULT = makeAddr("vault");
+    uint256 public immutable DEFAULT_MIN_DAYS = 1;
+    uint256 public immutable DEFAULT_MAX_DAYS = type(uint64).max;
 
     function setUp() public virtual override {
         super.setUp();
