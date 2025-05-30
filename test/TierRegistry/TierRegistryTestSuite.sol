@@ -33,6 +33,9 @@ abstract contract TierRegistryTestSuite is TestSuiteSetup {
 
         tierRegistry = new TierRegistryHarness(owner);
 
+        vm.prank(owner);
+        tierRegistry.unpause();
+
         addKnownContract(address(tierRegistry));
         addKnownContract(address(token));
     }

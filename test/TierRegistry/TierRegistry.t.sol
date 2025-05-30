@@ -36,35 +36,6 @@ contract TierRegistryTest is TierRegistryTestSuite {
         _purchaseTier(fid, tier, forDays, payer);
     }
 
-    function testFuzzBatchPurchaseTier(
-        uint256 tier,
-        address payer,
-        uint64 price,
-        address vault,
-        uint256[] calldata _fids,
-        uint16[] calldata _forDays
-    ) public {
-        vm.assume(_fids.length > 0);
-        vm.assume(_forDays.length > 0);
-        vm.assume(payer != address(0));
-        vm.assume(price != 0);
-        vm.assume(vault != address(0));
-        // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
-        // Truncate the longer one so their lengths match.
-        uint256 length = _fids.length <= _forDays.length ? _fids.length : _forDays.length;
-        uint256[] memory fids = new uint256[](length);
-        for (uint256 i; i < length; ++i) {
-            fids[i] = _fids[i];
-        }
-        uint256[] memory forDays = new uint256[](length);
-        for (uint256 i; i < length; ++i) {
-            // prevent the 0 case
-            forDays[i] = uint256(_forDays[i]) + 1;
-        }
-        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
-        _batchPurchaseTier(tier, fids, forDays, payer);
-    }
-
     function testFuzzPurchaseTierWithNoTime(
         uint256 fid,
         uint256 tier,
@@ -76,9 +47,28 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(price != 0);
         vm.assume(vault != address(0));
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
-        vm.prank(payer);
         vm.expectRevert(TierRegistry.InvalidAmount.selector);
         tierRegistry.purchaseTier(fid, tier, 0);
+    }
+
+    function testFuzzPurchaseTierWhenPaused(
+        uint256 fid,
+        uint256 tier,
+        uint64 price,
+        uint64 forDays,
+        address payer,
+        address vault
+    ) public {
+        vm.assume(payer != address(0));
+        vm.assume(vault != address(0));
+        vm.assume(price != 0);
+        vm.assume(forDays != 0);
+        vm.prank(owner);
+        tierRegistry.pause();
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+        vm.prank(payer);
+        vm.expectRevert("Pausable: paused");
+        tierRegistry.purchaseTier(fid, tier, forDays);
     }
 
     function testFuzzPurchaseUnregisteredTier(
@@ -211,6 +201,266 @@ contract TierRegistryTest is TierRegistryTestSuite {
         // We shouldn't consume any of the payer's balance
         uint256 payerBalance = token.balanceOf(payer);
         assertEq(payerBalance, amount);
+    }
+
+    function testFuzzBatchPurchaseTier(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length > 0);
+        vm.assume(_forDays.length > 0);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        (uint256[] memory fids, uint256[] memory forDays) = _normalizeBatchInputs(_fids, _forDays);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+        _batchPurchaseTier(tier, fids, forDays, payer);
+    }
+
+    function testFuzzBatchPurchaseTierWhilePaused(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length > 3);
+        vm.assume(_forDays.length > 3);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        (uint256[] memory fids, uint256[] memory forDays) = _normalizeBatchInputs(_fids, _forDays);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        vm.expectRevert("Pausable: paused");
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchPurchaseTierZeroTimeCancelsBatch(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length > 3);
+        vm.assume(_forDays.length > 3);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        (uint256[] memory fids, uint256[] memory forDays) = _normalizeBatchInputs(_fids, _forDays);
+        // Create a 0 case
+        forDays[0] = 0;
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchPurchaseTierTooLittleTimeCancelsBatch(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        uint64 minDays,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length > 3);
+        vm.assume(_forDays.length > 3);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        vm.assume(minDays > 1);
+        (uint256[] memory fids, uint256[] memory forDays) = _normalizeBatchInputs(_fids, _forDays);
+        // Create a 0 case
+        forDays[0] = minDays - 1;
+        _setTier(tier, address(token), price, minDays, DEFAULT_MAX_DAYS, vault);
+
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchPurchaseTierTooMuchTimeTimeCancelsBatch(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        uint8 maxDays,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length > 3);
+        vm.assume(_forDays.length > 3);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        vm.assume(maxDays > 1);
+        (uint256[] memory fids, uint256[] memory forDays) = _normalizeBatchInputs(_fids, _forDays);
+        // Create a 0 case
+        forDays[0] = uint16(maxDays) + 1;
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, maxDays, vault);
+
+        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchPurchaseTierZeroFids(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_forDays.length > 0);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        uint256[] memory fids = new uint256[](0);
+        uint256[] memory forDays = new uint256[](_forDays.length);
+        for (uint256 i; i < _forDays.length; ++i) {
+            forDays[i] = _forDays[i];
+        }
+
+        vm.expectRevert(TierRegistry.InvalidBatchInput.selector);
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchPurchaseTierMismatchedInputs(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length != _forDays.length);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        uint256[] memory forDays = new uint256[](_forDays.length);
+        for (uint256 i; i < _forDays.length; ++i) {
+            forDays[i] = _forDays[i];
+        }
+        vm.expectRevert(TierRegistry.InvalidBatchInput.selector);
+        tierRegistry.batchPurchaseTier(tier, _fids, forDays);
+    }
+
+    function testFuzzBatchPurchaseTierInvalidTier(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length != 0);
+        vm.assume(_forDays.length != 0);
+        vm.assume(payer != address(0));
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        (uint256[] memory fids, uint256[] memory forDays) = _normalizeBatchInputs(_fids, _forDays);
+        vm.expectRevert(TierRegistry.InvalidTier.selector);
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchPurchaseTierRevertsWithInsufficientFunds(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length != 0);
+        vm.assume(_forDays.length != 0);
+        vm.assume(payer != address(0) && payer != tokenSource);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        (uint256[] memory fids, uint256[] memory forDays) = _normalizeBatchInputs(_fids, _forDays);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        uint256 totalTime;
+        for (uint256 i; i < fids.length; ++i) {
+            totalTime += forDays[i];
+        }
+
+        uint256 totalCost = tierRegistry.price(tier, totalTime);
+
+        vm.assume(totalCost != 0);
+        vm.assume(totalCost <= token.totalSupply());
+
+        vm.prank(tokenSource);
+        token.transfer(payer, totalCost - 1);
+
+        vm.prank(payer);
+        token.approve(address(tierRegistry), totalCost);
+
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        vm.prank(payer);
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+
+        // We shouldn't consume any of the payer's balance
+        uint256 payerBalance = token.balanceOf(payer);
+        assertEq(payerBalance, totalCost - 1);
+    }
+
+    function testFuzzBatchPurchaseTierRevertsWithInsufficientApprovedFunds(
+        uint256 tier,
+        address payer,
+        uint64 price,
+        address vault,
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public {
+        vm.assume(_fids.length != 0);
+        vm.assume(_forDays.length != 0);
+        vm.assume(payer != address(0) && payer != tokenSource);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        (uint256[] memory fids, uint256[] memory forDays) = _normalizeBatchInputs(_fids, _forDays);
+        _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        uint256 totalTime;
+        for (uint256 i; i < fids.length; ++i) {
+            totalTime += forDays[i];
+        }
+
+        uint256 totalCost = tierRegistry.price(tier, totalTime);
+
+        vm.assume(totalCost != 0);
+        vm.assume(totalCost <= token.totalSupply());
+
+        vm.prank(tokenSource);
+        token.transfer(payer, totalCost);
+
+        vm.prank(payer);
+        token.approve(address(tierRegistry), totalCost - 1);
+
+        vm.expectRevert("ERC20: insufficient allowance");
+        vm.prank(payer);
+        tierRegistry.batchPurchaseTier(tier, fids, forDays);
+
+        // We shouldn't consume any of the payer's balance
+        uint256 payerBalance = token.balanceOf(payer);
+        assertEq(payerBalance, totalCost);
     }
 
     function testFuzzSetTierInvalidToken(
@@ -377,6 +627,24 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.prank(caller);
         vm.expectRevert("Ownable: caller is not the owner");
         tierRegistry.unpause();
+    }
+
+    function _normalizeBatchInputs(
+        uint256[] calldata _fids,
+        uint16[] calldata _forDays
+    ) public pure returns (uint256[] memory, uint256[] memory) {
+        // Fuzzed dynamic arrays have a fuzzed length up to 256 elements.
+        // Truncate the longer one so their lengths match.
+        uint256 length = _fids.length <= _forDays.length ? _fids.length : _forDays.length;
+        uint256[] memory fids = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            fids[i] = _fids[i];
+        }
+        uint256[] memory forDays = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            forDays[i] = uint256(_forDays[i]) + 1;
+        }
+        return (fids, forDays);
     }
 
     function _setTier(

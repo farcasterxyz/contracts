@@ -83,6 +83,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         address _initialOwner
     ) {
         _transferOwnership(_initialOwner);
+        _pause();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -109,7 +110,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
      * @inheritdoc ITierRegistry
      */
     function purchaseTier(uint256 fid, uint256 tier, uint256 forDays) external whenNotPaused {
-        TierInfo storage info = tierInfoByTier[tier];
+        TierInfo memory info = tierInfoByTier[tier];
         if (forDays == 0) revert InvalidAmount();
         if (!info.isActive) revert InvalidTier();
         if (forDays < info.minDays) revert InvalidAmount();
@@ -133,7 +134,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         if (fids.length == 0) revert InvalidBatchInput();
         if (fids.length != forDays.length) revert InvalidBatchInput();
 
-        TierInfo storage info = tierInfoByTier[tier];
+        TierInfo memory info = tierInfoByTier[tier];
         if (!info.isActive) revert InvalidTier();
 
         uint256 totalCost;
