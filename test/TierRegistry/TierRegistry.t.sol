@@ -20,19 +20,18 @@ contract TierRegistryTest is TierRegistryTestSuite {
         assertEq(tierRegistry.VERSION(), "2025.05.21");
     }
 
-    function testFuzzPurchaseTier(uint256 fid, uint256 tier, uint256 price, uint256 forDays, address payer) public {
+    function testFuzzPurchaseTier(uint256 fid, uint256 tier, uint64 price, uint256 forDays, address payer) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        vm.assume(price < 1 << 20);
         vm.assume(forDays >= DEFAULT_MIN_DAYS);
         vm.assume(forDays <= DEFAULT_MAX_DAYS);
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
         _purchaseTier(fid, tier, forDays, payer);
     }
 
-    function testFuzzPurchaseTierWithNoTime(uint256 fid, uint256 tier, uint256 price, address payer) public {
+    function testFuzzPurchaseTierWithNoTime(uint256 fid, uint256 tier, uint64 price, address payer) public {
         vm.assume(payer != address(0));
-        vm.assume(price != 0 && price < 1 << 20);
+        vm.assume(price != 0);
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
         vm.prank(payer);
         vm.expectRevert(TierRegistry.InvalidAmount.selector);
@@ -42,12 +41,12 @@ contract TierRegistryTest is TierRegistryTestSuite {
     function testFuzzPurchaseUnregisteredTier(
         uint256 fid,
         uint256 tier,
-        uint256 price,
+        uint64 price,
         uint256 forDays,
         address payer
     ) public {
         vm.assume(payer != address(0));
-        vm.assume(price < 1 << 20);
+        vm.assume(price != 0);
         vm.assume(forDays >= DEFAULT_MIN_DAYS);
         vm.assume(forDays <= DEFAULT_MAX_DAYS);
         vm.prank(payer);
@@ -58,13 +57,12 @@ contract TierRegistryTest is TierRegistryTestSuite {
     function testFuzzPurchaseRemovedTier(
         uint256 fid,
         uint256 tier,
-        uint256 price,
+        uint64 price,
         uint256 forDays,
         address payer
     ) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
-        vm.assume(price < 1 << 20);
         vm.assume(forDays >= DEFAULT_MIN_DAYS);
         vm.assume(forDays <= DEFAULT_MAX_DAYS);
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
@@ -79,7 +77,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         tierRegistry.purchaseTier(fid, tier, forDays);
     }
 
-    function testFuzzPurchaseTierForTooMuchTime(uint256 fid, uint256 tier, uint256 price, address payer) public {
+    function testFuzzPurchaseTierForTooMuchTime(uint256 fid, uint256 tier, uint64 price, address payer) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
@@ -88,7 +86,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         tierRegistry.purchaseTier(fid, tier, DEFAULT_MAX_DAYS + 1);
     }
 
-    function testFuzzPurchaseTierForTooLittleTime(uint256 fid, uint256 tier, uint256 price, address payer) public {
+    function testFuzzPurchaseTierForTooLittleTime(uint256 fid, uint256 tier, uint64 price, address payer) public {
         vm.assume(payer != address(0));
         vm.assume(price != 0);
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
@@ -100,14 +98,13 @@ contract TierRegistryTest is TierRegistryTestSuite {
     function testFuzzPurchaseTierWithInsufficientFunds(
         uint256 fid,
         uint256 tier,
-        uint256 price,
+        uint64 price,
         uint256 forDays,
         address payer
     ) public {
         vm.assume(payer != address(0));
         vm.assume(payer != tokenSource);
         vm.assume(price != 0);
-        vm.assume(price < 1 << 20);
         vm.assume(forDays >= DEFAULT_MIN_DAYS);
         vm.assume(forDays <= DEFAULT_MAX_DAYS);
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
@@ -130,14 +127,13 @@ contract TierRegistryTest is TierRegistryTestSuite {
     function testFuzzPurchaseTierWithInsufficientApprovedFunds(
         uint256 fid,
         uint256 tier,
-        uint256 price,
+        uint64 price,
         uint256 forDays,
         address payer
     ) public {
         vm.assume(payer != address(0));
         vm.assume(payer != tokenSource);
         vm.assume(price != 0);
-        vm.assume(price < 1 << 20);
         vm.assume(forDays >= DEFAULT_MIN_DAYS);
         vm.assume(forDays <= DEFAULT_MAX_DAYS);
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, DEFAULT_VAULT);
@@ -162,7 +158,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 tier,
         uint256 minDays,
         uint256 maxDays,
-        uint256 price,
+        uint64 price,
         address vault
     ) public {
         vm.assume(minDays != 0);
@@ -178,7 +174,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         address token,
         uint256 tier,
         uint256 maxDays,
-        uint256 price,
+        uint64 price,
         address vault
     ) public {
         vm.assume(token != address(0));
@@ -194,7 +190,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         address token,
         uint256 tier,
         uint256 minDays,
-        uint256 price,
+        uint64 price,
         address vault
     ) public {
         vm.assume(token != address(0));
@@ -227,7 +223,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 tier,
         uint256 minDays,
         uint256 maxDays,
-        uint256 price
+        uint64 price
     ) public {
         vm.assume(token != address(0));
         vm.assume(minDays != 0);
@@ -250,7 +246,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 tier,
         uint256 minDays,
         uint256 maxDays,
-        uint256 price,
+        uint64 price,
         address vault
     ) public {
         vm.assume(price != 0);
@@ -285,7 +281,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         uint256 tier,
         uint256 minDays,
         uint256 maxDays,
-        uint256 price,
+        uint64 price,
         address vault,
         address caller
     ) public {
@@ -323,7 +319,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
     function _setTier(
         uint256 tier,
         address paymentToken,
-        uint256 price,
+        uint64 price,
         uint256 minDays,
         uint256 maxDays,
         address vault
