@@ -90,7 +90,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     //////////////////////////////////////////////////////////////*/
 
     function price(uint256 tier, uint256 forDays) external view returns (uint256) {
-        TierInfo storage info = tierInfoByTier[tier];
+        TierInfo memory info = tierInfoByTier[tier];
         if (!info.isActive) revert InvalidTier();
         return info.tokenPricePerDay * forDays;
     }
