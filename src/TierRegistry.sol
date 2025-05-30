@@ -89,10 +89,16 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    function price(uint256 tier, uint256 forDays) external view returns (uint256 value) {
-        TierInfo storage tierInfo = tierInfoByTier[tier];
-        if (!tierInfo.isActive) revert InvalidTier();
-        return tierInfo.tokenPricePerDay * forDays;
+    function price(uint256 tier, uint256 forDays) external view returns (uint256) {
+        TierInfo storage info = tierInfoByTier[tier];
+        if (!info.isActive) revert InvalidTier();
+        return info.tokenPricePerDay * forDays;
+    }
+
+    function tierInfo(
+        uint256 tier
+    ) external view returns (TierInfo memory) {
+        return tierInfoByTier[tier];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -103,17 +109,17 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
      * @inheritdoc ITierRegistry
      */
     function purchaseTier(uint256 fid, uint256 tier, uint256 forDays) external whenNotPaused {
-        TierInfo storage tierInfo = tierInfoByTier[tier];
+        TierInfo storage info = tierInfoByTier[tier];
         if (forDays == 0) revert InvalidAmount();
-        if (!tierInfo.isActive) revert InvalidTier();
-        if (forDays < tierInfo.minDays) revert InvalidAmount();
-        if (forDays > tierInfo.maxDays) revert InvalidAmount();
+        if (!info.isActive) revert InvalidTier();
+        if (forDays < info.minDays) revert InvalidAmount();
+        if (forDays > info.maxDays) revert InvalidAmount();
 
-        uint256 cost = tierInfo.tokenPricePerDay * forDays;
+        uint256 cost = info.tokenPricePerDay * forDays;
 
         emit PurchasedTier(fid, tier, forDays);
 
-        tierInfo.paymentToken.safeTransferFrom(msg.sender, tierInfo.vault, cost);
+        info.paymentToken.safeTransferFrom(msg.sender, info.vault, cost);
     }
 
     /**
@@ -127,23 +133,23 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         if (fids.length == 0) revert InvalidBatchInput();
         if (fids.length != forDays.length) revert InvalidBatchInput();
 
-        TierInfo storage tierInfo = tierInfoByTier[tier];
-        if (!tierInfo.isActive) revert InvalidTier();
+        TierInfo storage info = tierInfoByTier[tier];
+        if (!info.isActive) revert InvalidTier();
 
         uint256 totalCost;
         for (uint256 i; i < fids.length; ++i) {
             uint256 numDays = forDays[i];
             if (numDays == 0) revert InvalidAmount();
-            if (numDays < tierInfo.minDays) revert InvalidAmount();
-            if (numDays > tierInfo.maxDays) revert InvalidAmount();
-            totalCost += tierInfo.tokenPricePerDay * numDays;
+            if (numDays < info.minDays) revert InvalidAmount();
+            if (numDays > info.maxDays) revert InvalidAmount();
+            totalCost += info.tokenPricePerDay * numDays;
         }
 
         for (uint256 i; i < fids.length; ++i) {
             emit PurchasedTier(fids[i], tier, forDays[i]);
         }
 
-        tierInfo.paymentToken.safeTransferFrom(msg.sender, tierInfo.vault, totalCost);
+        info.paymentToken.safeTransferFrom(msg.sender, info.vault, totalCost);
     }
 
     /*//////////////////////////////////////////////////////////////
