@@ -47,7 +47,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(price != 0);
         vm.assume(vault != address(0));
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidDuration.selector);
         tierRegistry.purchaseTier(fid, tier, 0);
     }
 
@@ -122,7 +122,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(vault != address(0));
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, 300, vault);
         vm.prank(payer);
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidDuration.selector);
         tierRegistry.purchaseTier(fid, tier, 301);
     }
 
@@ -138,7 +138,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(vault != address(0));
         _setTier(tier, address(token), price, 30, DEFAULT_MAX_DAYS, vault);
         vm.prank(payer);
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidDuration.selector);
         tierRegistry.purchaseTier(fid, tier, 29);
     }
 
@@ -263,7 +263,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         forDays[0] = 0;
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
 
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidDuration.selector);
         tierRegistry.batchPurchaseTier(tier, fids, forDays);
     }
 
@@ -287,7 +287,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         forDays[0] = minDays - 1;
         _setTier(tier, address(token), price, minDays, DEFAULT_MAX_DAYS, vault);
 
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidDuration.selector);
         tierRegistry.batchPurchaseTier(tier, fids, forDays);
     }
 
@@ -311,7 +311,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         forDays[0] = uint16(maxDays) + 1;
         _setTier(tier, address(token), price, DEFAULT_MIN_DAYS, maxDays, vault);
 
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidDuration.selector);
         tierRegistry.batchPurchaseTier(tier, fids, forDays);
     }
 
@@ -476,7 +476,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(vault != address(0));
         vm.expectRevert(TierRegistry.InvalidAddress.selector);
         vm.prank(owner);
-        tierRegistry.setTier(tier, address(0), price, minDays, maxDays, vault);
+        tierRegistry.setTier(tier, address(0), minDays, maxDays, price, vault);
     }
 
     function testFuzzSetTierInvalidMinDays(
@@ -490,9 +490,9 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(maxDays != 0);
         vm.assume(price != 0);
         vm.assume(vault != address(0));
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidDuration.selector);
         vm.prank(owner);
-        tierRegistry.setTier(tier, token, price, 0, maxDays, vault);
+        tierRegistry.setTier(tier, token, 0, maxDays, price, vault);
     }
 
     function testFuzzSetTierInvalidMaxDays(
@@ -506,24 +506,26 @@ contract TierRegistryTest is TierRegistryTestSuite {
         vm.assume(minDays != 0);
         vm.assume(price != 0);
         vm.assume(vault != address(0));
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidDuration.selector);
         vm.prank(owner);
-        tierRegistry.setTier(tier, token, price, minDays, 0, vault);
+        tierRegistry.setTier(tier, token, minDays, 0, price, vault);
     }
 
     function testFuzzSetTierInvalidPrice(
         address token,
         uint256 tier,
-        uint256 minDays,
-        uint256 maxDays,
+        uint256 daysBound1,
+        uint256 daysBound2,
         address vault
     ) public {
         vm.assume(token != address(0));
-        vm.assume(minDays != 0);
-        vm.assume(maxDays != 0);
+        vm.assume(daysBound1 != 0);
+        vm.assume(daysBound2 != 0);
         vm.assume(vault != address(0));
-        vm.expectRevert(TierRegistry.InvalidAmount.selector);
+        vm.expectRevert(TierRegistry.InvalidPrice.selector);
         vm.prank(owner);
+        (uint256 minDays, uint256 maxDays) =
+            daysBound1 < daysBound2 ? (daysBound1, daysBound2) : (daysBound2, daysBound1);
         tierRegistry.setTier(tier, token, minDays, maxDays, 0, vault);
     }
 

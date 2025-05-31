@@ -22,11 +22,11 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Revert if the caller attempts to rent zero units.
-    error InvalidAmount();
+    error InvalidPrice();
+
+    error InvalidDuration();
 
     error InvalidTier();
-
-    error InvalidPrice();
 
     error InvalidBatchInput();
 
@@ -58,15 +58,6 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
                               PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
-    struct TierInfo {
-        uint256 minDays;
-        uint256 maxDays;
-        address vault;
-        IERC20 paymentToken;
-        uint256 tokenPricePerDay;
-        bool isActive;
-    }
-
     mapping(uint256 => TierInfo) public tierInfoByTier;
 
     /*//////////////////////////////////////////////////////////////
@@ -86,15 +77,21 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
+                              VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc ITierRegistry
+     */
     function price(uint256 tier, uint256 forDays) external view returns (uint256) {
         TierInfo memory info = tierInfoByTier[tier];
         if (!info.isActive) revert InvalidTier();
         return info.tokenPricePerDay * forDays;
     }
 
+    /**
+     * @inheritdoc ITierRegistry
+     */
     function tierInfo(
         uint256 tier
     ) external view returns (TierInfo memory) {
@@ -110,10 +107,10 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
      */
     function purchaseTier(uint256 fid, uint256 tier, uint256 forDays) external whenNotPaused {
         TierInfo memory info = tierInfoByTier[tier];
-        if (forDays == 0) revert InvalidAmount();
+        if (forDays == 0) revert InvalidDuration();
         if (!info.isActive) revert InvalidTier();
-        if (forDays < info.minDays) revert InvalidAmount();
-        if (forDays > info.maxDays) revert InvalidAmount();
+        if (forDays < info.minDays) revert InvalidDuration();
+        if (forDays > info.maxDays) revert InvalidDuration();
 
         uint256 cost = info.tokenPricePerDay * forDays;
 
@@ -139,9 +136,9 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         uint256 totalCost;
         for (uint256 i; i < fids.length; ++i) {
             uint256 numDays = forDays[i];
-            if (numDays == 0) revert InvalidAmount();
-            if (numDays < info.minDays) revert InvalidAmount();
-            if (numDays > info.maxDays) revert InvalidAmount();
+            if (numDays == 0) revert InvalidDuration();
+            if (numDays < info.minDays) revert InvalidDuration();
+            if (numDays > info.maxDays) revert InvalidDuration();
             totalCost += info.tokenPricePerDay * numDays;
         }
 
@@ -165,10 +162,10 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         address vault
     ) external onlyOwner {
         if (paymentToken == address(0)) revert InvalidAddress();
-        if (minDays == 0) revert InvalidAmount();
-        if (maxDays == 0) revert InvalidAmount();
-        if (minDays > maxDays) revert InvalidAmount();
-        if (tokenPricePerDay == 0) revert InvalidAmount();
+        if (minDays == 0) revert InvalidDuration();
+        if (maxDays == 0) revert InvalidDuration();
+        if (minDays > maxDays) revert InvalidDuration();
+        if (tokenPricePerDay == 0) revert InvalidPrice();
         if (vault == address(0)) revert InvalidAddress();
 
         emit SetTier(tier, minDays, maxDays, vault, paymentToken, tokenPricePerDay);

@@ -1,7 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
+import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 interface ITierRegistry {
+    struct TierInfo {
+        uint256 minDays;
+        uint256 maxDays;
+        address vault;
+        IERC20 paymentToken;
+        uint256 tokenPricePerDay;
+        bool isActive;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -12,13 +23,18 @@ interface ITierRegistry {
     function VERSION() external view returns (string memory);
 
     /*//////////////////////////////////////////////////////////////
-                              PARAMETERS
+                             VIEWS
     //////////////////////////////////////////////////////////////*/
 
+    function price(uint256 tier, uint256 forDays) external view returns (uint256);
+
+    function tierInfo(
+        uint256 tier
+    ) external view returns (TierInfo memory);
+
     /*//////////////////////////////////////////////////////////////
-                        STORAGE RENTAL LOGIC
+                        TIER PURCHASING LOGIC
     //////////////////////////////////////////////////////////////*/
-    function price(uint256 tier, uint256 forDays) external view returns (uint256 value);
 
     function purchaseTier(uint256 fid, uint256 tier, uint256 forDays) external;
 
