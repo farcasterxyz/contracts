@@ -1,0 +1,44 @@
+// The variable keyword is used to define a variable that can be used in other parts of the runbook. 
+
+variable "initial_usd_unit_price" {
+    description = "The initial USD unit price"
+    value = 500000000 // $5 USD
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+variable "initial_max_units" {
+    description = "The initial max units"
+    value = 200000
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+
+variable "initial_price_feed_cache_duration" {
+    description = "The initial price feed cache duration"
+    value = 86400 // 1 day, in seconds
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+variable "initial_uptime_feed_grace_period" {
+    description = "The initial uptime feed grace period"
+    value = 3600 // 1 hour, in seconds
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+variable "key_registry_migration_grace_period" {
+    description = "The grace period for key registry migration"
+    value = 86400 // 1 day, in seconds
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}
+
+variable "key_registry_max_keys_per_fid" {
+    description = "The maximum number of keys per fid"
+    value = 1000
+    // uncomment to have this value editable by the deployer in the supervisor UI:
+    // editable = true 
+}

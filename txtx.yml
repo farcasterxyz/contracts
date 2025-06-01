@@ -1,0 +1,128 @@
+---
+name: Farcaster Protocol
+id: farcaster-protocol
+# List all available runbooks with the `txtx ls` command
+runbooks:
+  - name: Deploy L1
+    id: deploy-l1
+    description: Deploys all L1 contracts
+    location: runbooks/deployments/deploy-l1
+    # by including a location for a state file, txtx will manage a state for your deployments.
+    # if you rerun the runbook, it will only deploy the contracts that are not yet deployed,
+    # or that have been updated since the last deployment.
+    state:
+      location: runbooks/deployments/deploy-l1/state
+  - name: Deploy L2
+    id: deploy-l2
+    description: Deploys all L2 contracts
+    location: runbooks/deployments/deploy-l2
+    # by including a location for a state file, txtx will manage a state for your deployments.
+    # if you rerun the runbook, it will only deploy the contracts that are not yet deployed,
+    # or that have been updated since the last deployment.
+    state:
+      location: runbooks/deployments/deploy-l2/state
+  - name: Grant Role
+    id: grant-role
+    description: Calls the grantRole function of the StorageRegistry contract
+    location: runbooks/operations/grant-role.tx
+environments:
+  # Devnet environment variables. Execute a Runbook with these variables with `txtx run <runbook-id> --env devnet`
+  devnet:
+    deployer_secret_key: 708c8e68f7cfc670783d848790a5503fb0a83580911760ca5762536bc0628969
+    deployer_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    operator_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    immutable_create2_factory_address: 0x0000000000FFe8B47B3e2130213B802212439497
+    # Network params
+    l1_rpc_api_url: http://localhost:8545
+    l1_chain_id: 11155111
+    l2_rpc_api_url: http://localhost:8547
+    l2_chain_id: 10
+    # FNAME resolver params
+    fname_resolver_server_url: https://fnames.farcaster.xyz/ccip/{sender}/{data}.json
+    fname_resolver_signer_address: 0xBc5274eFc266311015793d89E9B591fa46294741
+    fname_resolver_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    fname_resolver_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    # L2 deployment salts
+    storage_rent_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    id_registry_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    id_gateway_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    key_registry_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    key_gateway_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    signed_key_request_validator_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    bundler_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    recovery_proxy_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    # Price feed addresses
+    # These defaults are the Optimism mainnet addresses.
+    storage_rent_price_feed_address: 0x13e3ee699d1909e989722e753853ae30b17e08c5
+    storage_rent_uptime_feed_address: 0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389
+    # Storage rent params
+    # Default address is Anvil test account 1
+    storage_rent_role_admin_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    storage_rent_vault_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    storage_rent_admin_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    storage_rent_operator_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    storage_rent_treasurer_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    # Deployer address.
+    # Default address is Anvil test account 1
+    deployer: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    # Migrator address.
+    # Default address is Anvil test account 1
+    migrator_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    # Key registry params
+    # Default address is Anvil test account 1
+    key_registry_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    # Metadata validator params
+    # Default address is Anvil test account 1
+    metadata_validator_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    # RecoveryProxy params
+    # Default addresses are Anvil test account 1
+    recovery_proxy_owner_address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+    # ID registry params
+    # Default address is Anvil test account 1
+  # Mainnet environment variables. Execute a Runbook with these variables with `txtx run <runbook-id> --env mainnet`
+  mainnet:
+    deployer_secret_key: 
+    deployer_address: 
+    operator_address: 
+    immutable_create2_factory_address: 0x0000000000FFe8B47B3e2130213B802212439497
+    # Network params
+    l1_rpc_api_url: 
+    l1_chain_id: 1
+    l2_rpc_api_url: 
+    l2_chain_id: 10
+    # FNAME resolver params
+    fname_resolver_server_url: https://fnames.farcaster.xyz/ccip/{sender}/{data}.json
+    fname_resolver_signer_address: 0xBc5274eFc266311015793d89E9B591fa46294741
+    fname_resolver_owner_address: 0x138356f24c7A16BE48978dE277a468F6C16A19a5
+    fname_resolver_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    # L2 deployment salts
+    storage_rent_create2_salt: 0x6d2b70e39c6bc63763098e336323591eb77cd0c65360d99ba6ea4e0161f2b96c
+    id_registry_create2_salt: 0x6d2b70e39c6bc63763098e336323591eb77cd0c63e0688f6d95afa008febf4d7
+    id_gateway_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    key_registry_create2_salt: 0x6d2b70e39c6bc63763098e336323591eb77cd0c62af4de6e1f0355029f357f47
+    key_gateway_create2_salt: 0x0000000000000000000000000000000000000000000000000000000000000000
+    signed_key_request_validator_create2_salt: 0x6d2b70e39c6bc63763098e336323591eb77cd0c6610c0841333604016684800c
+    bundler_create2_salt: 0x6d2b70e39c6bc63763098e336323591eb77cd0c6e451fc0a34ec4c008c9a31fa
+    recovery_proxy_create2_salt: 0x6d2b70e39c6bc63763098e336323591eb77cd0c6110eaaca06f77900dac1cad3
+    # Price feed addresses
+    # These defaults are the Optimism mainnet addresses.
+    storage_rent_price_feed_address: 0x13e3ee699d1909e989722e753853ae30b17e08c5
+    storage_rent_uptime_feed_address: 0x371EAD81c9102C9BF4874A9075FFFf170F2Ee389
+    # Storage rent params
+    storage_rent_role_admin_address: 0x53c6dA835c777AD11159198FBe11f95E5eE6B692
+    storage_rent_vault_address: 0x53c6dA835c777AD11159198FBe11f95E5eE6B692
+    storage_rent_admin_address: 0xD84E32224A249A575A09672Da9cb58C381C4837a
+    storage_rent_operator_address: 0x0000000000000000000000000000000000000000
+    storage_rent_treasurer_address: 0x0000000000000000000000000000000000000000
+    # Deployer address
+    deployer: 0x6D2b70e39C6bc63763098e336323591eb77Cd0C6
+    # Migrator address
+    migrator_address: 0x2D93c2F74b2C4697f9ea85D0450148AA45D4D5a2
+    # Key registry params
+    key_registry_owner_address: 0x2D93c2F74b2C4697f9ea85D0450148AA45D4D5a2
+    # Metadata validator params
+    metadata_validator_owner_address: 0x53c6dA835c777AD11159198FBe11f95E5eE6B692
+    # RecoveryProxy params
+    recovery_proxy_owner_address: 0xFFE52568Fb0E7038Ef289677288BB704E5c9E82e
+    # ID registry params
+    id_registry_owner_address: 0x53c6dA835c777AD11159198FBe11f95E5eE6B692
