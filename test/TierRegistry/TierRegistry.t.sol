@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import "forge-std/Test.sol";
 import {ITierRegistry} from "../../src/TierRegistry.sol";
+import {IGuardians} from "../../src/abstract/Guardians.sol";
+import {IMigration} from "../../src/interfaces/abstract/IMigration.sol";
 import {TransferHelper} from "../../src/libraries/TransferHelper.sol";
 import {TierRegistryTestSuite} from "./TierRegistryTestSuite.sol";
 import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract TierRegistryTest is TierRegistryTestSuite {
     using SafeERC20 for IERC20;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays, address payer);
     event DeactivateTier(uint256 indexed tier);
@@ -20,13 +26,40 @@ contract TierRegistryTest is TierRegistryTestSuite {
         address paymentToken,
         uint256 tokenPricePerDay
     );
+    event Migrated(uint256 indexed migratedAt);
+    event SetMigrator(address oldMigrator, address newMigrator);
+    event SweepToken(address indexed token, address to, uint256 balance);
+
+    /*//////////////////////////////////////////////////////////////
+                              PARAMETERS
+    //////////////////////////////////////////////////////////////*/
 
     function testVersion() public {
         assertEq(tierRegistry.VERSION(), "2025.06.01");
     }
 
+    function testOwner() public {
+        assertEq(tierRegistry.owner(), owner);
+    }
+
+    function testInitialGracePeriod() public {
+        assertEq(tierRegistry.gracePeriod(), 1 days);
+    }
+
+    function testInitialMigrationTimestamp() public {
+        assertEq(tierRegistry.migratedAt(), 0);
+    }
+
+    function testInitialMigrator() public {
+        assertEq(tierRegistry.migrator(), migrator);
+    }
+
+    function testInitialStateIsNotMigrated() public {
+        assertEq(tierRegistry.isMigrated(), false);
+    }
+
     /*//////////////////////////////////////////////////////////////
-                            PURCHASE TIER 
+                            PURCHASE TIER
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzPurchaseTier(uint256 fid, uint64 price, uint64 forDays, address payer, address vault) public {
@@ -435,7 +468,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            EDIT TIERS 
+                            EDIT TIERS
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzAddMultipleTiers(uint256 daysBound1, uint256 daysBound2, uint64 price, address vault) public {
@@ -446,9 +479,9 @@ contract TierRegistryTest is TierRegistryTestSuite {
         (uint256 minDays, uint256 maxDays) =
             daysBound1 < daysBound2 ? (daysBound1, daysBound2) : (daysBound2, daysBound1);
         uint256 tier1 = _addTier(address(token), price, minDays, maxDays, vault);
-        assertEq(tier1, 0);
+        assertEq(tier1, 1);
         uint256 tier2 = _addTier(address(token), price, minDays, maxDays, vault);
-        assertEq(tier2, 1);
+        assertEq(tier2, 2);
     }
 
     function testFuzzSetTierInvalidToken(uint256 minDays, uint256 maxDays, uint64 price, address vault) public {
@@ -616,13 +649,13 @@ contract TierRegistryTest is TierRegistryTestSuite {
                              PAUSABILITY
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzzOnlyOwnerCanPause(
+    function testFuzzOnlyGuardianCanPause(
         address caller
     ) public {
         vm.assume(caller != owner);
 
         vm.prank(caller);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(IGuardians.OnlyGuardian.selector);
         tierRegistry.pause();
     }
 
@@ -637,7 +670,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                GETTERS 
+                                GETTERS
     //////////////////////////////////////////////////////////////*/
 
     function testFuzzGetPrice(uint64 price, address vault, uint64 forDays, address caller) public {
@@ -689,6 +722,323 @@ contract TierRegistryTest is TierRegistryTestSuite {
     }
 
     /*//////////////////////////////////////////////////////////////
+                             SET MIGRATOR
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzOwnerCanSetMigrator(
+        address migrator
+    ) public {
+        address oldMigrator = tierRegistry.migrator();
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.expectEmit();
+        emit SetMigrator(oldMigrator, migrator);
+        vm.prank(owner);
+        tierRegistry.setMigrator(migrator);
+
+        assertEq(tierRegistry.migrator(), migrator);
+    }
+
+    function testFuzzSetMigratorRevertsWhenMigrated(
+        address migrator
+    ) public {
+        address oldMigrator = tierRegistry.migrator();
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.prank(oldMigrator);
+        tierRegistry.migrate();
+
+        vm.prank(owner);
+        vm.expectRevert(IMigration.AlreadyMigrated.selector);
+        tierRegistry.setMigrator(migrator);
+
+        assertEq(tierRegistry.migrator(), oldMigrator);
+    }
+
+    function testFuzzSetMigratorRevertsWhenUnpaused(
+        address migrator
+    ) public {
+        address oldMigrator = tierRegistry.migrator();
+
+        vm.expectRevert("Pausable: not paused");
+        vm.prank(owner);
+        tierRegistry.setMigrator(migrator);
+        vm.stopPrank();
+
+        assertEq(tierRegistry.migrator(), oldMigrator);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             BATCH CREDIT
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzBatchCreditTier(uint32 price, address vault, uint256[] calldata fids, uint16 _forDays) public {
+        vm.assume(fids.length > 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        uint256 forDays = bound(_forDays, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS);
+
+        uint256 tier = _addTier(address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        _batchCreditTier(tier, fids, forDays, migrator);
+    }
+
+    function testFuzzBatchCreditTierWhenUnpaused(
+        uint32 price,
+        address vault,
+        uint256[] calldata fids,
+        uint16 _forDays
+    ) public {
+        vm.assume(fids.length > 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        uint256 forDays = bound(_forDays, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS);
+
+        uint256 tier = _addTier(address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        vm.expectRevert("Pausable: not paused");
+        vm.prank(migrator);
+        tierRegistry.batchCreditTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchCreditTierZeroTimeCancelsBatch(uint32 price, address vault, uint256[] calldata fids) public {
+        vm.assume(fids.length > 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        uint256 tier = _addTier(address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.expectRevert(ITierRegistry.InvalidDuration.selector);
+        vm.prank(migrator);
+        tierRegistry.batchCreditTier(tier, fids, 0);
+    }
+
+    function testFuzzBatchCreditTierTooLittleTimeCancelsBatch(
+        uint32 price,
+        address vault,
+        uint256[] calldata fids
+    ) public {
+        vm.assume(fids.length > 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        uint256 tier = _addTier(address(token), price, 2, DEFAULT_MAX_DAYS, vault);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.expectRevert(ITierRegistry.InvalidDuration.selector);
+        vm.prank(migrator);
+        tierRegistry.batchCreditTier(tier, fids, 1);
+    }
+
+    function testFuzzBatchCreditTierTooMuchTimeCancelsBatch(
+        uint32 price,
+        address vault,
+        uint256[] calldata fids
+    ) public {
+        vm.assume(fids.length > 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        uint256 tier = _addTier(address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.expectRevert(ITierRegistry.InvalidDuration.selector);
+        vm.prank(migrator);
+        tierRegistry.batchCreditTier(tier, fids, DEFAULT_MAX_DAYS + 1);
+    }
+
+    function testFuzzBatchCreditTierZeroFids(uint32 price, address vault, uint16 _forDays) public {
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        uint256 forDays = bound(_forDays, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS);
+        uint256 tier = _addTier(address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+        uint256[] memory fids = new uint256[](0);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.expectRevert(ITierRegistry.InvalidBatchInput.selector);
+        vm.prank(migrator);
+        tierRegistry.batchCreditTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchCreditTierInvalidTier(
+        uint256 tier,
+        uint32 price,
+        address vault,
+        uint256[] calldata fids,
+        uint16 _forDays
+    ) public {
+        vm.assume(fids.length > 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        uint256 forDays = bound(_forDays, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.expectRevert(ITierRegistry.InvalidTier.selector);
+        vm.prank(migrator);
+        tierRegistry.batchCreditTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchCreditTierWhenMigrated(
+        uint32 price,
+        address vault,
+        uint256[] calldata fids,
+        uint16 _forDays,
+        uint32 warpForward
+    ) public {
+        vm.assume(fids.length > 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        uint256 forDays = bound(_forDays, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS);
+        uint256 tier = _addTier(address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        vm.prank(migrator);
+        tierRegistry.migrate();
+
+        vm.warp(block.timestamp + tierRegistry.gracePeriod() + 1 + warpForward);
+
+        vm.expectRevert(IMigration.PermissionRevoked.selector);
+        vm.prank(migrator);
+        tierRegistry.batchCreditTier(tier, fids, forDays);
+    }
+
+    function testFuzzBatchCreditTierUnauthorizedCaller(
+        address caller,
+        uint32 price,
+        address vault,
+        uint256[] calldata fids,
+        uint16 _forDays
+    ) public {
+        vm.assume(caller != migrator);
+        vm.assume(fids.length > 0);
+        vm.assume(price != 0);
+        vm.assume(vault != address(0));
+
+        uint256 forDays = bound(_forDays, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS);
+        uint256 tier = _addTier(address(token), price, DEFAULT_MIN_DAYS, DEFAULT_MAX_DAYS, vault);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.expectRevert(IMigration.OnlyMigrator.selector);
+        vm.prank(caller);
+        tierRegistry.batchCreditTier(tier, fids, forDays);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                MIGRATION
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzMigration(
+        uint40 timestamp
+    ) public {
+        vm.assume(timestamp != 0);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.warp(timestamp);
+        vm.expectEmit();
+        emit Migrated(timestamp);
+        vm.prank(migrator);
+        tierRegistry.migrate();
+
+        assertEq(tierRegistry.isMigrated(), true);
+        assertEq(tierRegistry.migratedAt(), timestamp);
+    }
+
+    function testFuzzOnlyMigratorCanMigrate(
+        address caller
+    ) public {
+        vm.assume(caller != migrator);
+
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        vm.prank(caller);
+        vm.expectRevert(IMigration.OnlyMigrator.selector);
+        tierRegistry.migrate();
+
+        assertEq(tierRegistry.isMigrated(), false);
+        assertEq(tierRegistry.migratedAt(), 0);
+    }
+
+    function testFuzzCannotMigrateTwice(
+        uint40 timestamp
+    ) public {
+        vm.prank(owner);
+        tierRegistry.pause();
+
+        timestamp = uint40(bound(timestamp, 1, type(uint40).max));
+        vm.warp(timestamp);
+        vm.prank(migrator);
+        tierRegistry.migrate();
+
+        timestamp = uint40(bound(timestamp, timestamp, type(uint40).max));
+        vm.expectRevert(IMigration.AlreadyMigrated.selector);
+        vm.prank(migrator);
+        tierRegistry.migrate();
+
+        assertEq(tierRegistry.isMigrated(), true);
+        assertEq(tierRegistry.migratedAt(), timestamp);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ERC20 RESCUE
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzzRescueTokens(uint256 _amount, address to) public {
+        vm.assume(to != address(0));
+        vm.assume(to != address(tierRegistry));
+        vm.assume(to != address(tokenSource));
+        uint256 amount = bound(_amount, 1, token.totalSupply());
+
+        vm.prank(tokenSource);
+        token.transfer(address(tierRegistry), amount);
+
+        assertEq(token.balanceOf(to), 0);
+
+        vm.prank(owner);
+        vm.expectEmit();
+        emit SweepToken(address(token), to, amount);
+        tierRegistry.sweepToken(address(token), to);
+
+        assertEq(token.balanceOf(to), amount);
+    }
+
+    function testFuzzOnlyOwnerCanRescueTokens(address caller, address to) public {
+        vm.assume(to != address(0));
+        vm.assume(caller != owner);
+
+        vm.prank(caller);
+        vm.expectRevert("Ownable: caller is not the owner");
+        tierRegistry.sweepToken(address(token), to);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  HELPERS
     //////////////////////////////////////////////////////////////*/
 
@@ -732,6 +1082,17 @@ contract TierRegistryTest is TierRegistryTestSuite {
         assertEq(vault, tierInfo.vault);
         assert(tierInfo.isActive);
         return tier;
+    }
+
+    function _batchCreditTier(uint256 tier, uint256[] memory fids, uint256 numDays, address caller) public {
+        // Expect emitted events
+        for (uint256 i; i < fids.length; ++i) {
+            vm.expectEmit();
+            emit PurchasedTier(fids[i], tier, numDays, caller);
+        }
+
+        vm.prank(caller);
+        tierRegistry.batchCreditTier(tier, fids, numDays);
     }
 
     function _batchPurchaseTier(uint256 tier, uint256[] memory fids, uint256[] memory forDays, address payer) public {

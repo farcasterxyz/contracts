@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
-import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
-import {Pausable} from "openzeppelin/contracts/security/Pausable.sol";
+import {Migration} from "./abstract/Migration.sol";
 import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {ITierRegistry} from "./interfaces/ITierRegistry.sol";
@@ -14,7 +13,7 @@ import {ITierRegistry} from "./interfaces/ITierRegistry.sol";
  *
  * @custom:security-contact security@merklemanufactory.com
  */
-contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
+contract TierRegistry is ITierRegistry, Migration {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -27,7 +26,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     string public constant VERSION = "2025.06.01";
 
     /*//////////////////////////////////////////////////////////////
-                                STORAGE 
+                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -41,7 +40,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     /**
      * @inheritdoc ITierRegistry
      */
-    uint256 public nextTierId;
+    uint256 public nextTierId = 1;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -50,14 +49,10 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     /**
      * @notice Set the initial parameters and pause the contract.
      *
+     * @param _migrator                      Migrator address.
      * @param _initialOwner                  Initial owner address.
      */
-    constructor(
-        address _initialOwner
-    ) {
-        _transferOwnership(_initialOwner);
-        _pause();
-    }
+    constructor(address _migrator, address _initialOwner) Migration(24 hours, _migrator, _initialOwner) {}
 
     /*//////////////////////////////////////////////////////////////
                               VIEWS
@@ -123,14 +118,9 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
             if (numDays < info.minDays) revert InvalidDuration();
             if (numDays > info.maxDays) revert InvalidDuration();
             totalCost += info.tokenPricePerDay * numDays;
-        }
-
-        for (uint256 i; i < fids.length; ++i) {
-            // The payer field in the event will point to a contract if the caller is a contract
             emit PurchasedTier(fids[i], tier, forDays[i], msg.sender);
         }
 
-        // Payment is made in a single transaction to save gas
         info.paymentToken.safeTransferFrom(msg.sender, info.vault, totalCost);
     }
 
@@ -138,6 +128,26 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc ITierRegistry
+     */
+    function batchCreditTier(uint256 tier, uint256[] calldata fids, uint256 forDays) external onlyMigrator {
+        if (fids.length == 0) revert InvalidBatchInput();
+
+        TierInfo memory info = _tierInfoByTier[tier];
+        if (!info.isActive) revert InvalidTier();
+
+        for (uint256 i; i < fids.length; ++i) {
+            if (forDays == 0) revert InvalidDuration();
+            if (forDays < info.minDays) revert InvalidDuration();
+            if (forDays > info.maxDays) revert InvalidDuration();
+            emit PurchasedTier(fids[i], tier, forDays, msg.sender);
+        }
+    }
+
+    /**
+     * @inheritdoc ITierRegistry
+     */
     function setTier(
         uint256 tier,
         address paymentToken,
@@ -152,6 +162,7 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
         if (minDays > maxDays) revert InvalidDuration();
         if (tokenPricePerDay == 0) revert InvalidPrice();
         if (vault == address(0)) revert InvalidVaultAddress();
+        if (tier == 0) revert InvalidTier();
         if (tier > nextTierId) revert InvalidTier();
 
         emit SetTier(tier, minDays, maxDays, vault, paymentToken, tokenPricePerDay);
@@ -186,14 +197,9 @@ contract TierRegistry is ITierRegistry, Ownable2Step, Pausable {
     /**
      * @inheritdoc ITierRegistry
      */
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /**
-     * @inheritdoc ITierRegistry
-     */
-    function unpause() external onlyOwner {
-        _unpause();
+    function sweepToken(address token, address to) external onlyOwner {
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        emit SweepToken(token, to, balance);
+        IERC20(token).safeTransfer(to, balance);
     }
 }
