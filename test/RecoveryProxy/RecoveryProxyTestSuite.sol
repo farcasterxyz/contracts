@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import {RecoveryProxy} from "../../src/RecoveryProxy.sol";
 import {IdRegistryTestSuite} from "../IdRegistry/IdRegistryTestSuite.sol";

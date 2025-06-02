@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import {Guardians} from "../abstract/Guardians.sol";
 import {IMigration} from "../interfaces/abstract/IMigration.sol";

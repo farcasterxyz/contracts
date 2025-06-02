@@ -1,6 +1,6 @@
 [profile.default]
-solc_version = "0.8.21"
-evm_version = "paris"
+solc_version = "0.8.29"
+evm_version = "cancun"
 optimizer_runs = 100_000
 fuzz = { runs = 512 }
 remappings = [

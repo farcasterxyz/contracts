@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import {StorageRegistry} from "../src/StorageRegistry.sol";
 import {ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";

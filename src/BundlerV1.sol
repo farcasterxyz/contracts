@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import {IBundlerV1} from "./interfaces/IBundlerV1.sol";
 import {IIdGateway} from "./interfaces/IIdGateway.sol";
