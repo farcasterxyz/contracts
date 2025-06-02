@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-interface IMigration {
+import {IGuardians} from "./IGuardians.sol";
+
+interface IMigration is IGuardians {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/

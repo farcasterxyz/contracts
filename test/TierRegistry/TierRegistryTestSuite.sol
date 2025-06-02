@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import {TestSuiteSetup} from "../TestSuiteSetup.sol";
 import "openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -31,7 +31,7 @@ abstract contract TierRegistryTestSuite is TestSuiteSetup {
 
         vm.warp(DEPLOYED_AT);
 
-        tierRegistry = new TierRegistry(owner);
+        tierRegistry = new TierRegistry(migrator, owner);
 
         vm.prank(owner);
         tierRegistry.unpause();

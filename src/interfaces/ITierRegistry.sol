@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.21;
 
+import {IMigration} from "./abstract/IMigration.sol";
 import "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title ITierRegistry
  * @notice Interface for the TierRegistry contract that manages tier purchases for Farcaster IDs
  */
-interface ITierRegistry {
+interface ITierRegistry is IMigration {
     /**
      * @notice Information about a user tier
      * @param minDays Minimum number of days that can be purchased for this tier
@@ -85,6 +86,14 @@ interface ITierRegistry {
         uint256 tokenPricePerDay
     );
 
+    /**
+     * @notice Emitted when owner sweeps an ERC20 token balance
+     * @param token ERC20 token address
+     * @param to Address that receives the full balance
+     * @param balance Token balance sent
+     */
+    event SweepToken(address indexed token, address to, uint256 balance);
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -105,7 +114,7 @@ interface ITierRegistry {
     function nextTierId() external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
-                               GETTERS 
+                               GETTERS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -150,6 +159,14 @@ interface ITierRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Credit a tier to multiple Farcaster IDs in a single transaction
+     * @param tier The tier ID to credit for all FIDs
+     * @param fids Array of Farcaster IDs to credit for
+     * @param forDays Number of days to credit
+     */
+    function batchCreditTier(uint256 tier, uint256[] calldata fids, uint256 forDays) external;
+
+    /**
      * @notice Update/create a user tier configuration
      *         Only callable by owner.
      * @param tier The tier ID to set
@@ -178,14 +195,9 @@ interface ITierRegistry {
     ) external;
 
     /**
-     * @notice Pause, disabling rentals and credits.
-     *         Only callable by owner.
+     * @notice Rescue an ERC20 token accidentally sent to this contract
+     * @param token The token address
+     * @param to Receiver address that will receive the full token balance
      */
-    function pause() external;
-
-    /**
-     * @notice Unpause, enabling rentals and credits.
-     *         Only callable by owner.
-     */
-    function unpause() external;
+    function sweepToken(address token, address to) external;
 }
