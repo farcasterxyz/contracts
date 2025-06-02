@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import {AggregatorV3Interface} from "chainlink/v0.8/interfaces/AggregatorV3Interface.sol";
 import {AccessControlEnumerable} from "openzeppelin/contracts/access/AccessControlEnumerable.sol";

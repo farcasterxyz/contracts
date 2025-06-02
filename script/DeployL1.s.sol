@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.21;
+pragma solidity ^0.8.21;
 
 import {FnameResolver} from "../src/FnameResolver.sol";
 import {console, ImmutableCreate2Deployer} from "./abstract/ImmutableCreate2Deployer.sol";
