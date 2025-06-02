@@ -5,7 +5,7 @@ import {IIdGateway} from "./IIdGateway.sol";
 import {IKeyGateway} from "./IKeyGateway.sol";
 import {IStorageRegistry} from "./IStorageRegistry.sol";
 
-interface IBundler {
+interface IBundlerV1 {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -89,14 +89,4 @@ interface IBundler {
         SignerParams[] calldata signerParams,
         uint256 extraStorage
     ) external payable returns (uint256 fid);
-
-    /**
-     * @notice Add multiple keys in a single transaction.
-     *
-     * @param fidOwner       The fid owner address.
-     * @param signerParams   Array of structs containing signer parameters: keyType, key, metadataType,
-     *                       metadata, deadline, and signature.
-     *
-     */
-    function addKeys(address fidOwner, SignerParams[] calldata signerParams) external;
 }

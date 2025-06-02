@@ -10,9 +10,9 @@ import {
     KeyRegistry,
     KeyGateway,
     SignedKeyRequestValidator,
-    Bundler,
+    BundlerV1,
     RecoveryProxy,
-    IBundler,
+    IBundlerV1,
     IMetadataValidator
 } from "../../script/DeployL2.s.sol";
 import "forge-std/console.sol";
@@ -26,7 +26,7 @@ contract DeployL2Test is DeployL2, Test {
     KeyRegistry internal keyRegistry;
     KeyGateway internal keyGateway;
     SignedKeyRequestValidator internal validator;
-    Bundler internal bundler;
+    BundlerV1 internal bundler;
     RecoveryProxy internal recoveryProxy;
 
     address internal alice;
