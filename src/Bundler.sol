@@ -23,7 +23,7 @@ contract Bundler is IBundler {
     /**
      * @inheritdoc IBundler
      */
-    string public constant VERSION = "2025.06.13";
+    string public constant VERSION = "2025.06.16";
 
     /*//////////////////////////////////////////////////////////////
                                 IMMUTABLES
@@ -88,16 +88,11 @@ contract Bundler is IBundler {
 
     function _addKeys(address fidOwner, SignerParams[] calldata signerParams) internal {
         uint256 signersLen = signerParams.length;
-        for (uint256 i; i < signersLen;) {
+        for (uint256 i; i < signersLen; ++i) {
             SignerParams calldata signer = signerParams[i];
             keyGateway.addFor(
                 fidOwner, signer.keyType, signer.key, signer.metadataType, signer.metadata, signer.deadline, signer.sig
             );
-
-            // Safety: i can be incremented unchecked since it is bound by signerParams.length.
-            unchecked {
-                ++i;
-            }
         }
     }
 

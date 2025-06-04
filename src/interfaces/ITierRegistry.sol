@@ -60,7 +60,7 @@ interface ITierRegistry is IMigration {
      * @param forDays The number of days of subscription purchased
      * @param payer The address that paid
      */
-    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays, address payer);
+    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays, address indexed payer);
 
     /**
      * @notice Emitted when a tier is deactivated

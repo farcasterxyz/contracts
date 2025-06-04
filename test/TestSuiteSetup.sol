@@ -59,7 +59,7 @@ abstract contract TestSuiteSetup is Test {
     function _assumeClean(
         address a
     ) internal {
-        assumeNoPrecompiles(a);
+        assumeNotPrecompile(a);
         vm.assume(!isKnownContract[a]);
         vm.assume(a != ADMIN);
         vm.assume(a != address(0));
