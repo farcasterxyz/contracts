@@ -23,7 +23,7 @@ contract TierRegistry is ITierRegistry, Migration {
     /**
      * @inheritdoc ITierRegistry
      */
-    string public constant VERSION = "2025.06.01";
+    string public constant VERSION = "2025.06.16";
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE

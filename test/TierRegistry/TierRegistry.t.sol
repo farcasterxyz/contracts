@@ -16,7 +16,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays, address payer);
+    event PurchasedTier(uint256 indexed fid, uint256 indexed tier, uint256 forDays, address indexed payer);
     event DeactivateTier(uint256 indexed tier);
     event SetTier(
         uint256 indexed tier,
@@ -35,7 +35,7 @@ contract TierRegistryTest is TierRegistryTestSuite {
     //////////////////////////////////////////////////////////////*/
 
     function testVersion() public {
-        assertEq(tierRegistry.VERSION(), "2025.06.01");
+        assertEq(tierRegistry.VERSION(), "2025.06.16");
     }
 
     function testOwner() public {

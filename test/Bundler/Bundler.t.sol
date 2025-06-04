@@ -29,7 +29,7 @@ contract BundlerTest is BundlerTestSuite {
     }
 
     function testVersion() public {
-        assertEq(bundler.VERSION(), "2025.06.13");
+        assertEq(bundler.VERSION(), "2025.06.16");
     }
 
     /*//////////////////////////////////////////////////////////////
