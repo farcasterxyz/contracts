@@ -48,7 +48,7 @@ contract UpgradeBundlerTest is UpgradeBundler {
     address internal warpcastWallet = address(0x2cd85a093261f59270804A6EA697CeA4CeBEcafE);
 
     function setUp() public {
-        vm.createSelectFork("l2_mainnet", 136433938);
+        vm.createSelectFork("op_mainnet", 136433938);
 
         (alice, alicePk) = makeAddrAndKey("alice");
         (bob, bobPk) = makeAddrAndKey("bob");

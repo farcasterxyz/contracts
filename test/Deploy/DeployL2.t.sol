@@ -59,7 +59,7 @@ contract DeployL2Test is DeployL2, Test {
     address internal deployer = address(0x6D2b70e39C6bc63763098e336323591eb77Cd0C6);
 
     function setUp() public {
-        vm.createSelectFork("l2_mainnet", 108869038);
+        vm.createSelectFork("op_mainnet", 108869038);
 
         (alice, alicePk) = makeAddrAndKey("alice");
         (bob, bobPk) = makeAddrAndKey("bob");

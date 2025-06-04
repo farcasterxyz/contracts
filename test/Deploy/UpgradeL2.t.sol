@@ -73,7 +73,7 @@ contract UpgradeL2Test is UpgradeL2 {
     address internal signedKeyRequestValidatorAddr = address(0x00000000FC700472606ED4fA22623Acf62c60553);
 
     function setUp() public {
-        vm.createSelectFork("l2_mainnet", 111079475);
+        vm.createSelectFork("op_mainnet", 111079475);
 
         (alice, alicePk) = makeAddrAndKey("alice");
         (bob, bobPk) = makeAddrAndKey("bob");
