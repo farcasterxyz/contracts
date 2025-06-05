@@ -15,7 +15,7 @@ contract DeployL1Test is DeployL1, FnameResolverTestSuite {
     address internal alice = makeAddr("alice");
 
     function setUp() public override {
-        vm.createSelectFork("l1_mainnet");
+        vm.createSelectFork("eth_mainnet");
 
         (signer, signerPk) = makeAddrAndKey("signer");
 

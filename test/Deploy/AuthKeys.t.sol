@@ -58,7 +58,7 @@ contract AuthKeysTest is Test {
     address internal migrator = relayer;
 
     function setUp() public {
-        vm.createSelectFork("l2_mainnet", 134877573);
+        vm.createSelectFork("op_mainnet", 134877573);
 
         (alice, alicePk) = makeAddrAndKey("alice");
         (bob, bobPk) = makeAddrAndKey("bob");
