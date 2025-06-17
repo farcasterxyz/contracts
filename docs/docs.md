@@ -7,7 +7,6 @@ This documentation is focused on the contracts but also clarifies assumptions ma
 ```mermaid
 
 graph TD
-
     subgraph ETHL1["Ethereum L1: Mainnet"]
     FR(Fname Registry)
     end
@@ -16,13 +15,13 @@ graph TD
     FS(Fname Registry)
     end
 
-    subgraph Hubs["Off-Chain"]
-    Hub1(Hub A)
-    Hub2(Hub B)
-    Hub3(Hub C)
+    subgraph Snapchain["Snapchain"]
+    NodeA(Node A)
+    NodeB(Node B)
+    NodeC(Node C)
     end
 
-    subgraph ETHL2["Ethereum L2: OP Mainnet"]
+    subgraph OP["Ethereum L2: OP Mainnet"]
     BN(Bundler) --> IG(Id Gateway)
     BN --> KG(Key gateway)
     IG --> SR(Storage Registry)
@@ -31,27 +30,31 @@ graph TD
     KR --> SKRV(Signed Key Request Validator)
     KR --> IR
     RP(RecoveryProxy) --> IG
-
     end
 
+    subgraph Base["Ethereum L2: Base"]
+    TR(Tier Registry)
+    end
 
     ETHL1 --> Offchain
-    ETHL2 --> Offchain
-    Offchain --> Hubs
-    ETHL2 --> Hubs
+    OP --> Offchain
+    Offchain --> Snapchain
+    OP --> Snapchain
+    Base --> Snapchain
 ```
 
 ## Table of Contents
 
 1. [L2 Contracts](#1-l2-contracts)
    1. [Id Registry](#11-id-registry)
-   2. [Id Gateway](#12-id-manager)
+   2. [Id Gateway](#12-id-gateway)
    3. [Storage Registry](#13-storage-registry)
    4. [Key Registry](#14-key-registry)
-   5. [Key Gateway](#15-key-manager)
+   5. [Key Gateway](#15-key-gateway)
    6. [Validators](#16-validators)
    7. [Bundler](#17-bundler)
    8. [Recovery Proxy](#18-recovery-proxy)
+   9. [Tier Registry](#19-tier-registry)
 2. [L1 Contracts](#2-l1-contracts)
    1. [Fname Resolver](#21-fname-resolver)
 3. [Offchain Systems](#3-off-chain-systems)
@@ -60,7 +63,7 @@ graph TD
 
 # 1. L2 Contracts
 
-The Identity, Storage and Key Registry contracts are deployed on OP Mainnet. The Tier Registry contract is deployed on Base Mainnet. 
+The Identity, Storage and Key Registry contracts are deployed on OP Mainnet. The Tier Registry contract is deployed on Base Mainnet.
 
 ## 1.1. Id Registry
 
@@ -195,7 +198,7 @@ The StorageRegistry contract may need to be upgraded in case a bug is discovered
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The new storage contract is unpaused.
 
-## 1.3. Key Registry
+## 1.4. Key Registry
 
 The Key Registry contract lets addresses with an fid register or remove public keys. Keys added onchain are tracked by Hubs and can be used to sign Farcaster messages. The same key can be added by different fids and can exist in different states. Keys contain a key type that indicates how they should be interpreted and used. During registration, metadata can also be emitted to provide additional context about the key. Keys contain a metadata type indicating how this metadata should be validated and interpreted. The Key Registry validates metadata at registration time and rejects keys with invalid metadata.
 
@@ -265,7 +268,7 @@ The KeyRegistry contract may need to be upgraded in case a bug is discovered or 
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 5. The contract is set to untrusted state where anyone can register keys.
 
-## 1.4. Key Gateway
+## 1.5. Key Gateway
 
 The Key Gateway is the user-facing contract responsible for adding new keys to the Key Registry. While IdRegistry defines the rules of key addition and deletion, the Key Gateway is responsible for the actual addition logic.
 
@@ -294,7 +297,7 @@ In such cases:
 3. The old KeyManager is paused.
 4. A new Bundler contract is deployed, pointing to the correct contracts.
 
-## 1.5 Validators
+## 1.6 Validators
 
 Validators are single purpose contracts that implement a simple interface to validate key metadata. At registration time, the Key Registry looks up the associated validator by key type and metadata type, and calls it to validate the format of provided metadata. This makes the key registry extensible to future key types and metadata formats.
 
@@ -306,11 +309,11 @@ The only validator today is the Signed Key Request Validator, which validates th
 
 An `owner` can update the address of the Id Registry contract.
 
-## 1.6. Bundler
+## 1.7. Bundler
 
 The Bundler contract lets a caller register an fid, rent storage units and register a key in a single transaction to save gas. It is a simple wrapper around contract methods and contains little logic beyond tracking contract addresses, collecting parameters and invoking the appropriate functions.
 
-## 1.7 Recovery Proxy
+## 1.8 Recovery Proxy
 
 The Recovery Proxy is an immutable proxy contract that allows the recovery execution logic to change without changing the recovery address associated with an fid. A client or recovery service operator can deploy a recovery proxy and use it as the recovery address for fids. For example, the Warpcast client uses a recovery proxy owned by a 2/3 multisig as the default recovery address for new accounts.
 
@@ -318,17 +321,17 @@ The Recovery Proxy is an immutable proxy contract that allows the recovery execu
 
 A recovery proxy can change its `owner`, and may be owned by an EOA, multisig, or smart contract. The `owner` of the recovery proxy can change the configured `IdRegistry` address.
 
-## 1.8. Tier Registry
+## 1.9 Tier Registry
 
-The Tier Registry contract lets addresses purchase a subscription tier for an fid for a certain amount of time. Time purchased for each tier is additive. Each tier is also associated with some metadata including the token payment is accepted in and the price per day. Being a member of a tier will guarantee an fid a certain set of additional features on the Farcaster protocol until the time purchased expires. 
+The Tier Registry contract lets addresses purchase a subscription tier for an fid for a certain amount of time. Time purchased for each tier is additive. Each tier is also associated with some metadata including the token payment is accepted in and the price per day. Being a member of a tier will guarantee an fid a certain set of additional features on the Farcaster protocol until the time purchased expires.
 
-### Tiers 
+### Tiers
 
-The only tier today is the Pro tier (id 1) which guarantees users on the protocol long casts and 4 embeds. 
+The only tier today is the Pro tier (id 1) which guarantees users on the protocol long casts and 4 embeds.
 
 ### Invariants
 
-1. Adding a tier: Tier ids are strictly incrementing. A new tier will have an id of 1 + the last added tier id. 
+1. Adding a tier: Tier ids are strictly incrementing. A new tier will have an id of 1 + the last added tier id.
 2. Deactivating a tier: A tier can only be deactivated if it has been created and isn't already deactivated.
 3. No balance: The contract never holds a payment token balance.
 4. Events: Event invariants are specified in comments above each event.
@@ -340,11 +343,12 @@ The only tier today is the Pro tier (id 1) which guarantees users on the protoco
 
 ### Migration
 
-This is the first TierRegistry contract so no migration is required. 
+This is the first TierRegistry contract so no migration is required.
 
 ### Upgradeability
 
 The TierRegistry contract may need to be upgraded in case a bug is discovered or the logic needs to be changed. In such cases:
+
 1. A new TierRegistry contract should be deployed in a paused state
 2. The tier metadata (payment token, price, min and max times per purchase) should be manually entered by the owner using `setTier`
 3. The owner should resume the contract
