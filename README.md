@@ -2,15 +2,16 @@
 
 This repository contains all the contracts deployed by the [Farcaster protocol](https://github.com/farcasterxyz/protocol). The contracts are:
 
-1. **[Id Registry](./src/IdRegistry.sol)** - tracks ownership of farcaster identities (fids).
+1. **[Id Registry](./src/IdRegistry.sol)** - tracks ownership of Farcaster identities (fids).
 2. **[Storage Registry](./src/StorageRegistry.sol)** - allocates storage to fids and collects rent.
 3. **[Key Registry](./src/KeyRegistry.sol)** - tracks associations between fids and key pairs for signing messages.
-4. **[Id Gateway](./src/IdGateway.sol)** - issues farcaster identities (fids) to new users.
+4. **[Id Gateway](./src/IdGateway.sol)** - issues Farcaster identities (fids) to new users.
 5. **[Key Gateway](./src/KeyGateway.sol)** - adds new associations between fids and keys.
 6. **[Bundler](./src/Bundler.sol)** - allows calling gateways and storage in a single transaction.
 7. **[Signed Key Request Validator](./src/validators/SignedKeyRequestValidator.sol)** - validates key registry metadata.
 8. **[Recovery Proxy](./src/RecoveryProxy.sol)** - proxy for recovery service operators to initiate fid recovery.
 9. **[Fname Resolver](./src/FnameResolver.sol)** - validates Farcaster ENS names which were issued offchain.
+10. **[Tier Registry](./src/TierRegistry.sol)** - processes Farcaster Pro subscription payments.
 
 Read the [docs](docs/docs.md) for more details on how the contracts work.
 
@@ -31,6 +32,12 @@ The [v3.1 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1
 | SignedKeyRequestValidator | [0x00000000fc700472606ed4fa22623acf62c60553](https://optimistic.etherscan.io/address/0x00000000fc700472606ed4fa22623acf62c60553) |
 | RecoveryProxy             | [0x00000000fcb080a4d6c39a9354da9eb9bc104cd7](https://optimistic.etherscan.io/address/0x00000000fcb080a4d6c39a9354da9eb9bc104cd7) |
 
+### Base Mainnet
+
+| Contract     | Address                                                                                                               |
+| ------------ | --------------------------------------------------------------------------------------------------------------------- |
+| TierRegistry | [0x00000000fc84484d585c3cf48d213424dfde43fd](https://basescan.org/address/0x00000000fc84484d585c3cf48d213424dfde43fd) |
+
 ### ETH Mainnet
 
 | Contract      | Address          |
@@ -38,6 +45,8 @@ The [v3.1 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1
 | FnameResolver | Not yet deployed |
 
 ## Audits
+
+The [v3.2 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.2.0) contracts were reviewed by [0xMacro](https://0xmacro.com/).
 
 The [v3.1 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1.0) contracts were reviewed by [0xMacro](https://0xmacro.com/) and [Cyfrin](https://www.cyfrin.io/).
 
