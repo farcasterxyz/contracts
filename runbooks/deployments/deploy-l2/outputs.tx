@@ -1,0 +1,41 @@
+// Output contract addresses from all contract deployments
+
+output "storage_registry_address" {
+    description = "Storage Registry contract address"
+    value = action.deploy_storage_registry.contract_address
+}
+
+output "id_registry_address" {
+    description = "IdRegistry contract address"
+    value = action.deploy_id_registry.contract_address
+}
+
+output "id_gateway_address" {
+    description = "IdGateway contract address"
+    value = action.deploy_id_gateway.contract_address
+}
+
+output "key_registry_address" {
+    description = "KeyRegistry contract address"
+    value = action.deploy_key_registry.contract_address
+}
+
+output "key_gateway_address" {
+    description = "KeyGateway contract address"
+    value = action.deploy_key_gateway.contract_address
+}
+
+output "signed_key_request_validator_address" {
+    description = "SignedKeyRequestValidator contract address"
+    value = action.deploy_signed_key_request_validator.contract_address
+}
+
+output "bundler_address" {
+    description = "Bundler contract address"
+    value = action.deploy_bundler.contract_address
+}
+
+output "recovery_proxy_address" {
+    description = "RecoveryProxy contract address"
+    value = action.deploy_recovery_proxy.contract_address
+}
