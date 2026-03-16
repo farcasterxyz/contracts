@@ -121,7 +121,7 @@ contract DeployL2 is ImmutableCreate2Deployer {
             "KeyGateway",
             params.salts.keyGateway,
             type(KeyGateway).creationCode,
-            abi.encode(addrs.keyRegistry, addrs.storageRegistry, params.initialKeyRegistryOwner)
+            abi.encode(addrs.keyRegistry, params.initialKeyRegistryOwner)
         );
         addrs.signedKeyRequestValidator = register(
             "SignedKeyRequestValidator",
