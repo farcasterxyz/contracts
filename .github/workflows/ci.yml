@@ -41,8 +41,9 @@ jobs:
         shell: bash
 
       - name: Build Docker images defined in Docker Compose file
-        uses: docker/bake-action@v3
+        uses: docker/bake-action@v7
         with:
+          files: docker-compose.yml
           load: true # Load images into local Docker engine after build
 
       - name: Run containers defined in Docker Compose
