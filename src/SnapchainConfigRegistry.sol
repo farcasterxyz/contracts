@@ -2,6 +2,7 @@
 pragma solidity 0.8.29;
 
 import {Ownable2Step} from "openzeppelin/contracts/access/Ownable2Step.sol";
+import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
 
 import {ISnapchainConfigRegistry} from "./interfaces/ISnapchainConfigRegistry.sol";
 
@@ -57,6 +58,18 @@ contract SnapchainConfigRegistry is ISnapchainConfigRegistry, Ownable2Step {
      *      uppercase letters, underscore, and the lowercase letters.
      */
     uint256 internal constant _PEER_CHARS_HI = 0x07FFFFFE87FFFFFE;
+
+    /**
+     * @dev Lowercase hex alphabet, left-aligned in a word so that a nibble indexes it directly via
+     *      the `byte` opcode, which counts from the most significant byte.
+     */
+    uint256 internal constant _HEX_SYMBOLS_ALIGNED = 0x3031323334353637383961626364656600000000000000000000000000000000;
+
+    /**
+     * @dev Bytes in one rendered key line: two spaces, a quote, 64 hex characters, a quote, a
+     *      comma, and a newline.
+     */
+    uint256 internal constant _KEY_LINE_LENGTH = 70;
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
@@ -160,6 +173,31 @@ contract SnapchainConfigRegistry is ISnapchainConfigRegistry, Ownable2Step {
     }
 
     /*//////////////////////////////////////////////////////////////
+                             TOML RENDERING
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @inheritdoc ISnapchainConfigRegistry
+     */
+    function configToml() external view returns (string memory) {
+        return string(_rangeToml(0, _validatorSets.length, true));
+    }
+
+    /**
+     * @inheritdoc ISnapchainConfigRegistry
+     */
+    function validatorSetsToml(uint256 start, uint256 end) external view returns (string memory) {
+        return string(_rangeToml(start, end, false));
+    }
+
+    /**
+     * @inheritdoc ISnapchainConfigRegistry
+     */
+    function peersToml() public view returns (string memory) {
+        return string(_peersToml());
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -247,7 +285,148 @@ contract SnapchainConfigRegistry is ISnapchainConfigRegistry, Ownable2Step {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                HELPERS
+                           RENDERING HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Render validator sets `[start, end)`, optionally followed by the `[gossip]` table.
+     *
+     *      Assembly is two-level and deliberately so. Each entry is built on its own, and the
+     *      entries are joined into the result exactly once. A flat one-concat-per-line loop would
+     *      be quadratic in output bytes, and the EVM's quadratic memory term compounds it: at a
+     *      hundred entries that difference is the getter working versus exceeding every public
+     *      eth_call gas cap.
+     */
+    function _rangeToml(uint256 start, uint256 end, bool includePeers) internal view returns (bytes memory) {
+        if (start > end || end > _validatorSets.length) revert InvalidRange();
+
+        uint256 count = end - start;
+        bytes[] memory parts = new bytes[](includePeers ? count + 1 : count);
+        for (uint256 i; i < count; ++i) {
+            parts[i] = _validatorSetToml(_validatorSets[start + i]);
+        }
+        if (includePeers) parts[count] = _peersToml();
+
+        return _join(parts);
+    }
+
+    /**
+     * @dev Render one validator set as a `[[consensus.validator_sets]]` block.
+     *
+     *      The block carries its own trailing blank line rather than sitting between separators.
+     *      That is what makes paginated ranges concatenate into exactly the unpaginated document.
+     */
+    function _validatorSetToml(
+        ValidatorSet storage validatorSet
+    ) internal view returns (bytes memory) {
+        uint32[] storage shardIds = validatorSet.shardIds;
+        bytes32[] storage publicKeys = validatorSet.validatorPublicKeys;
+
+        // Bounded at MAX_SHARD_IDS, so the quadratic term here is irrelevant.
+        bytes memory shardList = bytes(Strings.toString(shardIds[0]));
+        for (uint256 i = 1; i < shardIds.length; ++i) {
+            shardList = bytes.concat(shardList, ", ", bytes(Strings.toString(shardIds[i])));
+        }
+
+        uint256 keyCount = publicKeys.length;
+        bytes memory keyLines = new bytes(keyCount * _KEY_LINE_LENGTH);
+        for (uint256 i; i < keyCount; ++i) {
+            _writeKeyLine(keyLines, i * _KEY_LINE_LENGTH, publicKeys[i]);
+        }
+
+        return bytes.concat(
+            "[[consensus.validator_sets]]\n",
+            "effective_at = ",
+            bytes(Strings.toString(validatorSet.effectiveAt)),
+            "\n",
+            "shard_ids = [",
+            shardList,
+            "]\n",
+            "validator_public_keys = [\n",
+            keyLines,
+            "]\n\n"
+        );
+    }
+
+    /**
+     * @dev Render the `[gossip]` table. Both values are safe to interpolate unescaped because the
+     *      setters reject every byte that could close the string literal.
+     */
+    function _peersToml() internal view returns (bytes memory) {
+        return bytes.concat(
+            "[gossip]\n",
+            "bootstrap_peers = \"",
+            bytes(bootstrapPeers),
+            "\"\n",
+            "direct_peers = \"",
+            bytes(directPeers),
+            "\"\n"
+        );
+    }
+
+    /**
+     * @dev Concatenate `parts` into one buffer with a single allocation and one copy per part.
+     */
+    function _join(
+        bytes[] memory parts
+    ) internal pure returns (bytes memory) {
+        uint256 total;
+        for (uint256 i; i < parts.length; ++i) {
+            total += parts[i].length;
+        }
+
+        bytes memory out = new bytes(total);
+        uint256 offset;
+        for (uint256 i; i < parts.length; ++i) {
+            bytes memory part = parts[i];
+            uint256 length = part.length;
+            assembly ("memory-safe") {
+                mcopy(add(add(out, 0x20), offset), add(part, 0x20), length)
+            }
+            offset += length;
+        }
+        return out;
+    }
+
+    /**
+     * @dev Write one `  "<64 hex chars>",\n` line into `out` at `offset`.
+     *
+     *      Written straight into the caller's buffer rather than returned as a fresh string, and in
+     *      assembly rather than through indexed writes to a `bytes memory`. Both matter: this runs
+     *      once per key per call, and the Solidity version -- an allocation, 64 bounds-checked
+     *      single-byte writes, then a concat that copies the result again -- costs roughly an order
+     *      of magnitude more. That difference is what decides whether the getter fits inside a
+     *      public RPC's eth_call gas cap once the history grows.
+     */
+    function _writeKeyLine(bytes memory out, uint256 offset, bytes32 key) internal pure {
+        assembly ("memory-safe") {
+            let ptr := add(add(out, 0x20), offset)
+
+            // `  "`
+            mstore8(ptr, 0x20)
+            mstore8(add(ptr, 1), 0x20)
+            mstore8(add(ptr, 2), 0x22)
+
+            // byte(n, symbols) indexes from the most significant byte, so the alphabet is
+            // left-aligned in the word and a nibble indexes it directly.
+            let symbols := _HEX_SYMBOLS_ALIGNED
+            let hexPtr := add(ptr, 3)
+            for { let i := 0 } lt(i, 32) { i := add(i, 1) } {
+                let word := byte(i, key)
+                let pos := add(hexPtr, mul(i, 2))
+                mstore8(pos, byte(shr(4, word), symbols))
+                mstore8(add(pos, 1), byte(and(word, 0x0F), symbols))
+            }
+
+            // `",\n`
+            mstore8(add(ptr, 67), 0x22)
+            mstore8(add(ptr, 68), 0x2C)
+            mstore8(add(ptr, 69), 0x0A)
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           MUTATION HELPERS
     //////////////////////////////////////////////////////////////*/
 
     /**
