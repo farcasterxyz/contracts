@@ -57,6 +57,7 @@ graph TD
    9. [Tier Registry](#19-tier-registry)
 2. [L1 Contracts](#2-l1-contracts)
    1. [Fname Resolver](#21-fname-resolver)
+   2. [Snapchain Config Registry](#22-snapchain-config-registry)
 3. [Offchain Systems](#3-off-chain-systems)
    1. [Fname Registry](#31-fname-registry)
    2. [Hubs](#32-hubs)
@@ -357,6 +358,8 @@ The TierRegistry contract may need to be upgraded in case a bug is discovered or
 
 The Fname Resolver contract is deployed on L1 Mainnet (chainid: 1).
 
+The Snapchain Config Registry is deployed twice, once per Snapchain network: on L1 Mainnet (chainid: 1) for the Mainnet network, and on Sepolia (chainid: 11155111) for the Testnet network.
+
 # 2.1. Fname Resolver
 
 The Fname Resolver contract validates usernames issued under the \*.fcast.id domain onchain by implementing [ERC-3668](https://eips.ethereum.org/EIPS/eip-3668) and [ENSIP-10](https://docs.ens.domains/ens-improvement-proposals/ensip-10-wildcard-resolution). The resolver contains the url of the server which issues the usernames and proofs. It maintains a list of valid signers for the server and also validates proofs returned by the server.
@@ -368,6 +371,29 @@ The Fname Resolver contract validates usernames issued under the \*.fcast.id dom
 ### Administration
 
 An `owner` can update the list of valid signers associated with the server.
+
+# 2.2. Snapchain Config Registry
+
+The Snapchain Config Registry is the canonical record of a Snapchain network's validator sets and gossip peer lists. It holds an append-only history of validator sets, each carrying the Snapchain block height it becomes effective at, the shards it governs, and the Ed25519 public keys in the set. It renders that state, together with the two peer lists, as a TOML fragment that a node merges into its config before starting. Nothing onchain is read by a running node: the contract is the source of truth, and a startup step pulls from it.
+
+See [snapchain-config-registry.md](./snapchain-config-registry.md) for the schema and the rendered-output specification, which is part of the contract's public API.
+
+### Invariants
+
+1. History is append-only: only the latest validator set may be amended or removed, and earlier entries are immutable.
+2. Ordering is per-shard: a validator set's `effectiveAt` must be greater than or equal to that of the most recent preceding set governing a shard in common. Sets governing disjoint shards are unconstrained relative to one another, because each shard's height is an independent counter.
+3. Rendered output cannot be escaped: validator keys are stored as `bytes32` and rendered through a fixed hex alphabet, and peer strings are restricted to a character allowlist that excludes the quote and the backslash.
+4. `configVersion` increases by exactly one on every mutation.
+
+### Assumptions
+
+1. `effectiveAt` is a Snapchain block height, not an EVM block number and not a timestamp. Nothing onchain can validate it.
+2. The owner supplies well-formed validator keys. A malformed key is a startup panic on every node that reads it, not a warning.
+3. Entry 0 remains the genesis entry, since a consuming node seeds its lookup with it and an empty registry has no valid answer to return.
+
+### Administration
+
+An `owner` appends validator sets, amends or removes the latest one, and sets the two peer lists. Ownership uses the two-step transfer, so a mistyped address cannot strand the registry.
 
 # 3. Offchain Systems
 
