@@ -10,6 +10,15 @@ RUN apt-get update -y && apt-get install -y bash curl git gzip netcat-openbsd
 
 RUN curl --proto '=https' --tlsv1.2 -L "https://foundry.paradigm.xyz" | bash
 ENV PATH="$PATH:/root/.foundry/bin"
-RUN foundryup --install stable
+
+# Pinned rather than tracking `stable`, which is a moving target: it resolves to
+# v1.7.1 today, so the deployer image builds with a different toolchain than the
+# jobs in .github/workflows/ci.yml do.
+#
+# This is one half of that parity, not the whole of it. Those jobs still install
+# `stable` on main, and the halmos job pins nothing at all; the matching host pin
+# is in #489 and has not merged yet. v1.2.3 is the version that reproduces the
+# checked-in formatting, which is what #489 pins to, so bump both together.
+RUN foundryup --install v1.2.3
 
 ENV RUST_BACKTRACE=full
