@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [main]
 
+# Foundry is pinned rather than tracking `stable` because `forge fmt` output is not stable
+# across releases. This tree was formatted with v1.2.3, which was stable as of the last commit
+# to main (2025-06-17); newer releases wrap function headers differently and reflow 63
+# otherwise-untouched files, so `forge fmt --check` fails on a clean checkout. Bump this
+# deliberately, in a commit that also runs the repo-wide `forge fmt`, rather than letting the
+# formatter drift underneath the check.
 env:
   FOUNDRY_PROFILE: ci
   ETH_MAINNET_RPC_URL: ${{ secrets.L1_MAINNET_RPC_URL }}
@@ -25,7 +31,7 @@ jobs:
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: stable
+          version: v1.2.3
 
       - name: Install Docker buildx
         uses: docker/setup-buildx-action@v2
@@ -35,8 +41,9 @@ jobs:
         shell: bash
 
       - name: Build Docker images defined in Docker Compose file
-        uses: docker/bake-action@v3
+        uses: docker/bake-action@v7
         with:
+          files: docker-compose.yml
           load: true # Load images into local Docker engine after build
 
       - name: Run containers defined in Docker Compose
@@ -103,7 +110,7 @@ jobs:
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: stable
+          version: v1.2.3
 
       - name: Run forge build
         run: |
@@ -145,7 +152,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: stable
+          version: v1.2.3
 
       - name: Check code coverage
         run: forge coverage --report summary --report lcov
