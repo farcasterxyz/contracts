@@ -185,6 +185,34 @@ interface ISnapchainConfigRegistry {
     function validatorSets() external view returns (ValidatorSet[] memory);
 
     /*//////////////////////////////////////////////////////////////
+                             TOML RENDERING
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Render the whole registry as a TOML fragment ready to merge into a node's config.
+     * @dev The canonical getter, and what every normal client calls. Equal to
+     *      `validatorSetsToml(0, validatorSetCount())` followed by `peersToml()`. See
+     *      docs/snapchain-config-registry.md for the exact output grammar, which is part of this
+     *      contract's public API.
+     */
+    function configToml() external view returns (string memory);
+
+    /**
+     * @notice Render a half-open range of validator sets as TOML.
+     * @dev An escape hatch for the day the whole document outgrows a public RPC's eth_call gas cap.
+     *      Ranges compose exactly: for any k in [start, end],
+     *      `validatorSetsToml(start, k) + validatorSetsToml(k, end) == validatorSetsToml(start, end)`.
+     * @param start First index, inclusive.
+     * @param end   Last index, exclusive.
+     */
+    function validatorSetsToml(uint256 start, uint256 end) external view returns (string memory);
+
+    /**
+     * @notice Render the gossip peer lists as a TOML `[gossip]` table.
+     */
+    function peersToml() external view returns (string memory);
+
+    /*//////////////////////////////////////////////////////////////
                          PERMISSIONED ACTIONS
     //////////////////////////////////////////////////////////////*/
 
