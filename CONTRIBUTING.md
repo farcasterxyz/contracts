@@ -99,9 +99,9 @@ A node provider like Alchemy, Infura or Coinbase can be used to deploy the contr
 create a `.env` file with the following secrets:
 
 - `GOERLI_RPC_URL`- get this from your node provider (alchemy/infura)
-- `GOERLI_PRIVATE_KEY` - [export](https://metamask.zendesk.com/hc/en-us/articles/360015289632-How-to-export-an-account-s-private-key)
+- `GOERLI_PRIVATE_KEY` - [export](https://support.metamask.io/configure/accounts/how-to-export-an-accounts-private-key/)
   this from a non-critical metamask wallet that has some goerli eth
-- `ETHERSCAN_KEY` - get this from the [etherscan api](https://etherscan.io/myapikey.)
+- `ETHERSCAN_KEY` - get this from the [etherscan api](https://etherscan.io/myapikey)
 
 1. Load the environment variables into your shell with `source .env`
 
