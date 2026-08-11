@@ -61,6 +61,32 @@ abstract contract ImmutableCreate2Deployer is Script {
     /// @dev Mapping of contract name to deployment details.
     mapping(string name => Deployment deployment) internal contracts;
 
+    /*//////////////////////////////////////////////////////////////
+                             FACTORY HOOKS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev The three points where this contract touches a specific CREATE2 factory, isolated so a
+     *      deployment can be routed through a different one. See CanonicalCreate2Deployer.
+     *
+     *      Every contract already deployed by this repo went through the ImmutableCreate2Factory, so
+     *      that stays the default: an override changes the deployment address of everything the
+     *      overriding script registers.
+     */
+    function create2Factory() public pure virtual returns (address) {
+        return address(IMMUTABLE_CREATE2_FACTORY);
+    }
+
+    function _hasBeenDeployed(
+        address deploymentAddress
+    ) internal view virtual returns (bool) {
+        return IMMUTABLE_CREATE2_FACTORY.hasBeenDeployed(deploymentAddress);
+    }
+
+    function _create2(bytes32 salt, bytes memory initCode) internal virtual returns (address) {
+        return IMMUTABLE_CREATE2_FACTORY.safeCreate2(salt, initCode);
+    }
+
     /**
      * @dev "Register" a contract to be deployed by deploy().
      *
@@ -113,11 +139,8 @@ abstract contract ImmutableCreate2Deployer is Script {
     ) internal returns (address) {
         bytes memory initCode = bytes.concat(creationCode, constructorArgs);
         bytes32 initCodeHash = keccak256(initCode);
-        address deploymentAddress = address(
-            uint160(
-                uint256(keccak256(abi.encodePacked(hex"ff", address(IMMUTABLE_CREATE2_FACTORY), salt, initCodeHash)))
-            )
-        );
+        address deploymentAddress =
+            address(uint160(uint256(keccak256(abi.encodePacked(hex"ff", create2Factory(), salt, initCodeHash)))));
         names.push(name);
         contracts[name] = Deployment({
             name: name,
@@ -165,11 +188,10 @@ abstract contract ImmutableCreate2Deployer is Script {
 
     function _deploy(string memory name, bool broadcast) internal {
         Deployment storage deployment = contracts[name];
-        if (!IMMUTABLE_CREATE2_FACTORY.hasBeenDeployed(deployment.deploymentAddress)) {
+        if (!_hasBeenDeployed(deployment.deploymentAddress)) {
             if (broadcast) vm.broadcast();
-            deployment.deploymentAddress = IMMUTABLE_CREATE2_FACTORY.safeCreate2(
-                deployment.salt, bytes.concat(deployment.creationCode, deployment.constructorArgs)
-            );
+            deployment.deploymentAddress =
+                _create2(deployment.salt, bytes.concat(deployment.creationCode, deployment.constructorArgs));
             deployment.status = Status.DEPLOYED;
         } else {
             deployment.status = Status.FOUND;
