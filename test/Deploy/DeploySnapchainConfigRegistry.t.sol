@@ -4,6 +4,7 @@ pragma solidity ^0.8.21;
 import {
     SnapchainConfigRegistry, DeploySnapchainConfigRegistry
 } from "../../script/DeploySnapchainConfigRegistry.s.sol";
+import {ISnapchainConfigRegistry} from "../../src/interfaces/ISnapchainConfigRegistry.sol";
 import {SnapchainConfigRegistryTestSuite} from "../SnapchainConfigRegistry/SnapchainConfigRegistryTestSuite.sol";
 
 /* solhint-disable state-visibility */
@@ -166,9 +167,11 @@ contract DeploySnapchainConfigRegistryTest is DeploySnapchainConfigRegistry, Sna
 /**
  * @dev The script refuses to seed a chain it has no data for.
  *
- *      Sepolia is the case that matters: Snapchain testnet runs a wholly separate validator set, so
- *      a script that silently fell back to mainnet's history would produce a well-formed registry
- *      that takes every testnet node down on boot. C6 supplies the testnet data.
+ *      The two seeded chains carry wholly separate validator sets, so a script that silently fell
+ *      back to either one's history on a third chain would produce a well-formed, renderable
+ *      registry capable of taking every node reading it down on boot. OP mainnet stands in for that
+ *      third chain: a plausible destination for a Farcaster contract, and one this registry has no
+ *      data for.
  *
  *      Its own contract because ImmutableCreate2Deployer accumulates `names` in storage across
  *      `register` calls. A second deploy from a contract that already deployed one in setUp finds
@@ -176,12 +179,14 @@ contract DeploySnapchainConfigRegistryTest is DeploySnapchainConfigRegistry, Sna
  *      runSetup would skip rather than revert, and the test would pass for the wrong reason.
  */
 contract DeploySnapchainConfigRegistrySeedGateTest is DeploySnapchainConfigRegistry {
+    uint256 internal constant OP_MAINNET_CHAIN_ID = 10;
+
     function setUp() public {
         vm.createSelectFork("eth_mainnet");
     }
 
     function test_revertsSeedingUnknownChain() public {
-        vm.chainId(ETH_SEPOLIA_CHAIN_ID);
+        vm.chainId(OP_MAINNET_CHAIN_ID);
 
         address deployer = makeAddr("deployer");
         DeploySnapchainConfigRegistry.DeploymentParams memory params = DeploySnapchainConfigRegistry.DeploymentParams({
@@ -193,9 +198,82 @@ contract DeploySnapchainConfigRegistrySeedGateTest is DeploySnapchainConfigRegis
         vm.startPrank(deployer);
         DeploySnapchainConfigRegistry.Contracts memory contracts = runDeploy(params, false);
 
-        vm.expectRevert(abi.encodeWithSelector(NoSeedDataForChain.selector, ETH_SEPOLIA_CHAIN_ID));
+        vm.expectRevert(abi.encodeWithSelector(NoSeedDataForChain.selector, OP_MAINNET_CHAIN_ID));
         this.runSetup(contracts, params, false);
         vm.stopPrank();
+    }
+}
+
+/**
+ * @dev The Sepolia branch seeds Snapchain testnet's history, not mainnet's.
+ *
+ *      Forked from mainnet with the chain id overridden rather than forked from Sepolia, because
+ *      what is under test is `_seedFor`'s branch on `block.chainid` -- the only chain state either
+ *      path touches is the CREATE2 proxy's code, which is byte-identical on both. Its own contract
+ *      for the same storage-accumulation reason as the seed gate test above.
+ */
+contract DeploySnapchainConfigRegistryTestnetSeedTest is DeploySnapchainConfigRegistry {
+    address internal registryOwner = makeAddr("registryOwner");
+    address internal deployer = makeAddr("deployer");
+
+    SnapchainConfigRegistry internal deployed;
+
+    function setUp() public {
+        vm.createSelectFork("eth_mainnet");
+        vm.chainId(ETH_SEPOLIA_CHAIN_ID);
+
+        DeploySnapchainConfigRegistry.DeploymentParams memory params = DeploySnapchainConfigRegistry.DeploymentParams({
+            deployer: deployer,
+            owner: registryOwner,
+            salts: DeploySnapchainConfigRegistry.Salts({snapchainConfigRegistry: 0})
+        });
+
+        vm.startPrank(deployer);
+        DeploySnapchainConfigRegistry.Contracts memory contracts = runDeploy(params, false);
+        runSetup(contracts, params, false);
+        vm.stopPrank();
+
+        deployed = contracts.snapchainConfigRegistry;
+    }
+
+    function test_seedsTestnetHistory() public {
+        // Thirteen appends plus two peer setters.
+        assertEq(deployed.validatorSetCount(), 13);
+        assertEq(deployed.configVersion(), 15);
+
+        assertEq(deployed.bootstrapPeers(), TESTNET_BOOTSTRAP_PEERS);
+        assertEq(deployed.directPeers(), TESTNET_DIRECT_PEERS);
+
+        // Genesis: all shards, four validators, one of which (T4) is long retired.
+        assertEq(deployed.validatorSetAt(0).effectiveAt, 0);
+        assertEq(deployed.validatorSetAt(0).shardIds.length, 3);
+        assertEq(deployed.validatorSetAt(0).validatorPublicKeys.length, 4);
+        assertEq(deployed.validatorSetAt(0).validatorPublicKeys[3], T4);
+
+        // Current: five validators, gloin last in.
+        assertEq(deployed.validatorSetAt(12).effectiveAt, 37_197_000);
+        assertEq(deployed.validatorSetAt(12).validatorPublicKeys.length, 5);
+        assertEq(deployed.validatorSetAt(12).validatorPublicKeys[4], T7);
+    }
+
+    /**
+     * @dev The whole point of the branch: no mainnet key reaches a testnet registry.
+     *
+     *      A registry seeded with the wrong network's set is not a recoverable mistake -- history is
+     *      append-only, so the remedy is a redeploy at a fresh salt and a repoint of every node.
+     *      Worth asserting directly rather than trusting the counts above to catch it.
+     */
+    function test_holdsNoMainnetKeys() public {
+        bytes32[8] memory mainnetKeys = [V1, V2, V3, V4, V5, V6, V7, V8];
+
+        ISnapchainConfigRegistry.ValidatorSet[] memory sets = deployed.validatorSets();
+        for (uint256 i; i < sets.length; ++i) {
+            for (uint256 j; j < sets[i].validatorPublicKeys.length; ++j) {
+                for (uint256 k; k < mainnetKeys.length; ++k) {
+                    assertTrue(sets[i].validatorPublicKeys[j] != mainnetKeys[k]);
+                }
+            }
+        }
     }
 }
 

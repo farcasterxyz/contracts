@@ -71,6 +71,47 @@ abstract contract SnapchainConfigRegistrySeed {
         " 12D3KooWDHG75L7M8t45d6moKhnhLHgM9BYt1PBTgZfYEgsXXUa9";
 
     /*//////////////////////////////////////////////////////////////
+                          TESTNET SEED DATA
+    //////////////////////////////////////////////////////////////*/
+
+    // The seven distinct validator keys in Snapchain testnet's history, numbered by first
+    // appearance in `snapchain-deployer/.stack/deploy.yml`. Node names are from the operator's
+    // key-to-host mapping, confirmed against the `signers` field of live commit certificates.
+    //
+    // T4 and T5 are retired: T4 ran only from genesis to 24_811_937, T5 replaced it and left at
+    // 28_681_000. Neither is in the current set, and both are kept because the history is what read
+    // nodes verify old commit signatures against.
+    bytes32 internal constant T1 = 0xe89dda4bff3ed5f75f56656a661f9f3e972b7206852dee7bfa65c6cee341e7ae; // juno
+    bytes32 internal constant T2 = 0x719a2a8331e05a3c5e2f4689fc71e7eabfea96d79c69df773a6fc8d8962dfda4; // iris
+    bytes32 internal constant T3 = 0x5b5eb128729aedd86b626f0d60267f770025a551989c422a8f6959ce0bcf24de; // vega
+    bytes32 internal constant T4 = 0x9b8e23233565a6d75e545b3750052ca0a19fe71b21bfb91a020498875f426e2e; // retired
+    bytes32 internal constant T5 = 0x634d5108d0d260eaa41e1c7e34ed4ec4549b2558ae2e1f8a3cb8e02f725e7501; // retired
+    bytes32 internal constant T6 = 0x1694afcc51709e4e2cb94e20bc99f9ea75f5d7ae7eeae66ffc6a350ff1cfd815; // merry
+    bytes32 internal constant T7 = 0xd1facefc03296a24d0d0b1c474e72ca2a84a48199c972d6f37d4722de450a056; // gloin
+
+    /**
+     * @dev Gossip peers for Snapchain testnet.
+     *
+     *      Taken from tau, the read node, rather than from a validator. Validators each run a list
+     *      that omits themselves, so no validator's list is complete; tau omits nothing, which makes
+     *      it the only node whose configured view is the whole cluster. The five bootstrap entries
+     *      are iris, juno and vega (10.0.x.x) plus merry and gloin, and the five peer ids are those
+     *      same nodes -- tau itself configures no direct peers, so DIRECT_PEERS is assembled from
+     *      the validators' lists, which agree on every id.
+     *
+     *      Carries the same unresolved question as the mainnet lists: the first three entries are
+     *      10.0.x.x addresses routable only inside the Neynar VPC, and publishing them in a registry
+     *      that external validators read is misleading to everyone outside it. Open on C6.
+     */
+    string internal constant TESTNET_BOOTSTRAP_PEERS = "/ip4/10.0.0.212/udp/3382/quic-v1,"
+        " /ip4/10.0.0.182/udp/3382/quic-v1, /ip4/10.0.1.229/udp/3382/quic-v1,"
+        " /ip4/50.17.173.197/udp/3382/quic-v1, /ip4/13.205.232.10/udp/3382/quic-v1";
+
+    string internal constant TESTNET_DIRECT_PEERS = "12D3KooWHTpapWmaNYxPcaWn9Uhoh7TZ67LZcM9dCUMMEwebCe7V,"
+        " 12D3KooWRUQMrmZGXKQvafnqZQBPuAoV1mEFLXvkZwWtgiojhoXB, 12D3KooWFy31r6kuGGuxtAcfPzePpUTtoDo4f5gCJb3A17ximJYd,"
+        " 12D3KooWBLWdvcKWCUyuFtaoFWnNWZXbRNVtF629fLHUrRJboghS, 12D3KooWPx3CCoZR7Fwg5foTkhiZEYpTdYJVbqgmbpDgzarEoKG9";
+
+    /*//////////////////////////////////////////////////////////////
                                   SEED
     //////////////////////////////////////////////////////////////*/
 
@@ -88,12 +129,11 @@ abstract contract SnapchainConfigRegistrySeed {
     /**
      * @dev Seed data for the chain this is running on.
      *
-     *      Sepolia deliberately has none yet. Snapchain testnet runs an entirely separate validator
-     *      set -- different keys, different heights, currently 10-plus entries in
-     *      `snapchain-deployer/.stack/deploy.yml` -- so seeding it with mainnet's history would
-     *      produce a registry that is wrong in the worst available way: well-formed, renderable, and
-     *      capable of taking every testnet node down on boot. Transcribing and verifying that data
-     *      is C6's job. Reverting here is the honest placeholder.
+     *      Snapchain testnet runs an entirely separate validator set -- different keys, different
+     *      heights, thirteen entries against mainnet's ten -- so seeding Sepolia with mainnet's
+     *      history would produce a registry that is wrong in the worst available way: well-formed,
+     *      renderable, and capable of taking every testnet node down on boot. Hence two branches and
+     *      a revert on anything else, rather than a default.
      */
     function _seedFor(
         uint256 chainId
@@ -103,6 +143,13 @@ abstract contract SnapchainConfigRegistrySeed {
                 validatorSets: _mainnetValidatorSets(),
                 bootstrapPeers: MAINNET_BOOTSTRAP_PEERS,
                 directPeers: MAINNET_DIRECT_PEERS
+            });
+        }
+        if (chainId == ETH_SEPOLIA_CHAIN_ID) {
+            return Seed({
+                validatorSets: _testnetValidatorSets(),
+                bootstrapPeers: TESTNET_BOOTSTRAP_PEERS,
+                directPeers: TESTNET_DIRECT_PEERS
             });
         }
         revert NoSeedDataForChain(chainId);
@@ -136,6 +183,41 @@ abstract contract SnapchainConfigRegistrySeed {
         sets[9] = _set(39_798_000, _shards(1), _keys(V1, V2, V3, V6, V5, V7, V8));
     }
 
+    /**
+     * @dev Snapchain testnet's validator-set history as `snapchain-deployer/.stack/deploy.yml`
+     *      records it, all thirteen entries back to `effective_at = 0`. Every testnet pod in that
+     *      file -- iris, juno, vega and the tau read node -- carries a byte-identical VALIDATOR_SETS
+     *      string, so there is one history rather than four to reconcile.
+     *
+     *      Ordered by ascending `effective_at` as the mainnet block is, which is not deploy.yml's
+     *      literal order: it lists shard 1 before shard 2 in the 25_085_* and 33_4*_000 rollouts,
+     *      and those pairs are transposed here. The registry bounds an entry only against preceding
+     *      entries sharing a shard, and per-shard order is identical either way.
+     *
+     *      Five validators today: juno, iris and vega since genesis, merry from 33_145_000, gloin
+     *      from 36_922_000. Verified against live commit certificates at shard heights 42_738_208 /
+     *      43_002_880 / 43_012_625 on 2026-08-11, all well past the last entry, so this history is
+     *      complete rather than merely current. Those certificates carry four of the five signers --
+     *      quorum is 4 of 5 and gloin sits in the Neynar cluster, far enough from the others that
+     *      its precommit routinely lands after quorum forms. Its own heights track the cluster.
+     */
+    function _testnetValidatorSets() internal pure returns (ISnapchainConfigRegistry.ValidatorSet[] memory sets) {
+        sets = new ISnapchainConfigRegistry.ValidatorSet[](13);
+        sets[0] = _set(0, _shards(0, 1, 2), _keys(T1, T2, T3, T4));
+        sets[1] = _set(24_811_937, _shards(0), _keys(T1, T2, T3, T5));
+        sets[2] = _set(25_085_320, _shards(2), _keys(T1, T2, T3, T5));
+        sets[3] = _set(25_085_333, _shards(1), _keys(T1, T2, T3, T5));
+        sets[4] = _set(28_681_000, _shards(0), _keys(T1, T2, T3));
+        sets[5] = _set(28_955_000, _shards(1), _keys(T1, T2, T3));
+        sets[6] = _set(28_955_000, _shards(2), _keys(T1, T2, T3));
+        sets[7] = _set(33_145_000, _shards(0), _keys(T1, T2, T3, T6));
+        sets[8] = _set(33_419_000, _shards(2), _keys(T1, T2, T3, T6));
+        sets[9] = _set(33_421_000, _shards(1), _keys(T1, T2, T3, T6));
+        sets[10] = _set(36_922_000, _shards(0), _keys(T1, T2, T3, T6, T7));
+        sets[11] = _set(37_196_000, _shards(2), _keys(T1, T2, T3, T6, T7));
+        sets[12] = _set(37_197_000, _shards(1), _keys(T1, T2, T3, T6, T7));
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -164,6 +246,21 @@ abstract contract SnapchainConfigRegistrySeed {
         shardIds[0] = a;
         shardIds[1] = b;
         shardIds[2] = c;
+    }
+
+    function _keys(bytes32 a, bytes32 b, bytes32 c) internal pure returns (bytes32[] memory k) {
+        k = new bytes32[](3);
+        k[0] = a;
+        k[1] = b;
+        k[2] = c;
+    }
+
+    function _keys(bytes32 a, bytes32 b, bytes32 c, bytes32 d) internal pure returns (bytes32[] memory k) {
+        k = new bytes32[](4);
+        k[0] = a;
+        k[1] = b;
+        k[2] = c;
+        k[3] = d;
     }
 
     function _keys(bytes32 a, bytes32 b, bytes32 c, bytes32 d, bytes32 e) internal pure returns (bytes32[] memory k) {
