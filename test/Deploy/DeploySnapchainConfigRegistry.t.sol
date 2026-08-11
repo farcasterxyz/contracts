@@ -16,9 +16,9 @@ contract DeploySnapchainConfigRegistryTest is DeploySnapchainConfigRegistry, Sna
     SnapchainConfigRegistry internal deployed;
 
     function setUp() public override {
-        // Forked because the deploy goes through the ImmutableCreate2Factory at
-        // 0x0000000000FFe8B47B3e2130213B802212439497, which only exists on real chains. Unpinned, as
-        // DeployL1Test is -- nothing here reads chain state beyond that factory's code.
+        // Forked because the deploy goes through the canonical CREATE2 proxy at
+        // 0x4e59b44847b379578588920cA78FbF26c0B4956C, which only exists on real chains. Unpinned, as
+        // DeployL1Test is -- nothing here reads chain state beyond that proxy's code.
         vm.createSelectFork("eth_mainnet");
 
         // Seeds `registry`, the reference instance built by owner pranks rather than by the script.
@@ -72,11 +72,11 @@ contract DeploySnapchainConfigRegistryTest is DeploySnapchainConfigRegistry, Sna
     /**
      * @dev Re-running the script against an already-deployed registry changes nothing.
      *
-     *      The idempotency claim is the reason `deploy()` checks `hasBeenDeployed` and
-     *      `deploymentChanged()` gates setup, and every other test here exercises only the
-     *      first-run branch. It matters because the second run is the dangerous one: seeding again
-     *      would append the ten-entry history a second time, and re-running `transferOwnership`
-     *      after the owner had accepted would quietly hand the registry back to the deployer.
+     *      The idempotency claim is the reason `deploy()` checks for existing code and setup is
+     *      gated on `configVersion()`, and every other test here exercises only the first-run
+     *      branch. It matters because the second run is the dangerous one: seeding again would
+     *      append the ten-entry history a second time, and re-running `transferOwnership` after the
+     *      owner had accepted would quietly hand the registry back to the deployer.
      *
      *      Deployed from a fresh script instance rather than reusing `this`, because
      *      ImmutableCreate2Deployer accumulates `names` and `contracts` in storage. A real re-run
@@ -111,8 +111,8 @@ contract DeploySnapchainConfigRegistryTest is DeploySnapchainConfigRegistry, Sna
      * @dev `loadDeploymentParams` and the chain-dependent salt selection, which nothing else calls.
      *
      *      Worth exercising because the failure mode is invisible until broadcast: a typo in a
-     *      variable name reads as "unset", and `vm.envOr` then silently supplies `bytes32(0)` --
-     *      a salt with no caller-lock, at an address anyone could have front-run.
+     *      variable name reads as "unset", and `vm.envOr` then silently supplies `bytes32(0)` -- not
+     *      the mined address, and a salt so well known that the address may already be taken.
      *
      *      Written as one function, in this order, on purpose. `vm.setEnv` writes the process
      *      environment and there is no way to unset a variable afterwards, so the "no override
@@ -172,9 +172,8 @@ contract DeploySnapchainConfigRegistryTest is DeploySnapchainConfigRegistry, Sna
  *
  *      Its own contract because ImmutableCreate2Deployer accumulates `names` in storage across
  *      `register` calls. A second deploy from a contract that already deployed one in setUp finds
- *      the first entry's address on the repeat pass, marks it FOUND, and `deploymentChanged()` then
- *      reports no change -- so runSetup would skip rather than revert, and the test would pass for
- *      the wrong reason.
+ *      the first entry's address on the repeat pass, and that registry is already seeded -- so
+ *      runSetup would skip rather than revert, and the test would pass for the wrong reason.
  */
 contract DeploySnapchainConfigRegistrySeedGateTest is DeploySnapchainConfigRegistry {
     function setUp() public {
@@ -197,5 +196,61 @@ contract DeploySnapchainConfigRegistrySeedGateTest is DeploySnapchainConfigRegis
         vm.expectRevert(abi.encodeWithSelector(NoSeedDataForChain.selector, ETH_SEPOLIA_CHAIN_ID));
         this.runSetup(contracts, params, false);
         vm.stopPrank();
+    }
+}
+
+/**
+ * @dev A registry someone else deployed at our salt still gets seeded.
+ *
+ *      The canonical CREATE2 proxy has no caller lock, so anyone can submit our salt and init code
+ *      first. The deployment itself is harmless -- same creation code, same constructor argument, so
+ *      the contract that lands is ours, owned by us, at their expense. What is not harmless is the
+ *      script's reaction to finding it: gated on `deploymentChanged()` it would log "no changes" and
+ *      exit, leaving a registry that every node reads and that holds nothing.
+ *
+ *      Its own contract for the reason the seed gate test is, and it front-runs by calling the proxy
+ *      directly rather than by any cheatcode, so what is asserted is the real path.
+ */
+contract DeploySnapchainConfigRegistryFrontRunTest is DeploySnapchainConfigRegistry {
+    address internal registryOwner = makeAddr("registryOwner");
+    address internal deployer = makeAddr("deployer");
+    address internal frontRunner = makeAddr("frontRunner");
+
+    bytes32 internal constant SALT = bytes32(uint256(0xf00));
+
+    function setUp() public {
+        vm.createSelectFork("eth_mainnet");
+    }
+
+    function test_seedsRegistryDeployedBySomeoneElse() public {
+        bytes memory initCode = bytes.concat(type(SnapchainConfigRegistry).creationCode, abi.encode(deployer));
+
+        vm.prank(frontRunner);
+        (bool success,) = CANONICAL_CREATE2_PROXY.call(abi.encodePacked(SALT, initCode));
+        assertTrue(success);
+
+        DeploySnapchainConfigRegistry.DeploymentParams memory params = DeploySnapchainConfigRegistry.DeploymentParams({
+            deployer: deployer,
+            owner: registryOwner,
+            salts: DeploySnapchainConfigRegistry.Salts({snapchainConfigRegistry: SALT})
+        });
+
+        vm.startPrank(deployer);
+        DeploySnapchainConfigRegistry.Contracts memory contracts = runDeploy(params, false);
+
+        // The registry the front-runner deployed is the one the script was going to deploy, and the
+        // script correctly declines to deploy it twice.
+        assertGt(address(contracts.snapchainConfigRegistry).code.length, 0);
+        assertFalse(deploymentChanged());
+
+        runSetup(contracts, params, false);
+        vm.stopPrank();
+
+        // Seeded anyway, and owned by us throughout -- the front-runner never had a claim on it.
+        SnapchainConfigRegistry deployed = contracts.snapchainConfigRegistry;
+        assertEq(deployed.validatorSetCount(), 10);
+        assertEq(deployed.configVersion(), 12);
+        assertEq(deployed.owner(), deployer);
+        assertEq(deployed.pendingOwner(), registryOwner);
     }
 }
