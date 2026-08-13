@@ -12,6 +12,7 @@ This repository contains all the contracts deployed by the [Farcaster protocol](
 8. **[Recovery Proxy](./src/RecoveryProxy.sol)** - proxy for recovery service operators to initiate fid recovery.
 9. **[Fname Resolver](./src/FnameResolver.sol)** - validates Farcaster ENS names which were issued offchain.
 10. **[Tier Registry](./src/TierRegistry.sol)** - processes Farcaster Pro subscription payments.
+11. **[Snapchain Config Registry](./src/SnapchainConfigRegistry.sol)** - holds the validator sets and gossip peer lists for a Snapchain network.
 
 Read the [docs](docs/docs.md) for more details on how the contracts work.
 
@@ -40,9 +41,18 @@ The [v3.1 contracts](https://github.com/farcasterxyz/contracts/releases/tag/v3.1
 
 ### ETH Mainnet
 
-| Contract      | Address          |
-| ------------- | ---------------- |
-| FnameResolver | Not yet deployed |
+| Contract                | Address          |
+| ----------------------- | ---------------- |
+| FnameResolver           | Not yet deployed |
+| SnapchainConfigRegistry | Not yet deployed |
+
+### ETH Sepolia
+
+Serves the Snapchain **Testnet** network. A separate chain rather than a second address on mainnet, so a testnet config mistake cannot touch mainnet state and the rehearsal costs nothing real.
+
+| Contract                | Address          |
+| ----------------------- | ---------------- |
+| SnapchainConfigRegistry | Not yet deployed |
 
 ## Audits
 

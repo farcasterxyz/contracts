@@ -382,14 +382,27 @@ validators does.
 
 ## 10. Deployment shape
 
-Two registries, both on Ethereum L1 mainnet, distinguished by address and by CREATE2 salt: one for
-Snapchain mainnet, one for Snapchain testnet. Testnet validators already point at the same L1 RPC
-endpoint as mainnet ones, so a separate chain would mean provisioning a second RPC secret for no
-isolation benefit — the isolation that matters is between config sets, not between chains.
+One registry per Snapchain network, on separate chains: mainnet on Ethereum L1, testnet on Sepolia.
+Separate chains rather than two addresses on one, so a testnet config mistake cannot touch mainnet
+state and the rehearsal costs nothing real. Identical creation code, constructor argument and salt
+put the two at the same address on their respective chains — a convenience, not something to depend
+on, since a redeploy on either breaks it.
 
 The constructor takes only `_initialOwner` and no config. Seeding happens in the deploy script's
 setup phase, which keeps the creation code — and therefore any CREATE2 vanity address — independent
-of the config payload, so revising seed data before launch does not force re-mining a salt.
+of the config payload, so revising seed data before launch does not force re-mining a salt. The
+argument is the deploying address, which owns the registry through seeding and hands off afterwards,
+so the mined salt is bound to the key that broadcasts.
+
+Deployed through the canonical deterministic-deployment proxy at
+`0x4e59b44847b379578588920cA78FbF26c0B4956C` rather than the ImmutableCreate2Factory the rest of the
+repo uses. That factory requires the salt's first 20 bytes to equal the caller, which is why every
+other salt in `.env.example` carries a deployer prefix and only its trailing 12 bytes were mined; the
+proxy checks nothing, so the whole 32-byte salt is searchable. What that gives up is exclusivity:
+anyone can submit the same salt and init code first. The deployment itself is harmless — same
+creation code and same constructor argument, so the contract that lands is ours, owned by us, at
+their expense — but it is the reason the setup phase is gated on `configVersion()` rather than on
+whether this run was the one that deployed.
 
 ## 11. Consumers
 
