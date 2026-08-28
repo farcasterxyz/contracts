@@ -1,0 +1,2 @@
+//  By naming a file `<filename>.mainnet.tx`, this file will only be included in the runbook when the environment is set to `mainnet`:
+// `txtx run deploy-l1 --env mainnet`
