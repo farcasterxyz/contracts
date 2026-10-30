@@ -177,3 +177,4 @@ jobs:
           minimum-coverage: 94
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
+          artifact-name: code-coverage-report # upload the full HTML report, since the PR comment is summary-only
