@@ -137,6 +137,8 @@ jobs:
 
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.1 # unpinned forge (1.8.x) emits cheatcodes halmos does not support
 
       - name: Run halmos
         run: halmos --test-parallel --solver-parallel --storage-layout=generic --solver-timeout-assertion 0
