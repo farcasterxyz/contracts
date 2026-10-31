@@ -168,12 +168,36 @@ jobs:
       # The `--rc branch_coverage=1` part keeps branch info in the filtered report, since lcov
       # defaults to removing branch info.
       # forge names lcov functions without their parameter types, so overloads (e.g. `IdGateway.price`)
-      # appear as duplicate definitions, which lcov >= 2.4 rejects as `inconsistent`. The filtered
-      # output merges them, so later lcov/genhtml calls on it do not need the flag.
+      # appear as duplicate definitions, which lcov >= 2.4 rejects as `inconsistent`. The awk pass
+      # suffixes each overload's FN/FNDA records with its start line (`IdGateway.price_L86`) so lcov
+      # sees distinct functions and every other consistency check stays enabled.
       - name: Filter directories
         run: |
           sudo apt update && sudo apt install -y lcov
-          lcov --remove lcov.info 'test/*' 'script/*' 'src/libraries/*' --output-file lcov.info --rc branch_coverage=1 --ignore-errors inconsistent
+          awk '
+            function flush(  i, l, p, name, k) {
+              for (i = 1; i <= n; i++) {
+                l = buf[i]
+                if (l ~ /^FN(DA)?:/) {
+                  name = l; sub(/^.*,/, "", name)
+                  p = l; sub(/[^,]*$/, "", p)
+                  k = (l ~ /^FN:/) ? ++fn[name] : ++fnda[name]
+                  if (cnt[name] > 1) l = p name "_L" start[name, k]
+                }
+                print l
+              }
+              n = 0; delete cnt; delete start; delete fn; delete fnda
+            }
+            { buf[++n] = $0 }
+            /^FN:/ {
+              name = $0; sub(/^.*,/, "", name)
+              line = $0; sub(/^FN:/, "", line); sub(/,.*$/, "", line)
+              start[name, ++cnt[name]] = line
+            }
+            /^end_of_record/ { flush() }
+            END { flush() }
+          ' lcov.info > lcov.dedup.info && mv lcov.dedup.info lcov.info
+          lcov --remove lcov.info 'test/*' 'script/*' 'src/libraries/*' --output-file lcov.info --rc branch_coverage=1
 
       # Post a coverage summary comment on the PR (updating the previous one) and fail if the threshold is not met
       - name: Report and verify minimum coverage
