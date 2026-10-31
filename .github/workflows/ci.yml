@@ -19,6 +19,9 @@ env:
   OP_MAINNET_RPC_URL: ${{ secrets.L2_MAINNET_RPC_URL }}
   BASE_MAINNET_RPC_URL: ${{ secrets.BASE_MAINNET_RPC_URL }}
 
+permissions:
+  contents: read
+
 jobs:
   build-image:
     timeout-minutes: 5
