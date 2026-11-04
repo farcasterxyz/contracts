@@ -173,7 +173,7 @@ jobs:
       # sees distinct functions and every other consistency check stays enabled.
       - name: Filter directories
         run: |
-          sudo apt update && sudo apt install -y lcov
+          sudo apt -o Acquire::Retries=0 update && sudo apt -o Acquire::Retries=0 install -y lcov
           awk '
             function flush(  i, l, p, name, k) {
               for (i = 1; i <= n; i++) {
