@@ -6,7 +6,8 @@
 
 FROM ubuntu:latest
 
-RUN apt-get update -y && apt-get install -y bash curl git gzip netcat-openbsd
+RUN echo 'Acquire::Retries "0";' > /etc/apt/apt.conf.d/99-cve-2026-109518 && \
+    apt-get update -y && apt-get install -y bash curl git gzip netcat-openbsd
 
 RUN curl --proto '=https' --tlsv1.2 -L "https://foundry.paradigm.xyz" | bash
 ENV PATH="$PATH:/root/.foundry/bin"
