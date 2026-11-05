@@ -150,7 +150,7 @@ interface IIdGateway {
     /**
      * @notice Set the StorageRegistry address. Only callable by owner.
      *
-     * @param _storageRegistry The new StorageREgistry address.
+     * @param _storageRegistry The new StorageRegistry address.
      */
     function setStorageRegistry(
         address _storageRegistry
